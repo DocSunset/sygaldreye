@@ -38,6 +38,7 @@ void android_main(struct android_app* app) {
     state.xrSystemId = xr_get_system(state.xrInstance);
     state.renderer.init();
     state.xrSession.create(state.xrInstance, state.xrSystemId, state.renderer.graphics_binding());
+    state.renderer.create_swapchains(state.xrInstance, state.xrSystemId, state.xrSession.get());
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
 
