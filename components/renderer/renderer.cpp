@@ -1,10 +1,18 @@
 #include "renderer.hpp"
 #include <android/log.h>
+#include <cmath>
+#include <time.h>
 
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
 
 #define XR_CHECK(r) do { XrResult _r = (r); if (XR_FAILED(_r)) { LOGE(#r " failed: %d", (int)_r); return false; } } while(0)
+#define XR_LOG_ERR(expr) do { XrResult _r = (expr); if (XR_FAILED(_r)) LOGE(#expr " failed: %d", (int)_r); } while(0)
+
+static double now_sec() {
+    struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec * 1e-9;
+}
 
 bool Renderer::init() {
     display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -135,4 +143,48 @@ bool Renderer::create_swapchains(XrInstance instance, XrSystemId systemId, XrSes
         LOG("eye[%d] fbos: %u", eye, imgCount);
     }
     return true;
+}
+
+void Renderer::render_eyes(XrTime predictedDisplayTime) {
+    static bool first = true;
+    if (first) { LOG("eye rendering started"); first = false; }
+
+    static double lastColorLog = 0;
+    double phase = (double)predictedDisplayTime * 1e-9;
+    float r = 0.5f + 0.5f * sinf((float)phase);
+    float g = 0.5f + 0.5f * sinf((float)phase + 2.094f);
+    float b = 0.5f + 0.5f * sinf((float)phase + 4.189f);
+
+    double t = now_sec();
+    if (t - lastColorLog >= 2.0) {
+        LOG("eye clear color r=%.3f g=%.3f b=%.3f", r, g, b);
+        lastColorLog = t;
+    }
+
+    for (int eye = 0; eye < 2; ++eye) {
+        EyeSwapchain& e = eyes[eye];
+
+        XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+        uint32_t index = 0;
+        XR_LOG_ERR(xrAcquireSwapchainImage(e.handle, &ai, &index));
+
+        XrSwapchainImageWaitInfo wi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+        wi.timeout = XR_INFINITE_DURATION;
+        XR_LOG_ERR(xrWaitSwapchainImage(e.handle, &wi));
+
+        glBindFramebuffer(GL_FRAMEBUFFER, e.fbo(index));
+        glViewport(0, 0, (GLsizei)e.width, (GLsizei)e.height);
+        glClearColor(r, g, b, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        static double lastGlErr = 0;
+        if (t - lastGlErr >= 2.0) {
+            GLenum err = glGetError();
+            if (err != GL_NO_ERROR) { LOGE("glGetError: 0x%x", err); lastGlErr = t; }
+        }
+
+        XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+        XR_LOG_ERR(xrReleaseSwapchainImage(e.handle, &ri));
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

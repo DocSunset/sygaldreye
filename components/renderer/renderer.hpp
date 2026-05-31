@@ -31,4 +31,5 @@ struct Renderer {
     bool init();
     XrGraphicsBindingOpenGLESAndroidKHR graphics_binding() const;
     bool create_swapchains(XrInstance, XrSystemId, XrSession);
+    void render_eyes(XrTime predictedDisplayTime);
 };

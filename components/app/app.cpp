@@ -52,7 +52,7 @@ void android_main(struct android_app* app) {
         }
         state.xrSession.poll_events();
         if (state.xrSession.session_running())
-            state.xrSession.render_frame();
+            state.xrSession.render_frame({}, [&](XrTime t){ state.renderer.render_eyes(t); });
     }
 
     LOG("android_main: exiting");
