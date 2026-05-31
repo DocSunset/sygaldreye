@@ -10,8 +10,10 @@
 struct XrSession_;  // forward not needed; XrSession is a handle
 
 struct XrSessionObj {
-    XrSession handle = XR_NULL_HANDLE;
+    XrSession handle    = XR_NULL_HANDLE;
+    XrSpace   worldSpace = XR_NULL_HANDLE;
 
     bool create(XrInstance, XrSystemId, const XrGraphicsBindingOpenGLESAndroidKHR&);
-    XrSession get() const { return handle; }
+    XrSession get()       const { return handle; }
+    XrSpace   worldSpace_() const { return worldSpace; }
 };

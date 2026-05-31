@@ -11,6 +11,7 @@ Owning package: `xr`
 
 ### Outputs
 - `XrSession` handle
+- `XrSpace` world reference space (STAGE preferred, LOCAL fallback)
 
 ### Temporal couplings
 - Session must be created after the XrInstance and XrSystemId exist
