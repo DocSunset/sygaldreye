@@ -1,6 +1,41 @@
 #include <android/log.h>
 #include <android_native_app_glue.h>
 
-void android_main(struct android_app* /*app*/) {
-    __android_log_print(ANDROID_LOG_INFO, "eyeballs", "android_main: started");
+#define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
+
+struct AppState {
+    bool hasWindow = false;
+    bool hasFocus  = false;
+    bool renderable() const { return hasWindow && hasFocus; }
+};
+
+static void onAppCmd(struct android_app* app, int32_t cmd) {
+    auto* s = static_cast<AppState*>(app->userData);
+    switch (cmd) {
+        case APP_CMD_INIT_WINDOW:  s->hasWindow = true;  LOG("INIT_WINDOW");   break;
+        case APP_CMD_TERM_WINDOW:  s->hasWindow = false; LOG("TERM_WINDOW");   break;
+        case APP_CMD_GAINED_FOCUS: s->hasFocus  = true;  LOG("GAINED_FOCUS");  break;
+        case APP_CMD_LOST_FOCUS:   s->hasFocus  = false; LOG("LOST_FOCUS");    break;
+        case APP_CMD_DESTROY:                            LOG("DESTROY");       break;
+    }
+}
+
+void android_main(struct android_app* app) {
+    LOG("android_main: started");
+
+    AppState state;
+    app->userData  = &state;
+    app->onAppCmd  = onAppCmd;
+
+    while (!app->destroyRequested) {
+        int         events;
+        android_poll_source* source;
+        int timeout = state.renderable() ? 0 : -1;
+        if (ALooper_pollOnce(timeout, nullptr, &events,
+                             reinterpret_cast<void**>(&source)) >= 0) {
+            if (source) source->process(app, source);
+        }
+    }
+
+    LOG("android_main: exiting");
 }
