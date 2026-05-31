@@ -3,16 +3,15 @@ set -euo pipefail
 # shellcheck source=nix_shell_guard.sh
 source "$(dirname "$0")/nix_shell_guard.sh"
 
-# Pushes the Android binary to a connected device/emulator via adb and runs it.
-: "${ANDROID_NDK_ROOT:?ANDROID_NDK_ROOT must be set (enter nix devShell first)}"
+PACKAGE="com.eyeballs.vr"
+TAG="eyeballs"
 
-BINARY="build/android/app/hello/app_hello"
+bash "$(dirname "$0")/package.sh"
 
-if [[ ! -f "$BINARY" ]]; then
-    echo "Binary not found. Run sh/build.sh first." >&2
-    exit 1
-fi
+adb install -r build/apk/eyeballs.apk
 
-adb push "$BINARY" /data/local/tmp/app_hello
-adb shell chmod +x /data/local/tmp/app_hello
-adb shell /data/local/tmp/app_hello
+adb logcat -c
+# Use monkey to bypass the HorizonOS controller-required launch interceptor
+adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1
+
+adb logcat -s "$TAG:V" "*:S"
