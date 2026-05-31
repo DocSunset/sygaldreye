@@ -12,6 +12,7 @@ Android NativeActivity entry point. Runs the `native_app_glue` event loop, dispa
 **Outputs**
 - `AppState::renderable()` — `true` when `hasWindow && hasFocus`; consumers poll this to know whether to render
 - `AppState::xrInstance` — OpenXR instance handle; valid after `android_main` initializes it
+- `AppState::xrSystemId` — OpenXR HMD system id; valid after `xr_get_system` succeeds
 
 **Sources**
 - `struct android_app* app` — OS lifecycle and event state provided by `native_app_glue`

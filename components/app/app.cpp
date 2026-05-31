@@ -5,12 +5,14 @@
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 
 XrInstance xr_create_instance(struct android_app*);
+XrSystemId xr_get_system(XrInstance);
 
 struct AppState {
     bool hasWindow = false;
     bool hasFocus  = false;
     bool renderable() const { return hasWindow && hasFocus; }
     XrInstance xrInstance = XR_NULL_HANDLE;
+    XrSystemId xrSystemId = XR_NULL_SYSTEM_ID;
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -29,6 +31,7 @@ void android_main(struct android_app* app) {
 
     AppState state;
     state.xrInstance = xr_create_instance(app);
+    state.xrSystemId = xr_get_system(state.xrInstance);
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
 

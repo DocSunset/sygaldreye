@@ -21,6 +21,40 @@
         if (XR_FAILED(_r)) { LOGE(#call " failed: %d", (int)_r); return XR_NULL_HANDLE; } \
     } while (0)
 
+#define XR_CHECK_SYS(call) \
+    do { \
+        XrResult _r = (call); \
+        if (XR_FAILED(_r)) { LOGE(#call " failed: %d", (int)_r); return XR_NULL_SYSTEM_ID; } \
+    } while (0)
+
+XrSystemId xr_get_system(XrInstance instance) {
+    XrSystemGetInfo sgi{XR_TYPE_SYSTEM_GET_INFO};
+    sgi.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
+    XrSystemId systemId = XR_NULL_SYSTEM_ID;
+    XR_CHECK_SYS(xrGetSystem(instance, &sgi, &systemId));
+    LOG("xrGetSystem: success, systemId=%llu", (unsigned long long)systemId);
+
+    XrSystemGraphicsProperties gfx{};
+    XrSystemTrackingProperties trk{};
+    XrSystemProperties props{XR_TYPE_SYSTEM_PROPERTIES};
+    props.graphicsProperties = gfx;
+    props.trackingProperties = trk;
+    XrResult r = xrGetSystemProperties(instance, systemId, &props);
+    if (XR_FAILED(r)) {
+        LOGE("xrGetSystemProperties failed: %d", (int)r);
+    } else {
+        LOG("systemName=%s vendorId=%u", props.systemName, props.vendorId);
+        LOG("maxSwapchainImageWidth=%u maxSwapchainImageHeight=%u maxLayerCount=%u",
+            props.graphicsProperties.maxSwapchainImageWidth,
+            props.graphicsProperties.maxSwapchainImageHeight,
+            props.graphicsProperties.maxLayerCount);
+        LOG("orientationTracking=%d positionTracking=%d",
+            props.trackingProperties.orientationTracking,
+            props.trackingProperties.positionTracking);
+    }
+    return systemId;
+}
+
 XrInstance xr_create_instance(struct android_app* app) {
     // Init loader
     PFN_xrInitializeLoaderKHR initLoader = nullptr;
