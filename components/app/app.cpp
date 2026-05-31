@@ -50,6 +50,8 @@ void android_main(struct android_app* app) {
             if (source) source->process(app, source);
         }
         state.xrSession.poll_events();
+        if (state.xrSession.session_running())
+            state.xrSession.render_frame();
     }
 
     LOG("android_main: exiting");
