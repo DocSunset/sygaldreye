@@ -1,6 +1,7 @@
 #include <android/log.h>
 #include <android_native_app_glue.h>
 #include <openxr/openxr.h>
+#include "renderer.hpp"
 
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 
@@ -13,6 +14,7 @@ struct AppState {
     bool renderable() const { return hasWindow && hasFocus; }
     XrInstance xrInstance = XR_NULL_HANDLE;
     XrSystemId xrSystemId = XR_NULL_SYSTEM_ID;
+    Renderer renderer{};
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -32,6 +34,7 @@ void android_main(struct android_app* app) {
     AppState state;
     state.xrInstance = xr_create_instance(app);
     state.xrSystemId = xr_get_system(state.xrInstance);
+    state.renderer.init();
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
 
