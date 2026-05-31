@@ -4,6 +4,6 @@ add_library(native_app_glue STATIC ${NDK_GLUE}/android_native_app_glue.c)
 target_include_directories(native_app_glue PUBLIC ${NDK_GLUE})
 
 add_library(eyeballs SHARED app.cpp xr.cpp)
-target_link_libraries(eyeballs PRIVATE native_app_glue android log openxr_loader renderer)
+target_link_libraries(eyeballs PRIVATE native_app_glue android log openxr_loader renderer xr_session)
 target_compile_options(eyeballs PRIVATE -Wall -Wextra)
 target_link_options(eyeballs PRIVATE -u ANativeActivity_onCreate)

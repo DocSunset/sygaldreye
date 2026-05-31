@@ -2,6 +2,7 @@
 #include <android_native_app_glue.h>
 #include <openxr/openxr.h>
 #include "renderer.hpp"
+#include "xr_session.hpp"
 
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 
@@ -15,6 +16,7 @@ struct AppState {
     XrInstance xrInstance = XR_NULL_HANDLE;
     XrSystemId xrSystemId = XR_NULL_SYSTEM_ID;
     Renderer renderer{};
+    XrSessionObj xrSession{};
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -35,6 +37,7 @@ void android_main(struct android_app* app) {
     state.xrInstance = xr_create_instance(app);
     state.xrSystemId = xr_get_system(state.xrInstance);
     state.renderer.init();
+    state.xrSession.create(state.xrInstance, state.xrSystemId, state.renderer.graphics_binding());
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
 
