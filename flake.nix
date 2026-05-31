@@ -13,10 +13,11 @@
       androidComposition = pkgs.androidenv.composeAndroidPackages {
         platformVersions = [ "34" ];
         buildToolsVersions = [ "34.0.0" ];
-        ndkVersions = [ "26.1.10909125" ];
+        includeNDK = true;
+        ndkVersions = [ "27.3.13750724" ];
       };
 
-      ndkRoot = "${androidComposition.androidsdk}/libexec/android-sdk/ndk/26.1.10909125";
+      ndkRoot = "${androidComposition.androidsdk}/libexec/android-sdk/ndk/27.3.13750724";
     in
     {
       devShells.${system}.default = pkgs.mkShell {
@@ -26,7 +27,7 @@
           pkgs.ninja
           pkgs.llvmPackages_18.clang-tools
           pkgs.android-tools   # adb
-          pkgs.catch2_3
+          pkgs.eigen
         ];
 
         ANDROID_NDK_ROOT = ndkRoot;

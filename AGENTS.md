@@ -32,14 +32,15 @@ Write less code. The best code is no code. Every line has a cost.
 - `sh/build.sh [--clean]`: build the application
 - `sh/format.sh [--check]`: auto-formatter
 - `sh/lint.sh`: static analyzers
-- `sh/test.sh`: automated tests (uses ctest; test binaries use Catch2 v3)
+- `sh/test.sh`: build test binaries, push to a connected Quest 3 via adb, and run them on-device
 - `sh/run.sh [args]`: run the application interactively
 
 ## Testing
 
-- Use **Catch2 v3** (`Catch2::Catch2WithMain`) for all component test executables.
+- Use **Google Test** (sourced from `$ANDROID_NDK_ROOT/sources/third_party/googletest`) for all component test executables.
 - Test files are named `component_name.test.cpp` and live in the component directory.
-- Register tests with `catch_discover_tests()` in CMake so ctest picks them up automatically.
+- Build gtest directly from its `.cc` sources; do not use its CMakeLists.
+- Tests run on-device via adb, not on the host.
 
 # Goal
 

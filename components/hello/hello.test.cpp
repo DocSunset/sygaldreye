@@ -1,10 +1,9 @@
 #include "hello.hpp"
-
-#include <catch2/catch_test_macros.hpp>
+#include <gtest/gtest.h>
 #include <sstream>
 
-TEST_CASE("greet writes hello world to stream") {
+TEST(hello, greet_writes_hello_world) {
     std::ostringstream out;
     hello::greet(out);
-    REQUIRE(out.str() == "hello, world\n");
+    EXPECT_EQ(out.str(), "hello, world\n");
 }
