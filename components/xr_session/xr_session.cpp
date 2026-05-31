@@ -4,8 +4,56 @@
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
 
-bool XrSessionObj::create(XrInstance instance, XrSystemId systemId,
+static const char* session_state_str(XrSessionState s) {
+    switch (s) {
+#define C(x) case x: return #x
+        C(XR_SESSION_STATE_UNKNOWN); C(XR_SESSION_STATE_IDLE);
+        C(XR_SESSION_STATE_READY);   C(XR_SESSION_STATE_SYNCHRONIZED);
+        C(XR_SESSION_STATE_VISIBLE); C(XR_SESSION_STATE_FOCUSED);
+        C(XR_SESSION_STATE_STOPPING);C(XR_SESSION_STATE_LOSS_PENDING);
+        C(XR_SESSION_STATE_EXITING);
+#undef C
+        default: return "UNKNOWN";
+    }
+}
+
+void XrSessionObj::poll_events() {
+    XrEventDataBuffer ev{XR_TYPE_EVENT_DATA_BUFFER};
+    while (xrPollEvent(instance, &ev) == XR_SUCCESS) {
+        switch (ev.type) {
+        case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED: {
+            auto& sc = *reinterpret_cast<XrEventDataSessionStateChanged*>(&ev);
+            LOG("session state: %s -> %s", session_state_str(state), session_state_str(sc.state));
+            state = sc.state;
+            if (state == XR_SESSION_STATE_READY) {
+                XrSessionBeginInfo bi{XR_TYPE_SESSION_BEGIN_INFO};
+                bi.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+                XrResult r = xrBeginSession(handle, &bi);
+                if (XR_FAILED(r)) LOGE("xrBeginSession failed: %d", (int)r);
+                else LOG("xrBeginSession: success");
+            } else if (state == XR_SESSION_STATE_STOPPING) {
+                XrResult r = xrEndSession(handle);
+                if (XR_FAILED(r)) LOGE("xrEndSession failed: %d", (int)r);
+                else LOG("xrEndSession: success");
+            } else if (state == XR_SESSION_STATE_EXITING ||
+                       state == XR_SESSION_STATE_LOSS_PENDING) {
+                quit_ = true;
+            }
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING:
+            LOG("instance loss pending — quitting");
+            quit_ = true;
+            break;
+        default: break;
+        }
+        ev = {XR_TYPE_EVENT_DATA_BUFFER};
+    }
+}
+
+bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
                           const XrGraphicsBindingOpenGLESAndroidKHR& binding) {
+    instance = inst;
     // Required before xrCreateSession per XR_KHR_opengl_es_enable spec
     PFN_xrGetOpenGLESGraphicsRequirementsKHR getReqs = nullptr;
     xrGetInstanceProcAddr(instance, "xrGetOpenGLESGraphicsRequirementsKHR",

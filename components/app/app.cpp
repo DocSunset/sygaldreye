@@ -41,14 +41,15 @@ void android_main(struct android_app* app) {
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
 
-    while (!app->destroyRequested) {
+    while (!app->destroyRequested && !state.xrSession.should_quit()) {
         int         events;
         android_poll_source* source;
-        int timeout = state.renderable() ? 0 : -1;
+        int timeout = state.xrSession.should_render() ? 0 : 10;
         if (ALooper_pollOnce(timeout, nullptr, &events,
                              reinterpret_cast<void**>(&source)) >= 0) {
             if (source) source->process(app, source);
         }
+        state.xrSession.poll_events();
     }
 
     LOG("android_main: exiting");

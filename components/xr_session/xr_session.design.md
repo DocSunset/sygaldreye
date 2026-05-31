@@ -12,10 +12,14 @@ Owning package: `xr`
 ### Outputs
 - `XrSession` handle
 - `XrSpace` world reference space (STAGE preferred, LOCAL fallback)
+- `XrSessionState` current session state (updated by `poll_events`)
+- `should_render()` — true when state is SYNCHRONIZED, VISIBLE, or FOCUSED
+- `should_quit()` — true when EXITING, LOSS_PENDING, or instance loss pending
 
 ### Temporal couplings
 - Session must be created after the XrInstance and XrSystemId exist
 - Session must be created after the GLES context is current (EGL context made current by renderer)
+- `xrBeginSession` is called only after XR_SESSION_STATE_READY; `xrEndSession` only after XR_SESSION_STATE_STOPPING
 - Future: frame loop (xrWaitFrame/xrBeginFrame/xrEndFrame) must run within the session lifetime
 
 ### Intended seams
