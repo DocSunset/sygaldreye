@@ -48,7 +48,49 @@ TODO
 
 # Intended Architecture
 
-TODO
+The app is a native Android VR application for Meta Quest 3. It runs as a `NativeActivity` using `native_app_glue` from the NDK. XR is managed via the OpenXR API using Meta's OpenXR Mobile SDK. Graphics use OpenGL ES 3.2 / EGL via the `XR_KHR_opengl_es_enable` extension binding. Math uses Eigen.
+
+## Packages
+
+### `platform`
+
+Android entry point. Owns the `NativeActivity` lifecycle and the OpenXR instance and system. Feeds OS events and the XR instance into the rest of the app. No dependency on scene or rendering logic.
+
+Components: `app`
+
+### `xr`
+
+OpenXR session management, frame loop, and input. Drives the per-frame predict/wait/begin/end cycle. Exposes rendered-layer submission and action-set input to other packages.
+
+Depends on: `platform`
+
+Components: `xr_session`, `input`
+
+### `render`
+
+OpenGL ES context (via EGL), swapchain management, and draw calls. Receives projection layer geometry from `xr` and scene content from `scene`.
+
+Depends on: `xr`, `platform`
+
+Components: `renderer`
+
+### `scene`
+
+Application content: geometry, transforms, game logic. No direct dependency on XR or rendering internals — communicates via well-defined ports.
+
+Depends on: nothing above this layer
+
+Components: TBD
+
+## Data flow (per frame)
+
+```
+platform (NativeActivity events)
+    └─► xr_session: xrWaitFrame / xrBeginFrame
+            ├─► input: poll OpenXR action sets → scene
+            └─► renderer: submit projection layers → xrEndFrame
+                    └─► scene: provide draw calls
+```
 
 Architectural evolution should be documented in `adr.md`.
 
