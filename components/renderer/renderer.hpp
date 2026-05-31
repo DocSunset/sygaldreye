@@ -1,5 +1,11 @@
 #pragma once
+#define XR_USE_PLATFORM_ANDROID
+#define XR_USE_GRAPHICS_API_OPENGL_ES
+#include <jni.h>
 #include <EGL/egl.h>
+#include <GLES3/gl3.h>
+#include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
 
 struct Renderer {
     EGLDisplay display = EGL_NO_DISPLAY;
@@ -8,4 +14,5 @@ struct Renderer {
     EGLSurface surface = EGL_NO_SURFACE;
 
     bool init();
+    XrGraphicsBindingOpenGLESAndroidKHR graphics_binding() const;
 };

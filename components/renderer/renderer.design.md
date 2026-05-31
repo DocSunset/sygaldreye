@@ -11,7 +11,7 @@
 
 ### Outputs
 - A current OpenGL ES 3.x context (via `eglMakeCurrent`) available to subsequent GL calls on the same thread.
-- The `EGLDisplay`, `EGLConfig`, `EGLContext`, and `EGLSurface` handles (members of `Renderer`) for use by the XR graphics binding (future work).
+- `graphics_binding()`: returns a populated `XrGraphicsBindingOpenGLESAndroidKHR` (display, config, context). Injected into `xr_session` at session creation.
 
 ### Temporal couplings
 - `init()` must be called after `xrGetSystem` succeeds (system availability is required before the XR graphics binding is attached, but the EGL context itself does not yet depend on XR).

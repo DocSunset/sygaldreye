@@ -1,5 +1,4 @@
 #include "renderer.hpp"
-#include <GLES3/gl3.h>
 #include <android/log.h>
 
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
@@ -49,4 +48,14 @@ bool Renderer::init() {
     LOG("GL_RENDERER: %s", glGetString(GL_RENDERER));
     LOG("GL_VENDOR:   %s", glGetString(GL_VENDOR));
     return true;
+}
+
+XrGraphicsBindingOpenGLESAndroidKHR Renderer::graphics_binding() const {
+    return {
+        .type    = XR_TYPE_GRAPHICS_BINDING_OPENGL_ES_ANDROID_KHR,
+        .next    = nullptr,
+        .display = display,
+        .config  = config,
+        .context = context,
+    };
 }
