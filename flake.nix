@@ -1,7 +1,9 @@
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+  inputs.openxr-sdk.url = "github:KhronosGroup/OpenXR-SDK?ref=release-1.1.60";
+  inputs.openxr-sdk.flake = false;
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, openxr-sdk }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
@@ -32,6 +34,7 @@
 
         ANDROID_NDK_ROOT = ndkRoot;
         ANDROID_SDK_ROOT = "${androidComposition.androidsdk}/libexec/android-sdk";
+        OPENXR_SDK_SRC = openxr-sdk;
       };
     };
 }
