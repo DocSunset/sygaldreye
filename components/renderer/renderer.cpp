@@ -145,7 +145,7 @@ bool Renderer::create_swapchains(XrInstance instance, XrSystemId systemId, XrSes
     return true;
 }
 
-void Renderer::render_eyes(XrTime predictedDisplayTime) {
+bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSpace, XrTime predictedDisplayTime) {
     static bool first = true;
     if (first) { LOG("eye rendering started"); first = false; }
 
@@ -187,4 +187,55 @@ void Renderer::render_eyes(XrTime predictedDisplayTime) {
         XR_LOG_ERR(xrReleaseSwapchainImage(e.handle, &ri));
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Locate views AFTER releasing swapchain images
+    XrViewLocateInfo vli{XR_TYPE_VIEW_LOCATE_INFO};
+    vli.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+    vli.displayTime           = predictedDisplayTime;
+    vli.space                 = refSpace;
+
+    XrViewState vs{XR_TYPE_VIEW_STATE};
+    XrView views[2]{{XR_TYPE_VIEW},{XR_TYPE_VIEW}};
+    uint32_t viewCount = 2;
+    static double lastLocateErr = 0;
+    XrResult lr = xrLocateViews(session, &vli, &vs, 2, &viewCount, views);
+    if (XR_FAILED(lr)) {
+        if (t - lastLocateErr >= 2.0) {
+            LOGE("xrLocateViews failed: %d", (int)lr);
+            lastLocateErr = t;
+        }
+        return false;
+    }
+
+    const uint32_t orientValid = XR_VIEW_STATE_ORIENTATION_VALID_BIT;
+    const uint32_t posValid    = XR_VIEW_STATE_POSITION_VALID_BIT;
+    if (!(vs.viewStateFlags & orientValid) || !(vs.viewStateFlags & posValid))
+        return false;
+
+    static bool layerLogged = false;
+    if (!layerLogged) { LOG("submitting projection layer"); layerLogged = true; }
+
+    static double lastPoseLog = 0;
+    if (t - lastPoseLog >= 2.0) {
+        LOG("view[0] pos=(%.3f,%.3f,%.3f)",
+            views[0].pose.position.x, views[0].pose.position.y, views[0].pose.position.z);
+        lastPoseLog = t;
+    }
+
+    for (int eye = 0; eye < 2; ++eye) {
+        projViews[eye] = {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW};
+        projViews[eye].pose = views[eye].pose;
+        projViews[eye].fov  = views[eye].fov;
+        projViews[eye].subImage.swapchain        = eyes[eye].handle;
+        projViews[eye].subImage.imageRect        = {{0, 0}, {(int32_t)eyes[eye].width, (int32_t)eyes[eye].height}};
+        projViews[eye].subImage.imageArrayIndex  = 0;
+    }
+
+    projLayer = {XR_TYPE_COMPOSITION_LAYER_PROJECTION};
+    projLayer.space      = refSpace;
+    projLayer.layerFlags = 0;
+    projLayer.viewCount  = 2;
+    projLayer.views      = projViews.data();
+
+    return true;
 }

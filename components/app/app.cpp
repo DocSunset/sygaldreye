@@ -1,6 +1,7 @@
 #include <android/log.h>
 #include <android_native_app_glue.h>
 #include <openxr/openxr.h>
+#include <vector>
 #include "renderer.hpp"
 #include "xr_session.hpp"
 
@@ -51,8 +52,15 @@ void android_main(struct android_app* app) {
             if (source) source->process(app, source);
         }
         state.xrSession.poll_events();
-        if (state.xrSession.session_running())
-            state.xrSession.render_frame({}, [&](XrTime t){ state.renderer.render_eyes(t); });
+        if (state.xrSession.session_running()) {
+            state.xrSession.render_frame([&](XrTime t) -> std::vector<const XrCompositionLayerBaseHeader*> {
+                bool ok = state.renderer.render_eyes(
+                    state.xrInstance, state.xrSession.get(),
+                    state.xrSession.worldSpace_(), t);
+                if (!ok) return {};
+                return { reinterpret_cast<const XrCompositionLayerBaseHeader*>(&state.renderer.projLayer) };
+            });
+        }
     }
 
     LOG("android_main: exiting");

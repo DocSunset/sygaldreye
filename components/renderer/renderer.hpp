@@ -28,8 +28,13 @@ struct Renderer {
 
     std::array<EyeSwapchain, 2> eyes{};
 
+    // Cached last-frame layer (valid until next render_eyes call)
+    std::array<XrCompositionLayerProjectionView, 2> projViews{};
+    XrCompositionLayerProjection projLayer{};
+
     bool init();
     XrGraphicsBindingOpenGLESAndroidKHR graphics_binding() const;
     bool create_swapchains(XrInstance, XrSystemId, XrSession);
-    void render_eyes(XrTime predictedDisplayTime);
+    // Renders eyes and locates views. Returns true and fills projLayer/projViews if layer is ready.
+    bool render_eyes(XrInstance, XrSession, XrSpace refSpace, XrTime predictedDisplayTime);
 };

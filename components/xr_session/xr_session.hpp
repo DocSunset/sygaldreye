@@ -7,6 +7,7 @@
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 #include <span>
+#include <vector>
 #include <functional>
 
 struct XrSessionObj {
@@ -19,10 +20,9 @@ struct XrSessionObj {
 
     bool create(XrInstance, XrSystemId, const XrGraphicsBindingOpenGLESAndroidKHR&);
     void poll_events();
-    // Seam: caller may pass projection layers; defaulting to none runs the cycle with zero layers.
-    // on_render is called between xrBeginFrame and xrEndFrame with predictedDisplayTime when shouldRender is true.
-    void render_frame(std::span<const XrCompositionLayerBaseHeader* const> layers = {},
-                      std::function<void(XrTime)> on_render = {});
+    // on_render is called between xrBeginFrame and xrEndFrame with predictedDisplayTime when shouldRender.
+    // It returns the layers to submit (may be empty). If shouldRender is false, on_render is not called.
+    void render_frame(std::function<std::vector<const XrCompositionLayerBaseHeader*>(XrTime)> on_render = {});
 
     XrSession  get()          const { return handle; }
     XrSpace    worldSpace_()  const { return worldSpace; }

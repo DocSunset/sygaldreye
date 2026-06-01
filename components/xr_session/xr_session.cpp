@@ -111,8 +111,8 @@ bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
     return true;
 }
 
-void XrSessionObj::render_frame(std::span<const XrCompositionLayerBaseHeader* const> layers,
-                                std::function<void(XrTime)> on_render) {
+void XrSessionObj::render_frame(
+    std::function<std::vector<const XrCompositionLayerBaseHeader*>(XrTime)> on_render) {
     static double lastHeartbeat = 0;
     static bool firstFrame = true;
 
@@ -127,18 +127,24 @@ void XrSessionObj::render_frame(std::span<const XrCompositionLayerBaseHeader* co
     r = xrBeginFrame(handle, &beginInfo);
     if (XR_FAILED(r)) { LOGE("xrBeginFrame failed: %d", (int)r); return; }
 
+    std::vector<const XrCompositionLayerBaseHeader*> layers;
     if (frameState.shouldRender && on_render)
-        on_render(frameState.predictedDisplayTime);
+        layers = on_render(frameState.predictedDisplayTime);
 
     XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
     endInfo.displayTime          = frameState.predictedDisplayTime;
     endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-    if (frameState.shouldRender && !layers.empty()) {
+    if (!layers.empty()) {
         endInfo.layerCount = (uint32_t)layers.size();
         endInfo.layers     = layers.data();
     }
     r = xrEndFrame(handle, &endInfo);
-    if (XR_FAILED(r)) { LOGE("xrEndFrame failed: %d", (int)r); return; }
+    static double lastEndErr = 0;
+    if (XR_FAILED(r)) {
+        double t2 = now_sec();
+        if (t2 - lastEndErr >= 2.0) { LOGE("xrEndFrame failed: %d", (int)r); lastEndErr = t2; }
+        return;
+    }
 
     double t = now_sec();
     if (t - lastHeartbeat >= 5.0) { LOG("frame loop heartbeat"); lastHeartbeat = t; }
