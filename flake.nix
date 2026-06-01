@@ -30,6 +30,8 @@
           pkgs.llvmPackages_18.clang-tools
           pkgs.android-tools   # adb
           pkgs.eigen
+          pkgs.zip             # APK assembly in sh/package.sh
+          pkgs.unzip
         ];
 
         ANDROID_NDK_ROOT = ndkRoot;

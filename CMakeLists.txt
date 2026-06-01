@@ -14,7 +14,6 @@ set(BUILD_SDK_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory($ENV{OPENXR_SDK_SRC} openxr_sdk EXCLUDE_FROM_ALL)
 
 add_subdirectory(components/hello)
-add_subdirectory(components/openxr_link_check)
 add_subdirectory(app/hello)
 add_subdirectory(components/renderer)
 add_subdirectory(components/xr_session)

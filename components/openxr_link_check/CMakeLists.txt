@@ -1,2 +1,0 @@
-add_executable(openxr_link_check openxr_link_check.cpp)
-target_link_libraries(openxr_link_check PRIVATE openxr_loader)
