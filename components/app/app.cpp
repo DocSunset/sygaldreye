@@ -69,7 +69,8 @@ void android_main(struct android_app* app) {
         if (state.xrSession.session_running()) {
             state.xrSession.render_frame([&](XrTime t) -> std::vector<const XrCompositionLayerBaseHeader*> {
                 double time_sec = static_cast<double>(t) * 1e-9;
-                if (!state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t)) {
+                if (!state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t,
+                                       state.xrSession.should_render())) {
                     LOGW("input sync failed — skipping input");
                 }
 
@@ -83,8 +84,9 @@ void android_main(struct android_app* app) {
                     state.xrInstance, state.xrSession.get(),
                     state.xrSession.worldSpace_(), t,
                     [&](const Eigen::Matrix4f& proj, const Eigen::Matrix4f& view) {
+                        const Eigen::Matrix4f pv = proj * view;
                         for (const auto& cube : state.scene_.cubes()) {
-                            state.cube_mesh_.draw(proj * view * cube.model);
+                            state.cube_mesh_.draw(pv * cube.model);
                         }
                     });
                 if (!ok) { return {}; }

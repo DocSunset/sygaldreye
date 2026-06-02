@@ -127,7 +127,11 @@ bool Input::create(XrInstance instance, XrSession session) {
     return true;
 }
 
-bool Input::sync(XrSession session, XrSpace worldSpace, XrTime time) {
+bool Input::sync(XrSession session, XrSpace worldSpace, XrTime time, bool focused) {
+    if (!focused) {
+        for (size_t i = 0; i < poses_.size(); ++i) { poses_.at(i) = std::nullopt; }
+        return true;
+    }
     XrActiveActionSet active{actionSet_, XR_NULL_PATH};
     XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
     syncInfo.activeActionSets      = &active;

@@ -23,7 +23,8 @@ struct Input {
     /// Must succeed before sync() is safe to call.
     bool create(XrInstance instance, XrSession session);
     /// Must be called between xrBeginFrame and xrEndFrame; session, worldSpace, and time must be from same frame; not thread-safe.
-    bool sync(XrSession session, XrSpace worldSpace, XrTime time);
+    /// focused must be true only when the session is in SYNCHRONIZED, VISIBLE, or FOCUSED state.
+    bool sync(XrSession session, XrSpace worldSpace, XrTime time, bool focused);
     [[nodiscard]] std::optional<HandPose> hand_pose(Hand hand) const;
 
 private:

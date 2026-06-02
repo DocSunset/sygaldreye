@@ -11,8 +11,9 @@
 #define XR_LOG_ERR(expr) do { XrResult _r = (expr); if (XR_FAILED(_r)) LOGE(#expr " failed: %d", (int)_r); } while(0)
 
 namespace {
-constexpr float kNearPlane = 0.05F;
-constexpr float kFarPlane  = 100.0F;
+constexpr float     kNearPlane              = 0.05F;
+constexpr float     kFarPlane               = 100.0F;
+constexpr XrDuration kSwapchainWaitTimeoutNs = 5'000'000; // 5 ms
 }
 
 static double now_sec() {
@@ -275,11 +276,18 @@ bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSp
 
         XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
         uint32_t index = 0;
-        XR_LOG_ERR(xrAcquireSwapchainImage(e.handle, &ai, &index));
-
+        if (XR_FAILED(xrAcquireSwapchainImage(e.handle, &ai, &index))) {
+            LOGE("xrAcquireSwapchainImage failed eye %d", eye);
+            continue;
+        }
         XrSwapchainImageWaitInfo wi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
-        wi.timeout = XR_INFINITE_DURATION;
-        XR_LOG_ERR(xrWaitSwapchainImage(e.handle, &wi));
+        wi.timeout = kSwapchainWaitTimeoutNs;
+        XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+        if (XR_FAILED(xrWaitSwapchainImage(e.handle, &wi))) {
+            LOGE("xrWaitSwapchainImage timed out or failed eye %d", eye);
+            XR_LOG_ERR(xrReleaseSwapchainImage(e.handle, &ri));
+            continue;
+        }
 
         glBindFramebuffer(GL_FRAMEBUFFER, e.fbo(index));
         glViewport(0, 0, (GLsizei)e.width, (GLsizei)e.height);
@@ -292,7 +300,6 @@ bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSp
         Eigen::Matrix4f v    = view(views[eye].pose);
         on_draw(proj, v);
 
-        XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
         XR_LOG_ERR(xrReleaseSwapchainImage(e.handle, &ri));
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
