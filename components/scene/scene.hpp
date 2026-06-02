@@ -2,9 +2,9 @@
 #include "cube_instance.hpp"
 #include <openxr/openxr.h>
 #include <array>
+#include <cstddef>
 #include <optional>
 #include <span>
-#include <vector>
 
 struct Scene {
     void update(double time);
@@ -16,5 +16,6 @@ struct Scene {
 private:
     CubeInstance world_cube_ = {};
     std::array<std::optional<CubeInstance>, 2> controller_cubes_{};
-    mutable std::vector<CubeInstance> cubes_cache_;
+    mutable std::array<CubeInstance, 3> cubes_cache_{};
+    mutable size_t cube_count_ = 0;
 };

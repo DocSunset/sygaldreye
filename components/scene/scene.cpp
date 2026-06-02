@@ -37,12 +37,14 @@ void Scene::update(double time) {
 }
 
 std::span<const CubeInstance> Scene::cubes() const {
-    cubes_cache_.clear();
-    cubes_cache_.push_back(world_cube_);
-    for (const auto& c : controller_cubes_) {
-        if (c) { cubes_cache_.push_back(*c); }
+    cube_count_ = 0;
+    cubes_cache_.at(cube_count_++) = world_cube_;
+    for (size_t i = 0; i < controller_cubes_.size(); ++i) {
+        if (controller_cubes_.at(i)) {
+            cubes_cache_.at(cube_count_++) = *controller_cubes_.at(i);
+        }
     }
-    return std::span<const CubeInstance>(cubes_cache_);
+    return std::span<const CubeInstance>(cubes_cache_.data(), cube_count_);
 }
 
 void Scene::set_controller_poses(std::optional<XrPosef> left_pose,
