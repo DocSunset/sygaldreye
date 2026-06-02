@@ -7,6 +7,14 @@
 #define TAG "cube_mesh"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 
+#define GL_CHECK(call) do { \
+    (call); \
+    GLenum _gl_err = glGetError(); \
+    if (_gl_err != GL_NO_ERROR) { \
+        LOGE("GL error 0x%x in " #call " (" __FILE__ ":%d)", (unsigned)_gl_err, __LINE__); \
+    } \
+} while(0)
+
 namespace {
 constexpr const char* const VERT = R"(#version 300 es
 layout(location=0) in vec3 aPos;
@@ -116,22 +124,22 @@ void CubeMesh::init() {
     prog_ = std::make_unique<GlProgram>(std::move(*result));
     mvp_loc_ = prog_->uniform_location("uMVP");
 
-    glGenVertexArrays(1, &vao_);
-    glGenBuffers(1, &vbo_);
-    glGenBuffers(1, &ebo_);
+    GL_CHECK(glGenVertexArrays(1, &vao_));
+    GL_CHECK(glGenBuffers(1, &vbo_));
+    GL_CHECK(glGenBuffers(1, &ebo_));
 
-    glBindVertexArray(vao_);
+    GL_CHECK(glBindVertexArray(vao_));
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VERTS), VERTS, GL_STATIC_DRAW);
+    GL_CHECK(glBindBuffer(GL_ARRAY_BUFFER, vbo_));
+    GL_CHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(VERTS), VERTS, GL_STATIC_DRAW));
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(IDX), IDX, GL_STATIC_DRAW);
+    GL_CHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_));
+    GL_CHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(IDX), IDX, GL_STATIC_DRAW));
 
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, VERTEX_STRIDE, nullptr);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, VERTEX_STRIDE, COLOR_OFFSET);
+    GL_CHECK(glEnableVertexAttribArray(0));
+    GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, VERTEX_STRIDE, nullptr));
+    GL_CHECK(glEnableVertexAttribArray(1));
+    GL_CHECK(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, VERTEX_STRIDE, COLOR_OFFSET));
 
     glBindVertexArray(0);
 }

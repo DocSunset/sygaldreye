@@ -10,6 +10,14 @@
 #define XR_CHECK(r) do { XrResult _r = (r); if (XR_FAILED(_r)) { LOGE(#r " failed: %d", (int)_r); return false; } } while(0)
 #define XR_LOG_ERR(expr) do { XrResult _r = (expr); if (XR_FAILED(_r)) LOGE(#expr " failed: %d", (int)_r); } while(0)
 
+#define GL_CHECK(call) do { \
+    (call); \
+    GLenum _gl_err = glGetError(); \
+    if (_gl_err != GL_NO_ERROR) { \
+        LOGE("GL error 0x%x in " #call " (" __FILE__ ":%d)", (unsigned)_gl_err, __LINE__); \
+    } \
+} while(0)
+
 namespace {
 constexpr float     kNearPlane              = 0.05F;
 constexpr float     kFarPlane               = 100.0F;
@@ -219,17 +227,17 @@ bool Renderer::create_swapchains(XrInstance instance, XrSystemId systemId, XrSes
 
         e.fbos.resize(imgCount);
         e.depth_rbs.resize(imgCount);
-        glGenFramebuffers((GLsizei)imgCount, e.fbos.data());
-        glGenRenderbuffers((GLsizei)imgCount, e.depth_rbs.data());
+        GL_CHECK(glGenFramebuffers((GLsizei)imgCount, e.fbos.data()));
+        GL_CHECK(glGenRenderbuffers((GLsizei)imgCount, e.depth_rbs.data()));
         for (uint32_t i = 0; i < imgCount; ++i) {
-            glBindRenderbuffer(GL_RENDERBUFFER, e.depth_rbs[i]);
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, (GLsizei)e.width, (GLsizei)e.height);
+            GL_CHECK(glBindRenderbuffer(GL_RENDERBUFFER, e.depth_rbs[i]));
+            GL_CHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, (GLsizei)e.width, (GLsizei)e.height));
 
-            glBindFramebuffer(GL_FRAMEBUFFER, e.fbos[i]);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                GL_TEXTURE_2D, e.images[i].image, 0);
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                GL_RENDERBUFFER, e.depth_rbs[i]);
+            GL_CHECK(glBindFramebuffer(GL_FRAMEBUFFER, e.fbos[i]));
+            GL_CHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                GL_TEXTURE_2D, e.images[i].image, 0));
+            GL_CHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                GL_RENDERBUFFER, e.depth_rbs[i]));
 
             GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
             if (status == GL_FRAMEBUFFER_COMPLETE)
