@@ -47,14 +47,18 @@ std::span<const CubeInstance> Scene::cubes() const {
     return std::span<const CubeInstance>(cubes_cache_.data(), cube_count_);
 }
 
-void Scene::set_controller_poses(std::optional<XrPosef> left_pose,
-                                 std::optional<XrPosef> right_pose) {
+static Eigen::Matrix4f hand_cube_model(const XrPosef& pose) {
     Eigen::Matrix4f scale_m = Eigen::Matrix4f::Identity();
     scale_m(0,0) = scale_m(1,1) = scale_m(2,2) = kHandCubeScale;
     Eigen::Matrix4f local_T = Eigen::Matrix4f::Identity();
     local_T(0,3) = kHandCubeOffsetXM;
     local_T(1,3) = kHandCubeOffsetYM;
     local_T(2,3) = kHandCubeOffsetZM;
-    controller_cubes_.at(0U) = left_pose  ? std::optional<CubeInstance>({(pose_to_world(*left_pose)  * local_T * scale_m).eval()}) : std::nullopt;
-    controller_cubes_.at(1U) = right_pose ? std::optional<CubeInstance>({(pose_to_world(*right_pose) * local_T * scale_m).eval()}) : std::nullopt;
+    return (pose_to_world(pose) * local_T * scale_m).eval();
+}
+
+void Scene::set_controller_poses(std::optional<XrPosef> left_pose,
+                                 std::optional<XrPosef> right_pose) {
+    controller_cubes_.at(0U) = left_pose  ? std::optional<CubeInstance>({hand_cube_model(*left_pose)})  : std::nullopt;
+    controller_cubes_.at(1U) = right_pose ? std::optional<CubeInstance>({hand_cube_model(*right_pose)}) : std::nullopt;
 }
