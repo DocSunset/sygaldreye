@@ -37,6 +37,7 @@
         ANDROID_NDK_ROOT = ndkRoot;
         ANDROID_SDK_ROOT = "${androidComposition.androidsdk}/libexec/android-sdk";
         OPENXR_SDK_SRC = openxr-sdk;
+        EIGEN3_INCLUDE_DIR = "${pkgs.eigen}/include/eigen3";
       };
     };
 }
