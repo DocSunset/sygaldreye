@@ -76,17 +76,16 @@ void CubeMesh::init() {
     }
     prog_ = std::move(*prog);
 
-    GLuint ebo = 0;
     glGenVertexArrays(1, &vao_);
     glGenBuffers(1, &vbo_);
-    glGenBuffers(1, &ebo);
+    glGenBuffers(1, &ebo_);
 
     glBindVertexArray(vao_);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo_);
     glBufferData(GL_ARRAY_BUFFER, sizeof(VERTS), VERTS, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(IDX), IDX, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
