@@ -2,10 +2,18 @@
 #include <Eigen/Geometry>
 
 void Scene::update(double time) {
-    float angle = static_cast<float>(time) * 1.0f;
+    float t = static_cast<float>(time);
+    float ax = 0.4f * sinf(t * 0.19f + 0.0f);
+    float ay = 0.4f * sinf(t * 0.27f + 1.1f);
+    float az = 0.4f * sinf(t * 0.13f + 2.3f);
+    Eigen::Quaternionf q =
+        Eigen::AngleAxisf(ax, Eigen::Vector3f::UnitX()) *
+        Eigen::AngleAxisf(ay, Eigen::Vector3f::UnitY()) *
+        Eigen::AngleAxisf(az, Eigen::Vector3f::UnitZ());
     Eigen::Affine3f xf =
-        Eigen::Translation3f(0.0f, 1.5f, -2.0f) *
-        Eigen::AngleAxisf(angle, Eigen::Vector3f::UnitY());
+        Eigen::Translation3f(0.0f, 1.5f, -5.0f) *
+        q *
+        Eigen::Scaling(0.4f);
     cubes_.resize(1);
     cubes_[0].model = xf.matrix();
 }
