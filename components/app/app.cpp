@@ -64,11 +64,15 @@ void android_main(struct android_app* app) {
                 state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t);
 
                 Eigen::Matrix4f scale_m = Eigen::Matrix4f::Identity();
-                scale_m(0,0) = scale_m(1,1) = scale_m(2,2) = 0.1f;
+                scale_m(0,0) = scale_m(1,1) = scale_m(2,2) = 0.02f;  // 4cm edge
+
+                Eigen::Matrix4f local_T = Eigen::Matrix4f::Identity();
+                local_T(1,3) = 0.04f;  // 4cm up in hand frame (+Y local)
+
                 HandPose lh = state.input_.hand_pose(0);
                 HandPose rh = state.input_.hand_pose(1);
-                Eigen::Matrix4f lm = lh.valid ? (pose_to_world(lh.pose) * scale_m).eval() : Eigen::Matrix4f::Identity();
-                Eigen::Matrix4f rm = rh.valid ? (pose_to_world(rh.pose) * scale_m).eval() : Eigen::Matrix4f::Identity();
+                Eigen::Matrix4f lm = lh.valid ? (pose_to_world(lh.pose) * local_T * scale_m).eval() : Eigen::Matrix4f::Identity();
+                Eigen::Matrix4f rm = rh.valid ? (pose_to_world(rh.pose) * local_T * scale_m).eval() : Eigen::Matrix4f::Identity();
 
                 state.scene_.update(time_sec);
                 state.scene_.set_controller_poses(&lm, lh.valid, &rm, rh.valid);
