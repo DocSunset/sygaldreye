@@ -6,14 +6,11 @@
 #include <GLES3/gl3.h>
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
-#include <memory>
+#include <functional>
 #include <optional>
 #include <vector>
 #include <array>
-#include <span>
-#include "../scene/cube_instance.hpp"
-
-struct CubeMesh;
+#include <Eigen/Core>
 
 struct RendererBinding {
     XrGraphicsBindingOpenGLESAndroidKHR xr_binding;
@@ -28,7 +25,7 @@ struct EyeSwapchain {
     EyeSwapchain& operator=(EyeSwapchain&& other) noexcept;
 
     // returns FBO for the given acquired image index
-    GLuint fbo(uint32_t index) const { return fbos[index]; }
+    [[nodiscard]] GLuint fbo(uint32_t index) const { return fbos[index]; }
 
 private:
     friend struct Renderer;
@@ -56,10 +53,11 @@ struct Renderer {
     bool create_swapchains(XrInstance, XrSystemId, XrSession);
     /// EGL context must be current; must not be called when shouldRender is false. projLayer valid until next render_eyes call.
     bool render_eyes(XrInstance, XrSession, XrSpace refSpace, XrTime predictedDisplayTime,
-                     std::span<const CubeInstance> cubes);
+                     const std::function<void(const Eigen::Matrix4f& proj,
+                                              const Eigen::Matrix4f& view)>& on_draw);
 
     /// Pointer valid only between render_eyes call and next render_eyes call; do not store across frames.
-    const XrCompositionLayerProjection& proj_layer() const { return projLayer; }
+    [[nodiscard]] const XrCompositionLayerProjection& proj_layer() const { return projLayer; }
 
 private:
     EGLDisplay display = EGL_NO_DISPLAY;
@@ -73,7 +71,6 @@ private:
     std::array<XrCompositionLayerProjectionView, 2> projViews{};
     XrCompositionLayerProjection projLayer{};
 
-    std::unique_ptr<CubeMesh> cube_mesh_;
     bool     firstEyeRender_ = true;
     bool     layerLogged_    = false;
     double   lastLocateErr_  = 0.0;

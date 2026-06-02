@@ -1,5 +1,4 @@
 #include "renderer.hpp"
-#include "cube_mesh.hpp"
 #include "vr_math.hpp"
 #include <android/log.h>
 #include <time.h>
@@ -81,7 +80,6 @@ Renderer::Renderer(Renderer&& other) noexcept
     , eyes(std::move(other.eyes))
     , projViews(other.projViews)
     , projLayer(other.projLayer)
-    , cube_mesh_(std::move(other.cube_mesh_))
     , firstEyeRender_(std::exchange(other.firstEyeRender_, true))
     , layerLogged_(std::exchange(other.layerLogged_, false))
     , lastLocateErr_(std::exchange(other.lastLocateErr_, 0.0))
@@ -98,7 +96,6 @@ Renderer& Renderer::operator=(Renderer&& other) noexcept {
         eyes       = std::move(other.eyes);
         projViews       = other.projViews;
         projLayer       = other.projLayer;
-        cube_mesh_      = std::move(other.cube_mesh_);
         firstEyeRender_ = std::exchange(other.firstEyeRender_, true);
         layerLogged_    = std::exchange(other.layerLogged_, false);
         lastLocateErr_  = std::exchange(other.lastLocateErr_, 0.0);
@@ -239,14 +236,13 @@ bool Renderer::create_swapchains(XrInstance instance, XrSystemId systemId, XrSes
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
         LOG("eye[%d] fbos: %u", eye, imgCount);
     }
-    cube_mesh_ = std::make_unique<CubeMesh>();
-    cube_mesh_->init();
-    LOG("cube_mesh initialized");
     return true;
 }
 
 bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSpace,
-                           XrTime predictedDisplayTime, std::span<const CubeInstance> cubes) {
+                           XrTime predictedDisplayTime,
+                           const std::function<void(const Eigen::Matrix4f& proj,
+                                                    const Eigen::Matrix4f& view)>& on_draw) {
     if (firstEyeRender_) { LOG("eye rendering started"); firstEyeRender_ = false; }
 
     double t = now_sec();
@@ -294,10 +290,7 @@ bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSp
 
         Eigen::Matrix4f proj = projection(views[eye].fov, kNearPlane, kFarPlane);
         Eigen::Matrix4f v    = view(views[eye].pose);
-        for (const auto& cube : cubes) {
-            Eigen::Matrix4f mvp = proj * v * cube.model;
-            cube_mesh_->draw(mvp);
-        }
+        on_draw(proj, v);
 
         XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
         XR_LOG_ERR(xrReleaseSwapchainImage(e.handle, &ri));

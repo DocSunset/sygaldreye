@@ -6,6 +6,7 @@
 #include "xr_session.hpp"
 #include "scene.hpp"
 #include "input.hpp"
+#include "cube_mesh.hpp"
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "eyeballs", __VA_ARGS__)
@@ -24,6 +25,7 @@ struct AppState {
     XrSessionObj xrSession{};
     Scene scene_{};
     Input input_{};
+    CubeMesh cube_mesh_{};
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -47,6 +49,7 @@ void android_main(struct android_app* app) {
     if (!binding) { LOGE("renderer init failed"); return; }
     state.xrSession.create(state.xrInstance, state.xrSystemId, &binding->xr_binding);
     state.renderer.create_swapchains(state.xrInstance, state.xrSystemId, state.xrSession.get());
+    state.cube_mesh_.init();
     state.input_.create(state.xrInstance, state.xrSession.get());
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
@@ -79,7 +82,11 @@ void android_main(struct android_app* app) {
                 bool ok = state.renderer.render_eyes(
                     state.xrInstance, state.xrSession.get(),
                     state.xrSession.worldSpace_(), t,
-                    state.scene_.cubes());
+                    [&](const Eigen::Matrix4f& proj, const Eigen::Matrix4f& view) {
+                        for (const auto& cube : state.scene_.cubes()) {
+                            state.cube_mesh_.draw(proj * view * cube.model);
+                        }
+                    });
                 if (!ok) { return {}; }
                 return { reinterpret_cast<const XrCompositionLayerBaseHeader*>(&state.renderer.proj_layer()) };
             });

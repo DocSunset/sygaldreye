@@ -1,7 +1,7 @@
 add_library(renderer STATIC renderer.cpp)
 target_include_directories(renderer PUBLIC .)
 target_link_libraries(renderer
-    PUBLIC  EGL GLESv3 openxr_loader cube_mesh scene
+    PUBLIC  EGL GLESv3 openxr_loader
     PRIVATE vr_math log)
 target_compile_options(renderer PRIVATE -Wall -Wextra)
 
