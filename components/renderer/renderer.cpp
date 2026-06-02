@@ -1,4 +1,5 @@
 #include "renderer.hpp"
+#include "cube_mesh.hpp"
 #include "vr_math.hpp"
 #include <android/log.h>
 #include <time.h>
@@ -53,6 +54,8 @@ EyeSwapchain& EyeSwapchain::operator=(EyeSwapchain&& other) noexcept {
 
 // ── Renderer ──────────────────────────────────────────────────────────────────
 
+Renderer::Renderer() = default;
+
 Renderer::~Renderer() {
     if (surface != EGL_NO_SURFACE) {
         eglDestroySurface(display, surface);
@@ -78,6 +81,7 @@ Renderer::Renderer(Renderer&& other) noexcept
     , layerLogged_(std::exchange(other.layerLogged_, false))
     , lastLocateErr_(std::exchange(other.lastLocateErr_, 0.0))
 {}
+
 
 Renderer& Renderer::operator=(Renderer&& other) noexcept {
     if (this != &other) {
@@ -232,7 +236,8 @@ bool Renderer::create_swapchains(XrInstance instance, XrSystemId systemId, XrSes
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
         LOG("eye[%d] fbos: %u", eye, imgCount);
     }
-    cube_mesh_.init();
+    cube_mesh_ = std::make_unique<CubeMesh>();
+    cube_mesh_->init();
     LOG("cube_mesh initialized");
     return true;
 }
@@ -288,7 +293,7 @@ bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSp
         Eigen::Matrix4f v    = view(views[eye].pose);
         for (const auto& cube : cubes) {
             Eigen::Matrix4f mvp = proj * v * cube.model;
-            cube_mesh_.draw(mvp);
+            cube_mesh_->draw(mvp);
         }
 
         XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};

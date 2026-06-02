@@ -6,11 +6,13 @@
 #include <GLES3/gl3.h>
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
+#include <memory>
 #include <vector>
 #include <array>
 #include <span>
-#include "scene.hpp"
-#include "cube_mesh.hpp"
+#include "../scene/cube_instance.hpp"
+
+struct CubeMesh;
 
 struct EyeSwapchain {
     EyeSwapchain() = default;
@@ -34,7 +36,7 @@ private:
 };
 
 struct Renderer {
-    Renderer() = default;
+    Renderer();
     ~Renderer();
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
@@ -62,7 +64,7 @@ private:
     std::array<XrCompositionLayerProjectionView, 2> projViews{};
     XrCompositionLayerProjection projLayer{};
 
-    CubeMesh cube_mesh_ = {};
+    std::unique_ptr<CubeMesh> cube_mesh_;
     bool     firstEyeRender_ = true;
     bool     layerLogged_    = false;
     double   lastLocateErr_  = 0.0;

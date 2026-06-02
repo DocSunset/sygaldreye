@@ -1,3 +1,9 @@
+#define XR_USE_PLATFORM_ANDROID
+#define XR_USE_GRAPHICS_API_OPENGL_ES
+#include <jni.h>
+#include <EGL/egl.h>
+#include <GLES3/gl3.h>
+#include <openxr/openxr_platform.h>
 #include "xr_session.hpp"
 #include <android/log.h>
 #include <cassert>
@@ -61,7 +67,7 @@ void XrSessionObj::poll_events() {
 }
 
 bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
-                          const XrGraphicsBindingOpenGLESAndroidKHR& binding) {
+                          const void* graphics_binding) {
     instance = inst;
     // Required before xrCreateSession per XR_KHR_opengl_es_enable spec
     PFN_xrGetOpenGLESGraphicsRequirementsKHR getReqs = nullptr;
@@ -73,7 +79,7 @@ bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
     }
 
     XrSessionCreateInfo ci{XR_TYPE_SESSION_CREATE_INFO};
-    ci.next     = &binding;
+    ci.next     = graphics_binding;
     ci.systemId = systemId;
 
     XrResult r = xrCreateSession(instance, &ci, &handle);

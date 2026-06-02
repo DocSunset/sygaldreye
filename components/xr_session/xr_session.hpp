@@ -1,11 +1,5 @@
 #pragma once
-#define XR_USE_PLATFORM_ANDROID
-#define XR_USE_GRAPHICS_API_OPENGL_ES
-#include <jni.h>
-#include <EGL/egl.h>
-#include <GLES3/gl3.h>
 #include <openxr/openxr.h>
-#include <openxr/openxr_platform.h>
 #include <utility>
 #include <vector>
 #include <functional>
@@ -62,7 +56,8 @@ public:
     }
 
     // The provided XrInstance must outlive this object.
-    bool create(XrInstance, XrSystemId, const XrGraphicsBindingOpenGLESAndroidKHR&);
+    // graphics_binding must point to an XrGraphicsBindingOpenGLESAndroidKHR.
+    bool create(XrInstance, XrSystemId, const void* graphics_binding);
     void poll_events();
     // on_render is called between xrBeginFrame and xrEndFrame with predictedDisplayTime when shouldRender.
     // It returns the layers to submit (may be empty). If shouldRender is false, on_render is not called.

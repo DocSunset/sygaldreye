@@ -1,11 +1,5 @@
 #pragma once
-#define XR_USE_PLATFORM_ANDROID
-#define XR_USE_GRAPHICS_API_OPENGL_ES
-#include <jni.h>
-#include <EGL/egl.h>
-#include <GLES3/gl3.h>
 #include <openxr/openxr.h>
-#include <openxr/openxr_platform.h>
 #include <array>
 
 struct HandPose {

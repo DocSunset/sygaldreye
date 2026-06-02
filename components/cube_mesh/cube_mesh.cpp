@@ -1,4 +1,5 @@
 #include "cube_mesh.hpp"
+#include "gl_program.hpp"
 #include <GLES3/gl3.h>
 #include <android/log.h>
 #include <cassert>
@@ -69,13 +70,42 @@ static const unsigned short IDX[36] = {
     20,21,22, 20,22,23,
 };
 
+CubeMesh::CubeMesh() = default;
+
+CubeMesh::~CubeMesh() {
+    if (vao_ != 0U) { glDeleteVertexArrays(1, &vao_); }
+    if (vbo_ != 0U) { glDeleteBuffers(1, &vbo_); }
+    if (ebo_ != 0U) { glDeleteBuffers(1, &ebo_); }
+}
+
+CubeMesh::CubeMesh(CubeMesh&& src) noexcept
+    : vao_(src.vao_), vbo_(src.vbo_), ebo_(src.ebo_),
+      prog_(std::move(src.prog_)) {
+    src.vao_ = 0U;
+    src.vbo_ = 0U;
+    src.ebo_ = 0U;
+}
+
+CubeMesh& CubeMesh::operator=(CubeMesh&& src) noexcept {
+    if (this != &src) {
+        if (vao_ != 0U) { glDeleteVertexArrays(1, &vao_); }
+        if (vbo_ != 0U) { glDeleteBuffers(1, &vbo_); }
+        if (ebo_ != 0U) { glDeleteBuffers(1, &ebo_); }
+        vao_ = src.vao_; src.vao_ = 0U;
+        vbo_ = src.vbo_; src.vbo_ = 0U;
+        ebo_ = src.ebo_; src.ebo_ = 0U;
+        prog_ = std::move(src.prog_);
+    }
+    return *this;
+}
+
 void CubeMesh::init() {
-    auto prog = GlProgram::build(VERT, FRAG);
-    if (!prog) {
+    auto result = GlProgram::build(VERT, FRAG);
+    if (!result) {
         LOGE("shader build failed");
         return;
     }
-    prog_ = std::move(*prog);
+    prog_ = std::make_unique<GlProgram>(std::move(*result));
 
     glGenVertexArrays(1, &vao_);
     glGenBuffers(1, &vbo_);
@@ -100,8 +130,8 @@ void CubeMesh::init() {
 
 void CubeMesh::draw(const Eigen::Matrix4f& mvp) const {
     assert(vao_ != 0U);
-    prog_.use();
-    prog_.uniform("uMVP", mvp);
+    prog_->use();
+    prog_->uniform("uMVP", mvp);
     glBindVertexArray(vao_);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, nullptr);
     glBindVertexArray(0);
