@@ -20,12 +20,17 @@ bool Input::create(XrInstance instance, XrSession session) {
     if (!xr_ok(xrCreateActionSet(instance, &asci, &actionSet_), "xrCreateActionSet"))
         return false;
 
-    // Grip pose action (no subaction paths — we use space per hand instead)
+    // Grip pose action with left/right subaction paths
+    XrPath handPaths[2];
+    xrStringToPath(instance, "/user/hand/left",  &handPaths[0]);
+    xrStringToPath(instance, "/user/hand/right", &handPaths[1]);
+
     XrActionCreateInfo aci{XR_TYPE_ACTION_CREATE_INFO};
     strncpy(aci.actionName,            "hand_pose", XR_MAX_ACTION_NAME_SIZE);
     strncpy(aci.localizedActionName,   "Hand Pose", XR_MAX_LOCALIZED_ACTION_NAME_SIZE);
-    aci.actionType        = XR_ACTION_TYPE_POSE_INPUT;
-    aci.countSubactionPaths = 0;
+    aci.actionType          = XR_ACTION_TYPE_POSE_INPUT;
+    aci.countSubactionPaths = 2;
+    aci.subactionPaths      = handPaths;
     if (!xr_ok(xrCreateAction(actionSet_, &aci, &poseAction_), "xrCreateAction"))
         return false;
 
@@ -57,14 +62,10 @@ bool Input::create(XrInstance instance, XrSession session) {
         return false;
 
     // Create hand spaces
-    const char* paths[2] = {"/user/hand/left", "/user/hand/right"};
     for (int i = 0; i < 2; ++i) {
-        XrPath subPath;
-        xrStringToPath(instance, paths[i], &subPath);
-
         XrActionSpaceCreateInfo spaceCi{XR_TYPE_ACTION_SPACE_CREATE_INFO};
         spaceCi.action            = poseAction_;
-        spaceCi.subactionPath     = subPath;
+        spaceCi.subactionPath     = handPaths[i];
         spaceCi.poseInActionSpace = {{0,0,0,1},{0,0,0}};
         if (!xr_ok(xrCreateActionSpace(session, &spaceCi, &handSpaces_[i]), "xrCreateActionSpace"))
             return false;
