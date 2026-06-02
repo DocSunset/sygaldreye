@@ -29,8 +29,15 @@ struct GlProgram {
     // Set a mat4 uniform by name. No-op if not found (log warning).
     void uniform(const char* name, const Eigen::Matrix4f& mat) const;
 
+    // Set a mat4 uniform by pre-cached location (operates on currently-bound program).
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters) -- GLint and Matrix4f are unswappable
+    static void uniform(GLint loc, const Eigen::Matrix4f& mat);
+
     // Returns attribute location (-1 if not found).
-    GLint attrib_location(const char* name) const;
+    [[nodiscard]] GLint attrib_location(const char* name) const;
+
+    // Returns uniform location (-1 if not found).
+    [[nodiscard]] GLint uniform_location(const char* name) const;
 
 private:
     explicit GlProgram(GLuint prog_id) noexcept : id(prog_id) {}

@@ -58,6 +58,15 @@ void GlProgram::uniform(const char* name, const Eigen::Matrix4f& mat) const {
     glUniformMatrix4fv(loc, 1, GL_FALSE, mat.data());
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters,readability-convert-member-functions-to-static)
+void GlProgram::uniform(GLint loc, const Eigen::Matrix4f& mat) {
+    glUniformMatrix4fv(loc, 1, GL_FALSE, mat.data());
+}
+
 GLint GlProgram::attrib_location(const char* name) const {
     return glGetAttribLocation(id, name);
+}
+
+GLint GlProgram::uniform_location(const char* name) const {
+    return glGetUniformLocation(id, name);
 }

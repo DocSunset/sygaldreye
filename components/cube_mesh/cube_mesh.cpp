@@ -26,8 +26,9 @@ out vec4 fragColor;
 void main() { fragColor = vec4(vColor, 1.0); }
 )";
 
-constexpr GLsizei kVertexStride = 6 * static_cast<GLsizei>(sizeof(float));
-const auto kColorOffset = reinterpret_cast<const void*>(3 * sizeof(float));
+constexpr GLsizei VERTEX_STRIDE = 6 * static_cast<GLsizei>(sizeof(float));
+// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
+const auto COLOR_OFFSET = reinterpret_cast<const void*>(3 * sizeof(float));
 }
 
 // 24 vertices: 4 per face, 6 faces. Each: x,y,z, r,g,b
@@ -85,10 +86,11 @@ CubeMesh::~CubeMesh() {
 
 CubeMesh::CubeMesh(CubeMesh&& src) noexcept
     : vao_(src.vao_), vbo_(src.vbo_), ebo_(src.ebo_),
-      prog_(std::move(src.prog_)) {
+      prog_(std::move(src.prog_)), mvp_loc_(src.mvp_loc_) {
     src.vao_ = 0U;
     src.vbo_ = 0U;
     src.ebo_ = 0U;
+    src.mvp_loc_ = -1;
 }
 
 CubeMesh& CubeMesh::operator=(CubeMesh&& src) noexcept {
@@ -100,6 +102,7 @@ CubeMesh& CubeMesh::operator=(CubeMesh&& src) noexcept {
         vbo_ = src.vbo_; src.vbo_ = 0U;
         ebo_ = src.ebo_; src.ebo_ = 0U;
         prog_ = std::move(src.prog_);
+        mvp_loc_ = src.mvp_loc_; src.mvp_loc_ = -1;
     }
     return *this;
 }
@@ -111,6 +114,7 @@ void CubeMesh::init() {
         return;
     }
     prog_ = std::make_unique<GlProgram>(std::move(*result));
+    mvp_loc_ = prog_->uniform_location("uMVP");
 
     glGenVertexArrays(1, &vao_);
     glGenBuffers(1, &vbo_);
@@ -125,18 +129,25 @@ void CubeMesh::init() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(IDX), IDX, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, kVertexStride, nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, VERTEX_STRIDE, nullptr);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, kVertexStride, kColorOffset);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, VERTEX_STRIDE, COLOR_OFFSET);
 
+    glBindVertexArray(0);
+}
+
+void CubeMesh::begin_batch() const {
+    assert(vao_ != 0U);
+    prog_->use();
+    glBindVertexArray(vao_);
+}
+
+void CubeMesh::end_batch() {
     glBindVertexArray(0);
 }
 
 void CubeMesh::draw(const Eigen::Matrix4f& mvp) const {
     assert(vao_ != 0U);
-    prog_->use();
-    prog_->uniform("uMVP", mvp);
-    glBindVertexArray(vao_);
+    prog_->uniform(mvp_loc_, mvp);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, nullptr);
-    glBindVertexArray(0);
 }
