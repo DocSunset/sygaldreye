@@ -2,6 +2,8 @@ Be brief. Less is more. Say less.
 
 Write less code. The best code is no code. Every line has a cost.
 
+Treat all warnings as errors, even if the compiler or linter does not. Fix them unless you're prepared to argue there's a good reason not to, or unless they're out of scope for your current task, in which case add a bug work item to `kanban/backlog`
+
 # Project Standard
 
 - The basic unit of implementation is a software component.
@@ -96,7 +98,7 @@ Architectural evolution should be documented in `adr.md`.
 
 # Workflow
 
-Work items are located in the `kanban` directory.
+Work items are located in the `kanban` directory, one markdown file per work item.
 
 # Remember
 
