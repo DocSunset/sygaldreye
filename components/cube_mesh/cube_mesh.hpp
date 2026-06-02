@@ -36,7 +36,7 @@ struct CubeMesh {
     }
 
     void init();
-    void draw(const Eigen::Matrix4f& mvp);
+    void draw(const Eigen::Matrix4f& mvp) const;
 private:
     GLuint vao_ = 0U;
     GLuint vbo_ = 0U;

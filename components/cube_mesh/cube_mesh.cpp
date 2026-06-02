@@ -89,14 +89,15 @@ void CubeMesh::init() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(IDX), IDX, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, nullptr);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, (void*)12);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, reinterpret_cast<const void*>(12));
 
     glBindVertexArray(0);
 }
 
-void CubeMesh::draw(const Eigen::Matrix4f& mvp) {
+void CubeMesh::draw(const Eigen::Matrix4f& mvp) const {
     prog_.use();
     prog_.uniform("uMVP", mvp);
     glBindVertexArray(vao_);
