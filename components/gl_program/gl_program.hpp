@@ -1,6 +1,7 @@
 #pragma once
 #include <GLES3/gl3.h>
 #include <Eigen/Core>
+#include <optional>
 #include <utility>
 
 struct GlProgram {
@@ -8,7 +9,7 @@ struct GlProgram {
         if (id != 0U) { glDeleteProgram(id); }
     }
 
-    GlProgram() = default;
+    GlProgram() noexcept = default;
     GlProgram(const GlProgram&) = delete;
     GlProgram& operator=(const GlProgram&) = delete;
     GlProgram(GlProgram&& other) noexcept : id(std::exchange(other.id, 0U)) {}
@@ -20,8 +21,8 @@ struct GlProgram {
         return *this;
     }
 
-    // Compile vert+frag, link. Returns false and logs errors on failure.
-    bool build(const char* vert_src, const char* frag_src);
+    // Compile vert+frag, link. Returns nullopt and logs errors on failure.
+    static std::optional<GlProgram> build(const char* vert_src, const char* frag_src);
 
     void use() const;  // glUseProgram(id)
 
@@ -32,5 +33,6 @@ struct GlProgram {
     GLint attrib_location(const char* name) const;
 
 private:
+    explicit GlProgram(GLuint prog_id) noexcept : id(prog_id) {}
     GLuint id = 0U;
 };

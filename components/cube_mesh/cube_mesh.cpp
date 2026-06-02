@@ -69,8 +69,12 @@ static const unsigned short IDX[36] = {
 };
 
 void CubeMesh::init() {
-    if (!prog_.build(VERT, FRAG))
+    auto prog = GlProgram::build(VERT, FRAG);
+    if (!prog) {
         LOGE("shader build failed");
+        return;
+    }
+    prog_ = std::move(*prog);
 
     GLuint ebo = 0;
     glGenVertexArrays(1, &vao_);

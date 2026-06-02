@@ -19,11 +19,11 @@ static GLuint compile_shader(GLenum type, const char* src) {
     return shader;
 }
 
-bool GlProgram::build(const char* vert_src, const char* frag_src) {
+std::optional<GlProgram> GlProgram::build(const char* vert_src, const char* frag_src) {
     GLuint vert = compile_shader(GL_VERTEX_SHADER, vert_src);
-    if (!vert) return false;
+    if (!vert) return std::nullopt;
     GLuint frag = compile_shader(GL_FRAGMENT_SHADER, frag_src);
-    if (!frag) { glDeleteShader(vert); return false; }
+    if (!frag) { glDeleteShader(vert); return std::nullopt; }
 
     GLuint prog = glCreateProgram();
     glAttachShader(prog, vert);
@@ -39,10 +39,9 @@ bool GlProgram::build(const char* vert_src, const char* frag_src) {
         glGetProgramInfoLog(prog, sizeof(log), nullptr, log);
         __android_log_print(ANDROID_LOG_ERROR, TAG, "Program link error: %s", log);
         glDeleteProgram(prog);
-        return false;
+        return std::nullopt;
     }
-    id = prog;
-    return true;
+    return GlProgram(prog);
 }
 
 void GlProgram::use() const { glUseProgram(id); }
