@@ -29,3 +29,8 @@ cmake --build "$BUILD_DIR" --target vr_math_test
 adb push "$BUILD_DIR/components/vr_math/vr_math_test" "$DEVICE_DIR/vr_math_test"
 adb shell chmod +x "$DEVICE_DIR/vr_math_test"
 adb shell "$DEVICE_DIR/vr_math_test"
+
+cmake --build "$BUILD_DIR" --target scene_test
+adb push "$BUILD_DIR/components/scene/scene_test" "$DEVICE_DIR/scene_test"
+adb shell chmod +x "$DEVICE_DIR/scene_test"
+adb shell "$DEVICE_DIR/scene_test"
