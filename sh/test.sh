@@ -24,3 +24,8 @@ adb shell mkdir -p "$DEVICE_DIR"
 adb push "$BUILD_DIR/components/hello/hello_test" "$DEVICE_DIR/hello_test"
 adb shell chmod +x "$DEVICE_DIR/hello_test"
 adb shell "$DEVICE_DIR/hello_test"
+
+cmake --build "$BUILD_DIR" --target vr_math_test
+adb push "$BUILD_DIR/components/vr_math/vr_math_test" "$DEVICE_DIR/vr_math_test"
+adb shell chmod +x "$DEVICE_DIR/vr_math_test"
+adb shell "$DEVICE_DIR/vr_math_test"
