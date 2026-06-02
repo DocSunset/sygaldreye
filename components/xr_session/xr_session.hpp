@@ -7,6 +7,7 @@
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 #include <span>
+#include <utility>
 #include <vector>
 #include <functional>
 
@@ -17,6 +18,37 @@ struct XrSessionObj {
     XrSessionState state   = XR_SESSION_STATE_UNKNOWN;
     bool         quit_     = false;
     bool         sessionRunning_ = false;
+
+    ~XrSessionObj() {
+        if (worldSpace != XR_NULL_HANDLE) { xrDestroySpace(worldSpace); }
+        if (handle != XR_NULL_HANDLE) { xrDestroySession(handle); }
+    }
+
+    XrSessionObj() = default;
+    XrSessionObj(const XrSessionObj&) = delete;
+    XrSessionObj& operator=(const XrSessionObj&) = delete;
+
+    XrSessionObj(XrSessionObj&& other) noexcept
+        : instance(std::exchange(other.instance, XR_NULL_HANDLE))
+        , handle(std::exchange(other.handle, XR_NULL_HANDLE))
+        , worldSpace(std::exchange(other.worldSpace, XR_NULL_HANDLE))
+        , state(std::exchange(other.state, XR_SESSION_STATE_UNKNOWN))
+        , quit_(std::exchange(other.quit_, false))
+        , sessionRunning_(std::exchange(other.sessionRunning_, false)) {}
+
+    XrSessionObj& operator=(XrSessionObj&& other) noexcept {
+        if (this != &other) {
+            if (worldSpace != XR_NULL_HANDLE) { xrDestroySpace(worldSpace); }
+            if (handle != XR_NULL_HANDLE) { xrDestroySession(handle); }
+            instance       = std::exchange(other.instance, XR_NULL_HANDLE);
+            handle         = std::exchange(other.handle, XR_NULL_HANDLE);
+            worldSpace     = std::exchange(other.worldSpace, XR_NULL_HANDLE);
+            state          = std::exchange(other.state, XR_SESSION_STATE_UNKNOWN);
+            quit_          = std::exchange(other.quit_, false);
+            sessionRunning_ = std::exchange(other.sessionRunning_, false);
+        }
+        return *this;
+    }
 
     bool create(XrInstance, XrSystemId, const XrGraphicsBindingOpenGLESAndroidKHR&);
     void poll_events();
