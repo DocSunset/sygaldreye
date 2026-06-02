@@ -8,9 +8,14 @@
 #include <openxr/openxr_platform.h>
 #include <functional>
 #include <optional>
+#include <span>
 #include <vector>
 #include <array>
 #include <Eigen/Core>
+
+/// Pure format-selection policy: prefer GL_SRGB8_ALPHA8, then GL_RGBA8, then first.
+/// Returns 0 if formats is empty.
+[[nodiscard]] int64_t choose_swapchain_format(std::span<const int64_t> formats);
 
 struct RendererBinding {
     XrGraphicsBindingOpenGLESAndroidKHR xr_binding;

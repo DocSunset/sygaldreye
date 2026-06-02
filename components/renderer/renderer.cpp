@@ -21,6 +21,13 @@ static double now_sec() {
     return ts.tv_sec + ts.tv_nsec * 1e-9;
 }
 
+int64_t choose_swapchain_format(std::span<const int64_t> formats) {
+    if (formats.empty()) { return 0; }
+    for (int64_t fmt : formats) { if (fmt == GL_SRGB8_ALPHA8) { return fmt; } }
+    for (int64_t fmt : formats) { if (fmt == GL_RGBA8)        { return fmt; } }
+    return formats[0];
+}
+
 // ── EyeSwapchain ──────────────────────────────────────────────────────────────
 
 EyeSwapchain::~EyeSwapchain() {
@@ -184,10 +191,7 @@ bool Renderer::create_swapchains(XrInstance instance, XrSystemId systemId, XrSes
     std::vector<int64_t> fmts(fmtCount);
     XR_CHECK(xrEnumerateSwapchainFormats(session, fmtCount, &fmtCount, fmts.data()));
 
-    int64_t chosenFmt = 0;
-    for (int64_t f : fmts) if (f == GL_SRGB8_ALPHA8) { chosenFmt = f; break; }
-    if (!chosenFmt) for (int64_t f : fmts) if (f == GL_RGBA8) { chosenFmt = f; break; }
-    if (!chosenFmt) { chosenFmt = fmts[0]; }
+    int64_t chosenFmt = choose_swapchain_format(fmts);
     LOG("swapchain format: 0x%llx", (unsigned long long)chosenFmt);
 
     for (int eye = 0; eye < 2; ++eye) {
