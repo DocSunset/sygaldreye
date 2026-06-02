@@ -4,6 +4,7 @@
 #include <vector>
 #include "renderer.hpp"
 #include "xr_session.hpp"
+#include "scene.hpp"
 
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 
@@ -18,6 +19,7 @@ struct AppState {
     XrSystemId xrSystemId = XR_NULL_SYSTEM_ID;
     Renderer renderer{};
     XrSessionObj xrSession{};
+    Scene scene_{};
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -54,9 +56,12 @@ void android_main(struct android_app* app) {
         state.xrSession.poll_events();
         if (state.xrSession.session_running()) {
             state.xrSession.render_frame([&](XrTime t) -> std::vector<const XrCompositionLayerBaseHeader*> {
+                double time_sec = static_cast<double>(t) * 1e-9;
+                state.scene_.update(time_sec);
                 bool ok = state.renderer.render_eyes(
                     state.xrInstance, state.xrSession.get(),
-                    state.xrSession.worldSpace_(), t);
+                    state.xrSession.worldSpace_(), t,
+                    state.scene_.cubes());
                 if (!ok) return {};
                 return { reinterpret_cast<const XrCompositionLayerBaseHeader*>(&state.renderer.projLayer) };
             });

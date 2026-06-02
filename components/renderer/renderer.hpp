@@ -8,6 +8,9 @@
 #include <openxr/openxr_platform.h>
 #include <vector>
 #include <array>
+#include <span>
+#include "scene.hpp"
+#include "cube_mesh.hpp"
 
 struct EyeSwapchain {
     XrSwapchain handle = XR_NULL_HANDLE;
@@ -37,5 +40,9 @@ struct Renderer {
     XrGraphicsBindingOpenGLESAndroidKHR graphics_binding() const;
     bool create_swapchains(XrInstance, XrSystemId, XrSession);
     // Renders eyes and locates views. Returns true and fills projLayer/projViews if layer is ready.
-    bool render_eyes(XrInstance, XrSession, XrSpace refSpace, XrTime predictedDisplayTime);
+    bool render_eyes(XrInstance, XrSession, XrSpace refSpace, XrTime predictedDisplayTime,
+                     std::span<const CubeInstance> cubes);
+
+private:
+    CubeMesh cube_mesh_;
 };

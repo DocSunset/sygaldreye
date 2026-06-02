@@ -1,6 +1,8 @@
 add_library(renderer STATIC renderer.cpp)
 target_include_directories(renderer PUBLIC .)
-target_link_libraries(renderer PUBLIC EGL GLESv3 log openxr_loader)
+target_link_libraries(renderer
+    PUBLIC  EGL GLESv3 log openxr_loader scene cube_mesh
+    PRIVATE vr_math)
 target_compile_options(renderer PRIVATE -Wall -Wextra)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)
