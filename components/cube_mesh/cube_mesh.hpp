@@ -1,11 +1,15 @@
 #pragma once
 #include <Eigen/Core>
-#include "gl_program.hpp"
+#include "cube_shader.hpp"
+#include "cube_geometry.hpp"
 
 struct CubeMesh {
     void init();
-    void draw(const Eigen::Matrix4f& mvp);
+    void begin_batch() const;
+    static void end_batch();
+    void draw(const Eigen::Matrix4f& mvp) const;
+
 private:
-    unsigned vao_ = 0, vbo_ = 0;
-    GlProgram prog_;
+    CubeShader shader_;
+    CubeGeometry geometry_;
 };

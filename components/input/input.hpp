@@ -1,26 +1,36 @@
 #pragma once
-#define XR_USE_PLATFORM_ANDROID
-#define XR_USE_GRAPHICS_API_OPENGL_ES
-#include <jni.h>
-#include <EGL/egl.h>
-#include <GLES3/gl3.h>
 #include <openxr/openxr.h>
-#include <openxr/openxr_platform.h>
 #include <array>
+#include <cstdint>
+#include <optional>
+
+enum class Hand : uint8_t { LEFT = 0, RIGHT = 1 };
 
 struct HandPose {
     XrPosef pose;
-    bool    valid = false;
 };
 
 struct Input {
+    Input() = default;
+    ~Input();
+
+    Input(const Input&)            = delete;
+    Input& operator=(const Input&) = delete;
+
+    Input(Input&& other) noexcept;
+    Input& operator=(Input&& other) noexcept;
+
+    /// Must succeed before sync() is safe to call.
     bool create(XrInstance instance, XrSession session);
-    void sync(XrSession session, XrSpace worldSpace, XrTime time);
-    HandPose hand_pose(int hand) const;  // hand: 0=left, 1=right
+    /// Must be called between xrBeginFrame and xrEndFrame; session, worldSpace, and time must be from same frame; not thread-safe.
+    /// focused must be true only when the session is in SYNCHRONIZED, VISIBLE, or FOCUSED state.
+    bool sync(XrSession session, XrSpace worldSpace, XrTime time, bool focused);
+    [[nodiscard]] std::optional<HandPose> hand_pose(Hand hand) const;
 
 private:
-    XrActionSet actionSet_  = XR_NULL_HANDLE;
-    XrAction    poseAction_ = XR_NULL_HANDLE;
-    std::array<XrSpace, 2> handSpaces_{XR_NULL_HANDLE, XR_NULL_HANDLE};
-    std::array<HandPose, 2> poses_{};
+    XrActionSet actionSet_   = XR_NULL_HANDLE;
+    XrAction    poseAction_  = XR_NULL_HANDLE;
+    std::array<XrSpace, 2>              handSpaces_{XR_NULL_HANDLE, XR_NULL_HANDLE};
+    std::array<std::optional<HandPose>, 2> poses_{};
+    bool        pose_logged_ = false;
 };

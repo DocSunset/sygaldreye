@@ -1,6 +1,6 @@
 add_library(vr_math STATIC vr_math.cpp)
-target_include_directories(vr_math PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(vr_math PUBLIC openxr_loader)
+target_include_directories(vr_math PUBLIC . $ENV{EIGEN3_INCLUDE_DIR} $ENV{OPENXR_SDK_SRC}/include)
+target_link_libraries(vr_math PRIVATE openxr_loader)
 target_compile_options(vr_math PRIVATE -Wall -Wextra -Wpedantic)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)

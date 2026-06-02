@@ -1,0 +1,5 @@
+add_library(cube_shader STATIC cube_shader.cpp)
+target_include_directories(cube_shader PUBLIC .)
+target_include_directories(cube_shader PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(cube_shader PRIVATE log gl_program)
+target_compile_options(cube_shader PRIVATE -Wall -Wextra)

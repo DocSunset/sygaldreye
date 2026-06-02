@@ -1,48 +1,35 @@
 #pragma once
-#define XR_USE_PLATFORM_ANDROID
-#define XR_USE_GRAPHICS_API_OPENGL_ES
-#include <jni.h>
-#include <EGL/egl.h>
-#include <GLES3/gl3.h>
-#include <openxr/openxr.h>
-#include <openxr/openxr_platform.h>
-#include <vector>
+#include "egl_context.hpp"
+#include "eye_swapchain.hpp"
+#include "vr_math.hpp"
 #include <array>
-#include <span>
-#include "scene.hpp"
-#include "cube_mesh.hpp"
-
-struct EyeSwapchain {
-    XrSwapchain handle = XR_NULL_HANDLE;
-    uint32_t    width  = 0;
-    uint32_t    height = 0;
-    std::vector<XrSwapchainImageOpenGLESKHR> images;
-    std::vector<GLuint> fbos;
-    std::vector<GLuint> depth_rbs; // one depth renderbuffer per FBO
-
-    // returns FBO for the given acquired image index
-    GLuint fbo(uint32_t index) const { return fbos[index]; }
-};
+#include <functional>
+#include <Eigen/Core>
 
 struct Renderer {
-    EGLDisplay display = EGL_NO_DISPLAY;
-    EGLConfig  config  = nullptr;
-    EGLContext context = EGL_NO_CONTEXT;
-    EGLSurface surface = EGL_NO_SURFACE;
+    Renderer() = default;
+    ~Renderer() = default;
+    Renderer(const Renderer&) = delete;
+    Renderer& operator=(const Renderer&) = delete;
+    Renderer(Renderer&&) noexcept = default;
+    Renderer& operator=(Renderer&&) noexcept = default;
 
-    std::array<EyeSwapchain, 2> eyes{};
-
-    // Cached last-frame layer (valid until next render_eyes call)
-    std::array<XrCompositionLayerProjectionView, 2> projViews{};
-    XrCompositionLayerProjection projLayer{};
-
-    bool init();
-    XrGraphicsBindingOpenGLESAndroidKHR graphics_binding() const;
+    [[nodiscard]] std::optional<RendererBinding> init();
     bool create_swapchains(XrInstance, XrSystemId, XrSession);
-    // Renders eyes and locates views. Returns true and fills projLayer/projViews if layer is ready.
     bool render_eyes(XrInstance, XrSession, XrSpace refSpace, XrTime predictedDisplayTime,
-                     std::span<const CubeInstance> cubes);
+                     const std::function<void(const Eigen::Matrix4f& proj,
+                                              const Eigen::Matrix4f& view)>& on_draw);
+
+    [[nodiscard]] const XrCompositionLayerProjection& proj_layer() const { return projLayer_; }
 
 private:
-    CubeMesh cube_mesh_;
+    EglContext egl_{};
+    std::array<EyeSwapchain, 2> eyes_{};
+
+    std::array<XrCompositionLayerProjectionView, 2> projViews_{};
+    XrCompositionLayerProjection projLayer_{};
+
+    bool   firstEyeRender_ = true;
+    bool   layerLogged_    = false;
+    double lastLocateErr_  = 0.0;
 };

@@ -1,5 +1,6 @@
 #include "vr_math.hpp"
 #include <gtest/gtest.h>
+#include <Eigen/Geometry>
 #include <cmath>
 
 static constexpr float kTol = 1e-5f;
@@ -24,7 +25,6 @@ TEST(VrMath, PoseToWorldIdentityPose) {
 
 // 45 degrees symmetric fov
 TEST(VrMath, ProjectionSymmetric45) {
-    float a = std::tan(static_cast<float>(M_PI) / 4.f); // tan(45°) = 1
     float near_z = 0.1f;
     float far_z  = 100.f;
     XrFovf fov{
@@ -83,4 +83,76 @@ TEST(VrMath, ViewRotation90Y) {
     EXPECT_NEAR(m(0,3),  0.f, kTol);
     EXPECT_NEAR(m(1,3),  0.f, kTol);
     EXPECT_NEAR(m(2,3),  0.f, kTol);
+}
+
+TEST(VrMath, ProjectionAsymmetricFov) {
+    static constexpr float kDeg = static_cast<float>(M_PI) / 180.f;
+    XrFovf fov{
+        .angleLeft  = -80.f * kDeg,
+        .angleRight =  40.f * kDeg,
+        .angleUp    =  60.f * kDeg,
+        .angleDown  = -50.f * kDeg,
+    };
+    auto m = projection(fov, 0.1f, 100.f);
+
+    // x-shear (r+l)/(r-l): r < |l| so r+l < 0, expect negative
+    float l = std::tan(fov.angleLeft)  * 0.1f;
+    float r = std::tan(fov.angleRight) * 0.1f;
+    float b = std::tan(fov.angleDown)  * 0.1f;
+    float t = std::tan(fov.angleUp)    * 0.1f;
+    EXPECT_NEAR(m(0,2), (r + l) / (r - l), kTol);
+    EXPECT_NE(m(0,2), 0.f);
+    // y-shear (t+b)/(t-b): t > |b| so t+b > 0, expect positive
+    EXPECT_NEAR(m(1,2), (t + b) / (t - b), kTol);
+    EXPECT_NE(m(1,2), 0.f);
+    // finite check
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            EXPECT_TRUE(std::isfinite(m(i, j)));
+}
+
+TEST(VrMath, ProjectionExtremeFov85) {
+    static constexpr float kDeg = static_cast<float>(M_PI) / 180.f;
+    XrFovf fov{
+        .angleLeft  = -85.f * kDeg,
+        .angleRight =  85.f * kDeg,
+        .angleUp    =  85.f * kDeg,
+        .angleDown  = -85.f * kDeg,
+    };
+    auto m = projection(fov, 0.1f, 100.f);
+
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            EXPECT_TRUE(std::isfinite(m(i, j)));
+    EXPECT_GT(m(0,0), 0.f);
+    EXPECT_GT(m(1,1), 0.f);
+}
+
+TEST(VrMath, ViewCombinedPositionRotation) {
+    float s = std::sqrt(0.5f);
+    XrPosef pose{
+        .orientation = {0.f, s, 0.f, s},  // 90° around Y
+        .position    = {1.f, 2.f, 3.f},
+    };
+    auto m = view(pose);
+
+    // Translation column must equal -(R^T * t)
+    // pose quaternion: x=0, y=s, z=0, w=s → Eigen ctor (w,x,y,z)
+    Eigen::Quaternionf q(s, 0.f, s, 0.f);
+    Eigen::Matrix3f R = q.normalized().toRotationMatrix();
+    Eigen::Vector3f t(1.f, 2.f, 3.f);
+    Eigen::Vector3f expected = -(R.transpose() * t);
+
+    Eigen::Vector3f col = m.topRightCorner<3,1>();
+    EXPECT_TRUE(col.isApprox(expected, kTol));
+}
+
+TEST(VrMath, PoseToWorldRoundtrip) {
+    float s = std::sqrt(0.5f);
+    XrPosef pose{
+        .orientation = {0.f, s, 0.f, s},  // 90° around Y
+        .position    = {1.f, 2.f, 3.f},
+    };
+    auto result = view(pose) * pose_to_world(pose);
+    EXPECT_TRUE(result.isApprox(Eigen::Matrix4f::Identity(), kTol));
 }

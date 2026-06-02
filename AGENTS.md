@@ -11,6 +11,8 @@ Treat all warnings as errors, even if the compiler or linter does not. Fix them 
     - Component names use `lower_snake_case`.
     - Design documents are called `component_name.design.md`
     - Source code documents use the extensions appropriate for the source code (e.g. `.hpp`, `.cpp`)
+        - Each `.cpp` file should almost always be less than 100 lines of substantive code, not including `#include`s, copyright boilerplate, and trivial code that is understood at a glance without even reading it..
+        - Each `hpp/cpp` pair should define only one substantive software component (e.g. not two complex namespace-scope classes)
     - Automated tests are called `component_name.test.xxx` using the extension appropriate for the source code
     - We use cmake for build automation
     - All documents should be placed in a directory whose name is the name of the component
