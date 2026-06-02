@@ -59,7 +59,7 @@ XrInstance xr_create_instance(struct android_app* app) {
     // Init loader
     PFN_xrInitializeLoaderKHR initLoader = nullptr;
     XR_CHECK(xrGetInstanceProcAddr(XR_NULL_HANDLE, "xrInitializeLoaderKHR",
-                                   (PFN_xrVoidFunction*)&initLoader));
+                                   reinterpret_cast<PFN_xrVoidFunction*>(&initLoader)));
     XrLoaderInitInfoAndroidKHR loaderInfo{XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR};
     loaderInfo.applicationVM      = app->activity->vm;
     loaderInfo.applicationContext = app->activity->clazz;

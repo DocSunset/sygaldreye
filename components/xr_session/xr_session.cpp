@@ -31,7 +31,7 @@ static const char* session_state_str(XrSessionState s) {
     }
 }
 
-void XrSessionObj::poll_events() {
+bool XrSessionObj::poll_events() {
     XrEventDataBuffer ev{XR_TYPE_EVENT_DATA_BUFFER};
     while (xrPollEvent(instance, &ev) == XR_SUCCESS) {
         switch (ev.type) {
@@ -43,13 +43,14 @@ void XrSessionObj::poll_events() {
                 XrSessionBeginInfo bi{XR_TYPE_SESSION_BEGIN_INFO};
                 bi.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
                 XrResult r = xrBeginSession(handle, &bi);
-                if (XR_FAILED(r)) LOGE("xrBeginSession failed: %d", (int)r);
-                else { LOG("xrBeginSession: success"); sessionRunning_ = true; }
+                if (XR_FAILED(r)) { LOGE("xrBeginSession failed: %d", (int)r); return false; }
+                LOG("xrBeginSession: success");
+                sessionRunning_ = true;
             } else if (state == XR_SESSION_STATE_STOPPING) {
                 sessionRunning_ = false;
                 XrResult r = xrEndSession(handle);
-                if (XR_FAILED(r)) LOGE("xrEndSession failed: %d", (int)r);
-                else LOG("xrEndSession: success");
+                if (XR_FAILED(r)) { LOGE("xrEndSession failed: %d", (int)r); return false; }
+                LOG("xrEndSession: success");
             } else if (state == XR_SESSION_STATE_EXITING ||
                        state == XR_SESSION_STATE_LOSS_PENDING) {
                 quit_ = true;
@@ -64,6 +65,7 @@ void XrSessionObj::poll_events() {
         }
         ev = {XR_TYPE_EVENT_DATA_BUFFER};
     }
+    return true;
 }
 
 bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
@@ -72,7 +74,7 @@ bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
     // Required before xrCreateSession per XR_KHR_opengl_es_enable spec
     PFN_xrGetOpenGLESGraphicsRequirementsKHR getReqs = nullptr;
     xrGetInstanceProcAddr(instance, "xrGetOpenGLESGraphicsRequirementsKHR",
-                          (PFN_xrVoidFunction*)&getReqs);
+                          reinterpret_cast<PFN_xrVoidFunction*>(&getReqs));
     if (getReqs) {
         XrGraphicsRequirementsOpenGLESKHR req{XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR};
         getReqs(instance, systemId, &req);

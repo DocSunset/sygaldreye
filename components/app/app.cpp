@@ -8,7 +8,9 @@
 #include "input.hpp"
 #include "vr_math.hpp"
 
-#define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
+#define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "eyeballs", __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
 
 XrInstance xr_create_instance(struct android_app*);
 XrSystemId xr_get_system(XrInstance);
@@ -56,13 +58,18 @@ void android_main(struct android_app* app) {
         int timeout = state.xrSession.should_render() ? 0 : 10;
         if (ALooper_pollOnce(timeout, nullptr, &events,
                              reinterpret_cast<void**>(&source)) >= 0) {
-            if (source) source->process(app, source);
+            if (source) { source->process(app, source); }
         }
-        state.xrSession.poll_events();
+        if (!state.xrSession.poll_events()) {
+            LOGE("poll_events failed — exiting loop");
+            break;
+        }
         if (state.xrSession.session_running()) {
             state.xrSession.render_frame([&](XrTime t) -> std::vector<const XrCompositionLayerBaseHeader*> {
                 double time_sec = static_cast<double>(t) * 1e-9;
-                state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t);
+                if (!state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t)) {
+                    LOGW("input sync failed — skipping input");
+                }
 
                 // Hand cube tuning — edit these to adjust placement (in cm)
                 constexpr float HAND_CUBE_OFFSET_X_CM =  0.0f;
@@ -77,18 +84,20 @@ void android_main(struct android_app* app) {
                 local_T(1,3) = HAND_CUBE_OFFSET_Y_CM * 0.01f;
                 local_T(2,3) = HAND_CUBE_OFFSET_Z_CM * 0.01f;
 
-                HandPose lh = state.input_.hand_pose(0);
-                HandPose rh = state.input_.hand_pose(1);
-                Eigen::Matrix4f lm = lh.valid ? (pose_to_world(lh.pose) * local_T * scale_m).eval() : Eigen::Matrix4f::Identity();
-                Eigen::Matrix4f rm = rh.valid ? (pose_to_world(rh.pose) * local_T * scale_m).eval() : Eigen::Matrix4f::Identity();
+                auto lh = state.input_.hand_pose(Hand::LEFT);
+                auto rh = state.input_.hand_pose(Hand::RIGHT);
+
+                std::optional<Eigen::Matrix4f> lm, rm;
+                if (lh) { lm = (pose_to_world(lh->pose) * local_T * scale_m).eval(); }
+                if (rh) { rm = (pose_to_world(rh->pose) * local_T * scale_m).eval(); }
 
                 state.scene_.update(time_sec);
-                state.scene_.set_controller_poses(&lm, lh.valid, &rm, rh.valid);
+                state.scene_.set_controller_poses(lm, rm);
                 bool ok = state.renderer.render_eyes(
                     state.xrInstance, state.xrSession.get(),
                     state.xrSession.worldSpace_(), t,
                     state.scene_.cubes());
-                if (!ok) return {};
+                if (!ok) { return {}; }
                 return { reinterpret_cast<const XrCompositionLayerBaseHeader*>(&state.renderer.proj_layer()) };
             });
         }

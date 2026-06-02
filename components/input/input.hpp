@@ -1,10 +1,13 @@
 #pragma once
 #include <openxr/openxr.h>
 #include <array>
+#include <cstdint>
+#include <optional>
+
+enum class Hand : uint8_t { LEFT = 0, RIGHT = 1 };
 
 struct HandPose {
     XrPosef pose;
-    bool    valid = false;
 };
 
 struct Input {
@@ -18,13 +21,13 @@ struct Input {
     Input& operator=(Input&& other) noexcept;
 
     bool create(XrInstance instance, XrSession session);
-    void sync(XrSession session, XrSpace worldSpace, XrTime time);
-    [[nodiscard]] HandPose hand_pose(int hand) const;  // hand: 0=left, 1=right
+    bool sync(XrSession session, XrSpace worldSpace, XrTime time);
+    [[nodiscard]] std::optional<HandPose> hand_pose(Hand hand) const;
 
 private:
     XrActionSet actionSet_   = XR_NULL_HANDLE;
     XrAction    poseAction_  = XR_NULL_HANDLE;
-    std::array<XrSpace, 2>   handSpaces_{XR_NULL_HANDLE, XR_NULL_HANDLE};
-    std::array<HandPose, 2>  poses_{};
+    std::array<XrSpace, 2>              handSpaces_{XR_NULL_HANDLE, XR_NULL_HANDLE};
+    std::array<std::optional<HandPose>, 2> poses_{};
     bool        pose_logged_ = false;
 };

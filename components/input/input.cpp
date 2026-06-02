@@ -14,8 +14,8 @@ static bool xr_ok(XrResult res, const char* what) {
 
 Input::~Input() {
     for (int i = 0; i < 2; ++i) {
-        if (handSpaces_[i] != XR_NULL_HANDLE) {
-            xrDestroySpace(handSpaces_[i]);
+        if (handSpaces_.at(static_cast<size_t>(i)) != XR_NULL_HANDLE) {
+            xrDestroySpace(handSpaces_.at(static_cast<size_t>(i)));
         }
     }
     if (poseAction_ != XR_NULL_HANDLE) {
@@ -33,8 +33,8 @@ Input::Input(Input&& other) noexcept
     , pose_logged_(std::exchange(other.pose_logged_, false))
 {
     for (int i = 0; i < 2; ++i) {
-        handSpaces_[i]       = other.handSpaces_[i];
-        other.handSpaces_[i] = XR_NULL_HANDLE;
+        handSpaces_.at(static_cast<size_t>(i))       = other.handSpaces_.at(static_cast<size_t>(i));
+        other.handSpaces_.at(static_cast<size_t>(i)) = XR_NULL_HANDLE;
     }
 }
 
@@ -46,8 +46,8 @@ Input& Input::operator=(Input&& other) noexcept {
         poses_       = other.poses_;
         pose_logged_ = std::exchange(other.pose_logged_, false);
         for (int i = 0; i < 2; ++i) {
-            handSpaces_[i]       = other.handSpaces_[i];
-            other.handSpaces_[i] = XR_NULL_HANDLE;
+            handSpaces_.at(static_cast<size_t>(i))       = other.handSpaces_.at(static_cast<size_t>(i));
+            other.handSpaces_.at(static_cast<size_t>(i)) = XR_NULL_HANDLE;
         }
     }
     return *this;
@@ -114,7 +114,7 @@ bool Input::create(XrInstance instance, XrSession session) {
         spaceCi.action            = poseAction_;
         spaceCi.subactionPath     = handPaths[i];
         spaceCi.poseInActionSpace = {{0,0,0,1},{0,0,0}};
-        if (!xr_ok(xrCreateActionSpace(session, &spaceCi, &handSpaces_[i]), "xrCreateActionSpace")) {
+        if (!xr_ok(xrCreateActionSpace(session, &spaceCi, &handSpaces_.at(static_cast<size_t>(i))), "xrCreateActionSpace")) {
             return false;
         }
     }
@@ -123,29 +123,34 @@ bool Input::create(XrInstance instance, XrSession session) {
     return true;
 }
 
-void Input::sync(XrSession session, XrSpace worldSpace, XrTime time) {
+bool Input::sync(XrSession session, XrSpace worldSpace, XrTime time) {
     XrActiveActionSet active{actionSet_, XR_NULL_PATH};
     XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
     syncInfo.activeActionSets      = &active;
     syncInfo.countActiveActionSets = 1;
-    xrSyncActions(session, &syncInfo);
+    if (!xr_ok(xrSyncActions(session, &syncInfo), "xrSyncActions")) {
+        return false;
+    }
 
     for (int i = 0; i < 2; ++i) {
         XrSpaceLocation loc{XR_TYPE_SPACE_LOCATION};
-        xrLocateSpace(handSpaces_[i], worldSpace, time, &loc);
+        xrLocateSpace(handSpaces_.at(static_cast<size_t>(i)), worldSpace, time, &loc);
         constexpr XrSpaceLocationFlags valid =
             XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
         if ((loc.locationFlags & valid) == valid) {
-            poses_[i] = {loc.pose, true};
+            poses_[i] = HandPose{loc.pose};
             if (!pose_logged_) {
                 LOGI("hand %d pos %.3f %.3f %.3f", i,
                      loc.pose.position.x, loc.pose.position.y, loc.pose.position.z);
                 pose_logged_ = true;
             }
         } else {
-            poses_[i].valid = false;
+            poses_[i] = std::nullopt;
         }
     }
+    return true;
 }
 
-HandPose Input::hand_pose(int hand) const { return poses_[hand]; }
+std::optional<HandPose> Input::hand_pose(Hand hand) const {
+    return poses_[static_cast<size_t>(hand)];
+}
