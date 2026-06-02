@@ -1,0 +1,103 @@
+#include "input.hpp"
+#include <android/log.h>
+
+#define TAG "input"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+
+static bool xr_ok(XrResult r, const char* what) {
+    if (XR_SUCCEEDED(r)) return true;
+    LOGE("%s failed: %d", what, (int)r);
+    return false;
+}
+
+bool Input::create(XrInstance instance, XrSession session) {
+    // Action set
+    XrActionSetCreateInfo asci{XR_TYPE_ACTION_SET_CREATE_INFO};
+    strncpy(asci.actionSetName,            "gameplay", XR_MAX_ACTION_SET_NAME_SIZE);
+    strncpy(asci.localizedActionSetName,   "Gameplay", XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE);
+    asci.priority = 0;
+    if (!xr_ok(xrCreateActionSet(instance, &asci, &actionSet_), "xrCreateActionSet"))
+        return false;
+
+    // Grip pose action (no subaction paths — we use space per hand instead)
+    XrActionCreateInfo aci{XR_TYPE_ACTION_CREATE_INFO};
+    strncpy(aci.actionName,            "hand_pose", XR_MAX_ACTION_NAME_SIZE);
+    strncpy(aci.localizedActionName,   "Hand Pose", XR_MAX_LOCALIZED_ACTION_NAME_SIZE);
+    aci.actionType        = XR_ACTION_TYPE_POSE_INPUT;
+    aci.countSubactionPaths = 0;
+    if (!xr_ok(xrCreateAction(actionSet_, &aci, &poseAction_), "xrCreateAction"))
+        return false;
+
+    // Suggest bindings for Oculus Touch
+    XrPath profilePath;
+    xrStringToPath(instance, "/interaction_profiles/oculus/touch_controller", &profilePath);
+
+    XrPath leftPath, rightPath;
+    xrStringToPath(instance, "/user/hand/left/input/grip/pose",  &leftPath);
+    xrStringToPath(instance, "/user/hand/right/input/grip/pose", &rightPath);
+
+    XrActionSuggestedBinding bindings[2] = {
+        {poseAction_, leftPath},
+        {poseAction_, rightPath},
+    };
+    XrInteractionProfileSuggestedBinding suggested{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+    suggested.interactionProfile     = profilePath;
+    suggested.suggestedBindings      = bindings;
+    suggested.countSuggestedBindings = 2;
+    if (!xr_ok(xrSuggestInteractionProfileBindings(instance, &suggested),
+               "xrSuggestInteractionProfileBindings"))
+        return false;
+
+    // Attach action set
+    XrSessionActionSetsAttachInfo attachInfo{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
+    attachInfo.actionSets      = &actionSet_;
+    attachInfo.countActionSets = 1;
+    if (!xr_ok(xrAttachSessionActionSets(session, &attachInfo), "xrAttachSessionActionSets"))
+        return false;
+
+    // Create hand spaces
+    const char* paths[2] = {"/user/hand/left", "/user/hand/right"};
+    for (int i = 0; i < 2; ++i) {
+        XrPath subPath;
+        xrStringToPath(instance, paths[i], &subPath);
+
+        XrActionSpaceCreateInfo spaceCi{XR_TYPE_ACTION_SPACE_CREATE_INFO};
+        spaceCi.action            = poseAction_;
+        spaceCi.subactionPath     = subPath;
+        spaceCi.poseInActionSpace = {{0,0,0,1},{0,0,0}};
+        if (!xr_ok(xrCreateActionSpace(session, &spaceCi, &handSpaces_[i]), "xrCreateActionSpace"))
+            return false;
+    }
+
+    LOGI("created");
+    return true;
+}
+
+void Input::sync(XrSession session, XrSpace worldSpace, XrTime time) {
+    XrActiveActionSet active{actionSet_, XR_NULL_PATH};
+    XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
+    syncInfo.activeActionSets      = &active;
+    syncInfo.countActiveActionSets = 1;
+    xrSyncActions(session, &syncInfo);
+
+    static bool logged = false;
+    for (int i = 0; i < 2; ++i) {
+        XrSpaceLocation loc{XR_TYPE_SPACE_LOCATION};
+        xrLocateSpace(handSpaces_[i], worldSpace, time, &loc);
+        constexpr XrSpaceLocationFlags valid =
+            XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
+        if ((loc.locationFlags & valid) == valid) {
+            poses_[i] = {loc.pose, true};
+            if (!logged) {
+                LOGI("hand %d pos %.3f %.3f %.3f", i,
+                     loc.pose.position.x, loc.pose.position.y, loc.pose.position.z);
+                logged = true;
+            }
+        } else {
+            poses_[i].valid = false;
+        }
+    }
+}
+
+HandPose Input::hand_pose(int hand) const { return poses_[hand]; }
