@@ -30,6 +30,7 @@ Input::Input(Input&& other) noexcept
     : actionSet_(std::exchange(other.actionSet_, XR_NULL_HANDLE))
     , poseAction_(std::exchange(other.poseAction_, XR_NULL_HANDLE))
     , poses_(other.poses_)
+    , pose_logged_(std::exchange(other.pose_logged_, false))
 {
     for (int i = 0; i < 2; ++i) {
         handSpaces_[i]       = other.handSpaces_[i];
@@ -42,7 +43,8 @@ Input& Input::operator=(Input&& other) noexcept {
         this->~Input();
         actionSet_  = std::exchange(other.actionSet_,  XR_NULL_HANDLE);
         poseAction_ = std::exchange(other.poseAction_, XR_NULL_HANDLE);
-        poses_      = other.poses_;
+        poses_       = other.poses_;
+        pose_logged_ = std::exchange(other.pose_logged_, false);
         for (int i = 0; i < 2; ++i) {
             handSpaces_[i]       = other.handSpaces_[i];
             other.handSpaces_[i] = XR_NULL_HANDLE;
@@ -128,7 +130,6 @@ void Input::sync(XrSession session, XrSpace worldSpace, XrTime time) {
     syncInfo.countActiveActionSets = 1;
     xrSyncActions(session, &syncInfo);
 
-    static bool logged = false;
     for (int i = 0; i < 2; ++i) {
         XrSpaceLocation loc{XR_TYPE_SPACE_LOCATION};
         xrLocateSpace(handSpaces_[i], worldSpace, time, &loc);
@@ -136,10 +137,10 @@ void Input::sync(XrSession session, XrSpace worldSpace, XrTime time) {
             XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
         if ((loc.locationFlags & valid) == valid) {
             poses_[i] = {loc.pose, true};
-            if (!logged) {
+            if (!pose_logged_) {
                 LOGI("hand %d pos %.3f %.3f %.3f", i,
                      loc.pose.position.x, loc.pose.position.y, loc.pose.position.z);
-                logged = true;
+                pose_logged_ = true;
             }
         } else {
             poses_[i].valid = false;

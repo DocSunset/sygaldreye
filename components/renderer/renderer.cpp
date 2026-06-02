@@ -75,6 +75,9 @@ Renderer::Renderer(Renderer&& other) noexcept
     , projViews(other.projViews)
     , projLayer(other.projLayer)
     , cube_mesh_(std::move(other.cube_mesh_))
+    , firstEyeRender_(std::exchange(other.firstEyeRender_, true))
+    , layerLogged_(std::exchange(other.layerLogged_, false))
+    , lastLocateErr_(std::exchange(other.lastLocateErr_, 0.0))
 {}
 
 Renderer& Renderer::operator=(Renderer&& other) noexcept {
@@ -85,9 +88,12 @@ Renderer& Renderer::operator=(Renderer&& other) noexcept {
         context    = std::exchange(other.context, EGL_NO_CONTEXT);
         surface    = std::exchange(other.surface, EGL_NO_SURFACE);
         eyes       = std::move(other.eyes);
-        projViews  = other.projViews;
-        projLayer  = other.projLayer;
-        cube_mesh_ = std::move(other.cube_mesh_);
+        projViews       = other.projViews;
+        projLayer       = other.projLayer;
+        cube_mesh_      = std::move(other.cube_mesh_);
+        firstEyeRender_ = std::exchange(other.firstEyeRender_, true);
+        layerLogged_    = std::exchange(other.layerLogged_, false);
+        lastLocateErr_  = std::exchange(other.lastLocateErr_, 0.0);
     }
     return *this;
 }
@@ -234,8 +240,7 @@ bool Renderer::create_swapchains(XrInstance instance, XrSystemId systemId, XrSes
 
 bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSpace,
                            XrTime predictedDisplayTime, std::span<const CubeInstance> cubes) {
-    static bool first = true;
-    if (first) { LOG("eye rendering started"); first = false; }
+    if (firstEyeRender_) { LOG("eye rendering started"); firstEyeRender_ = false; }
 
     double t = now_sec();
 
@@ -248,12 +253,11 @@ bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSp
     XrViewState vs{XR_TYPE_VIEW_STATE};
     XrView views[2]{{XR_TYPE_VIEW},{XR_TYPE_VIEW}};
     uint32_t viewCount = 2;
-    static double lastLocateErr = 0;
     XrResult lr = xrLocateViews(session, &vli, &vs, 2, &viewCount, views);
     if (XR_FAILED(lr)) {
-        if (t - lastLocateErr >= 2.0) {
+        if (t - lastLocateErr_ >= 2.0) {
             LOGE("xrLocateViews failed: %d", (int)lr);
-            lastLocateErr = t;
+            lastLocateErr_ = t;
         }
         return false;
     }
@@ -293,8 +297,7 @@ bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSp
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    static bool layerLogged = false;
-    if (!layerLogged) { LOG("submitting projection layer"); layerLogged = true; }
+    if (!layerLogged_) { LOG("submitting projection layer"); layerLogged_ = true; }
 
     for (int eye = 0; eye < 2; ++eye) {
         projViews[eye] = {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW};

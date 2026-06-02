@@ -60,4 +60,7 @@ struct Renderer {
 
 private:
     CubeMesh cube_mesh_;
+    bool     firstEyeRender_ = true;
+    bool     layerLogged_    = false;
+    double   lastLocateErr_  = 0.0;
 };

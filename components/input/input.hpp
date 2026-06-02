@@ -28,8 +28,9 @@ struct Input {
     [[nodiscard]] HandPose hand_pose(int hand) const;  // hand: 0=left, 1=right
 
 private:
-    XrActionSet actionSet_  = XR_NULL_HANDLE;
-    XrAction    poseAction_ = XR_NULL_HANDLE;
-    std::array<XrSpace, 2> handSpaces_{XR_NULL_HANDLE, XR_NULL_HANDLE};
-    std::array<HandPose, 2> poses_{};
+    XrActionSet actionSet_   = XR_NULL_HANDLE;
+    XrAction    poseAction_  = XR_NULL_HANDLE;
+    std::array<XrSpace, 2>   handSpaces_{XR_NULL_HANDLE, XR_NULL_HANDLE};
+    std::array<HandPose, 2>  poses_{};
+    bool        pose_logged_ = false;
 };

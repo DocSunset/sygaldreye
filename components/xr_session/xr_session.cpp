@@ -113,10 +113,7 @@ bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
 
 void XrSessionObj::render_frame(
     std::function<std::vector<const XrCompositionLayerBaseHeader*>(XrTime)> on_render) {
-    static double lastHeartbeat = 0;
-    static bool firstFrame = true;
-
-    if (firstFrame) { LOG("frame loop running"); firstFrame = false; }
+    if (firstFrame_) { LOG("frame loop running"); firstFrame_ = false; }
 
     XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
     XrFrameState frameState{XR_TYPE_FRAME_STATE};
@@ -139,13 +136,12 @@ void XrSessionObj::render_frame(
         endInfo.layers     = layers.data();
     }
     r = xrEndFrame(handle, &endInfo);
-    static double lastEndErr = 0;
     if (XR_FAILED(r)) {
         double t2 = now_sec();
-        if (t2 - lastEndErr >= 2.0) { LOGE("xrEndFrame failed: %d", (int)r); lastEndErr = t2; }
+        if (t2 - lastEndErr_ >= 2.0) { LOGE("xrEndFrame failed: %d", (int)r); lastEndErr_ = t2; }
         return;
     }
 
     double t = now_sec();
-    if (t - lastHeartbeat >= 5.0) { LOG("frame loop heartbeat"); lastHeartbeat = t; }
+    if (t - lastHeartbeat_ >= 5.0) { LOG("frame loop heartbeat"); lastHeartbeat_ = t; }
 }
