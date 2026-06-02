@@ -7,7 +7,8 @@
 #define TAG "cube_mesh"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 
-static const char* VERT = R"(#version 300 es
+namespace {
+constexpr const char* const VERT = R"(#version 300 es
 layout(location=0) in vec3 aPos;
 layout(location=1) in vec3 aColor;
 uniform mat4 uMVP;
@@ -18,12 +19,16 @@ void main() {
 }
 )";
 
-static const char* FRAG = R"(#version 300 es
+constexpr const char* const FRAG = R"(#version 300 es
 precision mediump float;
 in vec3 vColor;
 out vec4 fragColor;
 void main() { fragColor = vec4(vColor, 1.0); }
 )";
+
+constexpr GLsizei kVertexStride = 6 * static_cast<GLsizei>(sizeof(float));
+const auto kColorOffset = reinterpret_cast<const void*>(3 * sizeof(float));
+}
 
 // 24 vertices: 4 per face, 6 faces. Each: x,y,z, r,g,b
 // Faces ordered: +X, -X, +Y, -Y, +Z, -Z
@@ -120,10 +125,9 @@ void CubeMesh::init() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(IDX), IDX, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, kVertexStride, nullptr);
     glEnableVertexAttribArray(1);
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, reinterpret_cast<const void*>(12));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, kVertexStride, kColorOffset);
 
     glBindVertexArray(0);
 }

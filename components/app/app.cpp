@@ -75,9 +75,10 @@ void android_main(struct android_app* app) {
                 constexpr float HAND_CUBE_OFFSET_X_CM =  0.0f;
                 constexpr float HAND_CUBE_OFFSET_Y_CM =  0.0f;  // up in grip frame
                 constexpr float HAND_CUBE_OFFSET_Z_CM =  0.0f;
+                constexpr float HAND_CUBE_SCALE = 0.035f;
 
                 Eigen::Matrix4f scale_m = Eigen::Matrix4f::Identity();
-                scale_m(0,0) = scale_m(1,1) = scale_m(2,2) = 0.035f;
+                scale_m(0,0) = scale_m(1,1) = scale_m(2,2) = HAND_CUBE_SCALE;
 
                 Eigen::Matrix4f local_T = Eigen::Matrix4f::Identity();
                 local_T(0,3) = HAND_CUBE_OFFSET_X_CM * 0.01f;

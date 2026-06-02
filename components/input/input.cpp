@@ -56,8 +56,10 @@ Input& Input::operator=(Input&& other) noexcept {
 bool Input::create(XrInstance instance, XrSession session) {
     // Action set
     XrActionSetCreateInfo asci{XR_TYPE_ACTION_SET_CREATE_INFO};
-    strncpy(asci.actionSetName,          "gameplay", XR_MAX_ACTION_SET_NAME_SIZE);
-    strncpy(asci.localizedActionSetName, "Gameplay", XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE);
+    strncpy(asci.actionSetName, "gameplay", XR_MAX_ACTION_SET_NAME_SIZE - 1);
+    asci.actionSetName[XR_MAX_ACTION_SET_NAME_SIZE - 1] = '\0';
+    strncpy(asci.localizedActionSetName, "Gameplay", XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE - 1);
+    asci.localizedActionSetName[XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE - 1] = '\0';
     asci.priority = 0;
     if (!xr_ok(xrCreateActionSet(instance, &asci, &actionSet_), "xrCreateActionSet")) {
         return false;
@@ -69,8 +71,10 @@ bool Input::create(XrInstance instance, XrSession session) {
     xrStringToPath(instance, "/user/hand/right", &handPaths[1]);
 
     XrActionCreateInfo aci{XR_TYPE_ACTION_CREATE_INFO};
-    strncpy(aci.actionName,          "hand_pose", XR_MAX_ACTION_NAME_SIZE);
-    strncpy(aci.localizedActionName, "Hand Pose", XR_MAX_LOCALIZED_ACTION_NAME_SIZE);
+    strncpy(aci.actionName, "hand_pose", XR_MAX_ACTION_NAME_SIZE - 1);
+    aci.actionName[XR_MAX_ACTION_NAME_SIZE - 1] = '\0';
+    strncpy(aci.localizedActionName, "Hand Pose", XR_MAX_LOCALIZED_ACTION_NAME_SIZE - 1);
+    aci.localizedActionName[XR_MAX_LOCALIZED_ACTION_NAME_SIZE - 1] = '\0';
     aci.actionType          = XR_ACTION_TYPE_POSE_INPUT;
     aci.countSubactionPaths = 2;
     aci.subactionPaths      = handPaths;

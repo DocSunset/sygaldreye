@@ -11,6 +11,11 @@
 #define XR_CHECK(r) do { XrResult _r = (r); if (XR_FAILED(_r)) { LOGE(#r " failed: %d", (int)_r); return false; } } while(0)
 #define XR_LOG_ERR(expr) do { XrResult _r = (expr); if (XR_FAILED(_r)) LOGE(#expr " failed: %d", (int)_r); } while(0)
 
+namespace {
+constexpr float kNearPlane = 0.05F;
+constexpr float kFarPlane  = 100.0F;
+}
+
 static double now_sec() {
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec + ts.tv_nsec * 1e-9;
@@ -289,7 +294,7 @@ bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSp
         glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        Eigen::Matrix4f proj = projection(views[eye].fov, 0.05f, 100.0f);
+        Eigen::Matrix4f proj = projection(views[eye].fov, kNearPlane, kFarPlane);
         Eigen::Matrix4f v    = view(views[eye].pose);
         for (const auto& cube : cubes) {
             Eigen::Matrix4f mvp = proj * v * cube.model;

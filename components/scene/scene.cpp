@@ -1,19 +1,33 @@
 #include "scene.hpp"
 #include <Eigen/Geometry>
 
+namespace {
+constexpr float kRotationAmplitude = 0.4F;
+constexpr float kRotationSpeedX = 0.19F;
+constexpr float kRotationSpeedY = 0.27F;
+constexpr float kRotationSpeedZ = 0.13F;
+constexpr float kRotationPhaseX = 0.0F;
+constexpr float kRotationPhaseY = 1.1F;
+constexpr float kRotationPhaseZ = 2.3F;
+constexpr float kCubePositionX = 0.0F;
+constexpr float kCubePositionY = 1.5F;
+constexpr float kCubePositionZ = -5.0F;
+constexpr float kCubeScale = 0.4F;
+}
+
 void Scene::update(double time) {
     float t = static_cast<float>(time);
-    float ax = 0.4f * sinf(t * 0.19f + 0.0f);
-    float ay = 0.4f * sinf(t * 0.27f + 1.1f);
-    float az = 0.4f * sinf(t * 0.13f + 2.3f);
+    float ax = kRotationAmplitude * sinf(t * kRotationSpeedX + kRotationPhaseX);
+    float ay = kRotationAmplitude * sinf(t * kRotationSpeedY + kRotationPhaseY);
+    float az = kRotationAmplitude * sinf(t * kRotationSpeedZ + kRotationPhaseZ);
     Eigen::Quaternionf q =
         Eigen::AngleAxisf(ax, Eigen::Vector3f::UnitX()) *
         Eigen::AngleAxisf(ay, Eigen::Vector3f::UnitY()) *
         Eigen::AngleAxisf(az, Eigen::Vector3f::UnitZ());
     Eigen::Affine3f xf =
-        Eigen::Translation3f(0.0f, 1.5f, -5.0f) *
+        Eigen::Translation3f(kCubePositionX, kCubePositionY, kCubePositionZ) *
         q *
-        Eigen::Scaling(0.4f);
+        Eigen::Scaling(kCubeScale);
     cubes_.resize(1);
     cubes_[0].model = xf.matrix();
 }
