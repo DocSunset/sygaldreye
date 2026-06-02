@@ -3,6 +3,7 @@
 #include <android/log.h>
 #include <cmath>
 #include <time.h>
+#include <utility>
 
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
@@ -13,6 +14,82 @@
 static double now_sec() {
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec + ts.tv_nsec * 1e-9;
+}
+
+// ── EyeSwapchain ──────────────────────────────────────────────────────────────
+
+EyeSwapchain::~EyeSwapchain() {
+    if (!fbos.empty()) {
+        glDeleteFramebuffers(static_cast<GLsizei>(fbos.size()), fbos.data());
+    }
+    if (!depth_rbs.empty()) {
+        glDeleteRenderbuffers(static_cast<GLsizei>(depth_rbs.size()), depth_rbs.data());
+    }
+    if (handle != XR_NULL_HANDLE) {
+        XR_LOG_ERR(xrDestroySwapchain(handle));
+    }
+}
+
+EyeSwapchain::EyeSwapchain(EyeSwapchain&& other) noexcept
+    : handle(std::exchange(other.handle, XR_NULL_HANDLE))
+    , width(std::exchange(other.width, 0U))
+    , height(std::exchange(other.height, 0U))
+    , images(std::move(other.images))
+    , fbos(std::move(other.fbos))
+    , depth_rbs(std::move(other.depth_rbs))
+{}
+
+EyeSwapchain& EyeSwapchain::operator=(EyeSwapchain&& other) noexcept {
+    if (this != &other) {
+        this->~EyeSwapchain();
+        handle    = std::exchange(other.handle, XR_NULL_HANDLE);
+        width     = std::exchange(other.width, 0U);
+        height    = std::exchange(other.height, 0U);
+        images    = std::move(other.images);
+        fbos      = std::move(other.fbos);
+        depth_rbs = std::move(other.depth_rbs);
+    }
+    return *this;
+}
+
+// ── Renderer ──────────────────────────────────────────────────────────────────
+
+Renderer::~Renderer() {
+    if (surface != EGL_NO_SURFACE) {
+        eglDestroySurface(display, surface);
+    }
+    if (context != EGL_NO_CONTEXT) {
+        eglDestroyContext(display, context);
+    }
+    if (display != EGL_NO_DISPLAY) {
+        eglTerminate(display);
+    }
+}
+
+Renderer::Renderer(Renderer&& other) noexcept
+    : display(std::exchange(other.display, EGL_NO_DISPLAY))
+    , config(std::exchange(other.config, nullptr))
+    , context(std::exchange(other.context, EGL_NO_CONTEXT))
+    , surface(std::exchange(other.surface, EGL_NO_SURFACE))
+    , eyes(std::move(other.eyes))
+    , projViews(other.projViews)
+    , projLayer(other.projLayer)
+    , cube_mesh_(std::move(other.cube_mesh_))
+{}
+
+Renderer& Renderer::operator=(Renderer&& other) noexcept {
+    if (this != &other) {
+        this->~Renderer();
+        display    = std::exchange(other.display, EGL_NO_DISPLAY);
+        config     = std::exchange(other.config, nullptr);
+        context    = std::exchange(other.context, EGL_NO_CONTEXT);
+        surface    = std::exchange(other.surface, EGL_NO_SURFACE);
+        eyes       = std::move(other.eyes);
+        projViews  = other.projViews;
+        projLayer  = other.projLayer;
+        cube_mesh_ = std::move(other.cube_mesh_);
+    }
+    return *this;
 }
 
 bool Renderer::init() {
