@@ -1,7 +1,12 @@
 #include "scene.hpp"
+#include "vr_math.hpp"
 #include <Eigen/Geometry>
 
 namespace {
+constexpr float kHandCubeOffsetXM = 0.0F;
+constexpr float kHandCubeOffsetYM = 0.0F;
+constexpr float kHandCubeOffsetZM = 0.0F;
+constexpr float kHandCubeScale    = 0.035F;
 constexpr float kRotationAmplitude = 0.4F;
 constexpr float kRotationSpeedX = 0.19F;
 constexpr float kRotationSpeedY = 0.27F;
@@ -40,8 +45,14 @@ std::span<const CubeInstance> Scene::cubes() const {
     return std::span<const CubeInstance>(cubes_cache_);
 }
 
-void Scene::set_controller_poses(std::optional<Eigen::Matrix4f> left_model,
-                                 std::optional<Eigen::Matrix4f> right_model) {
-    controller_cubes_.at(0U) = left_model  ? std::optional<CubeInstance>({*left_model})  : std::nullopt;
-    controller_cubes_.at(1U) = right_model ? std::optional<CubeInstance>({*right_model}) : std::nullopt;
+void Scene::set_controller_poses(std::optional<XrPosef> left_pose,
+                                 std::optional<XrPosef> right_pose) {
+    Eigen::Matrix4f scale_m = Eigen::Matrix4f::Identity();
+    scale_m(0,0) = scale_m(1,1) = scale_m(2,2) = kHandCubeScale;
+    Eigen::Matrix4f local_T = Eigen::Matrix4f::Identity();
+    local_T(0,3) = kHandCubeOffsetXM;
+    local_T(1,3) = kHandCubeOffsetYM;
+    local_T(2,3) = kHandCubeOffsetZM;
+    controller_cubes_.at(0U) = left_pose  ? std::optional<CubeInstance>({(pose_to_world(*left_pose)  * local_T * scale_m).eval()}) : std::nullopt;
+    controller_cubes_.at(1U) = right_pose ? std::optional<CubeInstance>({(pose_to_world(*right_pose) * local_T * scale_m).eval()}) : std::nullopt;
 }

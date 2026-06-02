@@ -1,5 +1,6 @@
 #pragma once
 #include "cube_instance.hpp"
+#include <openxr/openxr.h>
 #include <array>
 #include <optional>
 #include <span>
@@ -9,8 +10,8 @@ struct Scene {
     void update(double time);
     /// Returned span is invalidated by any subsequent call to update() or set_controller_poses().
     [[nodiscard]] std::span<const CubeInstance> cubes() const;
-    void set_controller_poses(std::optional<Eigen::Matrix4f> left_model,
-                              std::optional<Eigen::Matrix4f> right_model);
+    void set_controller_poses(std::optional<XrPosef> left_pose,
+                              std::optional<XrPosef> right_pose);
 
 private:
     CubeInstance world_cube_ = {};
