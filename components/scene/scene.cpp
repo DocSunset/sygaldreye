@@ -14,4 +14,9 @@ std::span<const CubeInstance> Scene::cubes() const {
     return std::span<const CubeInstance>(cubes_);
 }
 
-void Scene::set_controller_poses() {}
+void Scene::set_controller_poses(const Eigen::Matrix4f* left_model, bool left_valid,
+                                 const Eigen::Matrix4f* right_model, bool right_valid) {
+    cubes_.resize(1);
+    if (left_valid  && left_model)  cubes_.push_back({*left_model});
+    if (right_valid && right_model) cubes_.push_back({*right_model});
+}

@@ -5,6 +5,8 @@
 #include "renderer.hpp"
 #include "xr_session.hpp"
 #include "scene.hpp"
+#include "input.hpp"
+#include "vr_math.hpp"
 
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 
@@ -20,6 +22,7 @@ struct AppState {
     Renderer renderer{};
     XrSessionObj xrSession{};
     Scene scene_{};
+    Input input_{};
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -42,6 +45,7 @@ void android_main(struct android_app* app) {
     state.renderer.init();
     state.xrSession.create(state.xrInstance, state.xrSystemId, state.renderer.graphics_binding());
     state.renderer.create_swapchains(state.xrInstance, state.xrSystemId, state.xrSession.get());
+    state.input_.create(state.xrInstance, state.xrSession.get());
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
 
@@ -57,7 +61,17 @@ void android_main(struct android_app* app) {
         if (state.xrSession.session_running()) {
             state.xrSession.render_frame([&](XrTime t) -> std::vector<const XrCompositionLayerBaseHeader*> {
                 double time_sec = static_cast<double>(t) * 1e-9;
+                state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t);
+
+                Eigen::Matrix4f scale_m = Eigen::Matrix4f::Identity();
+                scale_m(0,0) = scale_m(1,1) = scale_m(2,2) = 0.1f;
+                HandPose lh = state.input_.hand_pose(0);
+                HandPose rh = state.input_.hand_pose(1);
+                Eigen::Matrix4f lm = lh.valid ? (pose_to_world(lh.pose) * scale_m).eval() : Eigen::Matrix4f::Identity();
+                Eigen::Matrix4f rm = rh.valid ? (pose_to_world(rh.pose) * scale_m).eval() : Eigen::Matrix4f::Identity();
+
                 state.scene_.update(time_sec);
+                state.scene_.set_controller_poses(&lm, lh.valid, &rm, rh.valid);
                 bool ok = state.renderer.render_eyes(
                     state.xrInstance, state.xrSession.get(),
                     state.xrSession.worldSpace_(), t,
