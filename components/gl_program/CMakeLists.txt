@@ -1,0 +1,5 @@
+add_library(gl_program STATIC gl_program.cpp)
+target_include_directories(gl_program PUBLIC .)
+target_include_directories(gl_program PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(gl_program PUBLIC GLESv3 log)
+target_compile_options(gl_program PRIVATE -Wall -Wextra)
