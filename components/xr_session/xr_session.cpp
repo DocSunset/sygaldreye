@@ -10,7 +10,13 @@
 #include <time.h>
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "eyeballs", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
+
+namespace {
+constexpr double kFrameBudgetWarningMs = 9.0;
+constexpr int    kFrameDropLogInterval = 100;
+}
 
 static double now_sec() {
     struct timespec ts;
@@ -120,8 +126,7 @@ bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
     return true;
 }
 
-void XrSessionObj::render_frame(
-    std::function<std::vector<const XrCompositionLayerBaseHeader*>(XrTime)> on_render) {
+void XrSessionObj::render_frame(std::function<FrameLayers(XrTime)> on_render) {
     assert(sessionRunning_);
     if (firstFrame_) { LOG("frame loop running"); firstFrame_ = false; }
 
@@ -134,22 +139,35 @@ void XrSessionObj::render_frame(
     r = xrBeginFrame(handle, &beginInfo);
     if (XR_FAILED(r)) { LOGE("xrBeginFrame failed: %d", (int)r); return; }
 
-    std::vector<const XrCompositionLayerBaseHeader*> layers;
-    if (frameState.shouldRender && on_render)
-        layers = on_render(frameState.predictedDisplayTime);
+    FrameLayers frame_layers;
+    if (frameState.shouldRender && on_render) {
+        double render_start = now_sec();
+        frame_layers = on_render(frameState.predictedDisplayTime);
+        double render_ms = (now_sec() - render_start) * 1000.0;
+        if (render_ms > kFrameBudgetWarningMs) {
+            LOGW("render over budget: %.2f ms", render_ms);
+        }
+    }
 
     XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
     endInfo.displayTime          = frameState.predictedDisplayTime;
     endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-    if (!layers.empty()) {
-        endInfo.layerCount = (uint32_t)layers.size();
-        endInfo.layers     = layers.data();
+    if (frame_layers.count > 0U) {
+        endInfo.layerCount = frame_layers.count;
+        endInfo.layers     = frame_layers.layers.data();
     }
     r = xrEndFrame(handle, &endInfo);
+    ++frame_count_;
     if (XR_FAILED(r)) {
+        ++frame_drops_;
         double t2 = now_sec();
         if (t2 - lastEndErr_ >= 2.0) { LOGE("xrEndFrame failed: %d", (int)r); lastEndErr_ = t2; }
         return;
+    }
+
+    if (frame_count_ % kFrameDropLogInterval == 0 && frame_drops_ > 0) {
+        LOG("frame drops: %d in last %d frames", frame_drops_, kFrameDropLogInterval);
+        frame_drops_ = 0;
     }
 
     double t = now_sec();

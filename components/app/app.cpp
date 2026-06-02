@@ -1,7 +1,6 @@
 #include <android/log.h>
 #include <android_native_app_glue.h>
 #include <openxr/openxr.h>
-#include <vector>
 #include "renderer.hpp"
 #include "xr_session.hpp"
 #include "scene.hpp"
@@ -67,7 +66,7 @@ void android_main(struct android_app* app) {
             break;
         }
         if (state.xrSession.session_running()) {
-            state.xrSession.render_frame([&](XrTime t) -> std::vector<const XrCompositionLayerBaseHeader*> {
+            state.xrSession.render_frame([&](XrTime t) -> FrameLayers {
                 double time_sec = static_cast<double>(t) * 1e-9;
                 if (!state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t,
                                        state.xrSession.should_render())) {
@@ -90,7 +89,10 @@ void android_main(struct android_app* app) {
                         }
                     });
                 if (!ok) { return {}; }
-                return { reinterpret_cast<const XrCompositionLayerBaseHeader*>(&state.renderer.proj_layer()) };
+                FrameLayers result;
+                result.layers.at(0) = reinterpret_cast<const XrCompositionLayerBaseHeader*>(&state.renderer.proj_layer());
+                result.count = 1;
+                return result;
             });
         }
     }
