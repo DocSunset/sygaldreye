@@ -1,6 +1,7 @@
 #include "cube_mesh.hpp"
 #include <GLES3/gl3.h>
 #include <android/log.h>
+#include <cassert>
 
 #define TAG "cube_mesh"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
@@ -98,6 +99,7 @@ void CubeMesh::init() {
 }
 
 void CubeMesh::draw(const Eigen::Matrix4f& mvp) const {
+    assert(vao_ != 0U);
     prog_.use();
     prog_.uniform("uMVP", mvp);
     glBindVertexArray(vao_);
