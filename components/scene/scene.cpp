@@ -28,17 +28,20 @@ void Scene::update(double time) {
         Eigen::Translation3f(kCubePositionX, kCubePositionY, kCubePositionZ) *
         q *
         Eigen::Scaling(kCubeScale);
-    cubes_.resize(1);
-    cubes_[0].model = xf.matrix();
+    world_cube_.model = xf.matrix();
 }
 
 std::span<const CubeInstance> Scene::cubes() const {
-    return std::span<const CubeInstance>(cubes_);
+    cubes_cache_.clear();
+    cubes_cache_.push_back(world_cube_);
+    for (const auto& c : controller_cubes_) {
+        if (c) { cubes_cache_.push_back(*c); }
+    }
+    return std::span<const CubeInstance>(cubes_cache_);
 }
 
 void Scene::set_controller_poses(std::optional<Eigen::Matrix4f> left_model,
                                  std::optional<Eigen::Matrix4f> right_model) {
-    cubes_.resize(1);
-    if (left_model)  { cubes_.push_back({*left_model}); }
-    if (right_model) { cubes_.push_back({*right_model}); }
+    controller_cubes_.at(0U) = left_model  ? std::optional<CubeInstance>({*left_model})  : std::nullopt;
+    controller_cubes_.at(1U) = right_model ? std::optional<CubeInstance>({*right_model}) : std::nullopt;
 }

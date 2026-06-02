@@ -1,5 +1,6 @@
 #pragma once
 #include "cube_instance.hpp"
+#include <array>
 #include <optional>
 #include <span>
 #include <vector>
@@ -12,5 +13,7 @@ struct Scene {
                               std::optional<Eigen::Matrix4f> right_model);
 
 private:
-    std::vector<CubeInstance> cubes_;
+    CubeInstance world_cube_ = {};
+    std::array<std::optional<CubeInstance>, 2> controller_cubes_{};
+    mutable std::vector<CubeInstance> cubes_cache_;
 };
