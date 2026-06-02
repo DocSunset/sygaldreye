@@ -6,6 +6,7 @@
 
 struct Scene {
     void update(double time);
+    /// Returned span is invalidated by any subsequent call to update() or set_controller_poses().
     [[nodiscard]] std::span<const CubeInstance> cubes() const;
     void set_controller_poses(std::optional<Eigen::Matrix4f> left_model,
                               std::optional<Eigen::Matrix4f> right_model);

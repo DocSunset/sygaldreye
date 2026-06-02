@@ -55,12 +55,11 @@ public:
         return *this;
     }
 
-    // The provided XrInstance must outlive this object.
-    // graphics_binding must point to an XrGraphicsBindingOpenGLESAndroidKHR.
+    /// EGL context must be current. XrInstance parameter must outlive this object.
+    /// graphics_binding must point to an XrGraphicsBindingOpenGLESAndroidKHR.
     bool create(XrInstance, XrSystemId, const void* graphics_binding);
     bool poll_events();
-    // on_render is called between xrBeginFrame and xrEndFrame with predictedDisplayTime when shouldRender.
-    // It returns the layers to submit (may be empty). If shouldRender is false, on_render is not called.
+    /// Must only be called when session_running() returns true.
     void render_frame(std::function<std::vector<const XrCompositionLayerBaseHeader*>(XrTime)> on_render = {});
 
     [[nodiscard]] XrSession  get()             const { return handle; }

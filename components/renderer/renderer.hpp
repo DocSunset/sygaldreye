@@ -43,13 +43,16 @@ struct Renderer {
     Renderer(Renderer&& other) noexcept;
     Renderer& operator=(Renderer&& other) noexcept;
 
+    /// Must be called before xrCreateSession (EGL context needed for graphics binding).
     bool init();
     XrGraphicsBindingOpenGLESAndroidKHR graphics_binding() const;
+    /// Requires init() to have succeeded and XrSession to exist.
     bool create_swapchains(XrInstance, XrSystemId, XrSession);
-    // Renders eyes and locates views. Returns true and fills projLayer/projViews if layer is ready.
+    /// EGL context must be current; must not be called when shouldRender is false. projLayer valid until next render_eyes call.
     bool render_eyes(XrInstance, XrSession, XrSpace refSpace, XrTime predictedDisplayTime,
                      std::span<const CubeInstance> cubes);
 
+    /// Pointer valid only between render_eyes call and next render_eyes call; do not store across frames.
     const XrCompositionLayerProjection& proj_layer() const { return projLayer; }
 
 private:

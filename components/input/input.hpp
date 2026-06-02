@@ -20,7 +20,9 @@ struct Input {
     Input(Input&& other) noexcept;
     Input& operator=(Input&& other) noexcept;
 
+    /// Must succeed before sync() is safe to call.
     bool create(XrInstance instance, XrSession session);
+    /// Must be called between xrBeginFrame and xrEndFrame; session, worldSpace, and time must be from same frame; not thread-safe.
     bool sync(XrSession session, XrSpace worldSpace, XrTime time);
     [[nodiscard]] std::optional<HandPose> hand_pose(Hand hand) const;
 
