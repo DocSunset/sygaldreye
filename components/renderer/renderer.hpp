@@ -7,12 +7,17 @@
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 #include <memory>
+#include <optional>
 #include <vector>
 #include <array>
 #include <span>
 #include "../scene/cube_instance.hpp"
 
 struct CubeMesh;
+
+struct RendererBinding {
+    XrGraphicsBindingOpenGLESAndroidKHR xr_binding;
+};
 
 struct EyeSwapchain {
     EyeSwapchain() = default;
@@ -44,8 +49,9 @@ struct Renderer {
     Renderer& operator=(Renderer&& other) noexcept;
 
     /// Must be called before xrCreateSession (EGL context needed for graphics binding).
-    bool init();
-    XrGraphicsBindingOpenGLESAndroidKHR graphics_binding() const;
+    /// Returns a RendererBinding on success (the only way to obtain the XR graphics binding),
+    /// or std::nullopt on failure.
+    std::optional<RendererBinding> init();
     /// Requires init() to have succeeded and XrSession to exist.
     bool create_swapchains(XrInstance, XrSystemId, XrSession);
     /// EGL context must be current; must not be called when shouldRender is false. projLayer valid until next render_eyes call.

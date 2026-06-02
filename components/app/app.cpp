@@ -43,9 +43,9 @@ void android_main(struct android_app* app) {
     AppState state;
     state.xrInstance = xr_create_instance(app);
     state.xrSystemId = xr_get_system(state.xrInstance);
-    state.renderer.init();
-    auto binding = state.renderer.graphics_binding();
-    state.xrSession.create(state.xrInstance, state.xrSystemId, &binding);
+    auto binding = state.renderer.init();
+    if (!binding) { LOGE("renderer init failed"); return; }
+    state.xrSession.create(state.xrInstance, state.xrSystemId, &binding->xr_binding);
     state.renderer.create_swapchains(state.xrInstance, state.xrSystemId, state.xrSession.get());
     state.input_.create(state.xrInstance, state.xrSession.get());
     app->userData  = &state;
