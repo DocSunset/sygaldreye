@@ -1,7 +1,6 @@
 #include "renderer.hpp"
 #include "vr_math.hpp"
 #include <android/log.h>
-#include <cmath>
 #include <time.h>
 #include <utility>
 

@@ -6,12 +6,12 @@
 #include <GLES3/gl3.h>
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
-#include <span>
 #include <utility>
 #include <vector>
 #include <functional>
 
 struct XrSessionObj {
+private:
     XrInstance   instance  = XR_NULL_HANDLE;
     XrSession    handle    = XR_NULL_HANDLE;
     XrSpace      worldSpace = XR_NULL_HANDLE;
@@ -21,6 +21,8 @@ struct XrSessionObj {
     bool         firstFrame_     = true;
     double       lastHeartbeat_  = 0.0;
     double       lastEndErr_     = 0.0;
+
+public:
 
     ~XrSessionObj() {
         if (worldSpace != XR_NULL_HANDLE) { xrDestroySpace(worldSpace); }
@@ -59,17 +61,18 @@ struct XrSessionObj {
         return *this;
     }
 
+    // The provided XrInstance must outlive this object.
     bool create(XrInstance, XrSystemId, const XrGraphicsBindingOpenGLESAndroidKHR&);
     void poll_events();
     // on_render is called between xrBeginFrame and xrEndFrame with predictedDisplayTime when shouldRender.
     // It returns the layers to submit (may be empty). If shouldRender is false, on_render is not called.
     void render_frame(std::function<std::vector<const XrCompositionLayerBaseHeader*>(XrTime)> on_render = {});
 
-    XrSession  get()          const { return handle; }
-    XrSpace    worldSpace_()  const { return worldSpace; }
-    bool       should_quit()  const { return quit_; }
-    bool       session_running() const { return sessionRunning_; }
-    bool       should_render() const {
+    [[nodiscard]] XrSession  get()             const { return handle; }
+    [[nodiscard]] XrSpace    worldSpace_()     const { return worldSpace; }
+    [[nodiscard]] bool       should_quit()     const { return quit_; }
+    [[nodiscard]] bool       session_running() const { return sessionRunning_; }
+    [[nodiscard]] bool       should_render()   const {
         return state == XR_SESSION_STATE_SYNCHRONIZED ||
                state == XR_SESSION_STATE_VISIBLE      ||
                state == XR_SESSION_STATE_FOCUSED;

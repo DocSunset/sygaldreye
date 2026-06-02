@@ -88,7 +88,7 @@ void android_main(struct android_app* app) {
                     state.xrSession.worldSpace_(), t,
                     state.scene_.cubes());
                 if (!ok) return {};
-                return { reinterpret_cast<const XrCompositionLayerBaseHeader*>(&state.renderer.projLayer) };
+                return { reinterpret_cast<const XrCompositionLayerBaseHeader*>(&state.renderer.proj_layer()) };
             });
         }
     }

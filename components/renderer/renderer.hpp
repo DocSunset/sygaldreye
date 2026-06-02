@@ -6,7 +6,6 @@
 #include <GLES3/gl3.h>
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
-#include <utility>
 #include <vector>
 #include <array>
 #include <span>
@@ -14,13 +13,6 @@
 #include "cube_mesh.hpp"
 
 struct EyeSwapchain {
-    XrSwapchain handle = XR_NULL_HANDLE;
-    uint32_t    width  = 0;
-    uint32_t    height = 0;
-    std::vector<XrSwapchainImageOpenGLESKHR> images;
-    std::vector<GLuint> fbos;
-    std::vector<GLuint> depth_rbs; // one depth renderbuffer per FBO
-
     EyeSwapchain() = default;
     ~EyeSwapchain();
     EyeSwapchain(const EyeSwapchain&) = delete;
@@ -30,20 +22,18 @@ struct EyeSwapchain {
 
     // returns FBO for the given acquired image index
     GLuint fbo(uint32_t index) const { return fbos[index]; }
+
+private:
+    friend struct Renderer;
+    XrSwapchain handle = XR_NULL_HANDLE;
+    uint32_t    width  = 0;
+    uint32_t    height = 0;
+    std::vector<XrSwapchainImageOpenGLESKHR> images;
+    std::vector<GLuint> fbos;
+    std::vector<GLuint> depth_rbs; // one depth renderbuffer per FBO
 };
 
 struct Renderer {
-    EGLDisplay display = EGL_NO_DISPLAY;
-    EGLConfig  config  = nullptr;
-    EGLContext context = EGL_NO_CONTEXT;
-    EGLSurface surface = EGL_NO_SURFACE;
-
-    std::array<EyeSwapchain, 2> eyes{};
-
-    // Cached last-frame layer (valid until next render_eyes call)
-    std::array<XrCompositionLayerProjectionView, 2> projViews{};
-    XrCompositionLayerProjection projLayer{};
-
     Renderer() = default;
     ~Renderer();
     Renderer(const Renderer&) = delete;
@@ -58,8 +48,21 @@ struct Renderer {
     bool render_eyes(XrInstance, XrSession, XrSpace refSpace, XrTime predictedDisplayTime,
                      std::span<const CubeInstance> cubes);
 
+    const XrCompositionLayerProjection& proj_layer() const { return projLayer; }
+
 private:
-    CubeMesh cube_mesh_;
+    EGLDisplay display = EGL_NO_DISPLAY;
+    EGLConfig  config  = nullptr;
+    EGLContext context = EGL_NO_CONTEXT;
+    EGLSurface surface = EGL_NO_SURFACE;
+
+    std::array<EyeSwapchain, 2> eyes{};
+
+    // Cached last-frame layer (valid until next render_eyes call)
+    std::array<XrCompositionLayerProjectionView, 2> projViews{};
+    XrCompositionLayerProjection projLayer{};
+
+    CubeMesh cube_mesh_ = {};
     bool     firstEyeRender_ = true;
     bool     layerLogged_    = false;
     double   lastLocateErr_  = 0.0;

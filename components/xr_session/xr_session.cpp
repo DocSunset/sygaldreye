@@ -1,5 +1,6 @@
 #include "xr_session.hpp"
 #include <android/log.h>
+#include <cassert>
 #include <time.h>
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
@@ -113,6 +114,7 @@ bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
 
 void XrSessionObj::render_frame(
     std::function<std::vector<const XrCompositionLayerBaseHeader*>(XrTime)> on_render) {
+    assert(sessionRunning_);
     if (firstFrame_) { LOG("frame loop running"); firstFrame_ = false; }
 
     XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
