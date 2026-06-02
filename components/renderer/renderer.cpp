@@ -1,4 +1,5 @@
 #include "renderer.hpp"
+#include "vr_math.hpp"
 #include <android/log.h>
 #include <cmath>
 #include <time.h>
@@ -149,55 +150,19 @@ bool Renderer::create_swapchains(XrInstance instance, XrSystemId systemId, XrSes
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
         LOG("eye[%d] fbos: %u", eye, imgCount);
     }
+    cube_mesh_.init();
+    LOG("cube_mesh initialized");
     return true;
 }
 
-bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSpace, XrTime predictedDisplayTime) {
+bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSpace,
+                           XrTime predictedDisplayTime, std::span<const CubeInstance> cubes) {
     static bool first = true;
     if (first) { LOG("eye rendering started"); first = false; }
 
-    static double lastColorLog = 0;
-    double phase = (double)predictedDisplayTime * 1e-9;
-    float r = 0.5f + 0.5f * sinf((float)phase);
-    float g = 0.5f + 0.5f * sinf((float)phase + 2.094f);
-    float b = 0.5f + 0.5f * sinf((float)phase + 4.189f);
-
     double t = now_sec();
-    if (t - lastColorLog >= 2.0) {
-        LOG("eye clear color r=%.3f g=%.3f b=%.3f", r, g, b);
-        lastColorLog = t;
-    }
 
-    for (int eye = 0; eye < 2; ++eye) {
-        EyeSwapchain& e = eyes[eye];
-
-        XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
-        uint32_t index = 0;
-        XR_LOG_ERR(xrAcquireSwapchainImage(e.handle, &ai, &index));
-
-        XrSwapchainImageWaitInfo wi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
-        wi.timeout = XR_INFINITE_DURATION;
-        XR_LOG_ERR(xrWaitSwapchainImage(e.handle, &wi));
-
-        glBindFramebuffer(GL_FRAMEBUFFER, e.fbo(index));
-        glViewport(0, 0, (GLsizei)e.width, (GLsizei)e.height);
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
-        glClearColor(r, g, b, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        static double lastGlErr = 0;
-        if (t - lastGlErr >= 2.0) {
-            GLenum err = glGetError();
-            if (err != GL_NO_ERROR) { LOGE("glGetError: 0x%x", err); lastGlErr = t; }
-        }
-
-        XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-        XR_LOG_ERR(xrReleaseSwapchainImage(e.handle, &ri));
-    }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    // Locate views AFTER releasing swapchain images
+    // Locate views BEFORE rendering so we have eye poses for MVP computation
     XrViewLocateInfo vli{XR_TYPE_VIEW_LOCATE_INFO};
     vli.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
     vli.displayTime           = predictedDisplayTime;
@@ -221,15 +186,38 @@ bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSp
     if (!(vs.viewStateFlags & orientValid) || !(vs.viewStateFlags & posValid))
         return false;
 
+    for (int eye = 0; eye < 2; ++eye) {
+        EyeSwapchain& e = eyes[eye];
+
+        XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+        uint32_t index = 0;
+        XR_LOG_ERR(xrAcquireSwapchainImage(e.handle, &ai, &index));
+
+        XrSwapchainImageWaitInfo wi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+        wi.timeout = XR_INFINITE_DURATION;
+        XR_LOG_ERR(xrWaitSwapchainImage(e.handle, &wi));
+
+        glBindFramebuffer(GL_FRAMEBUFFER, e.fbo(index));
+        glViewport(0, 0, (GLsizei)e.width, (GLsizei)e.height);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        Eigen::Matrix4f proj = projection(views[eye].fov, 0.05f, 100.0f);
+        Eigen::Matrix4f v    = view(views[eye].pose);
+        for (const auto& cube : cubes) {
+            Eigen::Matrix4f mvp = proj * v * cube.model;
+            cube_mesh_.draw(mvp);
+        }
+
+        XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+        XR_LOG_ERR(xrReleaseSwapchainImage(e.handle, &ri));
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     static bool layerLogged = false;
     if (!layerLogged) { LOG("submitting projection layer"); layerLogged = true; }
-
-    static double lastPoseLog = 0;
-    if (t - lastPoseLog >= 2.0) {
-        LOG("view[0] pos=(%.3f,%.3f,%.3f)",
-            views[0].pose.position.x, views[0].pose.position.y, views[0].pose.position.z);
-        lastPoseLog = t;
-    }
 
     for (int eye = 0; eye < 2; ++eye) {
         projViews[eye] = {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW};
