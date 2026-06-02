@@ -15,6 +15,7 @@ struct EyeSwapchain {
     uint32_t    height = 0;
     std::vector<XrSwapchainImageOpenGLESKHR> images;
     std::vector<GLuint> fbos;
+    std::vector<GLuint> depth_rbs; // one depth renderbuffer per FBO
 
     // returns FBO for the given acquired image index
     GLuint fbo(uint32_t index) const { return fbos[index]; }
