@@ -1,24 +1,65 @@
 #include "input.hpp"
 #include <android/log.h>
+#include <utility>
 
 #define TAG "input"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 
-static bool xr_ok(XrResult r, const char* what) {
-    if (XR_SUCCEEDED(r)) return true;
-    LOGE("%s failed: %d", what, (int)r);
+static bool xr_ok(XrResult res, const char* what) {
+    if (XR_SUCCEEDED(res)) { return true; }
+    LOGE("%s failed: %d", what, static_cast<int>(res));
     return false;
+}
+
+Input::~Input() {
+    for (int i = 0; i < 2; ++i) {
+        if (handSpaces_[i] != XR_NULL_HANDLE) {
+            xrDestroySpace(handSpaces_[i]);
+        }
+    }
+    if (poseAction_ != XR_NULL_HANDLE) {
+        xrDestroyAction(poseAction_);
+    }
+    if (actionSet_ != XR_NULL_HANDLE) {
+        xrDestroyActionSet(actionSet_);
+    }
+}
+
+Input::Input(Input&& other) noexcept
+    : actionSet_(std::exchange(other.actionSet_, XR_NULL_HANDLE))
+    , poseAction_(std::exchange(other.poseAction_, XR_NULL_HANDLE))
+    , poses_(other.poses_)
+{
+    for (int i = 0; i < 2; ++i) {
+        handSpaces_[i]       = other.handSpaces_[i];
+        other.handSpaces_[i] = XR_NULL_HANDLE;
+    }
+}
+
+Input& Input::operator=(Input&& other) noexcept {
+    if (this != &other) {
+        this->~Input();
+        actionSet_  = std::exchange(other.actionSet_,  XR_NULL_HANDLE);
+        poseAction_ = std::exchange(other.poseAction_, XR_NULL_HANDLE);
+        poses_      = other.poses_;
+        for (int i = 0; i < 2; ++i) {
+            handSpaces_[i]       = other.handSpaces_[i];
+            other.handSpaces_[i] = XR_NULL_HANDLE;
+        }
+    }
+    return *this;
 }
 
 bool Input::create(XrInstance instance, XrSession session) {
     // Action set
     XrActionSetCreateInfo asci{XR_TYPE_ACTION_SET_CREATE_INFO};
-    strncpy(asci.actionSetName,            "gameplay", XR_MAX_ACTION_SET_NAME_SIZE);
-    strncpy(asci.localizedActionSetName,   "Gameplay", XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE);
+    strncpy(asci.actionSetName,          "gameplay", XR_MAX_ACTION_SET_NAME_SIZE);
+    strncpy(asci.localizedActionSetName, "Gameplay", XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE);
     asci.priority = 0;
-    if (!xr_ok(xrCreateActionSet(instance, &asci, &actionSet_), "xrCreateActionSet"))
+    if (!xr_ok(xrCreateActionSet(instance, &asci, &actionSet_), "xrCreateActionSet")) {
         return false;
+    }
 
     // Grip pose action with left/right subaction paths
     XrPath handPaths[2];
@@ -26,19 +67,21 @@ bool Input::create(XrInstance instance, XrSession session) {
     xrStringToPath(instance, "/user/hand/right", &handPaths[1]);
 
     XrActionCreateInfo aci{XR_TYPE_ACTION_CREATE_INFO};
-    strncpy(aci.actionName,            "hand_pose", XR_MAX_ACTION_NAME_SIZE);
-    strncpy(aci.localizedActionName,   "Hand Pose", XR_MAX_LOCALIZED_ACTION_NAME_SIZE);
+    strncpy(aci.actionName,          "hand_pose", XR_MAX_ACTION_NAME_SIZE);
+    strncpy(aci.localizedActionName, "Hand Pose", XR_MAX_LOCALIZED_ACTION_NAME_SIZE);
     aci.actionType          = XR_ACTION_TYPE_POSE_INPUT;
     aci.countSubactionPaths = 2;
     aci.subactionPaths      = handPaths;
-    if (!xr_ok(xrCreateAction(actionSet_, &aci, &poseAction_), "xrCreateAction"))
+    if (!xr_ok(xrCreateAction(actionSet_, &aci, &poseAction_), "xrCreateAction")) {
         return false;
+    }
 
     // Suggest bindings for Oculus Touch
-    XrPath profilePath;
+    XrPath profilePath = XR_NULL_PATH;
     xrStringToPath(instance, "/interaction_profiles/oculus/touch_controller", &profilePath);
 
-    XrPath leftPath, rightPath;
+    XrPath leftPath  = XR_NULL_PATH;
+    XrPath rightPath = XR_NULL_PATH;
     xrStringToPath(instance, "/user/hand/left/input/grip/pose",  &leftPath);
     xrStringToPath(instance, "/user/hand/right/input/grip/pose", &rightPath);
 
@@ -51,15 +94,17 @@ bool Input::create(XrInstance instance, XrSession session) {
     suggested.suggestedBindings      = bindings;
     suggested.countSuggestedBindings = 2;
     if (!xr_ok(xrSuggestInteractionProfileBindings(instance, &suggested),
-               "xrSuggestInteractionProfileBindings"))
+               "xrSuggestInteractionProfileBindings")) {
         return false;
+    }
 
     // Attach action set
     XrSessionActionSetsAttachInfo attachInfo{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
     attachInfo.actionSets      = &actionSet_;
     attachInfo.countActionSets = 1;
-    if (!xr_ok(xrAttachSessionActionSets(session, &attachInfo), "xrAttachSessionActionSets"))
+    if (!xr_ok(xrAttachSessionActionSets(session, &attachInfo), "xrAttachSessionActionSets")) {
         return false;
+    }
 
     // Create hand spaces
     for (int i = 0; i < 2; ++i) {
@@ -67,8 +112,9 @@ bool Input::create(XrInstance instance, XrSession session) {
         spaceCi.action            = poseAction_;
         spaceCi.subactionPath     = handPaths[i];
         spaceCi.poseInActionSpace = {{0,0,0,1},{0,0,0}};
-        if (!xr_ok(xrCreateActionSpace(session, &spaceCi, &handSpaces_[i]), "xrCreateActionSpace"))
+        if (!xr_ok(xrCreateActionSpace(session, &spaceCi, &handSpaces_[i]), "xrCreateActionSpace")) {
             return false;
+        }
     }
 
     LOGI("created");

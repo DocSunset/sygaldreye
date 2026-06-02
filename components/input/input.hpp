@@ -14,9 +14,18 @@ struct HandPose {
 };
 
 struct Input {
+    Input() = default;
+    ~Input();
+
+    Input(const Input&)            = delete;
+    Input& operator=(const Input&) = delete;
+
+    Input(Input&& other) noexcept;
+    Input& operator=(Input&& other) noexcept;
+
     bool create(XrInstance instance, XrSession session);
     void sync(XrSession session, XrSpace worldSpace, XrTime time);
-    HandPose hand_pose(int hand) const;  // hand: 0=left, 1=right
+    [[nodiscard]] HandPose hand_pose(int hand) const;  // hand: 0=left, 1=right
 
 private:
     XrActionSet actionSet_  = XR_NULL_HANDLE;
