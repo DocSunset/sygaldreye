@@ -126,20 +126,27 @@ bool Renderer::create_swapchains(XrInstance instance, XrSystemId systemId, XrSes
             reinterpret_cast<XrSwapchainImageBaseHeader*>(e.images.data())));
 
         e.fbos.resize(imgCount);
+        e.depth_rbs.resize(imgCount);
         glGenFramebuffers((GLsizei)imgCount, e.fbos.data());
+        glGenRenderbuffers((GLsizei)imgCount, e.depth_rbs.data());
         for (uint32_t i = 0; i < imgCount; ++i) {
+            glBindRenderbuffer(GL_RENDERBUFFER, e.depth_rbs[i]);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, (GLsizei)e.width, (GLsizei)e.height);
+
             glBindFramebuffer(GL_FRAMEBUFFER, e.fbos[i]);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                 GL_TEXTURE_2D, e.images[i].image, 0);
-            if (i == 0) {
-                GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-                if (status == GL_FRAMEBUFFER_COMPLETE)
-                    LOG("eye[%d] framebuffer complete", eye);
-                else
-                    LOGE("eye[%d] framebuffer status: 0x%x", eye, status);
-            }
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                GL_RENDERBUFFER, e.depth_rbs[i]);
+
+            GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (status == GL_FRAMEBUFFER_COMPLETE)
+                LOG("eye[%d] fbo[%u] framebuffer complete", eye, i);
+            else
+                LOGE("eye[%d] fbo[%u] framebuffer status: 0x%x", eye, i, status);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindRenderbuffer(GL_RENDERBUFFER, 0);
         LOG("eye[%d] fbos: %u", eye, imgCount);
     }
     return true;
@@ -174,8 +181,10 @@ bool Renderer::render_eyes(XrInstance instance, XrSession session, XrSpace refSp
 
         glBindFramebuffer(GL_FRAMEBUFFER, e.fbo(index));
         glViewport(0, 0, (GLsizei)e.width, (GLsizei)e.height);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
         glClearColor(r, g, b, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         static double lastGlErr = 0;
         if (t - lastGlErr >= 2.0) {
