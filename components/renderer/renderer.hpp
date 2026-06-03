@@ -1,82 +1,35 @@
 #pragma once
-#define XR_USE_PLATFORM_ANDROID
-#define XR_USE_GRAPHICS_API_OPENGL_ES
-#include <jni.h>
-#include <EGL/egl.h>
-#include <GLES3/gl3.h>
-#include <openxr/openxr.h>
-#include <openxr/openxr_platform.h>
-#include <functional>
-#include <optional>
-#include <span>
-#include <vector>
+#include "egl_context.hpp"
+#include "eye_swapchain.hpp"
+#include "vr_math.hpp"
 #include <array>
+#include <functional>
 #include <Eigen/Core>
 
-/// Pure format-selection policy: prefer GL_SRGB8_ALPHA8, then GL_RGBA8, then first.
-/// Returns 0 if formats is empty.
-[[nodiscard]] int64_t choose_swapchain_format(std::span<const int64_t> formats);
-
-struct RendererBinding {
-    XrGraphicsBindingOpenGLESAndroidKHR xr_binding;
-};
-
-struct EyeSwapchain {
-    EyeSwapchain() = default;
-    ~EyeSwapchain();
-    EyeSwapchain(const EyeSwapchain&) = delete;
-    EyeSwapchain& operator=(const EyeSwapchain&) = delete;
-    EyeSwapchain(EyeSwapchain&& other) noexcept;
-    EyeSwapchain& operator=(EyeSwapchain&& other) noexcept;
-
-    // returns FBO for the given acquired image index
-    [[nodiscard]] GLuint fbo(uint32_t index) const { return fbos[index]; }
-
-private:
-    friend struct Renderer;
-    XrSwapchain handle = XR_NULL_HANDLE;
-    uint32_t    width  = 0;
-    uint32_t    height = 0;
-    std::vector<XrSwapchainImageOpenGLESKHR> images;
-    std::vector<GLuint> fbos;
-    std::vector<GLuint> depth_rbs; // one depth renderbuffer per FBO
-};
-
 struct Renderer {
-    Renderer();
-    ~Renderer();
+    Renderer() = default;
+    ~Renderer() = default;
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
-    Renderer(Renderer&& other) noexcept;
-    Renderer& operator=(Renderer&& other) noexcept;
+    Renderer(Renderer&&) noexcept = default;
+    Renderer& operator=(Renderer&&) noexcept = default;
 
-    /// Must be called before xrCreateSession (EGL context needed for graphics binding).
-    /// Returns a RendererBinding on success (the only way to obtain the XR graphics binding),
-    /// or std::nullopt on failure.
-    std::optional<RendererBinding> init();
-    /// Requires init() to have succeeded and XrSession to exist.
+    [[nodiscard]] std::optional<RendererBinding> init();
     bool create_swapchains(XrInstance, XrSystemId, XrSession);
-    /// EGL context must be current; must not be called when shouldRender is false. projLayer valid until next render_eyes call.
     bool render_eyes(XrInstance, XrSession, XrSpace refSpace, XrTime predictedDisplayTime,
                      const std::function<void(const Eigen::Matrix4f& proj,
                                               const Eigen::Matrix4f& view)>& on_draw);
 
-    /// Pointer valid only between render_eyes call and next render_eyes call; do not store across frames.
-    [[nodiscard]] const XrCompositionLayerProjection& proj_layer() const { return projLayer; }
+    [[nodiscard]] const XrCompositionLayerProjection& proj_layer() const { return projLayer_; }
 
 private:
-    EGLDisplay display = EGL_NO_DISPLAY;
-    EGLConfig  config  = nullptr;
-    EGLContext context = EGL_NO_CONTEXT;
-    EGLSurface surface = EGL_NO_SURFACE;
+    EglContext egl_{};
+    std::array<EyeSwapchain, 2> eyes_{};
 
-    std::array<EyeSwapchain, 2> eyes{};
+    std::array<XrCompositionLayerProjectionView, 2> projViews_{};
+    XrCompositionLayerProjection projLayer_{};
 
-    // Cached last-frame layer (valid until next render_eyes call)
-    std::array<XrCompositionLayerProjectionView, 2> projViews{};
-    XrCompositionLayerProjection projLayer{};
-
-    bool     firstEyeRender_ = true;
-    bool     layerLogged_    = false;
-    double   lastLocateErr_  = 0.0;
+    bool   firstEyeRender_ = true;
+    bool   layerLogged_    = false;
+    double lastLocateErr_  = 0.0;
 };

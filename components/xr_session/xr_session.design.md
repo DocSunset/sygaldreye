@@ -20,11 +20,6 @@ Owning package: `xr`
 - Session must be created after the XrInstance and XrSystemId exist
 - Session must be created after the GLES context is current (EGL context made current by renderer)
 - `xrBeginSession` is called only after XR_SESSION_STATE_READY; `xrEndSession` only after XR_SESSION_STATE_STOPPING
-- `render_frame()` must only be called when `session_running()` is true (after xrBeginSession, before xrEndSession)
-- Per-frame ordering is fixed: xrWaitFrame → xrBeginFrame → xrEndFrame; these must not be interleaved
-
-### Intended seams
-- **Layer submission (render seam):** `render_frame(std::span<const XrCompositionLayerBaseHeader* const>)` — caller passes projection layers to submit in xrEndFrame; defaults to empty (zero layers). The `render` package will fill this seam with a projection layer.
 
 ## Requirements
 - Create an XrSession bound to the GLES context via XrGraphicsBindingOpenGLESAndroidKHR

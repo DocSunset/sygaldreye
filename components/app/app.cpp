@@ -3,6 +3,7 @@
 #include <openxr/openxr.h>
 #include "renderer.hpp"
 #include "xr_session.hpp"
+#include "frame_loop.hpp"
 #include "scene.hpp"
 #include "input.hpp"
 #include "cube_mesh.hpp"
@@ -22,6 +23,7 @@ struct AppState {
     XrSystemId xrSystemId = XR_NULL_SYSTEM_ID;
     Renderer renderer{};
     XrSessionObj xrSession{};
+    FrameLoop    frame_loop_{};
     Scene scene_{};
     Input input_{};
     CubeMesh cube_mesh_{};
@@ -66,7 +68,7 @@ void android_main(struct android_app* app) {
             break;
         }
         if (state.xrSession.session_running()) {
-            state.xrSession.render_frame([&](XrTime t) -> FrameLayers {
+            state.frame_loop_.run_frame(state.xrSession.get(), [&](XrTime t) -> FrameLayers {
                 double time_sec = static_cast<double>(t) * 1e-9;
                 if (!state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t,
                                        state.xrSession.should_render())) {

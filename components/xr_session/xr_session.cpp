@@ -6,23 +6,9 @@
 #include <openxr/openxr_platform.h>
 #include "xr_session.hpp"
 #include <android/log.h>
-#include <cassert>
-#include <time.h>
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "eyeballs", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
-
-namespace {
-constexpr double kFrameBudgetWarningMs = 9.0;
-constexpr int    kFrameDropLogInterval = 100;
-}
-
-static double now_sec() {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec + ts.tv_nsec * 1e-9;
-}
 
 static const char* session_state_str(XrSessionState s) {
     switch (s) {
@@ -77,7 +63,6 @@ bool XrSessionObj::poll_events() {
 bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
                           const void* graphics_binding) {
     instance = inst;
-    // Required before xrCreateSession per XR_KHR_opengl_es_enable spec
     PFN_xrGetOpenGLESGraphicsRequirementsKHR getReqs = nullptr;
     xrGetInstanceProcAddr(instance, "xrGetOpenGLESGraphicsRequirementsKHR",
                           reinterpret_cast<PFN_xrVoidFunction*>(&getReqs));
@@ -91,13 +76,9 @@ bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
     ci.systemId = systemId;
 
     XrResult r = xrCreateSession(instance, &ci, &handle);
-    if (XR_FAILED(r)) {
-        LOGE("xrCreateSession failed: %d", (int)r);
-        return false;
-    }
+    if (XR_FAILED(r)) { LOGE("xrCreateSession failed: %d", (int)r); return false; }
     LOG("xrCreateSession: success, handle=%p", (void*)handle);
 
-    // Enumerate supported reference space types
     uint32_t count = 0;
     xrEnumerateReferenceSpaces(handle, 0, &count, nullptr);
     XrReferenceSpaceType types[16] = {};
@@ -118,58 +99,7 @@ bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
     rsci.poseInReferenceSpace = {{0, 0, 0, 1}, {0, 0, 0}};
 
     XrResult rs = xrCreateReferenceSpace(handle, &rsci, &worldSpace);
-    if (XR_FAILED(rs)) {
-        LOGE("xrCreateReferenceSpace failed: %d", (int)rs);
-        return false;
-    }
+    if (XR_FAILED(rs)) { LOGE("xrCreateReferenceSpace failed: %d", (int)rs); return false; }
     LOG("xrCreateReferenceSpace: success, space=%p", (void*)worldSpace);
     return true;
-}
-
-void XrSessionObj::render_frame(std::function<FrameLayers(XrTime)> on_render) {
-    assert(sessionRunning_);
-    if (firstFrame_) { LOG("frame loop running"); firstFrame_ = false; }
-
-    XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
-    XrFrameState frameState{XR_TYPE_FRAME_STATE};
-    XrResult r = xrWaitFrame(handle, &waitInfo, &frameState);
-    if (XR_FAILED(r)) { LOGE("xrWaitFrame failed: %d", (int)r); return; }
-
-    XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
-    r = xrBeginFrame(handle, &beginInfo);
-    if (XR_FAILED(r)) { LOGE("xrBeginFrame failed: %d", (int)r); return; }
-
-    FrameLayers frame_layers;
-    if (frameState.shouldRender && on_render) {
-        double render_start = now_sec();
-        frame_layers = on_render(frameState.predictedDisplayTime);
-        double render_ms = (now_sec() - render_start) * 1000.0;
-        if (render_ms > kFrameBudgetWarningMs) {
-            LOGW("render over budget: %.2f ms", render_ms);
-        }
-    }
-
-    XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
-    endInfo.displayTime          = frameState.predictedDisplayTime;
-    endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-    if (frame_layers.count > 0U) {
-        endInfo.layerCount = frame_layers.count;
-        endInfo.layers     = frame_layers.layers.data();
-    }
-    r = xrEndFrame(handle, &endInfo);
-    ++frame_count_;
-    if (XR_FAILED(r)) {
-        ++frame_drops_;
-        double t2 = now_sec();
-        if (t2 - lastEndErr_ >= 2.0) { LOGE("xrEndFrame failed: %d", (int)r); lastEndErr_ = t2; }
-        return;
-    }
-
-    if (frame_count_ % kFrameDropLogInterval == 0 && frame_drops_ > 0) {
-        LOG("frame drops: %d in last %d frames", frame_drops_, kFrameDropLogInterval);
-        frame_drops_ = 0;
-    }
-
-    double t = now_sec();
-    if (t - lastHeartbeat_ >= 5.0) { LOG("frame loop heartbeat"); lastHeartbeat_ = t; }
 }
