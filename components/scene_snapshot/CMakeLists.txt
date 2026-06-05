@@ -28,4 +28,14 @@ target_link_libraries(water_surface_snapshot PRIVATE
     scene_snapshot host_gl_context water_surface GLESv2)
 target_compile_options(water_surface_snapshot PRIVATE -Wall -Wextra)
 
+
+add_executable(combined_scene_snapshot combined_scene_snapshot.cpp)
+target_include_directories(combined_scene_snapshot PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/host_gl_context
+    $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(combined_scene_snapshot PRIVATE
+    scene_snapshot host_gl_context water_surface sky_dome terrain_generator
+    tree_generator lit_shader flat_shader billboard_quad GLESv2)
+target_compile_options(combined_scene_snapshot PRIVATE -Wall -Wextra)
+
 endif()
