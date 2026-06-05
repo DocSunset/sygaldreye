@@ -4,7 +4,7 @@ Owning package: `scene`
 
 ## Ports
 
-- **Inputs**: `update(double time)` — advance animation; `set_controller_poses()` — placeholder for item 28
+- **Inputs**: `update(double time_s)` — advance animation; `time_s` is seconds since XR session start, sourced from `XrFrameState::predictedDisplayTime` (nanoseconds) converted via `* 1e-9`; monotonically increasing at roughly wall-clock rate; `set_controller_poses()` — placeholder for item 28
 - **Outputs**: `cubes()` — current set of cube instances to draw (valid until next `update`)
 - **Temporal couplings**: caller must call `update` before reading `cubes` each frame
 
