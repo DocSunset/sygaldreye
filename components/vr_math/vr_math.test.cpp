@@ -25,7 +25,6 @@ TEST(VrMath, PoseToWorldIdentityPose) {
 
 // 45 degrees symmetric fov
 TEST(VrMath, ProjectionSymmetric45) {
-    float a = std::tan(static_cast<float>(M_PI) / 4.f); // tan(45°) = 1
     float near_z = 0.1f;
     float far_z  = 100.f;
     XrFovf fov{

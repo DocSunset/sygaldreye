@@ -20,12 +20,15 @@ static double now_sec() {
 void FrameLoop::run_frame(XrSession session, std::function<FrameLayers(XrTime)> on_render) {
     if (firstFrame_) { LOG("frame loop running"); firstFrame_ = false; }
 
-    XrFrameWaitInfo waitInfo{XR_TYPE_FRAME_WAIT_INFO};
-    XrFrameState frameState{XR_TYPE_FRAME_STATE};
+    XrFrameWaitInfo waitInfo{};
+    waitInfo.type = XR_TYPE_FRAME_WAIT_INFO;
+    XrFrameState frameState{};
+    frameState.type = XR_TYPE_FRAME_STATE;
     XrResult r = xrWaitFrame(session, &waitInfo, &frameState);
     if (XR_FAILED(r)) { LOGE("xrWaitFrame failed: %d", (int)r); return; }
 
-    XrFrameBeginInfo beginInfo{XR_TYPE_FRAME_BEGIN_INFO};
+    XrFrameBeginInfo beginInfo{};
+    beginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
     r = xrBeginFrame(session, &beginInfo);
     if (XR_FAILED(r)) { LOGE("xrBeginFrame failed: %d", (int)r); return; }
 
@@ -39,7 +42,8 @@ void FrameLoop::run_frame(XrSession session, std::function<FrameLayers(XrTime)> 
         }
     }
 
-    XrFrameEndInfo endInfo{XR_TYPE_FRAME_END_INFO};
+    XrFrameEndInfo endInfo{};
+    endInfo.type                 = XR_TYPE_FRAME_END_INFO;
     endInfo.displayTime          = frameState.predictedDisplayTime;
     endInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
     if (frame_layers.count > 0U) {

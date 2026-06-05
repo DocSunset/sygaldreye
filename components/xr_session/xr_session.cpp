@@ -24,7 +24,8 @@ static const char* session_state_str(XrSessionState s) {
 }
 
 bool XrSessionObj::poll_events() {
-    XrEventDataBuffer ev{XR_TYPE_EVENT_DATA_BUFFER};
+    XrEventDataBuffer ev{};
+    ev.type = XR_TYPE_EVENT_DATA_BUFFER;
     while (xrPollEvent(instance, &ev) == XR_SUCCESS) {
         switch (ev.type) {
         case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED: {
@@ -32,7 +33,8 @@ bool XrSessionObj::poll_events() {
             LOG("session state: %s -> %s", session_state_str(state), session_state_str(sc.state));
             state = sc.state;
             if (state == XR_SESSION_STATE_READY) {
-                XrSessionBeginInfo bi{XR_TYPE_SESSION_BEGIN_INFO};
+                XrSessionBeginInfo bi{};
+                bi.type = XR_TYPE_SESSION_BEGIN_INFO;
                 bi.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
                 XrResult r = xrBeginSession(handle, &bi);
                 if (XR_FAILED(r)) { LOGE("xrBeginSession failed: %d", (int)r); return false; }
@@ -55,7 +57,8 @@ bool XrSessionObj::poll_events() {
             break;
         default: break;
         }
-        ev = {XR_TYPE_EVENT_DATA_BUFFER};
+        ev = {};
+        ev.type = XR_TYPE_EVENT_DATA_BUFFER;
     }
     return true;
 }
@@ -67,11 +70,13 @@ bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
     xrGetInstanceProcAddr(instance, "xrGetOpenGLESGraphicsRequirementsKHR",
                           reinterpret_cast<PFN_xrVoidFunction*>(&getReqs));
     if (getReqs) {
-        XrGraphicsRequirementsOpenGLESKHR req{XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR};
+        XrGraphicsRequirementsOpenGLESKHR req{};
+        req.type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR;
         getReqs(instance, systemId, &req);
     }
 
-    XrSessionCreateInfo ci{XR_TYPE_SESSION_CREATE_INFO};
+    XrSessionCreateInfo ci{};
+    ci.type     = XR_TYPE_SESSION_CREATE_INFO;
     ci.next     = graphics_binding;
     ci.systemId = systemId;
 
@@ -94,7 +99,8 @@ bool XrSessionObj::create(XrInstance inst, XrSystemId systemId,
     }
     LOG("reference space chosen: %s", chosen == XR_REFERENCE_SPACE_TYPE_STAGE ? "STAGE" : "LOCAL");
 
-    XrReferenceSpaceCreateInfo rsci{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+    XrReferenceSpaceCreateInfo rsci{};
+    rsci.type               = XR_TYPE_REFERENCE_SPACE_CREATE_INFO;
     rsci.referenceSpaceType = chosen;
     rsci.poseInReferenceSpace = {{0, 0, 0, 1}, {0, 0, 0}};
 

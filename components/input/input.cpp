@@ -55,7 +55,8 @@ Input& Input::operator=(Input&& other) noexcept {
 
 bool Input::create(XrInstance instance, XrSession session) {
     // Action set
-    XrActionSetCreateInfo asci{XR_TYPE_ACTION_SET_CREATE_INFO};
+    XrActionSetCreateInfo asci{};
+    asci.type = XR_TYPE_ACTION_SET_CREATE_INFO;
     strncpy(asci.actionSetName, "gameplay", XR_MAX_ACTION_SET_NAME_SIZE - 1);
     asci.actionSetName[XR_MAX_ACTION_SET_NAME_SIZE - 1] = '\0';
     strncpy(asci.localizedActionSetName, "Gameplay", XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE - 1);
@@ -70,7 +71,8 @@ bool Input::create(XrInstance instance, XrSession session) {
     xrStringToPath(instance, "/user/hand/left",  &handPaths[0]);
     xrStringToPath(instance, "/user/hand/right", &handPaths[1]);
 
-    XrActionCreateInfo aci{XR_TYPE_ACTION_CREATE_INFO};
+    XrActionCreateInfo aci{};
+    aci.type = XR_TYPE_ACTION_CREATE_INFO;
     strncpy(aci.actionName, "hand_pose", XR_MAX_ACTION_NAME_SIZE - 1);
     aci.actionName[XR_MAX_ACTION_NAME_SIZE - 1] = '\0';
     strncpy(aci.localizedActionName, "Hand Pose", XR_MAX_LOCALIZED_ACTION_NAME_SIZE - 1);
@@ -95,7 +97,8 @@ bool Input::create(XrInstance instance, XrSession session) {
         {poseAction_, leftPath},
         {poseAction_, rightPath},
     };
-    XrInteractionProfileSuggestedBinding suggested{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+    XrInteractionProfileSuggestedBinding suggested{};
+    suggested.type                   = XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING;
     suggested.interactionProfile     = profilePath;
     suggested.suggestedBindings      = bindings;
     suggested.countSuggestedBindings = 2;
@@ -105,7 +108,8 @@ bool Input::create(XrInstance instance, XrSession session) {
     }
 
     // Attach action set
-    XrSessionActionSetsAttachInfo attachInfo{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
+    XrSessionActionSetsAttachInfo attachInfo{};
+    attachInfo.type            = XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO;
     attachInfo.actionSets      = &actionSet_;
     attachInfo.countActionSets = 1;
     if (!xr_ok(xrAttachSessionActionSets(session, &attachInfo), "xrAttachSessionActionSets")) {
@@ -114,7 +118,8 @@ bool Input::create(XrInstance instance, XrSession session) {
 
     // Create hand spaces
     for (int i = 0; i < 2; ++i) {
-        XrActionSpaceCreateInfo spaceCi{XR_TYPE_ACTION_SPACE_CREATE_INFO};
+        XrActionSpaceCreateInfo spaceCi{};
+        spaceCi.type              = XR_TYPE_ACTION_SPACE_CREATE_INFO;
         spaceCi.action            = poseAction_;
         spaceCi.subactionPath     = handPaths[i];
         spaceCi.poseInActionSpace = {{0,0,0,1},{0,0,0}};
@@ -133,7 +138,8 @@ bool Input::sync(XrSession session, XrSpace worldSpace, XrTime time, bool focuse
         return true;
     }
     XrActiveActionSet active{actionSet_, XR_NULL_PATH};
-    XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
+    XrActionsSyncInfo syncInfo{};
+    syncInfo.type                  = XR_TYPE_ACTIONS_SYNC_INFO;
     syncInfo.activeActionSets      = &active;
     syncInfo.countActiveActionSets = 1;
     if (!xr_ok(xrSyncActions(session, &syncInfo), "xrSyncActions")) {
@@ -141,7 +147,8 @@ bool Input::sync(XrSession session, XrSpace worldSpace, XrTime time, bool focuse
     }
 
     for (int i = 0; i < 2; ++i) {
-        XrSpaceLocation loc{XR_TYPE_SPACE_LOCATION};
+        XrSpaceLocation loc{};
+        loc.type = XR_TYPE_SPACE_LOCATION;
         xrLocateSpace(handSpaces_.at(static_cast<size_t>(i)), worldSpace, time, &loc);
         constexpr XrSpaceLocationFlags valid =
             XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;

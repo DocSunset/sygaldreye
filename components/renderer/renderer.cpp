@@ -34,13 +34,16 @@ bool Renderer::render_eyes(XrInstance /*instance*/, XrSession session, XrSpace r
 
     double t = now_sec();
 
-    XrViewLocateInfo vli{XR_TYPE_VIEW_LOCATE_INFO};
+    XrViewLocateInfo vli{};
+    vli.type                  = XR_TYPE_VIEW_LOCATE_INFO;
     vli.viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
     vli.displayTime           = predictedDisplayTime;
     vli.space                 = refSpace;
 
-    XrViewState vs{XR_TYPE_VIEW_STATE};
-    XrView views[2]{{XR_TYPE_VIEW},{XR_TYPE_VIEW}};
+    XrViewState vs{};
+    vs.type = XR_TYPE_VIEW_STATE;
+    XrView views[2]{};
+    views[0].type = views[1].type = XR_TYPE_VIEW;
     uint32_t viewCount = 2;
     XrResult lr = xrLocateViews(session, &vli, &vs, 2, &viewCount, views);
     if (XR_FAILED(lr)) {
@@ -59,15 +62,18 @@ bool Renderer::render_eyes(XrInstance /*instance*/, XrSession session, XrSpace r
     for (int eye = 0; eye < 2; ++eye) {
         EyeSwapchain& e = eyes_[eye];
 
-        XrSwapchainImageAcquireInfo ai{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+        XrSwapchainImageAcquireInfo ai{};
+        ai.type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO;
         uint32_t index = 0;
         if (XR_FAILED(xrAcquireSwapchainImage(e.xr_handle(), &ai, &index))) {
             LOGE("xrAcquireSwapchainImage failed eye %d", eye);
             continue;
         }
-        XrSwapchainImageWaitInfo wi{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+        XrSwapchainImageWaitInfo wi{};
+        wi.type    = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO;
         wi.timeout = kSwapchainWaitTimeoutNs;
-        XrSwapchainImageReleaseInfo ri{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+        XrSwapchainImageReleaseInfo ri{};
+        ri.type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO;
         if (XR_FAILED(xrWaitSwapchainImage(e.xr_handle(), &wi))) {
             LOGE("xrWaitSwapchainImage timed out or failed eye %d", eye);
             XR_LOG_ERR(xrReleaseSwapchainImage(e.xr_handle(), &ri));
@@ -92,7 +98,8 @@ bool Renderer::render_eyes(XrInstance /*instance*/, XrSession session, XrSpace r
     if (!layerLogged_) { LOG("submitting projection layer"); layerLogged_ = true; }
 
     for (int eye = 0; eye < 2; ++eye) {
-        projViews_[eye] = {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW};
+        projViews_[eye] = {};
+        projViews_[eye].type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW;
         projViews_[eye].pose = views[eye].pose;
         projViews_[eye].fov  = views[eye].fov;
         projViews_[eye].subImage.swapchain       = eyes_[eye].xr_handle();
@@ -100,7 +107,8 @@ bool Renderer::render_eyes(XrInstance /*instance*/, XrSession session, XrSpace r
         projViews_[eye].subImage.imageArrayIndex = 0;
     }
 
-    projLayer_ = {XR_TYPE_COMPOSITION_LAYER_PROJECTION};
+    projLayer_ = {};
+    projLayer_.type       = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
     projLayer_.space      = refSpace;
     projLayer_.layerFlags = 0;
     projLayer_.viewCount  = 2;

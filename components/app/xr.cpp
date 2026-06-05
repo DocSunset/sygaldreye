@@ -28,17 +28,15 @@
     } while (0)
 
 XrSystemId xr_get_system(XrInstance instance) {
-    XrSystemGetInfo sgi{XR_TYPE_SYSTEM_GET_INFO};
+    XrSystemGetInfo sgi{};
+    sgi.type = XR_TYPE_SYSTEM_GET_INFO;
     sgi.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
     XrSystemId systemId = XR_NULL_SYSTEM_ID;
     XR_CHECK_SYS(xrGetSystem(instance, &sgi, &systemId));
     LOG("xrGetSystem: success, systemId=%llu", (unsigned long long)systemId);
 
-    XrSystemGraphicsProperties gfx{};
-    XrSystemTrackingProperties trk{};
-    XrSystemProperties props{XR_TYPE_SYSTEM_PROPERTIES};
-    props.graphicsProperties = gfx;
-    props.trackingProperties = trk;
+    XrSystemProperties props{};
+    props.type = XR_TYPE_SYSTEM_PROPERTIES;
     XrResult r = xrGetSystemProperties(instance, systemId, &props);
     if (XR_FAILED(r)) {
         LOGE("xrGetSystemProperties failed: %d", (int)r);
@@ -60,7 +58,8 @@ XrInstance xr_create_instance(struct android_app* app) {
     PFN_xrInitializeLoaderKHR initLoader = nullptr;
     XR_CHECK(xrGetInstanceProcAddr(XR_NULL_HANDLE, "xrInitializeLoaderKHR",
                                    reinterpret_cast<PFN_xrVoidFunction*>(&initLoader)));
-    XrLoaderInitInfoAndroidKHR loaderInfo{XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR};
+    XrLoaderInitInfoAndroidKHR loaderInfo{};
+    loaderInfo.type               = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
     loaderInfo.applicationVM      = app->activity->vm;
     loaderInfo.applicationContext = app->activity->clazz;
     XR_CHECK(initLoader((const XrLoaderInitInfoBaseHeaderKHR*)&loaderInfo));
@@ -72,7 +71,9 @@ XrInstance xr_create_instance(struct android_app* app) {
     };
     uint32_t extCount = 0;
     xrEnumerateInstanceExtensionProperties(nullptr, 0, &extCount, nullptr);
-    std::vector<XrExtensionProperties> exts(extCount, {XR_TYPE_EXTENSION_PROPERTIES});
+    XrExtensionProperties ep{};
+    ep.type = XR_TYPE_EXTENSION_PROPERTIES;
+    std::vector<XrExtensionProperties> exts(extCount, ep);
     xrEnumerateInstanceExtensionProperties(nullptr, extCount, &extCount, exts.data());
     for (const char* req : required) {
         bool found = false;
@@ -81,11 +82,13 @@ XrInstance xr_create_instance(struct android_app* app) {
     }
 
     // Create instance
-    XrInstanceCreateInfoAndroidKHR androidInfo{XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR};
+    XrInstanceCreateInfoAndroidKHR androidInfo{};
+    androidInfo.type               = XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR;
     androidInfo.applicationVM       = app->activity->vm;
     androidInfo.applicationActivity = app->activity->clazz;
 
-    XrInstanceCreateInfo ci{XR_TYPE_INSTANCE_CREATE_INFO};
+    XrInstanceCreateInfo ci{};
+    ci.type                       = XR_TYPE_INSTANCE_CREATE_INFO;
     ci.next                       = &androidInfo;
     ci.enabledExtensionCount      = 2;
     ci.enabledExtensionNames      = required;
@@ -97,7 +100,8 @@ XrInstance xr_create_instance(struct android_app* app) {
     XR_CHECK(xrCreateInstance(&ci, &instance));
 
     // Log runtime info
-    XrInstanceProperties props{XR_TYPE_INSTANCE_PROPERTIES};
+    XrInstanceProperties props{};
+    props.type = XR_TYPE_INSTANCE_PROPERTIES;
     if (XR_SUCCEEDED(xrGetInstanceProperties(instance, &props)))
         LOG("XR runtime: %s (ver %u.%u.%u)", props.runtimeName,
             XR_VERSION_MAJOR(props.runtimeVersion),

@@ -84,7 +84,8 @@ bool create_swapchains(XrInstance instance, XrSystemId systemId, XrSession sessi
         e.width_  = vcv[eye].recommendedImageRectWidth;
         e.height_ = vcv[eye].recommendedImageRectHeight;
 
-        XrSwapchainCreateInfo sci{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+        XrSwapchainCreateInfo sci{};
+        sci.type        = XR_TYPE_SWAPCHAIN_CREATE_INFO;
         sci.usageFlags  = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
         sci.format      = chosenFmt;
         sci.sampleCount = 1;
@@ -98,7 +99,9 @@ bool create_swapchains(XrInstance instance, XrSystemId systemId, XrSession sessi
 
         uint32_t imgCount = 0;
         XR_CHECK(xrEnumerateSwapchainImages(e.handle, 0, &imgCount, nullptr));
-        e.images.resize(imgCount, {XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_ES_KHR});
+        XrSwapchainImageOpenGLESKHR img{};
+        img.type = XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_ES_KHR;
+        e.images.resize(imgCount, img);
         XR_CHECK(xrEnumerateSwapchainImages(e.handle, imgCount, &imgCount,
             reinterpret_cast<XrSwapchainImageBaseHeader*>(e.images.data())));
 

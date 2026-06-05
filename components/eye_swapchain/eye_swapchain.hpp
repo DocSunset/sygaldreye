@@ -3,6 +3,7 @@
 #define XR_USE_GRAPHICS_API_OPENGL_ES
 #include <jni.h>
 #include <GLES3/gl3.h>
+#include <EGL/egl.h>
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 #include <array>
