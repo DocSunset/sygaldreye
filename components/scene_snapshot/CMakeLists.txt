@@ -45,6 +45,15 @@ target_link_libraries(sky_dome_snapshot PRIVATE
     scene_snapshot host_gl_context sky_dome sphere_mesh sphere_geometry GLESv2)
 target_compile_options(sky_dome_snapshot PRIVATE -Wall -Wextra)
 
+add_executable(aurora_snapshot aurora_snapshot.cpp)
+target_include_directories(aurora_snapshot PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/host_gl_context
+    ${CMAKE_SOURCE_DIR}/components/aurora
+    $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(aurora_snapshot PRIVATE
+    scene_snapshot host_gl_context aurora GLESv2)
+target_compile_options(aurora_snapshot PRIVATE -Wall -Wextra)
+
 add_executable(combined_scene_snapshot combined_scene_snapshot.cpp)
 target_include_directories(combined_scene_snapshot PRIVATE
     ${CMAKE_SOURCE_DIR}/components/host_gl_context
