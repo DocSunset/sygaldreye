@@ -1,5 +1,4 @@
 #include "tethered_point.hpp"
-#include <cmath>
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters,misc-use-internal-linkage) -- interface is by design; declared in header
 Eigen::Vector3f tethered_point(Eigen::Vector3f anchor,
