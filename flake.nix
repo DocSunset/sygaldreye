@@ -20,6 +20,29 @@
       };
 
       ndkRoot = "${androidComposition.androidsdk}/libexec/android-sdk/ndk/27.3.13750724";
+
+      msdfAtlasGen = pkgs.stdenv.mkDerivation {
+        name = "msdf-atlas-gen";
+        src = pkgs.fetchFromGitHub {
+          owner = "Chlumsky";
+          repo  = "msdf-atlas-gen";
+          rev   = "v1.3";
+          hash  = "sha256-BTRU9yETjNebIhDXnN4CxNxG/ncp7pGO96M0vKTNV7w=";
+          fetchSubmodules = true;
+        };
+        nativeBuildInputs = [ pkgs.cmake pkgs.ninja ];
+        buildInputs = [ pkgs.freetype ];
+        cmakeFlags = [
+          "-DMSDF_ATLAS_BUILD_STANDALONE=ON"
+          "-DMSDF_ATLAS_USE_VCPKG=OFF"
+          "-DMSDF_ATLAS_USE_SKIA=OFF"
+          "-DMSDFGEN_DISABLE_SVG=ON"
+        ];
+        installPhase = ''
+          mkdir -p $out/bin
+          find . -name msdf-atlas-gen -type f -executable -exec cp {} $out/bin/ \;
+        '';
+      };
     in
     {
       devShells.${system}.default = pkgs.mkShell {
@@ -32,6 +55,8 @@
           pkgs.eigen
           pkgs.zip             # APK assembly in sh/package.sh
           pkgs.unzip
+          pkgs.python3         # atlas code-gen scripts
+          msdfAtlasGen         # offline MSDF atlas generation
         ];
 
         ANDROID_NDK_ROOT = ndkRoot;
