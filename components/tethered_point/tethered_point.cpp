@@ -22,10 +22,10 @@ Eigen::Vector3f tethered_point(Eigen::Vector3f anchor,
     // Too close: push out to min_dist
     if (distance < min_dist) {
         Eigen::Vector3f direction = offset / distance;
-        return anchor + min_dist * direction;
+        return anchor + (min_dist * direction);
     }
 
     // Too far: pull in to max_dist
     Eigen::Vector3f direction = offset / distance;
-    return anchor + max_dist * direction;
+    return anchor + (max_dist * direction);
 }
