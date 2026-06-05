@@ -57,9 +57,12 @@
           pkgs.unzip
           pkgs.python3         # atlas code-gen scripts
           msdfAtlasGen         # offline MSDF atlas generation
+          pkgs.gtest
+          pkgs.stb
         ];
 
         ANDROID_NDK_ROOT = ndkRoot;
+        STB_INCLUDE_DIR = "${pkgs.stb}/include/stb";
         ANDROID_SDK_ROOT = "${androidComposition.androidsdk}/libexec/android-sdk";
         OPENXR_SDK_SRC = openxr-sdk;
         EIGEN3_INCLUDE_DIR = "${pkgs.eigen}/include/eigen3";

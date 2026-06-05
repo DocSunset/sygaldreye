@@ -1,0 +1,5 @@
+add_library(billboard_quad STATIC billboard_quad.cpp)
+target_include_directories(billboard_quad PUBLIC .)
+target_include_directories(billboard_quad PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(billboard_quad PUBLIC gl_program GLESv3 log)
+target_compile_options(billboard_quad PRIVATE -Wall -Wextra)
