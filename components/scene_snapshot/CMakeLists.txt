@@ -28,6 +28,22 @@ target_link_libraries(water_surface_snapshot PRIVATE
     scene_snapshot host_gl_context water_surface GLESv2)
 target_compile_options(water_surface_snapshot PRIVATE -Wall -Wextra)
 
+add_executable(terrain_snapshot terrain_snapshot.cpp)
+target_include_directories(terrain_snapshot PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/host_gl_context
+    $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(terrain_snapshot PRIVATE
+    scene_snapshot host_gl_context terrain_generator sky_dome sphere_mesh
+    sphere_geometry GLESv2)
+target_compile_options(terrain_snapshot PRIVATE -Wall -Wextra)
+
+add_executable(sky_dome_snapshot sky_dome_snapshot.cpp)
+target_include_directories(sky_dome_snapshot PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/host_gl_context
+    $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(sky_dome_snapshot PRIVATE
+    scene_snapshot host_gl_context sky_dome sphere_mesh sphere_geometry GLESv2)
+target_compile_options(sky_dome_snapshot PRIVATE -Wall -Wextra)
 
 add_executable(combined_scene_snapshot combined_scene_snapshot.cpp)
 target_include_directories(combined_scene_snapshot PRIVATE

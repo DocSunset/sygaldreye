@@ -1,7 +1,11 @@
 add_library(terrain_generator STATIC terrain_generator.cpp)
-target_include_directories(terrain_generator PUBLIC .)
+target_include_directories(terrain_generator PUBLIC .
+    ${CMAKE_SOURCE_DIR}/components/log
+    ${CMAKE_SOURCE_DIR}/components/light
+    ${CMAKE_SOURCE_DIR}/components/material
+    ${CMAKE_SOURCE_DIR}/components/gl_program)
 target_include_directories(terrain_generator PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(terrain_generator PUBLIC tri_mesh noise)
+target_link_libraries(terrain_generator PUBLIC tri_mesh noise gl_program light material log_component)
 target_compile_options(terrain_generator PRIVATE -Wall -Wextra)
 
 if(CMAKE_CROSSCOMPILING)
