@@ -1,6 +1,7 @@
 #include "tethered_point.hpp"
 #include <cmath>
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters) -- interface specified by design doc
 Eigen::Vector3f tethered_point(Eigen::Vector3f anchor,
                                 Eigen::Vector3f desired,
                                 float min_dist,
