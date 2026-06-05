@@ -1,0 +1,5 @@
+add_library(cylinder_mesh STATIC cylinder_mesh.cpp)
+target_include_directories(cylinder_mesh PUBLIC .)
+target_include_directories(cylinder_mesh PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(cylinder_mesh PRIVATE GLESv3 log)
+target_compile_options(cylinder_mesh PRIVATE -Wall -Wextra)
