@@ -36,6 +36,10 @@ void Scene::update(double time) {
     world_cube_.model = xf.matrix();
 }
 
+std::span<const Light> Scene::lights() const {
+    return {lights_.data(), lights_.size()};
+}
+
 std::span<const CubeInstance> Scene::cubes() const {
     cube_count_ = 0;
     cubes_cache_.at(cube_count_++) = world_cube_;
