@@ -13,6 +13,7 @@ constexpr float      kFarPlane               = 100.0F;
 constexpr XrDuration kSwapchainWaitTimeoutNs = XR_INFINITE_DURATION;
 }
 
+
 static double now_sec() {
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec + ts.tv_nsec * 1e-9;
