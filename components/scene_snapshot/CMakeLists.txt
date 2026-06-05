@@ -54,6 +54,22 @@ target_link_libraries(aurora_snapshot PRIVATE
     scene_snapshot host_gl_context aurora GLESv2)
 target_compile_options(aurora_snapshot PRIVATE -Wall -Wextra)
 
+add_executable(lissajous_snapshot lissajous_snapshot.cpp)
+target_include_directories(lissajous_snapshot PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/host_gl_context
+    $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(lissajous_snapshot PRIVATE
+    scene_snapshot host_gl_context lissajous GLESv2)
+target_compile_options(lissajous_snapshot PRIVATE -Wall -Wextra)
+
+add_executable(chladni_snapshot chladni_snapshot.cpp)
+target_include_directories(chladni_snapshot PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/host_gl_context
+    $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(chladni_snapshot PRIVATE
+    scene_snapshot host_gl_context chladni GLESv2)
+target_compile_options(chladni_snapshot PRIVATE -Wall -Wextra)
+
 add_executable(combined_scene_snapshot combined_scene_snapshot.cpp)
 target_include_directories(combined_scene_snapshot PRIVATE
     ${CMAKE_SOURCE_DIR}/components/host_gl_context

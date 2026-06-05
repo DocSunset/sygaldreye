@@ -32,6 +32,8 @@ add_subdirectory(components/wind_animation)
 add_subdirectory(components/tree_generator)
 add_subdirectory(components/scene_graph)
 add_subdirectory(components/aurora)
+add_subdirectory(components/lissajous)
+add_subdirectory(components/chladni)
 
 if(CMAKE_CROSSCOMPILING)
     # OpenXR loader (Android only)

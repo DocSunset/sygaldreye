@@ -1,0 +1,10 @@
+add_library(lissajous STATIC lissajous.cpp)
+target_include_directories(lissajous PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(lissajous PUBLIC gl_program)
+target_compile_options(lissajous PRIVATE -Wall -Wextra)
+
+if(CMAKE_CROSSCOMPILING)
+    target_link_libraries(lissajous PRIVATE GLESv3)
+else()
+    target_link_libraries(lissajous PRIVATE GLESv2)
+endif()
