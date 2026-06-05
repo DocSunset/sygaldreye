@@ -1,0 +1,6 @@
+add_library(lit_shader STATIC lit_shader.cpp)
+target_include_directories(lit_shader PUBLIC .)
+target_include_directories(lit_shader PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(lit_shader PUBLIC gl_program GLESv3 log)
+target_link_libraries(lit_shader PRIVATE light material)
+target_compile_options(lit_shader PRIVATE -Wall -Wextra)
