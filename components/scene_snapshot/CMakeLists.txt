@@ -70,6 +70,13 @@ target_link_libraries(chladni_snapshot PRIVATE
     scene_snapshot host_gl_context chladni GLESv2)
 target_compile_options(chladni_snapshot PRIVATE -Wall -Wextra)
 
+add_executable(reaction_diffusion_snapshot reaction_diffusion_snapshot.cpp)
+target_include_directories(reaction_diffusion_snapshot PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/host_gl_context $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(reaction_diffusion_snapshot PRIVATE
+    scene_snapshot host_gl_context reaction_diffusion GLESv2)
+target_compile_options(reaction_diffusion_snapshot PRIVATE -Wall -Wextra)
+
 add_executable(combined_scene_snapshot combined_scene_snapshot.cpp)
 target_include_directories(combined_scene_snapshot PRIVATE
     ${CMAKE_SOURCE_DIR}/components/host_gl_context
