@@ -7,6 +7,7 @@
 #include "scene.hpp"
 #include "input.hpp"
 #include "cube_mesh.hpp"
+#include "text_mesh.hpp"
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "eyeballs", __VA_ARGS__)
@@ -27,6 +28,7 @@ struct AppState {
     Scene scene_{};
     Input input_{};
     CubeMesh cube_mesh_{};
+    TextMesh text_mesh_{};
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -51,6 +53,7 @@ void android_main(struct android_app* app) {
     state.xrSession.create(state.xrInstance, state.xrSystemId, &binding->xr_binding);
     state.renderer.create_swapchains(state.xrInstance, state.xrSystemId, state.xrSession.get());
     state.cube_mesh_.init();
+    state.text_mesh_.init();
     state.input_.create(state.xrInstance, state.xrSession.get());
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
@@ -93,6 +96,9 @@ void android_main(struct android_app* app) {
                             state.cube_mesh_.draw(pv * cube.model, cube.model, cube.material);
                         }
                         state.cube_mesh_.end_batch();
+                        for (const auto& lbl : state.scene_.labels()) {
+                            state.text_mesh_.draw(lbl.text, pv * lbl.transform);
+                        }
                     });
                 if (!ok) { return {}; }
                 FrameLayers result;
