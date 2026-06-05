@@ -32,6 +32,7 @@
           pkgs.eigen
           pkgs.zip             # APK assembly in sh/package.sh
           pkgs.unzip
+          pkgs.gtest
         ];
 
         ANDROID_NDK_ROOT = ndkRoot;
