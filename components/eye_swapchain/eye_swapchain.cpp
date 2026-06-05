@@ -24,8 +24,11 @@ int64_t choose_swapchain_format(std::span<const int64_t> formats) {
 }
 
 EyeSwapchain::~EyeSwapchain() {
-    if (!fbos.empty())     { glDeleteFramebuffers(static_cast<GLsizei>(fbos.size()), fbos.data()); }
-    if (!depth_rbs.empty()){ glDeleteRenderbuffers(static_cast<GLsizei>(depth_rbs.size()), depth_rbs.data()); }
+    if (!fbos.empty())      { glDeleteFramebuffers(static_cast<GLsizei>(fbos.size()), fbos.data()); }
+    if (!depth_rbs.empty()) { glDeleteRenderbuffers(static_cast<GLsizei>(depth_rbs.size()), depth_rbs.data()); }
+    if (msaa_fbo_ != 0U)       { glDeleteFramebuffers(1, &msaa_fbo_); }
+    if (msaa_color_rb_ != 0U)  { glDeleteRenderbuffers(1, &msaa_color_rb_); }
+    if (msaa_depth_rb_ != 0U)  { glDeleteRenderbuffers(1, &msaa_depth_rb_); }
     if (handle != XR_NULL_HANDLE) { XR_LOG_ERR(xrDestroySwapchain(handle)); }
 }
 
@@ -33,6 +36,10 @@ EyeSwapchain::EyeSwapchain(EyeSwapchain&& other) noexcept
     : handle(std::exchange(other.handle, XR_NULL_HANDLE))
     , width_(std::exchange(other.width_, 0U))
     , height_(std::exchange(other.height_, 0U))
+    , sample_count_(std::exchange(other.sample_count_, 1U))
+    , msaa_color_rb_(std::exchange(other.msaa_color_rb_, 0U))
+    , msaa_depth_rb_(std::exchange(other.msaa_depth_rb_, 0U))
+    , msaa_fbo_(std::exchange(other.msaa_fbo_, 0U))
     , images(std::move(other.images))
     , fbos(std::move(other.fbos))
     , depth_rbs(std::move(other.depth_rbs))
@@ -41,9 +48,13 @@ EyeSwapchain::EyeSwapchain(EyeSwapchain&& other) noexcept
 EyeSwapchain& EyeSwapchain::operator=(EyeSwapchain&& other) noexcept {
     if (this != &other) {
         this->~EyeSwapchain();
-        handle    = std::exchange(other.handle, XR_NULL_HANDLE);
-        width_    = std::exchange(other.width_, 0U);
-        height_   = std::exchange(other.height_, 0U);
+        handle        = std::exchange(other.handle, XR_NULL_HANDLE);
+        width_        = std::exchange(other.width_, 0U);
+        height_       = std::exchange(other.height_, 0U);
+        sample_count_ = std::exchange(other.sample_count_, 1U);
+        msaa_color_rb_ = std::exchange(other.msaa_color_rb_, 0U);
+        msaa_depth_rb_ = std::exchange(other.msaa_depth_rb_, 0U);
+        msaa_fbo_      = std::exchange(other.msaa_fbo_, 0U);
         images    = std::move(other.images);
         fbos      = std::move(other.fbos);
         depth_rbs = std::move(other.depth_rbs);
@@ -118,15 +129,30 @@ bool create_swapchains(XrInstance instance, XrSystemId systemId, XrSession sessi
                 GL_TEXTURE_2D, e.images[i].image, 0));
             GL_CHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
                 GL_RENDERBUFFER, e.depth_rbs[i]));
-            GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-            if (status == GL_FRAMEBUFFER_COMPLETE)
-                LOG("eye[%d] fbo[%u] framebuffer complete", eye, i);
-            else
-                LOGE("eye[%d] fbo[%u] framebuffer status: 0x%x", eye, i, status);
         }
+
+        e.sample_count_ = vcv[eye].recommendedSwapchainSampleCount;
+        GL_CHECK(glGenRenderbuffers(1, &e.msaa_color_rb_));
+        GL_CHECK(glGenRenderbuffers(1, &e.msaa_depth_rb_));
+        GL_CHECK(glGenFramebuffers(1, &e.msaa_fbo_));
+        GL_CHECK(glBindRenderbuffer(GL_RENDERBUFFER, e.msaa_color_rb_));
+        GL_CHECK(glRenderbufferStorageMultisample(GL_RENDERBUFFER, (GLsizei)e.sample_count_,
+            GL_RGBA8, (GLsizei)e.width_, (GLsizei)e.height_));
+        GL_CHECK(glBindRenderbuffer(GL_RENDERBUFFER, e.msaa_depth_rb_));
+        GL_CHECK(glRenderbufferStorageMultisample(GL_RENDERBUFFER, (GLsizei)e.sample_count_,
+            GL_DEPTH_COMPONENT24, (GLsizei)e.width_, (GLsizei)e.height_));
+        GL_CHECK(glBindFramebuffer(GL_FRAMEBUFFER, e.msaa_fbo_));
+        GL_CHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+            GL_RENDERBUFFER, e.msaa_color_rb_));
+        GL_CHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+            GL_RENDERBUFFER, e.msaa_depth_rb_));
+        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (status == GL_FRAMEBUFFER_COMPLETE)
+            LOG("eye[%d] msaa_fbo complete (samples=%u)", eye, e.sample_count_);
+        else
+            LOGE("eye[%d] msaa_fbo status: 0x%x", eye, status);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
-        LOG("eye[%d] fbos: %u", eye, imgCount);
     }
     return true;
 }

@@ -10,7 +10,7 @@
 namespace {
 constexpr float      kNearPlane              = 0.05F;
 constexpr float      kFarPlane               = 100.0F;
-constexpr XrDuration kSwapchainWaitTimeoutNs = 5'000'000;
+constexpr XrDuration kSwapchainWaitTimeoutNs = XR_INFINITE_DURATION;
 }
 
 static double now_sec() {
@@ -80,7 +80,7 @@ bool Renderer::render_eyes(XrInstance /*instance*/, XrSession session, XrSpace r
             continue;
         }
 
-        glBindFramebuffer(GL_FRAMEBUFFER, e.fbo(index));
+        glBindFramebuffer(GL_FRAMEBUFFER, e.msaa_fbo());
         glViewport(0, 0, (GLsizei)e.width(), (GLsizei)e.height());
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LESS);
@@ -90,6 +90,12 @@ bool Renderer::render_eyes(XrInstance /*instance*/, XrSession session, XrSpace r
         Eigen::Matrix4f proj = projection(views[eye].fov, kNearPlane, kFarPlane);
         Eigen::Matrix4f v    = view(views[eye].pose);
         on_draw(proj, v);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, e.msaa_fbo());
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, e.fbo(index));
+        glBlitFramebuffer(0, 0, (GLint)e.width(), (GLint)e.height(),
+                          0, 0, (GLint)e.width(), (GLint)e.height(),
+                          GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
         XR_LOG_ERR(xrReleaseSwapchainImage(e.xr_handle(), &ri));
     }

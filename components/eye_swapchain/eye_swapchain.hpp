@@ -21,13 +21,18 @@ struct EyeSwapchain {
     EyeSwapchain& operator=(EyeSwapchain&&) noexcept;
 
     [[nodiscard]] GLuint      fbo(uint32_t index) const { return fbos[index]; }
+    [[nodiscard]] GLuint      msaa_fbo()          const { return msaa_fbo_; }
     [[nodiscard]] XrSwapchain xr_handle()         const { return handle; }
     [[nodiscard]] uint32_t    width()              const { return width_; }
     [[nodiscard]] uint32_t    height()             const { return height_; }
 
-    XrSwapchain handle = XR_NULL_HANDLE;
-    uint32_t    width_  = 0;
-    uint32_t    height_ = 0;
+    XrSwapchain handle        = XR_NULL_HANDLE;
+    uint32_t    width_        = 0;
+    uint32_t    height_       = 0;
+    uint32_t    sample_count_ = 1;
+    GLuint      msaa_color_rb_ = 0;
+    GLuint      msaa_depth_rb_ = 0;
+    GLuint      msaa_fbo_      = 0;
     std::vector<XrSwapchainImageOpenGLESKHR> images;
     std::vector<GLuint> fbos;
     std::vector<GLuint> depth_rbs;
