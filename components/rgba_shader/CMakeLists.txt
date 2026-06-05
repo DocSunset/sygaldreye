@@ -1,0 +1,5 @@
+add_library(rgba_shader STATIC rgba_shader.cpp)
+target_include_directories(rgba_shader PUBLIC .)
+target_include_directories(rgba_shader PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(rgba_shader PUBLIC gl_program GLESv3 log)
+target_compile_options(rgba_shader PRIVATE -Wall -Wextra)
