@@ -49,32 +49,7 @@ static Eigen::Vector3f sun_direction(float elevation, float azimuth) {
     }.normalized();
 }
 
-static Eigen::Vector4f lerp4(Eigen::Vector4f const& a, Eigen::Vector4f const& b, float t) {
-    return a * (1.0f - t) + b * t;
-}
 
-static void sky_colors_for_elevation(float elev,
-                                     Eigen::Vector4f& horizon,
-                                     Eigen::Vector4f& zenith) {
-    float t = std::clamp(elev / (float(M_PI) * 0.4f), -1.0f, 1.0f);
-
-    Eigen::Vector4f night_horizon{0.01f, 0.01f, 0.08f, 1.0f};
-    Eigen::Vector4f night_zenith {0.00f, 0.00f, 0.05f, 1.0f};
-    Eigen::Vector4f dusk_horizon {0.85f, 0.40f, 0.10f, 1.0f};
-    Eigen::Vector4f dusk_zenith  {0.15f, 0.15f, 0.50f, 1.0f};
-    Eigen::Vector4f day_horizon  {0.55f, 0.75f, 0.98f, 1.0f};
-    Eigen::Vector4f day_zenith   {0.10f, 0.25f, 0.70f, 1.0f};
-
-    if (t < 0.0f) {
-        float nt = std::clamp(t + 1.0f, 0.0f, 1.0f);
-        horizon = lerp4(night_horizon, dusk_horizon, nt);
-        zenith  = lerp4(night_zenith,  dusk_zenith,  nt);
-    } else {
-        float dt = std::clamp(t, 0.0f, 1.0f);
-        horizon = lerp4(dusk_horizon, day_horizon, dt);
-        zenith  = lerp4(dusk_zenith,  day_zenith,  dt);
-    }
-}
 
 int main(int argc, char** argv) {
     const char* out        = argc > 1 ? argv[1] : "/tmp/combined_scene.mp4";
@@ -97,12 +72,7 @@ int main(int argc, char** argv) {
     tp.cell_size    = CELL_SIZE;
     tp.height_scale = 25.0f;
     tp.octaves      = 6;
-    tp.band_colors  = {{
-        {0.22f, 0.38f, 0.18f, 1.0f},
-        {0.35f, 0.48f, 0.22f, 1.0f},
-        {0.52f, 0.48f, 0.35f, 1.0f},
-        {0.88f, 0.88f, 0.90f, 1.0f},
-    }};
+    // Use TerrainParams default bands (deep water, sand, grass, rock, snow)
 
     TriMeshData terrain_data = generate_terrain(tp);
 
@@ -135,9 +105,8 @@ int main(int argc, char** argv) {
 
     // --- Sky ---
     SkyParams sky_p;
-    sky_p.radius       = 800.0f;
-    sky_p.enable_stars = true;
-    sky_p.star_count   = 2000;
+    sky_p.radius      = 800.0f;
+    sky_p.star_count  = 2000;
     SkyDome sky = SkyDome::create(sky_p);
 
     // --- Trees ---
@@ -220,22 +189,18 @@ int main(int argc, char** argv) {
         sun.color     = sun_color;
         sun.intensity = sun_intensity;
 
-        // Sky
-        Eigen::Vector4f horizon_col, zenith_col;
-        sky_colors_for_elevation(elevation, horizon_col, zenith_col);
-        SkyParams sp              = sky_p;
-        sp.horizon_color          = horizon_col;
-        sp.zenith_color           = zenith_col;
-        sp.body_dir               = -sun_dir;
-        sp.body_color             = {sun_color.x(), sun_color.y(), sun_color.z(), 1.0f};
-        sp.body_angular_radius    = 0.014f;
-        sp.enable_stars           = (elevation < -0.05f);
+        // Sky — use procedural atmospheric coloring via sun_elevation
+        SkyParams sp           = sky_p;
+        sp.sun_elevation       = elevation;
+        sp.body_dir            = -sun_dir;
+        sp.body_color          = {sun_color.x(), sun_color.y(), sun_color.z(), 1.0f};
+        sp.body_angular_radius = 0.014f;
         sky.set_params(sp);
 
         Eigen::Matrix4f mvp = p * v;
 
-        Eigen::Vector4f bg = lerp4(horizon_col, zenith_col, 0.2f);
-        glClearColor(bg.x(), bg.y(), bg.z(), 1.0f);
+        float day_t = std::clamp(elevation + 0.5f, 0.0f, 1.0f);
+        glClearColor(0.01f + 0.54f * day_t, 0.01f + 0.74f * day_t, 0.05f + 0.93f * day_t, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
 
