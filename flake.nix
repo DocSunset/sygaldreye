@@ -33,9 +33,11 @@
           pkgs.zip             # APK assembly in sh/package.sh
           pkgs.unzip
           pkgs.gtest
+          pkgs.stb
         ];
 
         ANDROID_NDK_ROOT = ndkRoot;
+        STB_INCLUDE_DIR = "${pkgs.stb}/include/stb";
         ANDROID_SDK_ROOT = "${androidComposition.androidsdk}/libexec/android-sdk";
         OPENXR_SDK_SRC = openxr-sdk;
         EIGEN3_INCLUDE_DIR = "${pkgs.eigen}/include/eigen3";
