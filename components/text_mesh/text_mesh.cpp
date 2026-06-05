@@ -13,7 +13,7 @@
 #include "stb_image.h"
 #pragma clang diagnostic pop
 
-#define TAG  "text_mesh"
+namespace { constexpr const char* const TAG = "text_mesh"; }
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 
 namespace {
