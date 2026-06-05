@@ -42,8 +42,8 @@ int main(int argc, char** argv) {
     WaterSurface water = WaterSurface::create({});
 
     constexpr int W = 1280, H = 720;
-    Eigen::Matrix4f proj = perspective(45.0f * float(M_PI) / 180.0f, float(W) / float(H), 0.1f, 200.0f);
-    Eigen::Matrix4f view = lookat({15.5f, 14.0f, -10.0f}, {15.5f, 0.0f, 15.5f}, {0.0f, 1.0f, 0.0f});
+    Eigen::Matrix4f proj = perspective(45.0f * float(M_PI) / 180.0f, float(W) / float(H), 0.1f, 400.0f);
+    Eigen::Matrix4f view = lookat({31.5f, 35.0f, -25.0f}, {31.5f, 0.0f, 31.5f}, {0.0f, 1.0f, 0.0f});
 
     SnapshotParams params;
     params.width      = W;
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
         glClearColor(0.05f, 0.08f, 0.14f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
-        water.draw(p * v);
+        water.draw(p * v, Eigen::Matrix4f::Identity(), Eigen::Vector3f{31.5f, 35.0f, -25.0f});
     };
 
     bool ok;
