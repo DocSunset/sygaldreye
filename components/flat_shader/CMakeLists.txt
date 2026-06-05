@@ -1,0 +1,5 @@
+add_library(flat_shader STATIC flat_shader.cpp)
+target_include_directories(flat_shader PUBLIC .)
+target_include_directories(flat_shader PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(flat_shader PUBLIC gl_program GLESv3 log)
+target_compile_options(flat_shader PRIVATE -Wall -Wextra)
