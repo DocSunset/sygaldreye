@@ -1,6 +1,5 @@
 #pragma once
 #include <Eigen/Core>
-#include <cstdint>
 
 struct GrabTarget {
     Eigen::Vector3f position    = Eigen::Vector3f::Zero();

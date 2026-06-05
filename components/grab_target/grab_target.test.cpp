@@ -2,17 +2,17 @@
 #include <gtest/gtest.h>
 
 TEST(GrabTarget, DefaultState) {
-    GrabTarget t;
-    EXPECT_FALSE(t.grabbed);
-    EXPECT_EQ(t.grabbing_hand, -1);
-    EXPECT_FLOAT_EQ(t.radius, 0.05F);
+    GrabTarget target;
+    EXPECT_FALSE(target.grabbed);
+    EXPECT_EQ(target.grabbing_hand, -1);
+    EXPECT_FLOAT_EQ(target.radius, 0.05F);
 }
 
 TEST(GrabTarget, FieldAssignment) {
-    GrabTarget t;
-    t.grabbed = true;
-    t.grabbing_hand = 0;
-    t.position = {1.0F, 2.0F, 3.0F};
-    EXPECT_TRUE(t.grabbed);
-    EXPECT_EQ(t.grabbing_hand, 0);
+    GrabTarget target;
+    target.grabbed = true;
+    target.grabbing_hand = 0;
+    target.position = {1.0F, 2.0F, 3.0F};
+    EXPECT_TRUE(target.grabbed);
+    EXPECT_EQ(target.grabbing_hand, 0);
 }
