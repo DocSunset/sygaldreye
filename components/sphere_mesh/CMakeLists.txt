@@ -1,0 +1,5 @@
+add_library(sphere_mesh STATIC sphere_mesh.cpp)
+target_include_directories(sphere_mesh PUBLIC .)
+target_include_directories(sphere_mesh PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(sphere_mesh PUBLIC sphere_geometry GLESv3 log)
+target_compile_options(sphere_mesh PRIVATE -Wall -Wextra)
