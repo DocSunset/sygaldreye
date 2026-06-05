@@ -1,9 +1,19 @@
+// Copyright 2025 Travis West
 #include "gl_program.hpp"
-#include <android/log.h>
 #include <array>
+#include <cstdio>
+
+#ifdef __ANDROID__
+#include <android/log.h>
+#define LOG_E(tag, ...) __android_log_print(ANDROID_LOG_ERROR, tag, __VA_ARGS__)
+#define LOG_W(tag, ...) __android_log_print(ANDROID_LOG_WARN,  tag, __VA_ARGS__)
+#else
+#define LOG_E(tag, fmt, ...) std::fprintf(stderr, "[E][%s] " fmt "\n", tag, ##__VA_ARGS__)
+#define LOG_W(tag, fmt, ...) std::fprintf(stderr, "[W][%s] " fmt "\n", tag, ##__VA_ARGS__)
+#endif
 
 namespace {
-constexpr const char* TAG = "eyeballs";
+constexpr const char* TAG = "gl_program";
 }
 
 static GLuint compile_shader(GLenum type, const char* src) {
@@ -13,9 +23,9 @@ static GLuint compile_shader(GLenum type, const char* src) {
     GLint compiled = 0;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
     if (compiled == 0) {
-        std::array<char, 512> info_log{};
-        glGetShaderInfoLog(shader, static_cast<GLsizei>(info_log.size()), nullptr, info_log.data());
-        __android_log_print(ANDROID_LOG_ERROR, TAG, "Shader compile error: %s", info_log.data());
+        std::array<char, 512> info{};
+        glGetShaderInfoLog(shader, static_cast<GLsizei>(info.size()), nullptr, info.data());
+        LOG_E(TAG, "Shader compile error: %s", info.data());
         glDeleteShader(shader);
         return 0;
     }
@@ -38,9 +48,9 @@ std::optional<GlProgram> GlProgram::build(const char* vert_src, const char* frag
     GLint linked = 0;
     glGetProgramiv(prog, GL_LINK_STATUS, &linked);
     if (linked == 0) {
-        std::array<char, 512> info_log{};
-        glGetProgramInfoLog(prog, static_cast<GLsizei>(info_log.size()), nullptr, info_log.data());
-        __android_log_print(ANDROID_LOG_ERROR, TAG, "Program link error: %s", info_log.data());
+        std::array<char, 512> info{};
+        glGetProgramInfoLog(prog, static_cast<GLsizei>(info.size()), nullptr, info.data());
+        LOG_E(TAG, "Program link error: %s", info.data());
         glDeleteProgram(prog);
         return std::nullopt;
     }
@@ -52,7 +62,7 @@ void GlProgram::use() const { glUseProgram(id); }
 void GlProgram::uniform(const char* name, const Eigen::Matrix4f& mat) const {
     GLint loc = glGetUniformLocation(id, name);
     if (loc < 0) {
-        __android_log_print(ANDROID_LOG_WARN, TAG, "Uniform not found: %s", name);
+        LOG_W(TAG, "Uniform not found: %s", name);
         return;
     }
     glUniformMatrix4fv(loc, 1, GL_FALSE, mat.data());

@@ -1,5 +1,10 @@
 add_library(gl_program STATIC gl_program.cpp)
 target_include_directories(gl_program PUBLIC .)
 target_include_directories(gl_program PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(gl_program PUBLIC GLESv3 PRIVATE log)
 target_compile_options(gl_program PRIVATE -Wall -Wextra)
+
+if(CMAKE_CROSSCOMPILING)
+    target_link_libraries(gl_program PUBLIC GLESv3 PRIVATE log)
+else()
+    target_link_libraries(gl_program PUBLIC GLESv2)
+endif()
