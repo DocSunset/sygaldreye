@@ -1,7 +1,6 @@
 #pragma once
 #include <Eigen/Core>
 #include <GLES3/gl3.h>
-#include <cstdint>
 
 struct CylinderMesh {
     static CylinderMesh create(int slices);
