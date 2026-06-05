@@ -76,6 +76,7 @@ LitShader::LitShader() {
     light_intensity_locs_.fill(-1);
 }
 
+LitShader::~LitShader() = default;
 LitShader::LitShader(LitShader&&) noexcept = default;
 LitShader& LitShader::operator=(LitShader&&) noexcept = default;
 

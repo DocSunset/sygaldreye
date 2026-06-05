@@ -28,9 +28,9 @@ Owns the VAO, VBO, and EBO for the unit cube, and the static vertex and index da
 
 ## Requirements
 
-- Stores 24 vertices (4 per face, 6 faces) with interleaved position (vec3) and color (vec3).
+- Stores 24 vertices (4 per face, 6 faces) with interleaved position (vec3) and normal (vec3).
 - Stores 36 indices (2 triangles per face, 6 faces) as unsigned shorts.
-- Per-face colors: +X red, -X cyan, +Y green, -Y magenta, +Z blue, -Z yellow.
+- Per-face normals: +X={1,0,0}, -X={-1,0,0}, +Y={0,1,0}, -Y={0,-1,0}, +Z={0,0,1}, -Z={0,0,-1}.
 
 ## Allowed dependencies
 

@@ -11,7 +11,7 @@ struct Material;
 
 struct LitShader {
     LitShader();
-    ~LitShader() = default;
+    ~LitShader();
     LitShader(const LitShader&) = delete;
     LitShader& operator=(const LitShader&) = delete;
     LitShader(LitShader&&) noexcept;

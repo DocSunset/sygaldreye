@@ -1,5 +1,5 @@
 add_library(cube_mesh STATIC cube_mesh.cpp)
 target_include_directories(cube_mesh PUBLIC .)
 target_include_directories(cube_mesh PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(cube_mesh PUBLIC cube_shader cube_geometry)
+target_link_libraries(cube_mesh PUBLIC lit_shader cube_geometry light material)
 target_compile_options(cube_mesh PRIVATE -Wall -Wextra)

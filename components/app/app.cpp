@@ -86,9 +86,11 @@ void android_main(struct android_app* app) {
                     state.xrSession.worldSpace_(), t,
                     [&](const Eigen::Matrix4f& proj, const Eigen::Matrix4f& view) {
                         const Eigen::Matrix4f pv = proj * view;
-                        state.cube_mesh_.begin_batch();
+                        const Eigen::Vector3f view_pos =
+                            -(view.block<3,3>(0,0).transpose() * view.block<3,1>(0,3));
+                        state.cube_mesh_.begin_batch(state.scene_.lights(), view_pos);
                         for (const auto& cube : state.scene_.cubes()) {
-                            state.cube_mesh_.draw(pv * cube.model);
+                            state.cube_mesh_.draw(pv * cube.model, cube.model, cube.material);
                         }
                         state.cube_mesh_.end_batch();
                     });

@@ -17,18 +17,23 @@
 namespace {
 constexpr GLsizei VERTEX_STRIDE = 6 * static_cast<GLsizei>(sizeof(float));
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
-const auto COLOR_OFFSET = reinterpret_cast<const void*>(3 * sizeof(float));
+const auto NORMAL_OFFSET = reinterpret_cast<const void*>(3 * sizeof(float));
 }
 
-// 24 vertices: 4 per face, 6 faces. Each: x,y,z, r,g,b
+// 24 vertices: 4 per face, 6 faces. Each: x,y,z, nx,ny,nz
 static const float VERTS[24 * 6] = {
-    // +X red, -X cyan, +Y green, -Y magenta, +Z blue, -Z yellow
+    // +X face: normal = {1,0,0}
      1,-1,-1, 1,0,0,  1, 1,-1, 1,0,0,  1, 1, 1, 1,0,0,  1,-1, 1, 1,0,0,
-    -1,-1, 1, 0,1,1, -1, 1, 1, 0,1,1, -1, 1,-1, 0,1,1, -1,-1,-1, 0,1,1,
+    // -X face: normal = {-1,0,0}
+    -1,-1, 1,-1,0,0, -1, 1, 1,-1,0,0, -1, 1,-1,-1,0,0, -1,-1,-1,-1,0,0,
+    // +Y face: normal = {0,1,0}
     -1, 1,-1, 0,1,0, -1, 1, 1, 0,1,0,  1, 1, 1, 0,1,0,  1, 1,-1, 0,1,0,
-    -1,-1, 1, 1,0,1, -1,-1,-1, 1,0,1,  1,-1,-1, 1,0,1,  1,-1, 1, 1,0,1,
+    // -Y face: normal = {0,-1,0}
+    -1,-1, 1, 0,-1,0, -1,-1,-1, 0,-1,0,  1,-1,-1, 0,-1,0,  1,-1, 1, 0,-1,0,
+    // +Z face: normal = {0,0,1}
     -1,-1, 1, 0,0,1,  1,-1, 1, 0,0,1,  1, 1, 1, 0,0,1, -1, 1, 1, 0,0,1,
-     1,-1,-1, 1,1,0, -1,-1,-1, 1,1,0, -1, 1,-1, 1,1,0,  1, 1,-1, 1,1,0,
+    // -Z face: normal = {0,0,-1}
+     1,-1,-1, 0,0,-1, -1,-1,-1, 0,0,-1, -1, 1,-1, 0,0,-1,  1, 1,-1, 0,0,-1,
 };
 
 static const unsigned short IDX[36] = {
@@ -77,7 +82,7 @@ void CubeGeometry::init() {
     GL_CHECK(glEnableVertexAttribArray(0));
     GL_CHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, VERTEX_STRIDE, nullptr));
     GL_CHECK(glEnableVertexAttribArray(1));
-    GL_CHECK(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, VERTEX_STRIDE, COLOR_OFFSET));
+    GL_CHECK(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, VERTEX_STRIDE, NORMAL_OFFSET));
     glBindVertexArray(0);
 }
 
