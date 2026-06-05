@@ -1,7 +1,8 @@
 #pragma once
 #include <Eigen/Core>
+#include <cstdint>
 
-enum class LightType { Directional };
+enum class LightType : uint8_t { Directional };
 
 struct Light {
     LightType       type      = LightType::Directional;
