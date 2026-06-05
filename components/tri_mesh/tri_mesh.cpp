@@ -1,8 +1,8 @@
 #include "tri_mesh.hpp"
-#include <android/log.h>
+#include "log.hpp"
 
 #define TAG "tri_mesh"
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGE(...) LOG_E(TAG, __VA_ARGS__)
 
 #define GL_CHECK(call) do { \
     (call); \

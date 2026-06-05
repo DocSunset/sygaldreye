@@ -1,12 +1,12 @@
 #include "billboard_quad.hpp"
 #include "billboard_quad_shader.hpp"
 #include "gl_program.hpp"
-#include <android/log.h>
+#include "log.hpp"
 #include <utility>
 #include <vector>
 
 #define TAG "billboard_quad"
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGE(...) LOG_E(TAG, __VA_ARGS__)
 
 // 9 floats per instance: pos(3) + size(2) + color(4)
 static constexpr int kFloatsPerInstance = 9;

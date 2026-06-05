@@ -1,12 +1,12 @@
 #include "cylinder_mesh.hpp"
+#include "log.hpp"
 #include <Eigen/Geometry>
-#include <android/log.h>
 #include <cmath>
 #include <numbers>
 #include <vector>
 
 #define TAG "cylinder_mesh"
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGE(...) LOG_E(TAG, __VA_ARGS__)
 
 #define GL_CHECK(call) do { \
     (call); \

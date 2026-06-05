@@ -1,6 +1,12 @@
 add_library(lit_shader STATIC lit_shader.cpp)
 target_include_directories(lit_shader PUBLIC .)
 target_include_directories(lit_shader PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(lit_shader PUBLIC gl_program GLESv3 log)
+target_link_libraries(lit_shader PUBLIC gl_program log_component)
 target_link_libraries(lit_shader PRIVATE light material)
 target_compile_options(lit_shader PRIVATE -Wall -Wextra)
+
+if(CMAKE_CROSSCOMPILING)
+    target_link_libraries(lit_shader PUBLIC GLESv3)
+else()
+    target_link_libraries(lit_shader PUBLIC GLESv2)
+endif()

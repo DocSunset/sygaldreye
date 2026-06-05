@@ -1,12 +1,12 @@
 #include "particle_system.hpp"
 #include "gl_program.hpp"
 #include "particle_system_shader.hpp"
-#include <android/log.h>
+#include "log.hpp"
 #include <algorithm>
 #include <cstdlib>
 
 #define TAG "particle_system"
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGE(...) LOG_E(TAG, __VA_ARGS__)
 
 static float rand_range(float lo, float hi) {
     return lo + (hi - lo) * (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX));

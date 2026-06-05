@@ -1,9 +1,9 @@
 #include "rgba_shader.hpp"
 #include "gl_program.hpp"
-#include <android/log.h>
+#include "log.hpp"
 
 #define TAG "rgba_shader"
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGE(...) LOG_E(TAG, __VA_ARGS__)
 
 namespace {
 constexpr const char* const VERT = R"(#version 300 es

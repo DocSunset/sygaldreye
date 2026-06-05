@@ -1,9 +1,9 @@
 #include "wind_shader.hpp"
 #include "gl_program.hpp"
-#include <android/log.h>
+#include "log.hpp"
 
 #define TAG "wind_shader"
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGE(...) LOG_E(TAG, __VA_ARGS__)
 
 namespace {
 // Vertex layout matches TriMesh: loc 0=position(vec3), loc 1=normal(vec3), loc 2=color(vec4).

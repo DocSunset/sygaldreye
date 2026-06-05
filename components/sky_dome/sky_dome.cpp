@@ -3,13 +3,13 @@
 #include "sky_dome_shaders.hpp"
 #include "gl_program.hpp"
 #include "sphere_geometry.hpp"
-#include <android/log.h>
+#include "log.hpp"
 #include <cmath>
 #include <vector>
 #include <numbers>
 
 #define TAG "sky_dome"
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGE(...) LOG_E(TAG, __VA_ARGS__)
 
 static std::vector<Eigen::Vector3f> gen_stars(int count, float radius) {
     std::vector<Eigen::Vector3f> pts;

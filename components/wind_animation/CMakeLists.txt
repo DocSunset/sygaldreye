@@ -1,5 +1,11 @@
 add_library(wind_animation STATIC wind_shader.cpp wind_animation.cpp)
 target_include_directories(wind_animation PUBLIC .)
 target_include_directories(wind_animation PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(wind_animation PUBLIC flat_shader tri_mesh gl_program GLESv3 log)
+target_link_libraries(wind_animation PUBLIC flat_shader tri_mesh gl_program log_component)
 target_compile_options(wind_animation PRIVATE -Wall -Wextra)
+
+if(CMAKE_CROSSCOMPILING)
+    target_link_libraries(wind_animation PUBLIC GLESv3)
+else()
+    target_link_libraries(wind_animation PUBLIC GLESv2)
+endif()
