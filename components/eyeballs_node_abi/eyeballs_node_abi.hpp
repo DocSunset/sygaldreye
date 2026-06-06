@@ -93,7 +93,8 @@ struct GraphTextureCtx {
 
 // DrawCallCtx: passed to push_draw_calls; accumulates DrawFn callbacks.
 struct DrawCallCtx {
-    std::vector<DrawFn>* calls;
+    std::string          node_id;  // source node id, set by tick_graph
+    std::vector<DrawFn>* calls;    // points into Graph::draw_calls
 };
 
 // ── port_schema helpers ──────────────────────────────────────────────────────
