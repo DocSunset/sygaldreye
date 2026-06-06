@@ -1,0 +1,6 @@
+if(CMAKE_CROSSCOMPILING)
+    add_library(rd_gpu STATIC rd_gpu.cpp)
+    target_include_directories(rd_gpu PUBLIC .)
+    target_link_libraries(rd_gpu PUBLIC gpu_texture sygaldry_endpoints log GLESv3)
+    target_compile_options(rd_gpu PRIVATE -Wall -Wextra)
+endif()

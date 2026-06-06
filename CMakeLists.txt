@@ -61,6 +61,7 @@ if(CMAKE_CROSSCOMPILING)
     set(BUILD_SDK_TESTS OFF CACHE BOOL "" FORCE)
     add_subdirectory($ENV{OPENXR_SDK_SRC} openxr_sdk EXCLUDE_FROM_ALL)
 
+    add_subdirectory(components/rd_gpu)
     add_subdirectory(components/hello)
     add_subdirectory(app/hello)
     add_subdirectory(components/egl_context)
