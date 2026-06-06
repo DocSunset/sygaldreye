@@ -3,6 +3,7 @@
 #include "gl_program.hpp"
 #include "light.hpp"
 #include "material.hpp"
+#include "sygaldry_endpoints.hpp"
 #include <Eigen/Core>
 #include <GLES3/gl3.h>
 #include <memory>
@@ -38,6 +39,12 @@ struct WaterParams {
 
 class WaterSurface {
 public:
+    struct inputs {
+        slider<"cell size",      "", float, 0.1, 5.0,  1.0>  cell_size;
+        slider<"foam threshold", "", float, 0.0, 1.0,  0.55> foam_threshold;
+        slider<"sun intensity",  "", float, 0.0, 5.0,  1.2>  sun_intensity;
+    } inputs;
+
     static WaterSurface create(WaterParams const&);
 
     WaterSurface() = default;
@@ -48,7 +55,12 @@ public:
     WaterSurface& operator=(WaterSurface&&) noexcept;
 
     void set_sun(Light const& l) { params_.sun = l; }
-    void update(float time_s)    { time_s_ = time_s; }
+    void update(float time_s) {
+        time_s_                = time_s;
+        params_.cell_size      = inputs.cell_size.value;
+        params_.foam_threshold = inputs.foam_threshold.value;
+        params_.sun.intensity  = inputs.sun_intensity.value;
+    }
     void draw(Eigen::Matrix4f const& mvp,
               Eigen::Matrix4f const& model,
               Eigen::Vector3f const& view_pos) const;
