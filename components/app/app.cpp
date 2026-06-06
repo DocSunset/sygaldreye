@@ -202,8 +202,11 @@ void android_main(struct android_app* app) {
             if (state.water_) return to_json(*state.water_);
             return "{}";
         },
-        [&state](std::string_view body) -> std::string {
-            if (state.water_) from_json(*state.water_, body);
+        [&state, &http_server](std::string_view body) -> std::string {
+            if (state.water_) {
+                from_json(*state.water_, body);
+                http_server.broadcast_event("params", to_json(*state.water_));
+            }
             return "{}";
         });
     MdnsAdvertiser mdns_advertiser;
