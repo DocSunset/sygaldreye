@@ -1,7 +1,9 @@
 #pragma once
 #include <atomic>
+#include <string_view>
 #include "audio_scene.hpp"
 #include "biquad_filter.hpp"
+#include "sygaldry_endpoints.hpp"
 
 struct AtmosParams {
     float wind_speed  = 1.0f;
@@ -12,8 +14,19 @@ struct AtmosParams {
 
 class AtmosSynth : public MonoSynth {
 public:
+    static consteval std::string_view name()          { return "atmos_synth"; }
+    static consteval std::string_view source_header() { return "components/atmos_synth/atmos_synth.hpp"; }
+    static consteval std::string_view source_cpp()    { return "components/atmos_synth/atmos_synth.cpp"; }
+
+    struct inputs {
+        slider<"wind speed", "", float, fp(0.f),   fp(10.f),   fp(1.f)>   wind_speed;
+        slider<"base freq",  "", float, fp(50.f),  fp(2000.f), fp(300.f)> base_freq;
+        slider<"brightness", "", float, fp(0.f),   fp(1.f),    fp(0.5f)>  brightness;
+    } inputs;
+
     explicit AtmosSynth(AtmosParams const& = {});
     void set_params(AtmosParams const&);
+    void operator()(double);
     void fill(float* out, int frames) override;
 
 private:

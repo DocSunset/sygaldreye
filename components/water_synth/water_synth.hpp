@@ -1,11 +1,13 @@
 #pragma once
 #include <atomic>
 #include <cstdint>
+#include <string_view>
 #include "audio_scene.hpp"
 #include "synth_core.hpp"
 #include "biquad_filter.hpp"
+#include "sygaldry_endpoints.hpp"
 
-struct WaterParams {
+struct WaterSynthParams {
     float flow_speed  = 1.0f;
     float wave_rate   = 0.2f;
     float wave_height = 0.5f;
@@ -15,8 +17,20 @@ struct WaterParams {
 
 class WaterSynth : public MonoSynth {
 public:
-    explicit WaterSynth(WaterParams const& = {});
-    void set_params(WaterParams const&);
+    static consteval std::string_view name()          { return "water_synth"; }
+    static consteval std::string_view source_header() { return "components/water_synth/water_synth.hpp"; }
+    static consteval std::string_view source_cpp()    { return "components/water_synth/water_synth.cpp"; }
+
+    struct inputs {
+        slider<"flow speed",  "", float, fp(0.f), fp(10.f), fp(1.f)>  flow_speed;
+        slider<"wave rate",   "", float, fp(0.f), fp(2.f),  fp(0.2f)> wave_rate;
+        slider<"wave height", "", float, fp(0.f), fp(2.f),  fp(0.5f)> wave_height;
+        slider<"brightness",  "", float, fp(0.f), fp(1.f),  fp(0.5f)> brightness;
+    } inputs;
+
+    explicit WaterSynth(WaterSynthParams const& = {});
+    void set_params(WaterSynthParams const&);
+    void operator()(double);
     void fill(float* out, int frames) override;
 
 private:
@@ -30,7 +44,7 @@ private:
         bool                active      = false;
     };
 
-    std::atomic<WaterParams> params_;
+    std::atomic<WaterSynthParams> params_;
     synth::BiquadFilter      bp_;
     synth::Lfo               lfo_a_;
     synth::Lfo               lfo_b_;

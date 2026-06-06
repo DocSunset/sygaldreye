@@ -4,7 +4,7 @@
 #include "water_synth.hpp"
 
 TEST(WaterSynth, FlowSpeedZeroIsNearSilent) {
-    WaterParams p;
+    WaterSynthParams p;
     p.flow_speed  = 0.0f;
     p.wave_height = 0.0f;
     WaterSynth synth(p);
@@ -21,7 +21,7 @@ TEST(WaterSynth, WaveRateModulatesAmplitude) {
     constexpr int blocks    = 10;
     constexpr int block_len = total / blocks;
 
-    WaterParams p;
+    WaterSynthParams p;
     p.wave_rate   = 0.2f;
     p.wave_height = 0.8f;
     p.sample_rate = static_cast<float>(sr);

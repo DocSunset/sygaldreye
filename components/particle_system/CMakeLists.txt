@@ -1,7 +1,7 @@
 add_library(particle_system STATIC particle_system.cpp)
 target_include_directories(particle_system PUBLIC .)
 target_include_directories(particle_system PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(particle_system PUBLIC gl_program log_component)
+target_link_libraries(particle_system PUBLIC gl_program log_component sygaldry_endpoints)
 target_compile_options(particle_system PRIVATE -Wall -Wextra)
 
 if(CMAKE_CROSSCOMPILING)

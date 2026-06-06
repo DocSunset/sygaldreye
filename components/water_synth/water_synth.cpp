@@ -2,7 +2,7 @@
 #include "water_synth.hpp"
 #include <cstring>
 
-WaterSynth::WaterSynth(WaterParams const& p) {
+WaterSynth::WaterSynth(WaterSynthParams const& p) {
     params_.store(p, std::memory_order_relaxed);
     lfo_a_.phasor.freq        = 0.07f;
     lfo_a_.phasor.sample_rate = p.sample_rate;
@@ -20,13 +20,22 @@ WaterSynth::WaterSynth(WaterParams const& p) {
     }
 }
 
-void WaterSynth::set_params(WaterParams const& p) {
+void WaterSynth::set_params(WaterSynthParams const& p) {
     params_.store(p, std::memory_order_relaxed);
+}
+
+void WaterSynth::operator()(double) {
+    WaterSynthParams p = params_.load(std::memory_order_relaxed);
+    p.flow_speed  = inputs.flow_speed.value;
+    p.wave_rate   = inputs.wave_rate.value;
+    p.wave_height = inputs.wave_height.value;
+    p.brightness  = inputs.brightness.value;
+    set_params(p);
 }
 
 void WaterSynth::fill(float* out, int frames) {
     std::memset(out, 0, static_cast<size_t>(frames) * sizeof(float));
-    WaterParams p = params_.load(std::memory_order_relaxed);
+    WaterSynthParams p = params_.load(std::memory_order_relaxed);
 
     lfo_a_.phasor.sample_rate = p.sample_rate;
     lfo_b_.phasor.sample_rate = p.sample_rate;

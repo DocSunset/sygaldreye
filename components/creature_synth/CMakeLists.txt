@@ -1,6 +1,6 @@
 add_library(creature_synth STATIC creature_synth.cpp)
 target_include_directories(creature_synth PUBLIC .)
-target_link_libraries(creature_synth PUBLIC synth_core biquad_filter audio_scene)
+target_link_libraries(creature_synth PUBLIC synth_core biquad_filter audio_scene sygaldry_endpoints)
 target_compile_options(creature_synth PRIVATE -Wall -Wextra)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)

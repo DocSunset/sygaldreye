@@ -26,6 +26,13 @@ void FireSynth::set_params(FireParams const& p) {
     params_.store(p);
 }
 
+void FireSynth::operator()(double) {
+    FireParams p = params_.load(std::memory_order_relaxed);
+    p.intensity    = inputs.intensity.value;
+    p.crackle_rate = inputs.crackle_rate.value;
+    set_params(p);
+}
+
 void FireSynth::fill(float* out, int frames) {
     FireParams p = params_.load();
     std::memset(out, 0, static_cast<size_t>(frames) * sizeof(float));

@@ -31,6 +31,15 @@ void CreatureSynth::set_params(CreatureParams const& p) {
     wing_.freq             = 300.0f;
 }
 
+void CreatureSynth::operator()(double) {
+    CreatureParams p = params_;
+    p.carrier_freq      = inputs.carrier_freq.value;
+    p.fm_index          = inputs.fm_index.value;
+    p.chirp_rate        = inputs.chirp_rate.value;
+    p.phrase_duration_s = inputs.phrase_duration_s.value;
+    set_params(p);
+}
+
 static void tick_phasor(synth::Phasor& p) {
     p.phase += kTwoPi * p.freq / p.sample_rate;
     if (p.phase >= kTwoPi) p.phase -= kTwoPi;

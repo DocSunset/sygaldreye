@@ -20,6 +20,14 @@ void RainSynth::set_params(RainParams const& p) {
     params_ = p;
 }
 
+void RainSynth::operator()(double) {
+    RainParams p = params_;
+    p.rate      = inputs.rate.value;
+    p.drop_freq = inputs.drop_freq.value;
+    p.decay_s   = inputs.decay_s.value;
+    set_params(p);
+}
+
 void RainSynth::fill(float* out, int frames) {
     std::memset(out, 0, static_cast<size_t>(frames) * sizeof(float));
     float spawn_prob = params_.rate / params_.sample_rate;

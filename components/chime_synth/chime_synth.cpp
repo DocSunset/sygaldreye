@@ -18,6 +18,13 @@ void ChimeSynth::set_params(ChimeParams const& p)
     recompute_coeffs();
 }
 
+void ChimeSynth::operator()(double) {
+    ChimeParams p = params_;
+    p.strike_rate = inputs.strike_rate.value;
+    p.strike_gain = inputs.strike_gain.value;
+    set_params(p);
+}
+
 void ChimeSynth::strike(float gain)
 {
     pending_strike_gain_.store(gain, std::memory_order_relaxed);

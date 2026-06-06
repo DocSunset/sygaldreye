@@ -1,6 +1,6 @@
 add_library(atmos_synth STATIC atmos_synth.cpp)
 target_include_directories(atmos_synth PUBLIC .)
-target_link_libraries(atmos_synth PUBLIC synth_core biquad_filter audio_scene)
+target_link_libraries(atmos_synth PUBLIC synth_core biquad_filter audio_scene sygaldry_endpoints)
 target_compile_options(atmos_synth PRIVATE -Wall -Wextra)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)

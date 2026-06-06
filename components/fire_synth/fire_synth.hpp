@@ -1,8 +1,10 @@
 #pragma once
 #include <atomic>
 #include <cstdint>
+#include <string_view>
 #include "audio_scene.hpp"
 #include "biquad_filter.hpp"
+#include "sygaldry_endpoints.hpp"
 
 struct FireParams {
     float intensity    = 1.0f;
@@ -12,9 +14,19 @@ struct FireParams {
 
 class FireSynth : public MonoSynth {
 public:
+    static consteval std::string_view name()          { return "fire_synth"; }
+    static consteval std::string_view source_header() { return "components/fire_synth/fire_synth.hpp"; }
+    static consteval std::string_view source_cpp()    { return "components/fire_synth/fire_synth.cpp"; }
+
+    struct inputs {
+        slider<"intensity",    "", float, fp(0.f), fp(5.f),   fp(1.f)>  intensity;
+        slider<"crackle rate", "", float, fp(0.f), fp(200.f), fp(40.f)> crackle_rate;
+    } inputs;
+
     static constexpr int k_max_crackles = 16;
     explicit FireSynth(FireParams const& = {});
     void set_params(FireParams const&);
+    void operator()(double);
     void fill(float* out, int frames) override;
 private:
     struct Crackle {

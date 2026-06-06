@@ -23,6 +23,14 @@ void EngineSynth::set_params(EngineParams const& p) {
     params_.store(p);
 }
 
+void EngineSynth::operator()(double) {
+    EngineParams p = params_.load(std::memory_order_relaxed);
+    p.rpm       = inputs.rpm.value;
+    p.roughness = inputs.roughness.value;
+    p.load      = inputs.load.value;
+    set_params(p);
+}
+
 void EngineSynth::fill(float* out, int frames) {
     EngineParams target = params_.load();
     float smoothing     = 1.0f - std::expf(-1.0f / (0.05f * sample_rate_));

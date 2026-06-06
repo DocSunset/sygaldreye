@@ -1,6 +1,6 @@
 add_library(engine_synth STATIC engine_synth.cpp)
 target_include_directories(engine_synth PUBLIC .)
-target_link_libraries(engine_synth PUBLIC synth_core biquad_filter audio_scene)
+target_link_libraries(engine_synth PUBLIC synth_core biquad_filter audio_scene sygaldry_endpoints)
 target_compile_options(engine_synth PRIVATE -Wall -Wextra)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)

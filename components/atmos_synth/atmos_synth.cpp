@@ -16,6 +16,14 @@ void AtmosSynth::set_params(AtmosParams const& p) {
     params_.store(p);
 }
 
+void AtmosSynth::operator()(double) {
+    AtmosParams p = params_.load(std::memory_order_relaxed);
+    p.wind_speed = inputs.wind_speed.value;
+    p.base_freq  = inputs.base_freq.value;
+    p.brightness = inputs.brightness.value;
+    set_params(p);
+}
+
 void AtmosSynth::fill(float* out, int frames) {
     AtmosParams p = params_.load();
 

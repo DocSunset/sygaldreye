@@ -1,6 +1,6 @@
 add_library(chime_synth STATIC chime_synth.cpp)
 target_include_directories(chime_synth PUBLIC .)
-target_link_libraries(chime_synth PUBLIC synth_core audio_scene)
+target_link_libraries(chime_synth PUBLIC synth_core audio_scene sygaldry_endpoints)
 target_compile_options(chime_synth PRIVATE -Wall -Wextra)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)
