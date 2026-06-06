@@ -118,6 +118,7 @@ void android_main(struct android_app* app) {
     state.sky_ = SkyDome::create(sp);
 
     state.registry_.register_builtin(make_descriptor<WaterSurface>());
+    state.registry_.register_builtin(make_descriptor<SkyDome>());
 
     constexpr const char* kCompanionUrl = "http://192.168.1.1:9090";
     state.push_to_talk_.set_companion_url(kCompanionUrl);
@@ -173,6 +174,28 @@ void android_main(struct android_app* app) {
             std::lock_guard<std::mutex> lock(state.graph_mutex_);
             state.pending_graph_ = std::move(g);
             return R"({"ok":true})";
+        });
+    http_server.add_route("GET", "/palette",
+        [&state](std::string_view) -> std::string {
+            std::string out = "[";
+            bool first = true;
+            for (const auto& type_name : state.registry_.type_names()) {
+                const auto* desc = state.registry_.find(type_name);
+                if (!desc) continue;
+                if (!first) out += ',';
+                first = false;
+                out += "{\"type\":\""; out += type_name; out += "\"";
+                if (desc->create && desc->serialize) {
+                    void* tmp = desc->create();
+                    const char* s = desc->serialize(tmp);
+                    out += ",\"defaults\":"; out += s;
+                    if (desc->free_str) desc->free_str(s);
+                    desc->destroy(tmp);
+                }
+                out += '}';
+            }
+            out += ']';
+            return out;
         });
     http_server.start(8080,
         [&state](std::string_view) -> std::string {

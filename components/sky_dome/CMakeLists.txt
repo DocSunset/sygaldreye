@@ -1,7 +1,7 @@
 add_library(sky_dome STATIC sky_dome.cpp)
 target_include_directories(sky_dome PUBLIC .)
 target_include_directories(sky_dome PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(sky_dome PUBLIC sphere_geometry sphere_mesh gl_program log_component)
+target_link_libraries(sky_dome PUBLIC sphere_geometry sphere_mesh gl_program log_component sygaldry_endpoints)
 target_compile_options(sky_dome PRIVATE -Wall -Wextra)
 
 if(CMAKE_CROSSCOMPILING)

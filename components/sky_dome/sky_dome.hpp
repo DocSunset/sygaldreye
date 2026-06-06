@@ -3,7 +3,9 @@
 #include <Eigen/Core>
 #include <GLES3/gl3.h>
 #include <memory>
+#include <string_view>
 #include "sphere_mesh.hpp"
+#include "sygaldry_endpoints.hpp"
 
 struct GlProgram;
 
@@ -27,6 +29,14 @@ struct SkyParams {
 
 class SkyDome {
 public:
+    static consteval std::string_view name() { return "sky_dome"; }
+
+    struct inputs {
+        slider<"sun elevation", "", float, -1.0, 1.0, 0.5> sun_elevation;
+        slider<"star count",    "", float, 0.0, 5000.0, 2000.0> star_count;
+        slider<"radius",        "", float, 10.0, 2000.0, 500.0> radius;
+    } inputs;
+
     static SkyDome create(SkyParams const&);
 
     SkyDome() = default;
