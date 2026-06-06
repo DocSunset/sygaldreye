@@ -1,0 +1,3 @@
+add_library(renderer_node STATIC renderer_node.cpp)
+target_include_directories(renderer_node PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(renderer_node PUBLIC sygaldry_endpoints eyeballs_node_abi)

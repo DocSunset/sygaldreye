@@ -21,6 +21,21 @@
 #include "signal_graph.hpp"
 #include "vr_editor.hpp"
 #include "rd_gpu.hpp"
+#include "xr_sources.hpp"
+#include "renderer_node.hpp"
+#include "atmos_synth.hpp"
+#include "rain_synth.hpp"
+#include "fire_synth.hpp"
+#include "engine_synth.hpp"
+#include "water_synth.hpp"
+#include "creature_synth.hpp"
+#include "chime_synth.hpp"
+#include "lissajous.hpp"
+#include "aurora.hpp"
+#include "chladni.hpp"
+#include "terrain_generator.hpp"
+#include "particle_system.hpp"
+#include "reaction_diffusion.hpp"
 #include <cmath>
 #include <cstdio>
 #include <ctime>
@@ -126,9 +141,35 @@ void android_main(struct android_app* app) {
     state.registry_.register_builtin(make_descriptor<WaterSurface>());
     state.registry_.register_builtin(make_descriptor<SkyDome>());
     state.registry_.register_builtin(make_descriptor<RdGpu>());
+    state.registry_.register_builtin(make_descriptor<HeadPoseNode>());
+    state.registry_.register_builtin(make_descriptor<LeftControllerNode>());
+    state.registry_.register_builtin(make_descriptor<RightControllerNode>());
+    state.registry_.register_builtin(make_descriptor<AtmosSynth>());
+    state.registry_.register_builtin(make_descriptor<RainSynth>());
+    state.registry_.register_builtin(make_descriptor<FireSynth>());
+    state.registry_.register_builtin(make_descriptor<EngineSynth>());
+    state.registry_.register_builtin(make_descriptor<WaterSynth>());
+    state.registry_.register_builtin(make_descriptor<CreatureSynth>());
+    state.registry_.register_builtin(make_descriptor<ChimeSynth>());
+    state.registry_.register_builtin(make_descriptor<Lissajous>());
+    state.registry_.register_builtin(make_descriptor<Aurora>());
+    state.registry_.register_builtin(make_descriptor<Chladni>());
+    state.registry_.register_builtin(make_descriptor<TerrainRenderer>());
+    state.registry_.register_builtin(make_descriptor<ParticleSystem>());
+    state.registry_.register_builtin(make_descriptor<ReactionDiffusion>());
+    state.registry_.register_builtin(make_descriptor<RendererNode>());
 
-    constexpr const char* kDefaultGraph =
-        R"({"nodes":[{"id":"rd","type":"rd_gpu","params":{"feed":0.055,"kill":0.062}}],"edges":[]})";
+    constexpr const char* kDefaultGraph = R"({
+        "nodes":[
+            {"id":"sky","type":"sky_dome","params":{}},
+            {"id":"water","type":"water_surface","params":{}},
+            {"id":"head","type":"head_pose","params":{}},
+            {"id":"renderer","type":"renderer","params":{}}
+        ],
+        "edges":[
+            {"from":"sky.sun_elevation_out","to":"water.sun intensity"}
+        ]
+    })";
     if (auto g = parse_graph(kDefaultGraph, state.registry_))
         state.active_graph_ = std::move(g);
 
