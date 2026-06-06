@@ -54,6 +54,15 @@ static std::vector<std::string> split_array_objects(std::string_view json) {
     return result;
 }
 
+// Split "node.port" on first '.' into (node, port). Returns false if no dot found.
+static bool split_dot(std::string_view s, std::string& node, std::string& port) {
+    auto dot = s.find('.');
+    if (dot == std::string_view::npos) return false;
+    node = std::string(s.substr(0, dot));
+    port = std::string(s.substr(dot + 1));
+    return true;
+}
+
 std::unique_ptr<Graph> parse_graph(const std::string& json, const ComponentRegistry& registry) {
     auto nodes_key = std::string_view(json).find("\"nodes\"");
     if (nodes_key == std::string_view::npos) return nullptr;
@@ -81,6 +90,25 @@ std::unique_ptr<Graph> parse_graph(const std::string& json, const ComponentRegis
 
         g->nodes.push_back({desc, data, std::string(id)});
     }
+
+    // Parse edges array
+    auto edges_key = std::string_view(json).find("\"edges\"");
+    if (edges_key != std::string_view::npos) {
+        auto ea_start = json.find('[', edges_key);
+        if (ea_start != std::string_view::npos) {
+            auto edge_objs = split_array_objects(std::string_view(json).substr(ea_start));
+            for (const auto& eobj : edge_objs) {
+                auto from_val = find_string(eobj, "from");
+                auto to_val   = find_string(eobj, "to");
+                if (from_val.empty() || to_val.empty()) continue;
+                Edge e;
+                if (!split_dot(from_val, e.from_node, e.from_port)) continue;
+                if (!split_dot(to_val,   e.to_node,   e.to_port))   continue;
+                g->edges.push_back(std::move(e));
+            }
+        }
+    }
+
     return g;
 }
 
@@ -109,7 +137,16 @@ std::string serialize_graph(const Graph& g) {
         }
         out += '}';
     }
-    out += "],\"edges\":[]}";
+    out += "],\"edges\":[";
+    bool first_edge = true;
+    for (const auto& e : g.edges) {
+        if (!first_edge) out += ',';
+        first_edge = false;
+        out += "{\"from\":\""; out += e.from_node; out += '.'; out += e.from_port;
+        out += "\",\"to\":\""; out += e.to_node;   out += '.'; out += e.to_port;
+        out += "\"}";
+    }
+    out += "]}";
     return out;
 }
 

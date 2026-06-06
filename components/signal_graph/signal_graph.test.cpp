@@ -105,3 +105,34 @@ TEST(SignalGraph, SerializeRoundTrip) {
     EXPECT_NE(s.find("mynode"), std::string::npos);
     EXPECT_NE(s.find("node_a"), std::string::npos);
 }
+
+TEST(SignalGraph, EdgeRoundTrip) {
+    static auto desc_a = make_node_a_desc();
+    static auto desc_b = make_node_b_desc();
+    ComponentRegistry reg;
+    reg.register_builtin(&desc_a);
+    reg.register_builtin(&desc_b);
+
+    const char* json = R"({
+        "nodes":[
+            {"id":"a","type":"node_a","params":{}},
+            {"id":"b","type":"node_b","params":{}}
+        ],
+        "edges":[
+            {"from":"a.out_val","to":"b.in_val"}
+        ]
+    })";
+
+    auto g = parse_graph(json, reg);
+    ASSERT_NE(g, nullptr);
+    ASSERT_EQ(g->edges.size(), 1u);
+    EXPECT_EQ(g->edges[0].from_node, "a");
+    EXPECT_EQ(g->edges[0].from_port, "out_val");
+    EXPECT_EQ(g->edges[0].to_node,   "b");
+    EXPECT_EQ(g->edges[0].to_port,   "in_val");
+
+    // Serialize and verify edge appears in output
+    auto s = serialize_graph(*g);
+    EXPECT_NE(s.find("a.out_val"), std::string::npos);
+    EXPECT_NE(s.find("b.in_val"),  std::string::npos);
+}
