@@ -35,7 +35,7 @@ public:
         port<"render", DrawFn> render;
     } outputs;
 
-    Lissajous() { *this = create({}); }
+    Lissajous() { *this = create_default(); }
 
     static Lissajous create(LissajousParams const&);
     void update(float time_s);
@@ -43,6 +43,9 @@ public:
     void draw(Eigen::Matrix4f const& mvp) const;
 
 private:
+    struct RawTag {};
+    explicit Lissajous(RawTag) {}
+    static Lissajous create_default();
     LissajousParams params_;
     std::vector<float> vbo_data_; // interleaved: x,y,z,r,g,b (6 floats per vertex)
     GLuint vao_  = 0;

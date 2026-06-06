@@ -45,8 +45,10 @@ void main() {
 
 } // namespace
 
+Lissajous Lissajous::create_default() { return create({}); }
+
 Lissajous Lissajous::create(LissajousParams const& p) {
-    Lissajous l;
+    Lissajous l{RawTag{}};
     l.params_ = p;
     l.vbo_data_.resize(static_cast<size_t>(p.samples) * 6);
 

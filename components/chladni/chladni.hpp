@@ -30,7 +30,7 @@ public:
         port<"render", DrawFn> render;
     } outputs;
 
-    Chladni() { *this = create({}); }
+    Chladni() { *this = create_default(); }
 
     static Chladni create(ChladniParams const&);
     void update(float time_s);
@@ -38,6 +38,9 @@ public:
     void draw(Eigen::Matrix4f const& mvp) const;
 
 private:
+    struct RawTag {};
+    explicit Chladni(RawTag) {}
+    static Chladni create_default();
     ChladniParams params_;
     TriMeshData   data_;
     TriMesh       mesh_;

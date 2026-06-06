@@ -27,8 +27,10 @@ void main() {
 
 } // namespace
 
+Chladni Chladni::create_default() { return create({}); }
+
 Chladni Chladni::create(ChladniParams const& p) {
-    Chladni c;
+    Chladni c{RawTag{}};
     c.params_ = p;
     int n = p.grid_n;
     int nfaces = (n - 1) * (n - 1) * 2;

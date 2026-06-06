@@ -76,8 +76,10 @@ void main() {
 
 } // namespace
 
+Aurora Aurora::create_default() { return create({}); }
+
 Aurora Aurora::create(AuroraParams const& p) {
-    Aurora a;
+    Aurora a{RawTag{}};
     a.params_ = p;
 
     auto prog = GlProgram::build(VERT, FRAG);
@@ -222,7 +224,7 @@ void Aurora::draw(Eigen::Matrix4f const& vp) const {
     glEnable(GL_DEPTH_TEST);
 }
 
-Aurora::Aurora() { *this = create({}); }
+Aurora::Aurora() { *this = create_default(); }
 
 Aurora::~Aurora() {
     for (auto& c : curtains_) {

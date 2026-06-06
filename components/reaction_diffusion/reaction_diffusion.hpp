@@ -36,7 +36,7 @@ public:
         port<"render", DrawFn> render;
     } outputs;
 
-    ReactionDiffusion() { *this = create({}); }
+    ReactionDiffusion() { *this = create_default(); }
 
     static ReactionDiffusion create(RDParams const&);
     void update();
@@ -44,6 +44,9 @@ public:
     void draw(Eigen::Matrix4f const& mvp) const;
 
 private:
+    struct RawTag {};
+    explicit ReactionDiffusion(RawTag) {}
+    static ReactionDiffusion create_default();
     RDParams                   params_;
     std::vector<float>         u_, v_, u_next_, v_next_;
     TriMeshData                data_;

@@ -57,8 +57,10 @@ void seed_grid(std::vector<float>& u, std::vector<float>& v, int w, int h) {
 
 } // namespace
 
+ReactionDiffusion ReactionDiffusion::create_default() { return create({}); }
+
 ReactionDiffusion ReactionDiffusion::create(RDParams const& p) {
-    ReactionDiffusion rd;
+    ReactionDiffusion rd{RawTag{}};
     rd.params_ = p;
 
     size_t n = static_cast<size_t>(p.grid_w * p.grid_h);

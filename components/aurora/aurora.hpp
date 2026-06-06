@@ -49,6 +49,10 @@ public:
     Aurora& operator=(Aurora&&) noexcept;
 
 private:
+    struct RawTag {};
+    explicit Aurora(RawTag) {}
+    static Aurora create_default();
+
     struct Curtain {
         GLuint vao          = 0;
         GLuint vbo          = 0;
