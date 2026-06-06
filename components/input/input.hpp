@@ -26,11 +26,15 @@ struct Input {
     /// focused must be true only when the session is in SYNCHRONIZED, VISIBLE, or FOCUSED state.
     bool sync(XrSession session, XrSpace worldSpace, XrTime time, bool focused);
     [[nodiscard]] std::optional<HandPose> hand_pose(Hand hand) const;
+    [[nodiscard]] bool trigger_pressed(Hand hand) const;
 
 private:
-    XrActionSet actionSet_   = XR_NULL_HANDLE;
-    XrAction    poseAction_  = XR_NULL_HANDLE;
+    XrActionSet actionSet_      = XR_NULL_HANDLE;
+    XrAction    poseAction_     = XR_NULL_HANDLE;
+    XrAction    triggerAction_  = XR_NULL_HANDLE;
+    std::array<XrPath, 2>               handPaths_{XR_NULL_PATH, XR_NULL_PATH};
     std::array<XrSpace, 2>              handSpaces_{XR_NULL_HANDLE, XR_NULL_HANDLE};
     std::array<std::optional<HandPose>, 2> poses_{};
+    std::array<bool, 2>                 trigger_pressed_{};
     bool        pose_logged_ = false;
 };

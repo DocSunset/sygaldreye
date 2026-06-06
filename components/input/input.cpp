@@ -18,6 +18,9 @@ Input::~Input() {
             xrDestroySpace(handSpaces_.at(static_cast<size_t>(i)));
         }
     }
+    if (triggerAction_ != XR_NULL_HANDLE) {
+        xrDestroyAction(triggerAction_);
+    }
     if (poseAction_ != XR_NULL_HANDLE) {
         xrDestroyAction(poseAction_);
     }
@@ -29,7 +32,10 @@ Input::~Input() {
 Input::Input(Input&& other) noexcept
     : actionSet_(std::exchange(other.actionSet_, XR_NULL_HANDLE))
     , poseAction_(std::exchange(other.poseAction_, XR_NULL_HANDLE))
+    , triggerAction_(std::exchange(other.triggerAction_, XR_NULL_HANDLE))
+    , handPaths_(other.handPaths_)
     , poses_(other.poses_)
+    , trigger_pressed_(other.trigger_pressed_)
     , pose_logged_(std::exchange(other.pose_logged_, false))
 {
     for (int i = 0; i < 2; ++i) {
@@ -41,10 +47,13 @@ Input::Input(Input&& other) noexcept
 Input& Input::operator=(Input&& other) noexcept {
     if (this != &other) {
         this->~Input();
-        actionSet_  = std::exchange(other.actionSet_,  XR_NULL_HANDLE);
-        poseAction_ = std::exchange(other.poseAction_, XR_NULL_HANDLE);
-        poses_       = other.poses_;
-        pose_logged_ = std::exchange(other.pose_logged_, false);
+        actionSet_       = std::exchange(other.actionSet_,      XR_NULL_HANDLE);
+        poseAction_      = std::exchange(other.poseAction_,     XR_NULL_HANDLE);
+        triggerAction_   = std::exchange(other.triggerAction_,  XR_NULL_HANDLE);
+        handPaths_       = other.handPaths_;
+        poses_           = other.poses_;
+        trigger_pressed_ = other.trigger_pressed_;
+        pose_logged_     = std::exchange(other.pose_logged_, false);
         for (int i = 0; i < 2; ++i) {
             handSpaces_.at(static_cast<size_t>(i))       = other.handSpaces_.at(static_cast<size_t>(i));
             other.handSpaces_.at(static_cast<size_t>(i)) = XR_NULL_HANDLE;
@@ -67,9 +76,9 @@ bool Input::create(XrInstance instance, XrSession session) {
     }
 
     // Grip pose action with left/right subaction paths
-    XrPath handPaths[2];
-    xrStringToPath(instance, "/user/hand/left",  &handPaths[0]);
-    xrStringToPath(instance, "/user/hand/right", &handPaths[1]);
+    xrStringToPath(instance, "/user/hand/left",  &handPaths_[0]);
+    xrStringToPath(instance, "/user/hand/right", &handPaths_[1]);
+    XrPath* handPaths = handPaths_.data();
 
     XrActionCreateInfo aci{};
     aci.type = XR_TYPE_ACTION_CREATE_INFO;
@@ -84,6 +93,20 @@ bool Input::create(XrInstance instance, XrSession session) {
         return false;
     }
 
+    // Trigger boolean action
+    XrActionCreateInfo taci{};
+    taci.type = XR_TYPE_ACTION_CREATE_INFO;
+    strncpy(taci.actionName, "trigger", XR_MAX_ACTION_NAME_SIZE - 1);
+    taci.actionName[XR_MAX_ACTION_NAME_SIZE - 1] = '\0';
+    strncpy(taci.localizedActionName, "Trigger", XR_MAX_LOCALIZED_ACTION_NAME_SIZE - 1);
+    taci.localizedActionName[XR_MAX_LOCALIZED_ACTION_NAME_SIZE - 1] = '\0';
+    taci.actionType          = XR_ACTION_TYPE_BOOLEAN_INPUT;
+    taci.countSubactionPaths = 2;
+    taci.subactionPaths      = handPaths;
+    if (!xr_ok(xrCreateAction(actionSet_, &taci, &triggerAction_), "xrCreateAction(trigger)")) {
+        return false;
+    }
+
     // Suggest bindings for Oculus Touch
     XrPath profilePath = XR_NULL_PATH;
     xrStringToPath(instance, "/interaction_profiles/oculus/touch_controller", &profilePath);
@@ -93,15 +116,22 @@ bool Input::create(XrInstance instance, XrSession session) {
     xrStringToPath(instance, "/user/hand/left/input/grip/pose",  &leftPath);
     xrStringToPath(instance, "/user/hand/right/input/grip/pose", &rightPath);
 
-    XrActionSuggestedBinding bindings[2] = {
-        {poseAction_, leftPath},
-        {poseAction_, rightPath},
+    XrPath triggerLeftPath  = XR_NULL_PATH;
+    XrPath triggerRightPath = XR_NULL_PATH;
+    xrStringToPath(instance, "/user/hand/left/input/trigger/value",  &triggerLeftPath);
+    xrStringToPath(instance, "/user/hand/right/input/trigger/value", &triggerRightPath);
+
+    XrActionSuggestedBinding bindings[4] = {
+        {poseAction_,    leftPath},
+        {poseAction_,    rightPath},
+        {triggerAction_, triggerLeftPath},
+        {triggerAction_, triggerRightPath},
     };
     XrInteractionProfileSuggestedBinding suggested{};
     suggested.type                   = XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING;
     suggested.interactionProfile     = profilePath;
     suggested.suggestedBindings      = bindings;
-    suggested.countSuggestedBindings = 2;
+    suggested.countSuggestedBindings = 4;
     if (!xr_ok(xrSuggestInteractionProfileBindings(instance, &suggested),
                "xrSuggestInteractionProfileBindings")) {
         return false;
@@ -147,6 +177,17 @@ bool Input::sync(XrSession session, XrSpace worldSpace, XrTime time, bool focuse
     }
 
     for (int i = 0; i < 2; ++i) {
+        XrActionStateBoolean tb{};
+        tb.type = XR_TYPE_ACTION_STATE_BOOLEAN;
+        XrActionStateGetInfo tgi{};
+        tgi.type          = XR_TYPE_ACTION_STATE_GET_INFO;
+        tgi.action        = triggerAction_;
+        tgi.subactionPath = (i == 0) ? handPaths_[0] : handPaths_[1];
+        xrGetActionStateBoolean(session, &tgi, &tb);
+        trigger_pressed_.at(static_cast<size_t>(i)) = (tb.isActive && tb.currentState);
+    }
+
+    for (int i = 0; i < 2; ++i) {
         XrSpaceLocation loc{};
         loc.type = XR_TYPE_SPACE_LOCATION;
         xrLocateSpace(handSpaces_.at(static_cast<size_t>(i)), worldSpace, time, &loc);
@@ -168,4 +209,8 @@ bool Input::sync(XrSession session, XrSpace worldSpace, XrTime time, bool focuse
 
 std::optional<HandPose> Input::hand_pose(Hand hand) const {
     return poses_[static_cast<size_t>(hand)];
+}
+
+bool Input::trigger_pressed(Hand hand) const {
+    return trigger_pressed_[static_cast<size_t>(hand)];
 }
