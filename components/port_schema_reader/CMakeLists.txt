@@ -1,0 +1,10 @@
+add_library(port_schema_reader STATIC port_schema_reader.cpp)
+target_include_directories(port_schema_reader PUBLIC .)
+target_compile_options(port_schema_reader PRIVATE -Wall -Wextra)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(port_schema_reader_test port_schema_reader.test.cpp)
+    target_link_libraries(port_schema_reader_test PRIVATE port_schema_reader GTest::gtest_main)
+    target_compile_options(port_schema_reader_test PRIVATE -Wall -Wextra)
+endif()
