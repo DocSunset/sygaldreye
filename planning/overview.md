@@ -42,19 +42,22 @@ Sygaldry is included as a git submodule for its metadata helper types only
 (`string_literal`, `num_literal`, `range_`, `persistent`, `occasional`, and the endpoint
 templates). Boost.PFR provides struct iteration and field-name reflection.
 
-### Multi-rate evaluation
+### Push/pull evaluation model
 
-Nodes declare the rate at which they operate. The graph evaluates each rate domain
-independently on the appropriate trigger.
+Nodes do not declare a rate. Rate emerges from the pull chain:
 
-| Rate    | Trigger           | Port types                          |
-|---------|-------------------|-------------------------------------|
-| Audio   | Audio callback    | `audio_buffer`                      |
-| Frame   | XR frame loop     | `XrPosef`, `vec3`, `texture`, `draw_call` |
-| Control | On-change / slow  | `float`, `bool`, `bang`             |
+- **Sinks pull at their own rate.** `audio_output` pulls its upstream at audio rate
+  inside the audio callback. `renderer` pulls its upstream at frame rate inside the XR
+  frame loop. Rate propagates backwards through the graph from each sink.
+- **Sources push when they have data.** Button presses, bangs, control changes propagate
+  forward through the graph when they fire.
+- **Most nodes are agnostic.** A filter, a transform, a gain node — they compute output
+  from input and do not know or care what rate they are called at.
 
-Edges crossing rate boundaries require explicit rate-conversion nodes (analogous to
-Pd's `snapshot~` / `sig~`).
+Rate is implicit in the port type: `audio_buffer` ports operate at audio rate; all other
+types operate at frame or control rate. Connecting an `audio_buffer` output to a `float`
+input is a type mismatch, rejected at connection time. Crossing the boundary requires an
+explicit rate-conversion node (analogous to Pd's `snapshot~` / `sig~`).
 
 ### Stable C plugin ABI
 
@@ -100,25 +103,30 @@ packets.
 
 ## Port Type Lattice
 
-| Type            | Rate          | Description                              |
-|-----------------|---------------|------------------------------------------|
-| `slider<>`      | control/frame | Scalar float with min/max/init           |
-| `toggle<>`      | control/frame | Boolean                                  |
-| `bang<>`        | any           | Event / impulse                          |
-| `XrPosef`       | frame         | 6DOF pose (position + orientation)       |
-| `audio_buffer`  | audio         | Block of PCM float samples               |
-| `texture`       | frame         | GPU texture handle + dimensions + format |
-| `draw_call`     | frame         | Renderable geometry → compositor         |
+Rate is not declared; it is implicit in the port type. `audio_buffer` is the only
+audio-rate type; all others are frame/control rate. Connecting across this boundary
+requires an explicit rate-conversion node.
+
+| Type            | Description                              |
+|-----------------|------------------------------------------|
+| `slider<>`      | Scalar float with min/max/init           |
+| `toggle<>`      | Boolean                                  |
+| `bang<>`        | Event / impulse                          |
+| `XrPosef`       | 6DOF pose (position + orientation)       |
+| `audio_buffer`  | Block of PCM float samples (audio rate)  |
+| `texture`       | GPU texture handle + dimensions + format |
+| `draw_call`     | Renderable geometry → compositor         |
 
 ## Phase Summary
 
-| Phase | Title                        | Key deliverable                                  |
-|-------|------------------------------|--------------------------------------------------|
-| 1     | Param registry               | PFR + sygaldry endpoints + JSON serialization    |
-| 2     | Networking                   | mDNS, HTTP server, Linux companion               |
-| 3     | Speech-to-text               | AAudio mic → companion → Whisper → commands      |
-| 4     | Plugin ABI                   | C descriptor, dlopen, cross-compile pipeline     |
-| 5     | Universal signal graph       | Multi-rate runtime, XR sources, wireable poses   |
-| 6     | Linux spectator + multi-user | host_gl_context mirror, collaborative control    |
-| 7     | In-VR structural editor      | Node palette, cards, port handles, wire rendering|
-| 8     | GPU texture ports             | FBO scheduler, texture edge type, render graph   |
+| Phase | Title                        | Key deliverable                                       |
+|-------|------------------------------|-------------------------------------------------------|
+| 1     | Param registry               | PFR + sygaldry endpoints + JSON serialization         |
+| 2     | Networking                   | mDNS, HTTP server, Linux companion                    |
+| 3     | Speech-to-text               | AAudio mic → companion → Whisper → commands           |
+| 4     | Plugin ABI                   | Reflection-generated C descriptor, dlopen, cross-compile |
+| 5     | Universal signal graph       | Push/pull runtime, XR sources, wireable poses         |
+| 6     | Linux spectator + multi-user | host_gl_context mirror, collaborative control         |
+| 7     | In-VR structural editor      | Node palette, cards, port handles, wire rendering     |
+| 8     | GPU texture ports            | FBO scheduler, texture edge type, render graph        |
+| 9     | Static graph compilation     | Runtime graph → generated C++ → optimised static binary |

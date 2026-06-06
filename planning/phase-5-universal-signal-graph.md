@@ -27,28 +27,29 @@ description and the scene changes live.
 The renderer's eye-pose inputs are just ports. Rerouting a controller pose to them is
 the mechanism for "holding your eyeballs in your fist".
 
-### Multi-rate evaluation
+### Push/pull evaluation model
 
-The graph evaluates in three passes per frame:
+Nodes do not declare a rate. Rate is determined by which sink is pulling:
 
-1. **Control pass** (on-change): propagate slider/toggle changes from param registry
-   or POST /params
-2. **Frame pass** (~90Hz, XR frame loop): tick all frame-rate nodes in topological order;
-   collect draw calls for `xrEndFrame`
-3. **Audio pass** (~48kHz, audio callback): tick all audio-rate nodes; deliver buffer
-   to `audio_output`
+- **`audio_output`** pulls its upstream recursively inside the audio callback at ~48kHz.
+  Every node reachable from `audio_output` through `audio_buffer` edges runs at audio
+  rate — not because it declared itself as such, but because it is on the pull path.
+- **`renderer`** pulls its upstream inside the XR frame loop at ~90Hz. Every node
+  reachable through frame-rate port types (`XrPosef`, `draw_call`, `texture`, etc.)
+  runs at frame rate.
+- **Push sources** (`head_pose`, controllers, button events) propagate forward when they
+  fire, independently of any sink pulling.
 
-Nodes declare their rate. Edges crossing rate boundaries require an explicit
-rate-converter node.
+Rate conversion requires an explicit node. Connecting an `audio_buffer` output to a
+`float` input is a type error at connection time.
 
 ### Graph data structure
 
 ```cpp
 struct NodeInstance {
     const EyeballsNodeDescriptor* desc;
-    void*                         data;      // desc->create() result
-    std::string                   id;        // unique in graph
-    Rate                          rate;
+    void*                         data;   // desc->create() result
+    std::string                   id;     // unique in graph
 };
 
 struct Edge {
