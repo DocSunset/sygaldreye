@@ -44,6 +44,7 @@ add_subdirectory(components/http_server)
 add_subdirectory(components/mdns_advertiser)
 add_subdirectory(components/eyeballs_node_abi)
 add_subdirectory(components/component_registry)
+add_subdirectory(components/signal_graph)
 
 if(CMAKE_CROSSCOMPILING)
     # OpenXR loader (Android only)
