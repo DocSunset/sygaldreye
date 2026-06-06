@@ -174,7 +174,41 @@ std::vector<std::function<void(const Eigen::Matrix4f&)>> draw_calls;
 
 `serialize_graph` emits actual `graph.edges` instead of hardcoded `[]`.
 
-## Renderer integration
+## `RendererNode` — renderer as a wireable graph node
+
+The renderer must be a proper node in the graph so Phase 11's VR editor can display
+and connect its eye-pose input ports.
+
+```cpp
+struct RendererNode {
+    static consteval std::string_view name() { return "renderer"; }
+    struct inputs {
+        slider<"left_pos_x",  "", float, fp(-5.f), fp(5.f), fp(0.f)> left_pos_x;
+        slider<"left_pos_y",  "", float, fp(-5.f), fp(5.f), fp(0.f)> left_pos_y;
+        slider<"left_pos_z",  "", float, fp(-5.f), fp(5.f), fp(0.f)> left_pos_z;
+        slider<"left_rot_x",  "", float, fp(-1.f), fp(1.f), fp(0.f)> left_rot_x;
+        slider<"left_rot_y",  "", float, fp(-1.f), fp(1.f), fp(0.f)> left_rot_y;
+        slider<"left_rot_z",  "", float, fp(-1.f), fp(1.f), fp(0.f)> left_rot_z;
+        slider<"left_rot_w",  "", float, fp(-1.f), fp(1.f), fp(1.f)> left_rot_w;
+        slider<"right_pos_x", "", float, fp(-5.f), fp(5.f), fp(0.f)> right_pos_x;
+        slider<"right_pos_y", "", float, fp(-5.f), fp(5.f), fp(0.f)> right_pos_y;
+        slider<"right_pos_z", "", float, fp(-5.f), fp(5.f), fp(0.f)> right_pos_z;
+        slider<"right_rot_x", "", float, fp(-1.f), fp(1.f), fp(0.f)> right_rot_x;
+        slider<"right_rot_y", "", float, fp(-1.f), fp(1.f), fp(0.f)> right_rot_y;
+        slider<"right_rot_z", "", float, fp(-1.f), fp(1.f), fp(0.f)> right_rot_z;
+        slider<"right_rot_w", "", float, fp(-1.f), fp(1.f), fp(1.f)> right_rot_w;
+    } inputs;
+    struct outputs {} outputs;
+    void operator()(double) {}
+};
+```
+
+The app frame loop reads `RendererNode::inputs` after `tick_graph`. If any left-eye
+input has been touched by an edge (determined by whether any edge's `to_node` is the
+renderer node and `to_port` starts with `left_`), it constructs an `XrPosef` override
+for that eye and passes it to the render callback instead of the `xrLocateViews` value.
+
+## Renderer draw call integration
 
 In `app.cpp`'s per-eye render callback, replace all direct `->draw()` calls with:
 
@@ -256,8 +290,9 @@ http_server_.broadcast_event("graph", serialize_graph(*active_graph_));
 
 ## Work item sequence
 
-1. **ABI v4** — add `serialize_outputs`, `set_input`, `push_draw_calls` to the C header;
-   update `make_descriptor<T>()` to generate them; update `EYEBALLS_ABI_VERSION`.
+1. **ABI v4** — add `serialize_outputs`, `set_input`, `push_draw_calls`, `port_schema`
+   to the C header; update `make_descriptor<T>()` to generate them; bump
+   `EYEBALLS_ABI_VERSION` to 4.
 2. **`draw_call` port type** — add to `sygaldry_endpoints.hpp`; add `DrawCallCtx` and
    `HasDrawCallOutputs` to `eyeballs_node_abi.hpp`.
 3. **Visual node outputs** — add `struct outputs { draw_call<"render"> render; }` and
@@ -266,12 +301,14 @@ http_server_.broadcast_event("graph", serialize_graph(*active_graph_));
    inputs in `operator()`.
 5. **XR source outputs** — decompose `XrPosef` into scalar output ports; `set_pose`/
    `set_state` write them.
-6. **Edge round-trip** — fix `parse_graph` and `serialize_graph`.
-7. **`tick_graph` overhaul** — topological sort + input application + output collection
+6. **`RendererNode`** — built-in node with 14 eye-pose override inputs; registered in
+   component registry; app reads overrides after `tick_graph`.
+7. **Edge round-trip** — fix `parse_graph` and `serialize_graph`.
+8. **`tick_graph` overhaul** — topological sort + input application + output collection
    (scalars, textures, draw calls).
-8. **App.cpp integration** — pump XR sources, draw from `graph.draw_calls`, remove
-   hard-wired members, load default graph from file.
-9. **SSE on graph change**.
+9. **App.cpp integration** — pump XR sources, draw from `graph.draw_calls`, remove
+   hard-wired members, load default graph from file, apply `RendererNode` eye overrides.
+10. **SSE on graph change**.
 
 Each work item is a self-contained commit: implement → unit test → `sh/build.sh` → commit.
 Items 1–2 are prerequisites for 3–5; item 6 is independent; item 7 depends on 1–5;
