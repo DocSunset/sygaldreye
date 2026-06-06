@@ -1,0 +1,10 @@
+add_library(gpu_texture INTERFACE)
+target_include_directories(gpu_texture INTERFACE .)
+target_link_libraries(gpu_texture INTERFACE sygaldry_endpoints)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(gpu_texture_test gpu_texture.test.cpp)
+    target_link_libraries(gpu_texture_test PRIVATE gpu_texture GLESv2 GTest::gtest_main)
+    target_compile_options(gpu_texture_test PRIVATE -Wall -Wextra)
+endif()
