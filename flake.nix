@@ -60,6 +60,7 @@
           pkgs.gtest
           pkgs.stb
           pkgs.boost.dev
+          pkgs.glfw
         ];
 
         ANDROID_NDK_ROOT = ndkRoot;
@@ -68,6 +69,8 @@
         ANDROID_SDK_ROOT = "${androidComposition.androidsdk}/libexec/android-sdk";
         OPENXR_SDK_SRC = openxr-sdk;
         EIGEN3_INCLUDE_DIR = "${pkgs.eigen}/include/eigen3";
+        GLFW_INCLUDE_DIR = "${pkgs.glfw}/include";
+        GLFW_LIB_DIR = "${pkgs.glfw}/lib";
       };
     };
 }

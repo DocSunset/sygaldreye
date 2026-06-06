@@ -1,0 +1,8 @@
+if(NOT CMAKE_CROSSCOMPILING)
+    add_library(host_gl_window STATIC host_gl_window.cpp)
+    target_include_directories(host_gl_window PUBLIC .)
+    target_include_directories(host_gl_window PRIVATE $ENV{GLFW_INCLUDE_DIR})
+    target_link_libraries(host_gl_window PUBLIC GL)
+    target_link_libraries(host_gl_window PRIVATE -L$ENV{GLFW_LIB_DIR} glfw)
+    target_compile_options(host_gl_window PRIVATE -Wall -Wextra)
+endif()

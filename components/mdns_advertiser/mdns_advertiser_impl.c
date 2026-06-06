@@ -5,6 +5,7 @@
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <poll.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
