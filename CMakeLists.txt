@@ -51,6 +51,8 @@ add_subdirectory(components/port_schema_reader)
 add_subdirectory(components/vr_panel)
 add_subdirectory(components/ray_selector)
 add_subdirectory(components/vr_editor)
+add_subdirectory(components/integration_real_nodes)
+add_subdirectory(components/integration_http)
 add_subdirectory(app/spectator)
 
 if(CMAKE_CROSSCOMPILING)

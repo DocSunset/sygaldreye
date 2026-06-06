@@ -18,7 +18,7 @@ std::optional<RayHit> VrPanel::intersect(const Eigen::Vector3f& origin,
     Eigen::Vector3f local = hit - position;
 
     // Build a local frame: right = up x normal, up = arbitrary non-parallel
-    Eigen::Vector3f up_ref = (std::abs(normal.z()) < 0.9f)
+    Eigen::Vector3f up_ref = (std::abs(normal.y()) < 0.9f)
         ? Eigen::Vector3f{0, 1, 0} : Eigen::Vector3f{1, 0, 0};
     Eigen::Vector3f right = up_ref.cross(normal).normalized();
     Eigen::Vector3f up    = normal.cross(right).normalized();

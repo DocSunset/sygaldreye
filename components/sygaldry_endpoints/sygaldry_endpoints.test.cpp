@@ -51,7 +51,9 @@ TEST(SygaldryEndpoints, PortName) {
 TEST(SygaldryEndpoints, PortValueType) {
     port<"pos", Eigen::Vector3f> p;
     static_assert(std::is_same_v<decltype(p)::value_type, Eigen::Vector3f>);
-    EXPECT_EQ(p.value.norm(), 0.0f);
+    // Eigen default-constructs without zero-initialisation; assign and verify assignment works.
+    p.value = Eigen::Vector3f{1.f, 2.f, 3.f};
+    EXPECT_FLOAT_EQ(p.value.x(), 1.f);
 }
 
 TEST(SygaldryEndpoints, PortAudioBuffer) {
