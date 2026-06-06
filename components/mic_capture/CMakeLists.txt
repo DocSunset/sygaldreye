@@ -1,0 +1,6 @@
+if(ANDROID)
+    add_library(mic_capture STATIC mic_capture.cpp)
+    target_include_directories(mic_capture PUBLIC .)
+    target_link_libraries(mic_capture PUBLIC aaudio)
+    target_compile_options(mic_capture PRIVATE -Wall -Wextra)
+endif()
