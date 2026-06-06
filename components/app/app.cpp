@@ -19,6 +19,7 @@
 #include "eyeballs_node_abi.hpp"
 #include "component_registry.hpp"
 #include "signal_graph.hpp"
+#include "vr_editor.hpp"
 #include <cmath>
 #include <cstdio>
 #include <ctime>
@@ -52,10 +53,12 @@ struct AppState {
     std::optional<MicCapture>    mic_{};
     PushToTalk                   push_to_talk_{};
     ComponentRegistry            registry_{};
+    VrEditor                     vr_editor_{};
     bool                         prev_trigger_left_ = false;
     std::mutex                   graph_mutex_{};
     std::unique_ptr<Graph>       pending_graph_{};
     std::unique_ptr<Graph>       active_graph_{};
+    std::string                  meta_graph_json_{};
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -119,6 +122,7 @@ void android_main(struct android_app* app) {
 
     state.registry_.register_builtin(make_descriptor<WaterSurface>());
     state.registry_.register_builtin(make_descriptor<SkyDome>());
+    state.vr_editor_.init(state.registry_, state.active_graph_.get());
 
     constexpr const char* kCompanionUrl = "http://192.168.1.1:9090";
     state.push_to_talk_.set_companion_url(kCompanionUrl);
@@ -197,6 +201,15 @@ void android_main(struct android_app* app) {
             out += ']';
             return out;
         });
+    http_server.add_route("GET", "/meta-graph",
+        [&state](std::string_view) -> std::string {
+            return state.meta_graph_json_.empty() ? "{}" : state.meta_graph_json_;
+        });
+    http_server.add_route("POST", "/meta-graph",
+        [&state](std::string_view body) -> std::string {
+            state.meta_graph_json_ = std::string(body);
+            return R"({"ok":true})";
+        });
     http_server.start(8080,
         [&state](std::string_view) -> std::string {
             if (state.water_) return to_json(*state.water_);
@@ -233,7 +246,10 @@ void android_main(struct android_app* app) {
                 // Atomic swap of pending graph at frame boundary
                 {
                     std::lock_guard<std::mutex> lock(state.graph_mutex_);
-                    if (state.pending_graph_) state.active_graph_ = std::move(state.pending_graph_);
+                    if (state.pending_graph_) {
+                        state.active_graph_ = std::move(state.pending_graph_);
+                        state.vr_editor_.on_graph_changed(state.active_graph_.get());
+                    }
                 }
                 if (state.active_graph_) tick_graph(*state.active_graph_, time_sec);
                 if (!state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t,
@@ -254,6 +270,25 @@ void android_main(struct android_app* app) {
 
                 auto lh = state.input_.hand_pose(Hand::LEFT);
                 auto rh = state.input_.hand_pose(Hand::RIGHT);
+
+                // VR editor: palette + node card interaction
+                {
+                    const XrPosef* lp = lh ? &lh->pose : nullptr;
+                    const XrPosef* rp = rh ? &rh->pose : nullptr;
+                    bool tl = state.input_.trigger_pressed(Hand::LEFT);
+                    bool tr = state.input_.trigger_pressed(Hand::RIGHT);
+                    auto edit = state.vr_editor_.update(
+                        lp, rp, tl, tr,
+                        state.active_graph_.get(), state.registry_);
+                    if (edit) {
+                        auto g = parse_graph(edit->new_graph_json, state.registry_);
+                        if (g) {
+                            std::lock_guard<std::mutex> lock(state.graph_mutex_);
+                            state.pending_graph_ = std::move(g);
+                        }
+                    }
+                }
+
                 state.scene_.update(time_sec);
                 state.scene_.set_controller_poses(
                     lh ? std::optional<XrPosef>{lh->pose} : std::nullopt,
@@ -330,6 +365,8 @@ void android_main(struct android_app* app) {
                         if (state.water_) {
                             state.water_->draw(pv * water_model, water_model, view_pos);
                         }
+
+                        state.vr_editor_.draw(pv, state.text_mesh_);
                     });
                 if (!ok) { return {}; }
                 FrameLayers result;
