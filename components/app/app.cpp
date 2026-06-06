@@ -16,8 +16,13 @@
 #include "param_registry.hpp"
 #include "mic_capture.hpp"
 #include "push_to_talk.hpp"
+#include "eyeballs_node_abi.hpp"
+#include "component_registry.hpp"
 #include <cmath>
+#include <cstdio>
+#include <ctime>
 #include <optional>
+#include <string>
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "eyeballs", __VA_ARGS__)
@@ -43,6 +48,7 @@ struct AppState {
     std::optional<SkyDome>       sky_{};
     std::optional<MicCapture>    mic_{};
     PushToTalk                   push_to_talk_{};
+    ComponentRegistry            registry_{};
     bool                         prev_trigger_left_ = false;
 };
 
@@ -105,6 +111,8 @@ void android_main(struct android_app* app) {
     sp.star_count  = 2000;
     state.sky_ = SkyDome::create(sp);
 
+    state.registry_.register_builtin(make_descriptor<WaterSurface>());
+
     constexpr const char* kCompanionUrl = "http://192.168.1.1:9090";
     state.push_to_talk_.set_companion_url(kCompanionUrl);
     LOG("push_to_talk: using fallback companion URL %s", kCompanionUrl);
@@ -119,7 +127,33 @@ void android_main(struct android_app* app) {
         LOGE("mic capture failed to create");
     }
 
+    const char* data_path = app->activity->internalDataPath;
     HttpServer http_server;
+    http_server.add_route("GET", "/plugins",
+        [&state](std::string_view) -> std::string {
+            std::string out = "[";
+            bool first = true;
+            for (const auto& n : state.registry_.type_names()) {
+                if (!first) out += ',';
+                first = false;
+                out += '"'; out += n; out += '"';
+            }
+            out += ']';
+            return out;
+        });
+    http_server.add_route("POST", "/plugins",
+        [&state, data_path](std::string_view body) -> std::string {
+            char path[256];
+            std::snprintf(path, sizeof(path), "%s/%ld.so", data_path,
+                          static_cast<long>(std::time(nullptr)));
+            FILE* f = std::fopen(path, "wb");
+            if (!f) return R"({"ok":false,"error":"fopen failed"})";
+            std::fwrite(body.data(), 1, body.size(), f);
+            std::fclose(f);
+            if (!state.registry_.load_plugin(path))
+                return R"({"ok":false,"error":"load_plugin failed"})";
+            return R"({"ok":true})";
+        });
     http_server.start(8080,
         [&state](std::string_view) -> std::string {
             if (state.water_) return to_json(*state.water_);

@@ -1,6 +1,7 @@
 // Copyright 2025 Travis West
 #pragma once
 #include "gl_program.hpp"
+#include <string_view>
 #include "light.hpp"
 #include "material.hpp"
 #include "sygaldry_endpoints.hpp"
@@ -39,6 +40,8 @@ struct WaterParams {
 
 class WaterSurface {
 public:
+    static consteval std::string_view name() { return "water_surface"; }
+
     struct inputs {
         slider<"cell size",      "", float, 0.1, 5.0,  1.0>  cell_size;
         slider<"foam threshold", "", float, 0.0, 1.0,  0.55> foam_threshold;
