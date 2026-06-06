@@ -1,9 +1,10 @@
 // Copyright 2025 Travis West
 #pragma once
+#include <atomic>
 #include <functional>
-#include <memory>
 #include <string>
 #include <string_view>
+#include <thread>
 
 // Callback: receives request body (empty for GET), returns response body (JSON)
 using HttpHandler = std::function<std::string(std::string_view body)>;
@@ -16,7 +17,13 @@ struct HttpServer {
     void stop();
     ~HttpServer() { stop(); }
 
+    HttpServer() = default;
+    HttpServer(const HttpServer&) = delete;
+    HttpServer& operator=(const HttpServer&) = delete;
+
 private:
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
+    HttpHandler      get_handler_;
+    HttpHandler      post_handler_;
+    std::atomic_bool running_{false};
+    std::thread      thread_;
 };

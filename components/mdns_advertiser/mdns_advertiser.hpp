@@ -1,7 +1,8 @@
 // Copyright 2025 Travis West
 #pragma once
-#include <memory>
+#include <atomic>
 #include <string_view>
+#include <thread>
 
 struct MdnsAdvertiser {
     // Start advertising the given service on the given port.
@@ -10,7 +11,11 @@ struct MdnsAdvertiser {
     void stop();
     ~MdnsAdvertiser() { stop(); }
 
+    MdnsAdvertiser() = default;
+    MdnsAdvertiser(const MdnsAdvertiser&) = delete;
+    MdnsAdvertiser& operator=(const MdnsAdvertiser&) = delete;
+
 private:
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
+    std::atomic_bool running_{false};
+    std::thread      thread_;
 };

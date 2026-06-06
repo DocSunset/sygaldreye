@@ -11,6 +11,9 @@
 #include "water_surface.hpp"
 #include "sky_dome.hpp"
 #include "light.hpp"
+#include "http_server.hpp"
+#include "mdns_advertiser.hpp"
+#include "param_registry.hpp"
 #include <cmath>
 #include <optional>
 
@@ -49,8 +52,31 @@ static void onAppCmd(struct android_app* app, int32_t cmd) {
     }
 }
 
+static void acquire_multicast_lock(struct android_app* app) {
+    JNIEnv* env = nullptr;
+    app->activity->vm->AttachCurrentThread(&env, nullptr);
+    jobject activity  = app->activity->clazz;
+    jclass  actClass  = env->GetObjectClass(activity);
+    jmethodID getSvc  = env->GetMethodID(actClass, "getSystemService",
+                                          "(Ljava/lang/String;)Ljava/lang/Object;");
+    jstring wifiStr   = env->NewStringUTF("wifi");
+    jobject wifiMgr   = env->CallObjectMethod(activity, getSvc, wifiStr);
+    jclass  wifiClass = env->GetObjectClass(wifiMgr);
+    jmethodID mkLock  = env->GetMethodID(wifiClass, "createMulticastLock",
+                                          "(Ljava/lang/String;)Landroid/net/wifi/WifiManager$MulticastLock;");
+    jstring lockTag   = env->NewStringUTF("eyeballs_mdns");
+    jobject lock      = env->CallObjectMethod(wifiMgr, mkLock, lockTag);
+    jclass  lockClass = env->GetObjectClass(lock);
+    jmethodID acquire = env->GetMethodID(lockClass, "acquire", "()V");
+    env->CallVoidMethod(lock, acquire);
+    env->DeleteLocalRef(wifiStr);
+    env->DeleteLocalRef(lockTag);
+    app->activity->vm->DetachCurrentThread();
+}
+
 void android_main(struct android_app* app) {
     LOG("android_main: started");
+    acquire_multicast_lock(app);
 
     AppState state;
     state.xrInstance = xr_create_instance(app);
@@ -73,6 +99,20 @@ void android_main(struct android_app* app) {
     sp.radius      = 500.0f;
     sp.star_count  = 2000;
     state.sky_ = SkyDome::create(sp);
+
+    HttpServer http_server;
+    http_server.start(8080,
+        [&state](std::string_view) -> std::string {
+            if (state.water_) return to_json(*state.water_);
+            return "{}";
+        },
+        [&state](std::string_view body) -> std::string {
+            if (state.water_) from_json(*state.water_, body);
+            return "{}";
+        });
+    MdnsAdvertiser mdns_advertiser;
+    mdns_advertiser.start("eyeballs", 8080);
+
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
 
