@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Unconditional: builds on both host and Android
 include_directories($ENV{BOOST_INCLUDE_DIR})
 add_subdirectory(components/sygaldry_endpoints)
+add_subdirectory(components/param_registry)
 add_subdirectory(components/cos_lut)
 add_subdirectory(components/log)
 add_subdirectory(components/gl_program)
