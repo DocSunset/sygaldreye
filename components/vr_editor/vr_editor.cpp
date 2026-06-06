@@ -4,11 +4,19 @@
 #include <Eigen/Geometry>
 #include <cstdio>
 #include <ctime>
+#include <tuple>
 
 static constexpr float kCardSpacing = 0.45f;
-static constexpr float kCardW = 0.4f;
-static constexpr float kCardH = 0.12f;
+static constexpr float kCardW       = 0.4f;
+static constexpr float kBaseCardH   = 0.08f;
+static constexpr float kPortRowH    = 0.018f;
 static constexpr float kPaletteRowH = 0.06f;
+
+// Declared in vr_editor_handles.cpp
+std::tuple<std::vector<PortHandle>,
+           std::vector<PortHandle>,
+           std::vector<SliderWidget>>
+build_port_handles_for_card(const VrPanel&, const std::string&, const PortSchema&);
 
 void VrEditor::init(const ComponentRegistry& registry, const Graph* graph) {
     shader_.create();
@@ -25,17 +33,38 @@ void VrEditor::init(const ComponentRegistry& registry, const Graph* graph) {
 void VrEditor::on_graph_changed(const Graph* graph) {
     node_cards_.clear();
     card_ids_.clear();
+    input_handles_.clear();
+    output_handles_.clear();
+    sliders_.clear();
+    current_edges_.clear();
+
     if (!graph) return;
+
+    current_edges_ = graph->edges;
+
     for (int i = 0; i < static_cast<int>(graph->nodes.size()); ++i) {
         const auto& n = graph->nodes[static_cast<size_t>(i)];
+        PortSchema schema = parse_port_schema(n.desc ? n.desc->port_schema : nullptr);
+
+        int wirable_inputs = 0;
+        for (const auto& p : schema.inputs)
+            if (p.is_wirable()) ++wirable_inputs;
+
+        float card_h = kBaseCardH + kPortRowH * static_cast<float>(wirable_inputs);
+
         VrPanel card;
         card.position = {static_cast<float>(i) * kCardSpacing, 0.0f, -0.5f};
         card.normal   = {0.0f, 0.0f, 1.0f};
         card.width    = kCardW;
-        card.height   = kCardH;
+        card.height   = card_h;
         card.color    = {0.08f, 0.12f, 0.18f, 0.88f};
         node_cards_.push_back(card);
         card_ids_.push_back(n.id);
+
+        auto [in_h, out_h, sl] = build_port_handles_for_card(card, n.id, schema);
+        input_handles_.push_back(std::move(in_h));
+        output_handles_.push_back(std::move(out_h));
+        sliders_.push_back(std::move(sl));
     }
 }
 
@@ -44,18 +73,33 @@ std::optional<VrEditor::GraphEdit> VrEditor::update(
         const XrPosef* right_pose,
         bool /*trigger_left*/,
         bool trigger_right,
+        bool grip_right,
+        const Eigen::Vector2f& thumbstick_left,
+        float delta_time_s,
         const Graph* current_graph,
         const ComponentRegistry& registry) {
+
+    if (right_pose) {
+        const auto& q = right_pose->orientation;
+        Eigen::Quaternionf eq(q.w, q.x, q.y, q.z);
+        Eigen::Vector3f fwd = eq * Eigen::Vector3f{0, 0, -1};
+        controller_tip_ = {right_pose->position.x + fwd.x() * 0.05f,
+                           right_pose->position.y + fwd.y() * 0.05f,
+                           right_pose->position.z + fwd.z() * 0.05f};
+    }
 
     bool fire = trigger_right && !prev_trigger_right_;
     prev_trigger_right_ = trigger_right;
 
-    if (!fire || !right_pose || palette_types_.empty()) return std::nullopt;
+    if (auto e = update_drag(grip_right, current_graph))         return e;
+    if (auto e = update_sliders(right_pose, trigger_right, current_graph)) return e;
+    if (auto e = update_dwell(right_pose, delta_time_s, current_graph))    return e;
+    if (auto e = update_undo(thumbstick_left))                   return e;
 
+    if (!fire || !right_pose || palette_types_.empty()) return std::nullopt;
     auto hit = RaySelector::test(*right_pose, {palette_panel_});
     if (!hit) return std::nullopt;
 
-    // Map UV.y to type index (0 = top row)
     float inv_y = 1.0f - hit->hit.uv.y();
     int idx = static_cast<int>(inv_y * static_cast<float>(palette_types_.size()));
     if (idx < 0 || idx >= static_cast<int>(palette_types_.size())) return std::nullopt;
@@ -64,14 +108,14 @@ std::optional<VrEditor::GraphEdit> VrEditor::update(
     const auto* desc = registry.find(type_name);
     if (!desc) return std::nullopt;
 
-    // Build new graph JSON appending one node
     char id_buf[32];
     std::snprintf(id_buf, sizeof(id_buf), "%s_%ld", type_name.c_str(),
                   static_cast<long>(std::time(nullptr)));
 
     std::string json = current_graph ? serialize_graph(*current_graph)
                                      : std::string{"{\"nodes\":[],\"edges\":[]}"};
-    // Inject new node before closing bracket
+    undo_json_ = json;
+
     auto pos = json.rfind(']');
     if (pos == std::string::npos) return std::nullopt;
     std::string entry = (pos > 0 && json[pos-1] != '[') ? "," : "";
@@ -80,34 +124,4 @@ std::optional<VrEditor::GraphEdit> VrEditor::update(
     json.insert(pos, entry);
 
     return GraphEdit{std::move(json)};
-}
-
-void VrEditor::draw(const Eigen::Matrix4f& vp, const TextMesh& text) const {
-    palette_panel_.draw(vp, shader_);
-
-    // Draw type labels
-    float n = static_cast<float>(palette_types_.size());
-    for (int i = 0; i < static_cast<int>(palette_types_.size()); ++i) {
-        float v = (static_cast<float>(i) + 0.5f) / n;
-        float y = palette_panel_.position.y() +
-                  palette_panel_.height * (0.5f - v);
-        Eigen::Matrix4f m = Eigen::Matrix4f::Identity();
-        m(0,0) = m(1,1) = 0.02f;
-        m(0,3) = palette_panel_.position.x() - palette_panel_.width * 0.45f;
-        m(1,3) = y;
-        m(2,3) = palette_panel_.position.z() + 0.002f;
-        text.draw(palette_types_[static_cast<size_t>(i)], vp * m);
-    }
-
-    // Draw node cards
-    for (int i = 0; i < static_cast<int>(node_cards_.size()); ++i) {
-        node_cards_[static_cast<size_t>(i)].draw(vp, shader_);
-        Eigen::Matrix4f m = Eigen::Matrix4f::Identity();
-        m(0,0) = m(1,1) = 0.018f;
-        const auto& c = node_cards_[static_cast<size_t>(i)];
-        m(0,3) = c.position.x() - c.width * 0.45f;
-        m(1,3) = c.position.y();
-        m(2,3) = c.position.z() + 0.002f;
-        text.draw(card_ids_[static_cast<size_t>(i)], vp * m);
-    }
 }

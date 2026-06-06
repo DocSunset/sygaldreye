@@ -76,6 +76,7 @@ struct AppState {
     std::unique_ptr<Graph>       active_graph_{};
     std::string                  meta_graph_json_{};
     Light                        sun_light_{};
+    double                       prev_frame_time_s_ = 0.0;
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -342,14 +343,21 @@ void android_main(struct android_app* app) {
                 // Tick the graph: topo-sort, propagate values, collect draw calls
                 if (state.active_graph_) tick_graph(*state.active_graph_, time_sec);
 
-                // VR editor: palette + node card interaction
+                // VR editor: palette, node cards, drag-to-connect, sliders, delete/undo
+                // grip_right → wire drag; thumbstick_left → undo; delta_time_s → dwell
+                // GraphEdit → parse and atomic-swap to pending_graph_
                 {
                     const XrPosef* lp = lh ? &lh->pose : nullptr;
                     const XrPosef* rp = rh ? &rh->pose : nullptr;
                     bool tl = state.input_.trigger_pressed(Hand::LEFT);
                     bool tr = state.input_.trigger_pressed(Hand::RIGHT);
+                    bool gr = state.input_.grip_pressed(Hand::RIGHT);
+                    Eigen::Vector2f ts = state.input_.thumbstick(Hand::LEFT);
+                    float dt = (state.prev_frame_time_s_ > 0.0)
+                        ? static_cast<float>(time_sec - state.prev_frame_time_s_)
+                        : 0.016f;
                     auto edit = state.vr_editor_.update(
-                        lp, rp, tl, tr,
+                        lp, rp, tl, tr, gr, ts, dt,
                         state.active_graph_.get(), state.registry_);
                     if (edit) {
                         auto g = parse_graph(edit->new_graph_json, state.registry_);
@@ -359,6 +367,7 @@ void android_main(struct android_app* app) {
                         }
                     }
                 }
+                state.prev_frame_time_s_ = time_sec;
 
                 state.scene_.update(time_sec);
                 state.scene_.set_controller_poses(
