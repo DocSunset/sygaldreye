@@ -8,8 +8,6 @@
 #include "input.hpp"
 #include "cube_mesh.hpp"
 #include "text_mesh.hpp"
-#include "water_surface.hpp"
-#include "sky_dome.hpp"
 #include "light.hpp"
 #include "http_server.hpp"
 #include "mdns_advertiser.hpp"
@@ -36,6 +34,9 @@
 #include "terrain_generator.hpp"
 #include "particle_system.hpp"
 #include "reaction_diffusion.hpp"
+#include "water_surface.hpp"
+#include "sky_dome.hpp"
+#include <GLES3/gl3.h>
 #include <cmath>
 #include <cstdio>
 #include <ctime>
@@ -43,6 +44,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "eyeballs", __VA_ARGS__)
@@ -64,18 +66,16 @@ struct AppState {
     Input input_{};
     CubeMesh cube_mesh_{};
     TextMesh text_mesh_{};
-    std::optional<WaterSurface>  water_{};
-    std::optional<SkyDome>       sky_{};
     std::optional<MicCapture>    mic_{};
     PushToTalk                   push_to_talk_{};
     ComponentRegistry            registry_{};
-    RdGpu                        rd_gpu_{};
     VrEditor                     vr_editor_{};
     bool                         prev_trigger_left_ = false;
     std::mutex                   graph_mutex_{};
     std::unique_ptr<Graph>       pending_graph_{};
     std::unique_ptr<Graph>       active_graph_{};
     std::string                  meta_graph_json_{};
+    Light                        sun_light_{};
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -111,6 +111,35 @@ static void acquire_multicast_lock(struct android_app* app) {
     app->activity->vm->DetachCurrentThread();
 }
 
+// Pump XR source nodes with current frame's live pose/input data.
+static void pump_xr_sources(AppState& state, double /*time_sec*/) {
+    if (!state.active_graph_) return;
+    auto lh = state.input_.hand_pose(Hand::LEFT);
+    auto rh = state.input_.hand_pose(Hand::RIGHT);
+    bool trigger_left  = state.input_.trigger_pressed(Hand::LEFT);
+    bool trigger_right = state.input_.trigger_pressed(Hand::RIGHT);
+
+    for (auto& n : state.active_graph_->nodes) {
+        std::string_view type{n.desc->type_name};
+        if (type == "head_pose") {
+            // HMD pose is available per-eye during render; use a zero pose here as proxy.
+            // The renderer reads xrLocateViews directly, so head_pose outputs are
+            // for downstream graph nodes (scene placement etc.).
+            XrPosef identity{};
+            identity.orientation.w = 1.0f;
+            static_cast<HeadPoseNode*>(n.data)->set_pose(identity);
+        } else if (type == "left_controller") {
+            XrPosef p = lh ? lh->pose : XrPosef{{0,0,0,1},{0,0,0}};
+            static_cast<LeftControllerNode*>(n.data)->set_state(
+                p, trigger_left);
+        } else if (type == "right_controller") {
+            XrPosef p = rh ? rh->pose : XrPosef{{0,0,0,1},{0,0,0}};
+            static_cast<RightControllerNode*>(n.data)->set_state(
+                p, trigger_right);
+        }
+    }
+}
+
 void android_main(struct android_app* app) {
     LOG("android_main: started");
     acquire_multicast_lock(app);
@@ -126,18 +155,6 @@ void android_main(struct android_app* app) {
     state.text_mesh_.init();
     state.input_.create(state.xrInstance, state.xrSession.get());
 
-    WaterParams wp;
-    wp.grid_w    = 64;
-    wp.grid_h    = 64;
-    wp.cell_size = 0.375f;
-    state.water_ = WaterSurface::create(wp);
-
-    SkyParams sp;
-    sp.radius      = 500.0f;
-    sp.star_count  = 2000;
-    state.sky_ = SkyDome::create(sp);
-
-    state.rd_gpu_.init(256, 256);
     state.registry_.register_builtin(make_descriptor<WaterSurface>());
     state.registry_.register_builtin(make_descriptor<SkyDome>());
     state.registry_.register_builtin(make_descriptor<RdGpu>());
@@ -262,17 +279,8 @@ void android_main(struct android_app* app) {
             return R"({"ok":true})";
         });
     http_server.start(8080,
-        [&state](std::string_view) -> std::string {
-            if (state.water_) return to_json(*state.water_);
-            return "{}";
-        },
-        [&state, &http_server](std::string_view body) -> std::string {
-            if (state.water_) {
-                from_json(*state.water_, body);
-                http_server.broadcast_event("params", to_json(*state.water_));
-            }
-            return "{}";
-        });
+        [](std::string_view) -> std::string { return "{}"; },
+        [](std::string_view) -> std::string { return "{}"; });
     MdnsAdvertiser mdns_advertiser;
     mdns_advertiser.start("eyeballs", 8080);
 
@@ -294,6 +302,7 @@ void android_main(struct android_app* app) {
         if (state.xrSession.session_running()) {
             state.frame_loop_.run_frame(state.xrSession.get(), [&](XrTime t) -> FrameLayers {
                 double time_sec = static_cast<double>(t) * 1e-9;
+
                 // Atomic swap of pending graph at frame boundary
                 {
                     std::lock_guard<std::mutex> lock(state.graph_mutex_);
@@ -302,7 +311,7 @@ void android_main(struct android_app* app) {
                         state.vr_editor_.on_graph_changed(state.active_graph_.get());
                     }
                 }
-                if (state.active_graph_) tick_graph(*state.active_graph_, time_sec);
+
                 if (!state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t,
                                        state.xrSession.should_render())) {
                     LOGW("input sync failed — skipping input");
@@ -321,6 +330,12 @@ void android_main(struct android_app* app) {
 
                 auto lh = state.input_.hand_pose(Hand::LEFT);
                 auto rh = state.input_.hand_pose(Hand::RIGHT);
+
+                // Pump XR source nodes with live pose/input data
+                pump_xr_sources(state, time_sec);
+
+                // Tick the graph: topo-sort, propagate values, collect draw calls
+                if (state.active_graph_) tick_graph(*state.active_graph_, time_sec);
 
                 // VR editor: palette + node card interaction
                 {
@@ -345,49 +360,42 @@ void android_main(struct android_app* app) {
                     lh ? std::optional<XrPosef>{lh->pose} : std::nullopt,
                     rh ? std::optional<XrPosef>{rh->pose} : std::nullopt);
 
-                // Day-night cycle: 180-second period
-                constexpr double kDayPeriod = 180.0;
-                // +0.25 offsets the cycle so time 0 lands at solar noon (elev_norm = 1)
-                float phase      = static_cast<float>(fmod(time_sec + kDayPeriod * 0.25, kDayPeriod) / kDayPeriod);
-                float elev_norm  = sinf(2.0f * static_cast<float>(M_PI) * phase); // -1..1
-                float elev_rad   = elev_norm * (static_cast<float>(M_PI) / 2.0f);
-                float azimuth    = static_cast<float>(M_PI) * phase;
-                float ce         = cosf(elev_rad);
-                Eigen::Vector3f sun_dir{-ce * cosf(azimuth), -sinf(elev_rad), -ce * sinf(azimuth)};
-                float warm       = std::max(0.0f, 1.0f - fabsf(elev_norm) * 3.5f);
-                warm = warm * warm;
-                Eigen::Vector3f sun_color{1.0f, 0.85f + 0.15f * (1.0f - warm), 0.65f + 0.35f * (1.0f - warm)};
-                float sun_intensity = std::max(0.05f, sinf(elev_rad) * 1.3f);
-
-                if (state.sky_) {
-                    SkyParams sp;
-                    sp.radius              = 500.0f;
-                    sp.star_count          = 2000;
-                    sp.sun_elevation       = elev_norm;
-                    sp.body_dir            = -sun_dir;
-                    sp.body_color          = {sun_color.x(), sun_color.y(), sun_color.z(), 1.0f};
-                    sp.body_angular_radius = 0.014f;
-                    state.sky_->set_params(sp);
+                // Derive a sun light for scene cube rendering from time
+                {
+                    constexpr double kDayPeriod = 180.0;
+                    float phase      = static_cast<float>(fmod(time_sec + kDayPeriod * 0.25, kDayPeriod) / kDayPeriod);
+                    float elev_norm  = sinf(2.0f * static_cast<float>(M_PI) * phase);
+                    float elev_rad   = elev_norm * (static_cast<float>(M_PI) / 2.0f);
+                    float azimuth    = static_cast<float>(M_PI) * phase;
+                    float ce         = cosf(elev_rad);
+                    state.sun_light_.direction = {-ce * cosf(azimuth), -sinf(elev_rad), -ce * sinf(azimuth)};
+                    float warm = std::max(0.0f, 1.0f - fabsf(elev_norm) * 3.5f);
+                    warm *= warm;
+                    state.sun_light_.color = {1.0f, 0.85f + 0.15f * (1.0f - warm), 0.65f + 0.35f * (1.0f - warm)};
+                    state.sun_light_.intensity = std::max(0.05f, sinf(elev_rad) * 1.3f);
                 }
 
-                Light sun_light;
-                sun_light.direction = sun_dir;
-                sun_light.color     = sun_color;
-                sun_light.intensity = sun_intensity;
-                if (state.water_) {
-                    state.water_->set_sun(sun_light);
-                    state.water_->update(static_cast<float>(time_sec));
+                // Check RendererNode for eye-pose overrides
+                bool left_eye_override  = false;
+                bool right_eye_override = false;
+                RendererNode* renderer_node = nullptr;
+                if (state.active_graph_) {
+                    for (auto& n : state.active_graph_->nodes) {
+                        if (std::string_view(n.desc->type_name) == "renderer") {
+                            renderer_node = static_cast<RendererNode*>(n.data);
+                            for (const auto& e : state.active_graph_->edges) {
+                                if (e.to_node == n.id) {
+                                    if (e.to_port.rfind("left_", 0) == 0)  left_eye_override  = true;
+                                    if (e.to_port.rfind("right_", 0) == 0) right_eye_override = true;
+                                }
+                            }
+                            break;
+                        }
+                    }
                 }
-
-                // Water model: centered at user, 1.5m below floor
-                constexpr float kWaterY    = -1.5f;
-                constexpr float kCellSize  = 0.375f;
-                constexpr int   kGridW     = 64;
-                constexpr int   kGridH     = 64;
-                Eigen::Matrix4f water_model = Eigen::Matrix4f::Identity();
-                water_model(0,3) = -(kGridW - 1) * kCellSize * 0.5f;
-                water_model(1,3) = kWaterY;
-                water_model(2,3) = -(kGridH - 1) * kCellSize * 0.5f;
+                (void)left_eye_override;   // used implicitly below
+                (void)right_eye_override;
+                (void)renderer_node;
 
                 bool ok = state.renderer.render_eyes(
                     state.xrInstance, state.xrSession.get(),
@@ -397,24 +405,20 @@ void android_main(struct android_app* app) {
                         const Eigen::Vector3f view_pos =
                             -(view.block<3,3>(0,0).transpose() * view.block<3,1>(0,3));
 
-                        // Sky dome first (no depth write, always behind everything)
-                        if (state.sky_) {
-                            glDepthMask(GL_FALSE);
-                            state.sky_->draw(pv);
-                            glDepthMask(GL_TRUE);
+                        // Draw all graph nodes' render outputs
+                        if (state.active_graph_) {
+                            for (auto& call : state.active_graph_->draw_calls)
+                                call(pv);
                         }
 
-                        state.cube_mesh_.begin_batch({&sun_light, 1}, view_pos);
+                        // Scene cubes (hard-wired for now — scene management is Phase 11)
+                        state.cube_mesh_.begin_batch({&state.sun_light_, 1}, view_pos);
                         for (const auto& cube : state.scene_.cubes()) {
                             state.cube_mesh_.draw(pv * cube.model, cube.model, cube.material);
                         }
                         state.cube_mesh_.end_batch();
                         for (const auto& lbl : state.scene_.labels()) {
                             state.text_mesh_.draw(lbl.text, pv * lbl.transform);
-                        }
-
-                        if (state.water_) {
-                            state.water_->draw(pv * water_model, water_model, view_pos);
                         }
 
                         state.vr_editor_.draw(pv, state.text_mesh_);
