@@ -116,9 +116,7 @@ std::string serialize_graph(const Graph& g) {
 void tick_graph(Graph& g, double time_s) {
     for (auto& n : g.nodes) {
         if (n.desc->process) n.desc->process(n.data, time_s);
-        if (n.desc->push_textures) {
-            GraphTextureCtx ctx{n.id, &g.textures};
-            n.desc->push_textures(n.data, &ctx);
-        }
+        // TODO(Phase 10): call n.desc->push_outputs with an EyeballsOutputCtx
+        // that writes typed PortValues into g.values.
     }
 }

@@ -17,7 +17,7 @@ struct RdGpu {
     } inputs;
 
     struct outputs {
-        texture_output<"concentration", 0x8228> concentration;  // GL_RG32F
+        port<"concentration", GpuTexture> concentration;  // GL_RG32F
     } outputs;
 
     void operator()(double time_s);

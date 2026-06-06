@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <bit>
 #include <cstdint>
+#include <functional>
 #include <string_view>
+#include <Eigen/Core>
 
 template<std::size_t N>
 struct fixed_string {
@@ -42,3 +44,22 @@ struct bang {
     static consteval std::string_view name() { return Name; }
     bool triggered = false;
 };
+
+// Generic typed port — carries any value type; no slider metadata.
+template<fixed_string Name, typename T>
+struct port {
+    static consteval std::string_view name() { return Name; }
+    using value_type = T;
+    T value{};
+};
+
+// Audio buffer: borrowed pointer valid only during tick_graph.
+struct AudioBuffer {
+    const float* data        = nullptr;
+    int          frames      = 0;
+    int          channels    = 1;
+    int          sample_rate = 48000;
+};
+
+// Draw call: a renderable callback invoked by the renderer each frame.
+using DrawFn = std::function<void(const Eigen::Matrix4f& vp)>;

@@ -50,7 +50,7 @@ static void png_to_file(void* ctx, void* data, int size) {
 
 } // namespace
 
-bool write_snapshot(SnapshotParams const& p, DrawFn const& draw_fn, std::string const& png_path)
+bool write_snapshot(SnapshotParams const& p, SnapshotDrawFn const& draw_fn, std::string const& png_path)
 {
     Fbo f = make_fbo(p.width, p.height);
     if (!f.ok) { free_fbo(f); return false; }
@@ -73,7 +73,7 @@ bool write_snapshot(SnapshotParams const& p, DrawFn const& draw_fn, std::string 
 }
 
 bool write_animation(SnapshotParams const& base, float duration_s, int fps,
-                     DrawFnTime const& draw_fn, std::string const& mp4_path)
+                     SnapshotDrawFnTime const& draw_fn, std::string const& mp4_path)
 {
     Fbo f = make_fbo(base.width, base.height);
     if (!f.ok) { free_fbo(f); return false; }

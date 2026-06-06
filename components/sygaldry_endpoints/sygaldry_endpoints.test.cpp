@@ -1,6 +1,7 @@
 // Copyright 2025 Travis West
 #include "sygaldry_endpoints.hpp"
 #include <gtest/gtest.h>
+#include <Eigen/Core>
 #include <string_view>
 
 using std::string_view;
@@ -40,4 +41,30 @@ TEST(SygaldryEndpoints, BangName) {
 TEST(SygaldryEndpoints, BangDefaultFalse) {
     bang<"fire"> b;
     EXPECT_FALSE(b.triggered);
+}
+
+TEST(SygaldryEndpoints, PortName) {
+    using P = port<"pos", Eigen::Vector3f>;
+    EXPECT_EQ(P::name(), string_view("pos"));
+}
+
+TEST(SygaldryEndpoints, PortValueType) {
+    port<"pos", Eigen::Vector3f> p;
+    static_assert(std::is_same_v<decltype(p)::value_type, Eigen::Vector3f>);
+    EXPECT_EQ(p.value.norm(), 0.0f);
+}
+
+TEST(SygaldryEndpoints, PortAudioBuffer) {
+    using P = port<"audio", AudioBuffer>;
+    EXPECT_EQ(P::name(), string_view("audio"));
+    P p;
+    EXPECT_EQ(p.value.data, nullptr);
+    EXPECT_EQ(p.value.frames, 0);
+}
+
+TEST(SygaldryEndpoints, PortDrawFn) {
+    using P = port<"render", DrawFn>;
+    EXPECT_EQ(P::name(), string_view("render"));
+    P p;
+    EXPECT_FALSE(static_cast<bool>(p.value));
 }

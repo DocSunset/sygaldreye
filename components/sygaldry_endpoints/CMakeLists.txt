@@ -1,5 +1,5 @@
 add_library(sygaldry_endpoints INTERFACE)
-target_include_directories(sygaldry_endpoints INTERFACE .)
+target_include_directories(sygaldry_endpoints INTERFACE . $ENV{EIGEN3_INCLUDE_DIR})
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)
 add_library(sygaldry_endpoints_gtest STATIC
