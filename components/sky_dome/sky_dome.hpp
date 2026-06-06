@@ -40,7 +40,11 @@ public:
     } inputs;
 
     struct outputs {
-        port<"render", DrawFn> render;
+        port<"render",           DrawFn>          render;
+        port<"sun_elevation_out",float>           sun_elevation_out;
+        port<"sun_azimuth_out",  float>           sun_azimuth_out;
+        port<"sun_dir",          Eigen::Vector3f> sun_dir;
+        port<"sun_color",        Eigen::Vector4f> sun_color;
     } outputs;
 
     void operator()(double time_s);

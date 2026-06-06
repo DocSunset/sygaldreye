@@ -47,6 +47,18 @@ void SkyDome::operator()(double /*time_s*/) {
     params_.star_count    = static_cast<int>(inputs.star_count.value);
     params_.radius        = inputs.radius.value;
     outputs.render.value  = [this](const Eigen::Matrix4f& vp) { draw(vp); };
+
+    // Publish scalar outputs for downstream wiring
+    const float el = inputs.sun_elevation.value;
+    constexpr float az = 0.0f;  // no azimuth input yet; default to 0
+    outputs.sun_elevation_out.value = el;
+    outputs.sun_azimuth_out.value   = az;
+    outputs.sun_dir.value = Eigen::Vector3f{
+        std::cos(el) * std::sin(az),
+        std::sin(el),
+        std::cos(el) * std::cos(az)
+    };
+    outputs.sun_color.value = Eigen::Vector4f{1.f, 0.95f, 0.8f, 1.f};
 }
 
 void SkyDome::draw(Eigen::Matrix4f const& vp) const {
