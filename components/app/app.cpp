@@ -20,6 +20,7 @@
 #include "component_registry.hpp"
 #include "signal_graph.hpp"
 #include "vr_editor.hpp"
+#include "rd_gpu.hpp"
 #include <cmath>
 #include <cstdio>
 #include <ctime>
@@ -53,6 +54,7 @@ struct AppState {
     std::optional<MicCapture>    mic_{};
     PushToTalk                   push_to_talk_{};
     ComponentRegistry            registry_{};
+    RdGpu                        rd_gpu_{};
     VrEditor                     vr_editor_{};
     bool                         prev_trigger_left_ = false;
     std::mutex                   graph_mutex_{};
@@ -120,8 +122,16 @@ void android_main(struct android_app* app) {
     sp.star_count  = 2000;
     state.sky_ = SkyDome::create(sp);
 
+    state.rd_gpu_.init(256, 256);
     state.registry_.register_builtin(make_descriptor<WaterSurface>());
     state.registry_.register_builtin(make_descriptor<SkyDome>());
+    state.registry_.register_builtin(make_descriptor<RdGpu>());
+
+    constexpr const char* kDefaultGraph =
+        R"({"nodes":[{"id":"rd","type":"rd_gpu","params":{"feed":0.055,"kill":0.062}}],"edges":[]})";
+    if (auto g = parse_graph(kDefaultGraph, state.registry_))
+        state.active_graph_ = std::move(g);
+
     state.vr_editor_.init(state.registry_, state.active_graph_.get());
 
     constexpr const char* kCompanionUrl = "http://192.168.1.1:9090";
