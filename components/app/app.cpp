@@ -14,6 +14,8 @@
 #include "http_server.hpp"
 #include "mdns_advertiser.hpp"
 #include "param_registry.hpp"
+#include "mic_capture.hpp"
+#include "push_to_talk.hpp"
 #include <cmath>
 #include <optional>
 
@@ -37,8 +39,11 @@ struct AppState {
     Input input_{};
     CubeMesh cube_mesh_{};
     TextMesh text_mesh_{};
-    std::optional<WaterSurface> water_{};
-    std::optional<SkyDome>      sky_{};
+    std::optional<WaterSurface>  water_{};
+    std::optional<SkyDome>       sky_{};
+    std::optional<MicCapture>    mic_{};
+    PushToTalk                   push_to_talk_{};
+    bool                         prev_trigger_left_ = false;
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -100,6 +105,20 @@ void android_main(struct android_app* app) {
     sp.star_count  = 2000;
     state.sky_ = SkyDome::create(sp);
 
+    constexpr const char* kCompanionUrl = "http://192.168.1.1:9090";
+    state.push_to_talk_.set_companion_url(kCompanionUrl);
+    LOG("push_to_talk: using fallback companion URL %s", kCompanionUrl);
+
+    state.mic_ = MicCapture::create([&state](const float* samples, int frames) {
+        state.push_to_talk_.feed(samples, frames);
+    });
+    if (state.mic_) {
+        state.mic_->start();
+        LOG("mic capture started");
+    } else {
+        LOGE("mic capture failed to create");
+    }
+
     HttpServer http_server;
     http_server.start(8080,
         [&state](std::string_view) -> std::string {
@@ -135,6 +154,17 @@ void android_main(struct android_app* app) {
                                        state.xrSession.should_render())) {
                     LOGW("input sync failed — skipping input");
                 }
+
+                bool trigger_left = state.input_.trigger_pressed(Hand::LEFT);
+                if (trigger_left && !state.prev_trigger_left_) {
+                    state.push_to_talk_.begin_recording();
+                    LOG("push_to_talk: recording started");
+                } else if (!trigger_left && state.prev_trigger_left_) {
+                    state.push_to_talk_.end_recording([](std::string_view text) {
+                        LOG("transcript: %s", std::string(text).c_str());
+                    });
+                }
+                state.prev_trigger_left_ = trigger_left;
 
                 auto lh = state.input_.hand_pose(Hand::LEFT);
                 auto rh = state.input_.hand_pose(Hand::RIGHT);
