@@ -48,6 +48,7 @@ add_subdirectory(components/signal_graph)
 add_subdirectory(components/host_gl_window)
 add_subdirectory(components/vr_panel)
 add_subdirectory(components/ray_selector)
+add_subdirectory(components/vr_editor)
 add_subdirectory(app/spectator)
 
 if(CMAKE_CROSSCOMPILING)
