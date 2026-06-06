@@ -2,3 +2,4 @@ zeroconf
 requests
 faster-whisper
 flask
+sseclient-py

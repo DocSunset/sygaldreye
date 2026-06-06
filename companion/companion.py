@@ -11,6 +11,7 @@ import threading
 import time
 
 import requests
+import sseclient
 from flask import Flask, request as flask_request
 from faster_whisper import WhisperModel
 from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
@@ -163,10 +164,48 @@ def discover(timeout: float = 10.0):
     return None, None
 
 
+def _subscribe_sse(base_url: str) -> bool:
+    """Subscribe to SSE /events stream; returns False if connection fails."""
+    try:
+        resp = requests.get(f"{base_url}/events", stream=True, timeout=10)
+        client = sseclient.SSEClient(resp)
+        print(f"SSE connected to {base_url}/events")
+        for event in client.events():
+            if event.event == "params":
+                print("params update:", json.dumps(json.loads(event.data), indent=2))
+            elif event.event == "graph":
+                g = json.loads(event.data)
+                if g.get("nodes"):
+                    print("graph update:", json.dumps(g, indent=2))
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"SSE disconnected: {e}")
+        return False
+
+
+def _poll_loop(base_url: str) -> None:
+    """Fallback: poll /params and /graph every 2s."""
+    print(f"Polling {base_url} every 2s (Ctrl-C to stop)")
+    while True:
+        try:
+            resp = requests.get(f"{base_url}/params", timeout=5)
+            print("params:", json.dumps(json.loads(resp.text), indent=2))
+        except Exception as e:  # noqa: BLE001
+            print(f"params error: {e}")
+        try:
+            resp = requests.get(f"{base_url}/graph", timeout=5)
+            g = json.loads(resp.text)
+            if g.get("nodes"):
+                print("graph:", json.dumps(g, indent=2))
+        except Exception as e:  # noqa: BLE001
+            print(f"graph error: {e}")
+        time.sleep(2)
+
+
 def _discovery_loop(host=None, port=8080):
     global _headset_url
     if host:
-        _headset_url = params_url(host, port).rstrip("/params")
+        _headset_url = f"http://{host}:{port}"
         address, hport = host, port
     else:
         print("Searching for eyeballs headset via mDNS...")
@@ -176,22 +215,15 @@ def _discovery_loop(host=None, port=8080):
     if not address:
         print("No eyeballs service found on LAN.")
         return
-    url = params_url(address, hport)
-    graph_url = f"http://{address}:{hport}/graph"
-    print(f"Polling {url} and {graph_url} every 2s (Ctrl-C to stop)")
+    base_url = f"http://{address}:{hport}"
+    # Try SSE first; fall back to polling on disconnect.
     while True:
-        try:
-            resp = requests.get(url, timeout=5)
-            print("params:", json.dumps(json.loads(resp.text), indent=2))
-        except Exception as e:  # noqa: BLE001
-            print(f"params error: {e}")
-        try:
-            resp = requests.get(graph_url, timeout=5)
-            g = json.loads(resp.text)
-            if g.get("nodes"):
-                print("graph:", json.dumps(g, indent=2))
-        except Exception as e:  # noqa: BLE001
-            print(f"graph error: {e}")
+        connected = _subscribe_sse(base_url)
+        if not connected:
+            # SSE unavailable — use polling until interrupted.
+            _poll_loop(base_url)
+            break
+        print("SSE stream ended; reconnecting in 2s…")
         time.sleep(2)
 
 
