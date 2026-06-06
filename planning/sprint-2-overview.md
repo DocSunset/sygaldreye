@@ -10,16 +10,25 @@
 
 ## Sprint 2 phases
 
-| Phase | Title | Enables |
-|-------|-------|---------|
-| 10 | Signal flow | Graph actually routes values; renderer driven by graph |
-| 11 | VR editor completion | In-headset create, wire, tweak, delete |
+| Phase | Title | Must precede |
+|-------|-------|--------------|
+| 12 | Rich port types | 10, 11 |
+| 10 | Signal flow | 11 |
+| 11 | VR editor completion | — |
 
-## What phases 10 and 11 together must deliver
+**Phase 12 runs first.** The current ABI only exchanges scalar doubles; Phase 10's
+visual nodes need `Vector3f`, `Matrix4f`, `GpuTexture`, `AudioBuffer`, and `DrawFn`
+output ports. Building Phase 10 before Phase 12 would bake in a scalar-only
+assumption that then has to be broken and rebuilt.
 
+## What all three phases together must deliver
+
+- `port<Name,T>` generic port template, `AudioBuffer`, `DrawFn` (Phase 12)
+- Typed value store in `Graph` (Phase 12)
+- ABI v4 with typed setters + `push_outputs` + `port_schema` (Phase 12)
 - POST `/graph` with a JSON graph → scene changes visually (Phase 10)
-- Scalar values flow along edges (sky sun_elevation → water sun_elevation) (Phase 10)
-- XR source nodes publish live pose data as scalar outputs (Phase 10)
+- Typed values flow along edges (sky sun_dir → water sun_dir as Vector3f) (Phase 10)
+- XR source nodes publish live pose data as typed outputs (Phase 10)
 - `renderer` is a proper graph node with wireable eye-pose inputs (Phase 10)
 - Port handles visible on node cards in VR (Phase 11)
 - Drag from output handle to input handle → edge added to graph (Phase 11)
