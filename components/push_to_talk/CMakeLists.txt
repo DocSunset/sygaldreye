@@ -1,0 +1,6 @@
+if(ANDROID)
+    add_library(push_to_talk STATIC push_to_talk.cpp)
+    target_include_directories(push_to_talk PUBLIC .)
+    target_link_libraries(push_to_talk PRIVATE log)
+    target_compile_options(push_to_talk PRIVATE -Wall -Wextra)
+endif()
