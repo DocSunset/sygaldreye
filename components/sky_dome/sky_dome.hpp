@@ -52,11 +52,11 @@ private:
     GLint zenith_loc_      = -1;
 
     GLuint star_vao_   = 0;
-    GLuint star_vbo_   = 0;
     std::unique_ptr<GlProgram> star_prog_;
-    GLint star_vp_loc_    = -1;
-    GLint star_alpha_loc_ = -1;
-    GLsizei star_count_   = 0;
+    GLint star_vp_loc_     = -1;
+    GLint star_alpha_loc_  = -1;
+    GLint star_radius_loc_ = -1;
+    GLsizei star_count_    = 0;
 
     SkyParams params_;
 };

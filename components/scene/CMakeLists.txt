@@ -1,7 +1,7 @@
 add_library(scene STATIC scene.cpp)
 target_include_directories(scene PUBLIC .)
 target_include_directories(scene PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(scene PUBLIC vr_math light material)
+target_link_libraries(scene PUBLIC vr_math material)
 target_compile_options(scene PRIVATE -Wall -Wextra)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)

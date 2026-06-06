@@ -1,10 +1,10 @@
 // Copyright 2025 Travis West
 #pragma once
-#include "tri_mesh.hpp"
 #include "gl_program.hpp"
 #include "light.hpp"
 #include "material.hpp"
 #include <Eigen/Core>
+#include <GLES3/gl3.h>
 #include <memory>
 #include <vector>
 
@@ -39,24 +39,46 @@ struct WaterParams {
 class WaterSurface {
 public:
     static WaterSurface create(WaterParams const&);
-    void update(float time_s);
+
+    WaterSurface() = default;
+    ~WaterSurface();
+    WaterSurface(const WaterSurface&) = delete;
+    WaterSurface& operator=(const WaterSurface&) = delete;
+    WaterSurface(WaterSurface&&) noexcept;
+    WaterSurface& operator=(WaterSurface&&) noexcept;
+
+    void set_sun(Light const& l) { params_.sun = l; }
+    void update(float time_s)    { time_s_ = time_s; }
     void draw(Eigen::Matrix4f const& mvp,
               Eigen::Matrix4f const& model,
               Eigen::Vector3f const& view_pos) const;
 
 private:
-    WaterParams            params_;
-    TriMeshData            data_;
-    TriMesh                mesh_;
+    void upload_wave_params();
+
+    WaterParams                params_;
+    float                      time_s_          = 0.0f;
+    float                      max_amp_         = 0.0f;
+    GLuint                     vao_             = 0;
+    GLuint                     vbo_             = 0;
+    GLuint                     ebo_             = 0;
+    GLsizei                    index_count_     = 0;
     std::unique_ptr<GlProgram> prog_;
-    GLint mvp_loc_      = -1;
-    GLint model_loc_    = -1;
-    GLint view_pos_loc_ = -1;
-    GLint sun_dir_loc_  = -1;
-    GLint sun_col_loc_  = -1;
-    GLint sun_int_loc_  = -1;
-    GLint mat_amb_loc_  = -1;
-    GLint mat_dif_loc_  = -1;
-    GLint mat_spe_loc_  = -1;
-    GLint mat_shi_loc_  = -1;
+    GLint mvp_loc_         = -1;
+    GLint model_loc_       = -1;
+    GLint view_pos_loc_    = -1;
+    GLint time_loc_        = -1;
+    GLint sun_dir_loc_     = -1;
+    GLint sun_col_loc_     = -1;
+    GLint sun_int_loc_     = -1;
+    GLint mat_amb_loc_     = -1;
+    GLint mat_dif_loc_     = -1;
+    GLint mat_spe_loc_     = -1;
+    GLint mat_shi_loc_     = -1;
+    GLint shallow_loc_     = -1;
+    GLint deep_loc_        = -1;
+    GLint foam_thresh_loc_ = -1;
+    GLint max_amp_loc_     = -1;
+    GLint wave_a_loc_      = -1;
+    GLint wave_b_loc_      = -1;
 };

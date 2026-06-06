@@ -20,6 +20,12 @@ constexpr float kCubePositionZ = -5.0F;
 constexpr float kCubeScale = 0.4F;
 }
 
+Scene::Scene() {
+    world_cube_.material.diffuse  = {0.2F, 0.4F, 0.9F};
+    world_cube_.material.ambient  = {0.02F, 0.04F, 0.09F};
+    world_cube_.material.specular = {0.4F, 0.4F, 0.5F};
+}
+
 void Scene::update(double time) {
     float t = static_cast<float>(time);
     float ax = kRotationAmplitude * sinf(t * kRotationSpeedX + kRotationPhaseX);
@@ -34,10 +40,6 @@ void Scene::update(double time) {
         q *
         Eigen::Scaling(kCubeScale);
     world_cube_.model = xf.matrix();
-}
-
-std::span<const Light> Scene::lights() const {
-    return {lights_.data(), lights_.size()};
 }
 
 std::span<const CubeInstance> Scene::cubes() const {
@@ -63,29 +65,26 @@ static Eigen::Matrix4f hand_cube_model(const XrPosef& pose) {
 
 void Scene::update_labels(const Eigen::Matrix4f& right_cube_model) {
     struct FaceDef { const char* text; Eigen::Vector3f normal; Eigen::Vector3f up; };
+    // Grip pose axes: +Y toward user, -Z world-up, -Y forward (tip direction), +Z down
     static const FaceDef faces[] = {
-        {"top",         { 0.0F,  1.0F,  0.0F}, { 0.0F,  0.0F, -1.0F}},
-        {"bottom",      { 0.0F, -1.0F,  0.0F}, { 0.0F,  0.0F,  1.0F}},
-        {"forward",     { 0.0F,  0.0F, -1.0F}, { 0.0F,  1.0F,  0.0F}},
-        {"toward user", { 0.0F,  0.0F,  1.0F}, { 0.0F,  1.0F,  0.0F}},
+        {"toward user", { 0.0F,  1.0F,  0.0F}, { 0.0F,  0.0F, -1.0F}},
+        {"forward",     { 0.0F, -1.0F,  0.0F}, { 0.0F,  0.0F, -1.0F}},
+        {"top",         { 0.0F,  0.0F, -1.0F}, { 0.0F, -1.0F,  0.0F}},
+        {"bottom",      { 0.0F,  0.0F,  1.0F}, { 0.0F,  1.0F,  0.0F}},
     };
     constexpr float kTextOffset = 0.038F;
     constexpr float kTextScale  = 0.005F;
     labels_cache_.clear();
+    Eigen::Vector3f cube_center = right_cube_model.block<3,1>(0,3);
+    Eigen::Matrix3f rot3        = right_cube_model.block<3,3>(0,0);
     for (const auto& face : faces) {
-        Eigen::Vector4f local_pos{
-            face.normal.x() * kTextOffset,
-            face.normal.y() * kTextOffset,
-            face.normal.z() * kTextOffset,
-            1.0F};
-        Eigen::Vector3f world_pos = (right_cube_model * local_pos).head<3>();
-
-        Eigen::Matrix3f rot3 = right_cube_model.block<3,3>(0,0);
         Eigen::Vector3f world_normal = (rot3 * face.normal).normalized();
         Eigen::Vector3f world_up     = (rot3 * face.up).normalized();
+        Eigen::Vector3f world_pos    = cube_center + world_normal * kTextOffset;
         Eigen::Vector3f text_forward = -world_normal;
-        Eigen::Vector3f text_right   = world_up.cross(text_forward).normalized();
-        Eigen::Vector3f text_up      = text_forward.cross(text_right).normalized();
+        // text_forward × world_up gives the viewer's right when looking at the face head-on
+        Eigen::Vector3f text_right   = text_forward.cross(world_up).normalized();
+        Eigen::Vector3f text_up      = world_normal.cross(text_right).normalized();
 
         Eigen::Matrix4f mat = Eigen::Matrix4f::Identity();
         mat.block<3,1>(0,0) = text_right;
@@ -104,12 +103,30 @@ std::span<const Label> Scene::labels() const {
     return {labels_cache_.data(), labels_cache_.size()};
 }
 
+static CubeInstance hand_cube_instance(const XrPosef& pose, const Material& mat) {
+    CubeInstance inst;
+    inst.model    = hand_cube_model(pose);
+    inst.material = mat;
+    return inst;
+}
+
 void Scene::set_controller_poses(std::optional<XrPosef> left_pose,
                                  std::optional<XrPosef> right_pose) {
-    controller_cubes_.at(0U) = left_pose  ? std::optional<CubeInstance>({hand_cube_model(*left_pose)})  : std::nullopt;
+    static const Material kLeftMat  = [] {
+        Material m; m.diffuse={0.9F,0.2F,0.15F}; m.ambient={0.09F,0.02F,0.015F}; return m;
+    }();
+    static const Material kRightMat = [] {
+        Material m; m.diffuse={0.15F,0.8F,0.25F}; m.ambient={0.015F,0.08F,0.025F}; return m;
+    }();
+    controller_cubes_.at(0U) = left_pose
+        ? std::optional<CubeInstance>(hand_cube_instance(*left_pose, kLeftMat))
+        : std::nullopt;
     if (right_pose) {
         Eigen::Matrix4f right_model = hand_cube_model(*right_pose);
-        controller_cubes_.at(1U) = CubeInstance{right_model};
+        CubeInstance inst;
+        inst.model    = right_model;
+        inst.material = kRightMat;
+        controller_cubes_.at(1U) = inst;
         update_labels(right_model);
     } else {
         controller_cubes_.at(1U) = std::nullopt;

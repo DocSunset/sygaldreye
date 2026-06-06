@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Unconditional: builds on both host and Android
+add_subdirectory(components/cos_lut)
 add_subdirectory(components/log)
 add_subdirectory(components/gl_program)
 add_subdirectory(components/tri_mesh)
@@ -73,4 +74,5 @@ if(CMAKE_CROSSCOMPILING)
     add_subdirectory(components/water_synth)
     add_subdirectory(components/creature_synth)
     add_subdirectory(components/chime_synth)
+    add_subdirectory(components/app_snapshot)
 endif()

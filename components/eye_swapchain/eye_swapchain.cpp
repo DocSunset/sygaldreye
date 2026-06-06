@@ -137,7 +137,7 @@ bool create_swapchains(XrInstance instance, XrSystemId systemId, XrSession sessi
         GL_CHECK(glGenFramebuffers(1, &e.msaa_fbo_));
         GL_CHECK(glBindRenderbuffer(GL_RENDERBUFFER, e.msaa_color_rb_));
         GL_CHECK(glRenderbufferStorageMultisample(GL_RENDERBUFFER, (GLsizei)e.sample_count_,
-            GL_RGBA8, (GLsizei)e.width_, (GLsizei)e.height_));
+            static_cast<GLenum>(chosenFmt), (GLsizei)e.width_, (GLsizei)e.height_));
         GL_CHECK(glBindRenderbuffer(GL_RENDERBUFFER, e.msaa_depth_rb_));
         GL_CHECK(glRenderbufferStorageMultisample(GL_RENDERBUFFER, (GLsizei)e.sample_count_,
             GL_DEPTH_COMPONENT24, (GLsizei)e.width_, (GLsizei)e.height_));

@@ -3,6 +3,7 @@
 #include <time.h>
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "eyeballs", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
 
 #define XR_LOG_ERR(expr) do { XrResult _r = (expr); if (XR_FAILED(_r)) LOGE(#expr " failed: %d", (int)_r); } while(0)
@@ -11,6 +12,7 @@ namespace {
 constexpr float      kNearPlane              = 0.05F;
 constexpr float      kFarPlane               = 100.0F;
 constexpr XrDuration kSwapchainWaitTimeoutNs = XR_INFINITE_DURATION;
+constexpr double     kFrameBudgetWarningMs   = 9.0;
 }
 
 
@@ -60,6 +62,7 @@ bool Renderer::render_eyes(XrInstance /*instance*/, XrSession session, XrSpace r
     if (!(vs.viewStateFlags & orientValid) || !(vs.viewStateFlags & posValid))
         return false;
 
+    double draw_start = 0.0;
     for (int eye = 0; eye < 2; ++eye) {
         EyeSwapchain& e = eyes_[eye];
 
@@ -88,19 +91,28 @@ bool Renderer::render_eyes(XrInstance /*instance*/, XrSession session, XrSpace r
         glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        if (eye == 0) draw_start = now_sec();
         Eigen::Matrix4f proj = projection(views[eye].fov, kNearPlane, kFarPlane);
         Eigen::Matrix4f v    = view(views[eye].pose);
         on_draw(proj, v);
+        { GLenum e_ = glGetError(); if (e_ != GL_NO_ERROR) LOGE("GL error after on_draw eye %d: 0x%x", eye, (unsigned)e_); }
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, e.msaa_fbo());
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, e.fbo(index));
+        // MSAA resolve: must use GL_NEAREST — GL_LINEAR is INVALID_OPERATION with a multisampled source
         glBlitFramebuffer(0, 0, (GLint)e.width(), (GLint)e.height(),
                           0, 0, (GLint)e.width(), (GLint)e.height(),
-                          GL_COLOR_BUFFER_BIT, GL_LINEAR);
+                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        { GLenum e_ = glGetError(); if (e_ != GL_NO_ERROR) LOGE("glBlitFramebuffer error: 0x%x", (unsigned)e_); }
 
         XR_LOG_ERR(xrReleaseSwapchainImage(e.xr_handle(), &ri));
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    if (draw_start > 0.0) {
+        double draw_ms = (now_sec() - draw_start) * 1000.0;
+        if (draw_ms > kFrameBudgetWarningMs)
+            LOGW("render over budget: %.2f ms", draw_ms);
+    }
 
     if (!layerLogged_) { LOG("submitting projection layer"); layerLogged_ = true; }
 

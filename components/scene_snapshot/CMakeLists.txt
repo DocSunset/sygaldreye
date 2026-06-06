@@ -1,89 +1,45 @@
-if(NOT CMAKE_CROSSCOMPILING)
-
-find_package(GTest REQUIRED)
-
 if(DEFINED ENV{STB_INCLUDE_DIR})
     set(STB_INCLUDE_DIR "$ENV{STB_INCLUDE_DIR}")
-else()
+elseif(NOT CMAKE_CROSSCOMPILING)
     find_path(STB_INCLUDE_DIR stb_image_write.h REQUIRED)
+endif()
+
+if(CMAKE_CROSSCOMPILING)
+    set(_gles GLESv3)
+else()
+    set(_gles GLESv2)
 endif()
 
 add_library(scene_snapshot STATIC scene_snapshot.cpp)
 target_include_directories(scene_snapshot PUBLIC . PRIVATE ${STB_INCLUDE_DIR} $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(scene_snapshot PUBLIC EGL GLESv2)
+target_link_libraries(scene_snapshot PUBLIC EGL ${_gles})
 target_compile_options(scene_snapshot PRIVATE -Wall -Wextra)
 
-add_executable(scene_snapshot_test scene_snapshot.test.cpp)
-target_include_directories(scene_snapshot_test PRIVATE ${STB_INCLUDE_DIR}
-    ${CMAKE_SOURCE_DIR}/components/host_gl_context $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(scene_snapshot_test PRIVATE
-    scene_snapshot host_gl_context GLESv2 GTest::gtest_main)
-target_compile_options(scene_snapshot_test PRIVATE -Wall -Wextra)
+macro(add_snapshot_exe name)
+    add_executable(${name} ${name}.cpp)
+    target_include_directories(${name} PRIVATE
+        ${CMAKE_SOURCE_DIR}/components/host_gl_context
+        $ENV{EIGEN3_INCLUDE_DIR})
+    target_link_libraries(${name} PRIVATE scene_snapshot host_gl_context ${_gles} ${ARGN})
+    target_compile_options(${name} PRIVATE -Wall -Wextra)
+endmacro()
 
-add_executable(water_surface_snapshot water_surface_snapshot.cpp)
-target_include_directories(water_surface_snapshot PRIVATE
-    ${CMAKE_SOURCE_DIR}/components/host_gl_context
-    $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(water_surface_snapshot PRIVATE
-    scene_snapshot host_gl_context water_surface GLESv2)
-target_compile_options(water_surface_snapshot PRIVATE -Wall -Wextra)
+add_snapshot_exe(water_surface_snapshot water_surface)
+add_snapshot_exe(sky_dome_snapshot sky_dome sphere_mesh sphere_geometry)
+add_snapshot_exe(aurora_snapshot aurora)
+add_snapshot_exe(lissajous_snapshot lissajous)
+add_snapshot_exe(chladni_snapshot chladni)
+add_snapshot_exe(reaction_diffusion_snapshot reaction_diffusion)
+add_snapshot_exe(terrain_snapshot terrain_generator sky_dome sphere_mesh sphere_geometry)
+add_snapshot_exe(combined_scene_snapshot water_surface sky_dome terrain_generator
+    tree_generator lit_shader flat_shader billboard_quad)
 
-add_executable(terrain_snapshot terrain_snapshot.cpp)
-target_include_directories(terrain_snapshot PRIVATE
-    ${CMAKE_SOURCE_DIR}/components/host_gl_context
-    $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(terrain_snapshot PRIVATE
-    scene_snapshot host_gl_context terrain_generator sky_dome sphere_mesh
-    sphere_geometry GLESv2)
-target_compile_options(terrain_snapshot PRIVATE -Wall -Wextra)
-
-add_executable(sky_dome_snapshot sky_dome_snapshot.cpp)
-target_include_directories(sky_dome_snapshot PRIVATE
-    ${CMAKE_SOURCE_DIR}/components/host_gl_context
-    $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(sky_dome_snapshot PRIVATE
-    scene_snapshot host_gl_context sky_dome sphere_mesh sphere_geometry GLESv2)
-target_compile_options(sky_dome_snapshot PRIVATE -Wall -Wextra)
-
-add_executable(aurora_snapshot aurora_snapshot.cpp)
-target_include_directories(aurora_snapshot PRIVATE
-    ${CMAKE_SOURCE_DIR}/components/host_gl_context
-    ${CMAKE_SOURCE_DIR}/components/aurora
-    $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(aurora_snapshot PRIVATE
-    scene_snapshot host_gl_context aurora GLESv2)
-target_compile_options(aurora_snapshot PRIVATE -Wall -Wextra)
-
-add_executable(lissajous_snapshot lissajous_snapshot.cpp)
-target_include_directories(lissajous_snapshot PRIVATE
-    ${CMAKE_SOURCE_DIR}/components/host_gl_context
-    $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(lissajous_snapshot PRIVATE
-    scene_snapshot host_gl_context lissajous GLESv2)
-target_compile_options(lissajous_snapshot PRIVATE -Wall -Wextra)
-
-add_executable(chladni_snapshot chladni_snapshot.cpp)
-target_include_directories(chladni_snapshot PRIVATE
-    ${CMAKE_SOURCE_DIR}/components/host_gl_context
-    $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(chladni_snapshot PRIVATE
-    scene_snapshot host_gl_context chladni GLESv2)
-target_compile_options(chladni_snapshot PRIVATE -Wall -Wextra)
-
-add_executable(reaction_diffusion_snapshot reaction_diffusion_snapshot.cpp)
-target_include_directories(reaction_diffusion_snapshot PRIVATE
-    ${CMAKE_SOURCE_DIR}/components/host_gl_context $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(reaction_diffusion_snapshot PRIVATE
-    scene_snapshot host_gl_context reaction_diffusion GLESv2)
-target_compile_options(reaction_diffusion_snapshot PRIVATE -Wall -Wextra)
-
-add_executable(combined_scene_snapshot combined_scene_snapshot.cpp)
-target_include_directories(combined_scene_snapshot PRIVATE
-    ${CMAKE_SOURCE_DIR}/components/host_gl_context
-    $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(combined_scene_snapshot PRIVATE
-    scene_snapshot host_gl_context water_surface sky_dome terrain_generator
-    tree_generator lit_shader flat_shader billboard_quad GLESv2)
-target_compile_options(combined_scene_snapshot PRIVATE -Wall -Wextra)
-
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(scene_snapshot_test scene_snapshot.test.cpp)
+    target_include_directories(scene_snapshot_test PRIVATE ${STB_INCLUDE_DIR}
+        ${CMAKE_SOURCE_DIR}/components/host_gl_context $ENV{EIGEN3_INCLUDE_DIR})
+    target_link_libraries(scene_snapshot_test PRIVATE
+        scene_snapshot host_gl_context ${_gles} GTest::gtest_main)
+    target_compile_options(scene_snapshot_test PRIVATE -Wall -Wextra)
 endif()

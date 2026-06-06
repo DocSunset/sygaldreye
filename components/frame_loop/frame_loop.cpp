@@ -7,8 +7,7 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
 
 namespace {
-constexpr double kFrameBudgetWarningMs = 9.0;
-constexpr int    kFrameDropLogInterval = 100;
+constexpr int kFrameDropLogInterval = 100;
 }
 
 static double now_sec() {
@@ -34,12 +33,7 @@ void FrameLoop::run_frame(XrSession session, std::function<FrameLayers(XrTime)> 
 
     FrameLayers frame_layers;
     if (frameState.shouldRender && on_render) {
-        double render_start = now_sec();
         frame_layers = on_render(frameState.predictedDisplayTime);
-        double render_ms = (now_sec() - render_start) * 1000.0;
-        if (render_ms > kFrameBudgetWarningMs) {
-            LOGW("render over budget: %.2f ms", render_ms);
-        }
     }
 
     XrFrameEndInfo endInfo{};

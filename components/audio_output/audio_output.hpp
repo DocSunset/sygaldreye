@@ -9,6 +9,7 @@ using AudioCallback = std::function<void(float* out, int frames)>;
 
 class AudioOutput {
 public:
+    struct Impl;
     static std::optional<AudioOutput> create(AudioCallback, int sample_rate = 48000);
     void start();
     void stop();
@@ -18,7 +19,6 @@ public:
     AudioOutput(AudioOutput const&) = delete;
     AudioOutput& operator=(AudioOutput const&) = delete;
 private:
-    struct Impl;
     Impl* impl_ = nullptr;
     explicit AudioOutput(Impl*);
 };

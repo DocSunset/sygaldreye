@@ -8,6 +8,11 @@
 #include "input.hpp"
 #include "cube_mesh.hpp"
 #include "text_mesh.hpp"
+#include "water_surface.hpp"
+#include "sky_dome.hpp"
+#include "light.hpp"
+#include <cmath>
+#include <optional>
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  "eyeballs", __VA_ARGS__)
@@ -29,6 +34,8 @@ struct AppState {
     Input input_{};
     CubeMesh cube_mesh_{};
     TextMesh text_mesh_{};
+    std::optional<WaterSurface> water_{};
+    std::optional<SkyDome>      sky_{};
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -55,6 +62,17 @@ void android_main(struct android_app* app) {
     state.cube_mesh_.init();
     state.text_mesh_.init();
     state.input_.create(state.xrInstance, state.xrSession.get());
+
+    WaterParams wp;
+    wp.grid_w    = 64;
+    wp.grid_h    = 64;
+    wp.cell_size = 0.375f;
+    state.water_ = WaterSurface::create(wp);
+
+    SkyParams sp;
+    sp.radius      = 500.0f;
+    sp.star_count  = 2000;
+    state.sky_ = SkyDome::create(sp);
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
 
@@ -84,6 +102,51 @@ void android_main(struct android_app* app) {
                 state.scene_.set_controller_poses(
                     lh ? std::optional<XrPosef>{lh->pose} : std::nullopt,
                     rh ? std::optional<XrPosef>{rh->pose} : std::nullopt);
+
+                // Day-night cycle: 180-second period
+                constexpr double kDayPeriod = 180.0;
+                // +0.25 offsets the cycle so time 0 lands at solar noon (elev_norm = 1)
+                float phase      = static_cast<float>(fmod(time_sec + kDayPeriod * 0.25, kDayPeriod) / kDayPeriod);
+                float elev_norm  = sinf(2.0f * static_cast<float>(M_PI) * phase); // -1..1
+                float elev_rad   = elev_norm * (static_cast<float>(M_PI) / 2.0f);
+                float azimuth    = static_cast<float>(M_PI) * phase;
+                float ce         = cosf(elev_rad);
+                Eigen::Vector3f sun_dir{-ce * cosf(azimuth), -sinf(elev_rad), -ce * sinf(azimuth)};
+                float warm       = std::max(0.0f, 1.0f - fabsf(elev_norm) * 3.5f);
+                warm = warm * warm;
+                Eigen::Vector3f sun_color{1.0f, 0.85f + 0.15f * (1.0f - warm), 0.65f + 0.35f * (1.0f - warm)};
+                float sun_intensity = std::max(0.05f, sinf(elev_rad) * 1.3f);
+
+                if (state.sky_) {
+                    SkyParams sp;
+                    sp.radius              = 500.0f;
+                    sp.star_count          = 2000;
+                    sp.sun_elevation       = elev_norm;
+                    sp.body_dir            = -sun_dir;
+                    sp.body_color          = {sun_color.x(), sun_color.y(), sun_color.z(), 1.0f};
+                    sp.body_angular_radius = 0.014f;
+                    state.sky_->set_params(sp);
+                }
+
+                Light sun_light;
+                sun_light.direction = sun_dir;
+                sun_light.color     = sun_color;
+                sun_light.intensity = sun_intensity;
+                if (state.water_) {
+                    state.water_->set_sun(sun_light);
+                    state.water_->update(static_cast<float>(time_sec));
+                }
+
+                // Water model: centered at user, 1.5m below floor
+                constexpr float kWaterY    = -1.5f;
+                constexpr float kCellSize  = 0.375f;
+                constexpr int   kGridW     = 64;
+                constexpr int   kGridH     = 64;
+                Eigen::Matrix4f water_model = Eigen::Matrix4f::Identity();
+                water_model(0,3) = -(kGridW - 1) * kCellSize * 0.5f;
+                water_model(1,3) = kWaterY;
+                water_model(2,3) = -(kGridH - 1) * kCellSize * 0.5f;
+
                 bool ok = state.renderer.render_eyes(
                     state.xrInstance, state.xrSession.get(),
                     state.xrSession.worldSpace_(), t,
@@ -91,13 +154,25 @@ void android_main(struct android_app* app) {
                         const Eigen::Matrix4f pv = proj * view;
                         const Eigen::Vector3f view_pos =
                             -(view.block<3,3>(0,0).transpose() * view.block<3,1>(0,3));
-                        state.cube_mesh_.begin_batch(state.scene_.lights(), view_pos);
+
+                        // Sky dome first (no depth write, always behind everything)
+                        if (state.sky_) {
+                            glDepthMask(GL_FALSE);
+                            state.sky_->draw(pv);
+                            glDepthMask(GL_TRUE);
+                        }
+
+                        state.cube_mesh_.begin_batch({&sun_light, 1}, view_pos);
                         for (const auto& cube : state.scene_.cubes()) {
                             state.cube_mesh_.draw(pv * cube.model, cube.model, cube.material);
                         }
                         state.cube_mesh_.end_batch();
                         for (const auto& lbl : state.scene_.labels()) {
                             state.text_mesh_.draw(lbl.text, pv * lbl.transform);
+                        }
+
+                        if (state.water_) {
+                            state.water_->draw(pv * water_model, water_model, view_pos);
                         }
                     });
                 if (!ok) { return {}; }
