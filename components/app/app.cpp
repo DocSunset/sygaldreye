@@ -18,9 +18,12 @@
 #include "push_to_talk.hpp"
 #include "eyeballs_node_abi.hpp"
 #include "component_registry.hpp"
+#include "signal_graph.hpp"
 #include <cmath>
 #include <cstdio>
 #include <ctime>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 
@@ -50,6 +53,9 @@ struct AppState {
     PushToTalk                   push_to_talk_{};
     ComponentRegistry            registry_{};
     bool                         prev_trigger_left_ = false;
+    std::mutex                   graph_mutex_{};
+    std::unique_ptr<Graph>       pending_graph_{};
+    std::unique_ptr<Graph>       active_graph_{};
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -154,6 +160,20 @@ void android_main(struct android_app* app) {
                 return R"({"ok":false,"error":"load_plugin failed"})";
             return R"({"ok":true})";
         });
+    http_server.add_route("GET", "/graph",
+        [&state](std::string_view) -> std::string {
+            std::lock_guard<std::mutex> lock(state.graph_mutex_);
+            if (state.active_graph_) return serialize_graph(*state.active_graph_);
+            return "{\"nodes\":[],\"edges\":[]}";
+        });
+    http_server.add_route("POST", "/graph",
+        [&state](std::string_view body) -> std::string {
+            auto g = parse_graph(std::string(body), state.registry_);
+            if (!g) return R"({"ok":false,"error":"parse_graph failed"})";
+            std::lock_guard<std::mutex> lock(state.graph_mutex_);
+            state.pending_graph_ = std::move(g);
+            return R"({"ok":true})";
+        });
     http_server.start(8080,
         [&state](std::string_view) -> std::string {
             if (state.water_) return to_json(*state.water_);
@@ -184,6 +204,12 @@ void android_main(struct android_app* app) {
         if (state.xrSession.session_running()) {
             state.frame_loop_.run_frame(state.xrSession.get(), [&](XrTime t) -> FrameLayers {
                 double time_sec = static_cast<double>(t) * 1e-9;
+                // Atomic swap of pending graph at frame boundary
+                {
+                    std::lock_guard<std::mutex> lock(state.graph_mutex_);
+                    if (state.pending_graph_) state.active_graph_ = std::move(state.pending_graph_);
+                }
+                if (state.active_graph_) tick_graph(*state.active_graph_, time_sec);
                 if (!state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t,
                                        state.xrSession.should_render())) {
                     LOGW("input sync failed — skipping input");
