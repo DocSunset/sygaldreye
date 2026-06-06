@@ -1,6 +1,9 @@
 // Copyright 2025 Travis West
 #include "signal_graph.hpp"
+#include <algorithm>
 #include <cstring>
+#include <queue>
+#include <unordered_map>
 
 Graph::~Graph() {
     for (auto& n : nodes) {
@@ -150,10 +153,160 @@ std::string serialize_graph(const Graph& g) {
     return out;
 }
 
+// Kahn's algorithm topological sort. Returns indices into nodes in dependency order.
+// Appends remaining cycle nodes in insertion order if a cycle is found.
+static std::vector<std::size_t> topo_sort(
+    const std::vector<NodeInstance>& nodes,
+    const std::vector<Edge>& edges)
+{
+    std::unordered_map<std::string, std::size_t> idx_map;
+    idx_map.reserve(nodes.size());
+    for (std::size_t i = 0; i < nodes.size(); ++i)
+        idx_map[nodes[i].id] = i;
+
+    std::vector<int> in_deg(nodes.size(), 0);
+    for (const auto& e : edges) {
+        auto it_to = idx_map.find(e.to_node);
+        if (it_to == idx_map.end()) continue;
+        auto it_from = idx_map.find(e.from_node);
+        if (it_from == idx_map.end()) continue;
+        ++in_deg[it_to->second];
+    }
+
+    std::queue<std::size_t> q;
+    for (std::size_t i = 0; i < nodes.size(); ++i)
+        if (in_deg[i] == 0) q.push(i);
+
+    std::vector<std::size_t> order;
+    order.reserve(nodes.size());
+    while (!q.empty()) {
+        auto i = q.front(); q.pop();
+        order.push_back(i);
+        for (const auto& e : edges) {
+            if (e.from_node != nodes[i].id) continue;
+            auto it = idx_map.find(e.to_node);
+            if (it == idx_map.end()) continue;
+            if (--in_deg[it->second] == 0) q.push(it->second);
+        }
+    }
+    // Cycle fallback: append nodes not yet ordered
+    if (order.size() < nodes.size()) {
+        for (std::size_t i = 0; i < nodes.size(); ++i) {
+            if (std::find(order.begin(), order.end(), i) == order.end())
+                order.push_back(i);
+        }
+    }
+    return order;
+}
+
 void tick_graph(Graph& g, double time_s) {
-    for (auto& n : g.nodes) {
+    g.draw_calls.clear();
+
+    auto order = topo_sort(g.nodes, g.edges);
+
+    for (std::size_t idx : order) {
+        auto& n = g.nodes[idx];
+
+        // Apply incoming edge values from value store
+        for (const auto& e : g.edges) {
+            if (e.to_node != n.id) continue;
+            std::string from_key = e.from_node + "." + e.from_port;
+            auto it = g.values.find(from_key);
+            if (it == g.values.end()) continue;
+
+            std::visit([&](const auto& val) {
+                using T = std::decay_t<decltype(val)>;
+                if constexpr (std::is_same_v<T, double>) {
+                    if (n.desc->set_scalar_in)
+                        n.desc->set_scalar_in(n.data, e.to_port.c_str(), val);
+                } else if constexpr (std::is_same_v<T, Eigen::Vector2f>) {
+                    if (n.desc->set_vec2_in)
+                        n.desc->set_vec2_in(n.data, e.to_port.c_str(), val.x(), val.y());
+                } else if constexpr (std::is_same_v<T, Eigen::Vector3f>) {
+                    if (n.desc->set_vec3_in)
+                        n.desc->set_vec3_in(n.data, e.to_port.c_str(),
+                                            val.x(), val.y(), val.z());
+                } else if constexpr (std::is_same_v<T, Eigen::Vector4f>) {
+                    if (n.desc->set_vec4_in)
+                        n.desc->set_vec4_in(n.data, e.to_port.c_str(),
+                                            val.x(), val.y(), val.z(), val.w());
+                } else if constexpr (std::is_same_v<T, Eigen::Matrix4f>) {
+                    if (n.desc->set_mat4_in)
+                        n.desc->set_mat4_in(n.data, e.to_port.c_str(), val.data());
+                } else if constexpr (std::is_same_v<T, Eigen::Quaternionf>) {
+                    if (n.desc->set_quat_in)
+                        n.desc->set_quat_in(n.data, e.to_port.c_str(),
+                                            val.x(), val.y(), val.z(), val.w());
+                } else if constexpr (std::is_same_v<T, GpuTexture>) {
+                    if (n.desc->set_texture_in)
+                        n.desc->set_texture_in(n.data, e.to_port.c_str(),
+                                               val.id, val.width, val.height,
+                                               val.internal_format, val.filter);
+                } else if constexpr (std::is_same_v<T, AudioBuffer>) {
+                    if (n.desc->set_audio_in)
+                        n.desc->set_audio_in(n.data, e.to_port.c_str(),
+                                             val.data, val.frames,
+                                             val.channels, val.sample_rate);
+                }
+            }, it->second);
+        }
+
+        // Process
         if (n.desc->process) n.desc->process(n.data, time_s);
-        // TODO(Phase 10): call n.desc->push_outputs with an EyeballsOutputCtx
-        // that writes typed PortValues into g.values.
+
+        // Collect typed outputs into value store
+        if (n.desc->push_outputs) {
+            EyeballsOutputCtx ctx{};
+            ctx.store   = &g.values;
+            ctx.node_id = n.id.c_str();
+            ctx.emit_scalar = [](void* store, const char* nid, const char* port, double v) {
+                auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
+                m[std::string(nid) + "." + port] = v;
+            };
+            ctx.emit_vec2 = [](void* store, const char* nid, const char* port, float x, float y) {
+                auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
+                m[std::string(nid) + "." + port] = Eigen::Vector2f{x, y};
+            };
+            ctx.emit_vec3 = [](void* store, const char* nid, const char* port,
+                               float x, float y, float z) {
+                auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
+                m[std::string(nid) + "." + port] = Eigen::Vector3f{x, y, z};
+            };
+            ctx.emit_vec4 = [](void* store, const char* nid, const char* port,
+                               float x, float y, float z, float w) {
+                auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
+                m[std::string(nid) + "." + port] = Eigen::Vector4f{x, y, z, w};
+            };
+            ctx.emit_mat4 = [](void* store, const char* nid, const char* port,
+                               const float* c16) {
+                auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
+                Eigen::Matrix4f mat;
+                std::copy(c16, c16 + 16, mat.data());
+                m[std::string(nid) + "." + port] = mat;
+            };
+            ctx.emit_quat = [](void* store, const char* nid, const char* port,
+                               float x, float y, float z, float w) {
+                auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
+                m[std::string(nid) + "." + port] = Eigen::Quaternionf{w, x, y, z};
+            };
+            ctx.emit_texture = [](void* store, const char* nid, const char* port,
+                                  unsigned int id, int w, int h,
+                                  unsigned int fmt, unsigned int filt) {
+                auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
+                m[std::string(nid) + "." + port] = GpuTexture{id, w, h, fmt, filt};
+            };
+            ctx.emit_audio = [](void* store, const char* nid, const char* port,
+                                const float* data, int frames, int channels, int rate) {
+                auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
+                m[std::string(nid) + "." + port] = AudioBuffer{data, frames, channels, rate};
+            };
+            n.desc->push_outputs(n.data, &ctx);
+        }
+
+        // Collect draw calls
+        if (n.desc->push_draw_calls) {
+            DrawCallCtx ctx{n.id, &g.draw_calls};
+            n.desc->push_draw_calls(n.data, &ctx);
+        }
     }
 }
