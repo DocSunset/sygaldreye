@@ -3,6 +3,7 @@
 import argparse
 import io
 import json
+import os
 import re
 import socket
 import tempfile
@@ -26,6 +27,67 @@ def _get_whisper() -> WhisperModel:
     if _whisper is None:
         _whisper = WhisperModel("base", device="cpu", compute_type="int8")
     return _whisper
+
+
+def _fetch_palette() -> list:
+    if not _headset_url:
+        return []
+    try:
+        resp = requests.get(f"{_headset_url}/palette", timeout=3)
+        return json.loads(resp.text)
+    except Exception as e:  # noqa: BLE001
+        print(f"palette fetch failed: {e}")
+        return []
+
+
+def _post_graph(graph_json: str) -> None:
+    if not _headset_url:
+        return
+    try:
+        resp = requests.post(f"{_headset_url}/graph", data=graph_json, timeout=3)
+        print(f"graph update: {resp.status_code} {resp.text}")
+    except Exception as e:  # noqa: BLE001
+        print(f"graph update failed: {e}")
+
+
+def _get_graph() -> dict | None:
+    if not _headset_url:
+        return None
+    try:
+        resp = requests.get(f"{_headset_url}/graph", timeout=3)
+        return json.loads(resp.text)
+    except Exception as e:  # noqa: BLE001
+        print(f"graph fetch failed: {e}")
+        return None
+
+
+def _llm_graph(text: str, palette: list) -> str | None:
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            data=json.dumps({
+                "model": "claude-haiku-4-5",
+                "max_tokens": 512,
+                "system": f"You control a VR scene graph. Available nodes: {json.dumps(palette)}. "
+                          "Respond with ONLY a JSON graph to POST to /graph. "
+                          'Format: {"nodes":[{"id":"n1","type":"type_name","params":{...}}],"edges":[]}',
+                "messages": [{"role": "user", "content": text}],
+            }),
+            timeout=10,
+        )
+        data = json.loads(resp.text)
+        return data["content"][0]["text"].strip()
+    except Exception as e:  # noqa: BLE001
+        print(f"LLM call failed: {e}")
+        return None
 
 
 @app.route("/transcribe", methods=["POST"])
@@ -53,6 +115,13 @@ def transcribe():
             print(f"param update {key}={value}: {resp.status_code}")
         except Exception as e:  # noqa: BLE001
             print(f"param update failed: {e}")
+    elif _headset_url and os.environ.get("ANTHROPIC_API_KEY"):
+        # Fall back to LLM-driven graph update
+        palette = _fetch_palette()
+        graph_json = _llm_graph(text, palette)
+        if graph_json:
+            print(f"LLM graph: {graph_json}")
+            _post_graph(graph_json)
 
     return json.dumps({"text": text}), 200, {"Content-Type": "application/json"}
 
@@ -108,13 +177,21 @@ def _discovery_loop(host=None, port=8080):
         print("No eyeballs service found on LAN.")
         return
     url = params_url(address, hport)
-    print(f"Polling {url} every 2s (Ctrl-C to stop)")
+    graph_url = f"http://{address}:{hport}/graph"
+    print(f"Polling {url} and {graph_url} every 2s (Ctrl-C to stop)")
     while True:
         try:
             resp = requests.get(url, timeout=5)
-            print(json.dumps(json.loads(resp.text), indent=2))
+            print("params:", json.dumps(json.loads(resp.text), indent=2))
         except Exception as e:  # noqa: BLE001
-            print(f"Error: {e}")
+            print(f"params error: {e}")
+        try:
+            resp = requests.get(graph_url, timeout=5)
+            g = json.loads(resp.text)
+            if g.get("nodes"):
+                print("graph:", json.dumps(g, indent=2))
+        except Exception as e:  # noqa: BLE001
+            print(f"graph error: {e}")
         time.sleep(2)
 
 
