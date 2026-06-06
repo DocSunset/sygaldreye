@@ -240,11 +240,16 @@ void android_main(struct android_app* app) {
             return "{\"nodes\":[],\"edges\":[]}";
         });
     http_server.add_route("POST", "/graph",
-        [&state](std::string_view body) -> std::string {
+        [&state, &http_server](std::string_view body) -> std::string {
             auto g = parse_graph(std::string(body), state.registry_);
             if (!g) return R"({"ok":false,"error":"parse_graph failed"})";
-            std::lock_guard<std::mutex> lock(state.graph_mutex_);
-            state.pending_graph_ = std::move(g);
+            auto graph_json = serialize_graph(*g);
+            {
+                std::lock_guard<std::mutex> lock(state.graph_mutex_);
+                state.pending_graph_ = std::move(g);
+            }
+            // Notify SSE clients of the new graph
+            http_server.broadcast_event("graph", graph_json);
             return R"({"ok":true})";
         });
     http_server.add_route("GET", "/palette",
