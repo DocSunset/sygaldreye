@@ -46,6 +46,7 @@ add_subdirectory(components/eyeballs_node_abi)
 add_subdirectory(components/component_registry)
 add_subdirectory(components/signal_graph)
 add_subdirectory(components/host_gl_window)
+add_subdirectory(app/spectator)
 
 if(CMAKE_CROSSCOMPILING)
     # OpenXR loader (Android only)
