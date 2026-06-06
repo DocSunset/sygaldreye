@@ -6,6 +6,8 @@ import json
 import os
 import re
 import socket
+import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -233,7 +235,20 @@ def main():
     parser.add_argument("--host", help="Headset IP (skip mDNS discovery)")
     parser.add_argument("--port", type=int, default=8080, help="HTTP port (default 8080)")
     parser.add_argument("--flask-port", type=int, default=9090, help="Flask listen port (default 9090)")
+    parser.add_argument("--freeze", action="store_true",
+                        help="Freeze current graph, compile, and upload to headset, then exit")
     args = parser.parse_args()
+
+    if args.freeze:
+        host = args.host or "127.0.0.1"
+        headset_url = f"http://{host}:{args.port}"
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        result = subprocess.run(
+            [sys.executable, os.path.join(repo_root, "companion/compile_frozen.py"),
+             "--headset", headset_url,
+             "--repo", repo_root],
+        )
+        return result.returncode
 
     if args.set:
         if args.host:
