@@ -1,7 +1,8 @@
 // Copyright 2025 Travis West
 #pragma once
-#include "eyeballs_node_abi.h"
+#include "eyeballs_node_abi.hpp"
 #include "component_registry.hpp"
+#include "gpu_texture.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -21,7 +22,8 @@ struct Edge {
 struct Graph {
     std::vector<NodeInstance>               nodes;
     std::vector<Edge>                       edges;
-    std::unordered_map<std::string, double> values;  // "node_id.port_name" → value
+    std::unordered_map<std::string, double>     values;   // "node_id.port_name" → scalar
+    std::unordered_map<std::string, GpuTexture> textures; // "node_id.port_name" → texture
 
     ~Graph();
 };

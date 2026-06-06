@@ -9,29 +9,31 @@ static int nodeB_process_count = 0;
 
 static EyeballsNodeDescriptor make_node_a_desc() {
     return {
-        .version     = EYEBALLS_ABI_VERSION,
-        .type_name   = "node_a",
-        .description = nullptr,
-        .create      = []() -> void* { return new int{0}; },
-        .destroy     = [](void* p) { delete static_cast<int*>(p); },
-        .process     = [](void*, double) { ++nodeA_process_count; },
-        .serialize   = [](void*) -> const char* { return strdup("{}"); },
-        .free_str    = [](const char* s) { free(const_cast<char*>(s)); },
-        .deserialize = [](void*, const char*) {},
+        .version       = EYEBALLS_ABI_VERSION,
+        .type_name     = "node_a",
+        .description   = nullptr,
+        .create        = []() -> void* { return new int{0}; },
+        .destroy       = [](void* p) { delete static_cast<int*>(p); },
+        .process       = [](void*, double) { ++nodeA_process_count; },
+        .serialize     = [](void*) -> const char* { return strdup("{}"); },
+        .free_str      = [](const char* s) { free(const_cast<char*>(s)); },
+        .deserialize   = [](void*, const char*) {},
+        .push_textures = nullptr,
     };
 }
 
 static EyeballsNodeDescriptor make_node_b_desc() {
     return {
-        .version     = EYEBALLS_ABI_VERSION,
-        .type_name   = "node_b",
-        .description = nullptr,
-        .create      = []() -> void* { return new int{0}; },
-        .destroy     = [](void* p) { delete static_cast<int*>(p); },
-        .process     = [](void*, double) { ++nodeB_process_count; },
-        .serialize   = [](void*) -> const char* { return strdup("{}"); },
-        .free_str    = [](const char* s) { free(const_cast<char*>(s)); },
-        .deserialize = [](void*, const char*) {},
+        .version       = EYEBALLS_ABI_VERSION,
+        .type_name     = "node_b",
+        .description   = nullptr,
+        .create        = []() -> void* { return new int{0}; },
+        .destroy       = [](void* p) { delete static_cast<int*>(p); },
+        .process       = [](void*, double) { ++nodeB_process_count; },
+        .serialize     = [](void*) -> const char* { return strdup("{}"); },
+        .free_str      = [](const char* s) { free(const_cast<char*>(s)); },
+        .deserialize   = [](void*, const char*) {},
+        .push_textures = nullptr,
     };
 }
 

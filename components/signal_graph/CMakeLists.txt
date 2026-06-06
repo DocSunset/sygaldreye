@@ -1,6 +1,6 @@
 add_library(signal_graph STATIC signal_graph.cpp)
 target_include_directories(signal_graph PUBLIC .)
-target_link_libraries(signal_graph PUBLIC component_registry eyeballs_node_abi)
+target_link_libraries(signal_graph PUBLIC component_registry eyeballs_node_abi gpu_texture)
 target_compile_options(signal_graph PRIVATE -Wall -Wextra)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)

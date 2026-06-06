@@ -32,8 +32,8 @@ bool ComponentRegistry::load_plugin(const std::string& path) {
         return false;
     }
     const EyeballsNodeDescriptor* desc = fn();
-    if (!desc || desc->version != EYEBALLS_ABI_VERSION) {
-        LOGE("component_registry: ABI version mismatch in %s", path.c_str());
+    if (!desc || desc->version < 1) {
+        LOGE("component_registry: ABI version too old in %s", path.c_str());
         dlclose(handle);
         return false;
     }

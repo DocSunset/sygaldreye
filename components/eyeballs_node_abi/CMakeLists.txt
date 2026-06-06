@@ -1,6 +1,6 @@
 add_library(eyeballs_node_abi INTERFACE)
 target_include_directories(eyeballs_node_abi INTERFACE .)
-target_link_libraries(eyeballs_node_abi INTERFACE param_registry)
+target_link_libraries(eyeballs_node_abi INTERFACE param_registry gpu_texture)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)
 add_library(eyeballs_node_abi_gtest STATIC
