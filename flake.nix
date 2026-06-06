@@ -59,9 +59,11 @@
           msdfAtlasGen         # offline MSDF atlas generation
           pkgs.gtest
           pkgs.stb
+          pkgs.boost
         ];
 
         ANDROID_NDK_ROOT = ndkRoot;
+        BOOST_INCLUDE_DIR = "${pkgs.boost}/include";
         STB_INCLUDE_DIR = "${pkgs.stb}/include/stb";
         ANDROID_SDK_ROOT = "${androidComposition.androidsdk}/libexec/android-sdk";
         OPENXR_SDK_SRC = openxr-sdk;
