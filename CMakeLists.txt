@@ -40,6 +40,7 @@ add_subdirectory(components/aurora)
 add_subdirectory(components/lissajous)
 add_subdirectory(components/chladni)
 add_subdirectory(components/reaction_diffusion)
+add_subdirectory(components/http_server)
 
 if(CMAKE_CROSSCOMPILING)
     # OpenXR loader (Android only)
