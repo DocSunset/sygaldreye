@@ -40,7 +40,9 @@ struct WaterParams {
 
 class WaterSurface {
 public:
-    static consteval std::string_view name() { return "water_surface"; }
+    static consteval std::string_view name()          { return "water_surface"; }
+    static consteval std::string_view source_header() { return "components/water_surface/water_surface.hpp"; }
+    static consteval std::string_view source_cpp()    { return "components/water_surface/water_surface.cpp"; }
 
     struct inputs {
         slider<"cell size",      "", float, 0.1, 5.0,  1.0>  cell_size;

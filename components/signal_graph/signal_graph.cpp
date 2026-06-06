@@ -97,6 +97,16 @@ std::string serialize_graph(const Graph& g) {
             out += ",\"params\":"; out += s;
             if (n.desc->free_str) n.desc->free_str(s);
         }
+        if (n.desc->source_header || n.desc->source_cpp) {
+            out += ",\"provenance\":{\"kind\":\"local\"";
+            if (n.desc->source_header) {
+                out += ",\"header\":\""; out += n.desc->source_header; out += '"';
+            }
+            if (n.desc->source_cpp) {
+                out += ",\"source\":\""; out += n.desc->source_cpp; out += '"';
+            }
+            out += '}';
+        }
         out += '}';
     }
     out += "],\"edges\":[]}";

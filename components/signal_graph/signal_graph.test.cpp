@@ -19,6 +19,8 @@ static EyeballsNodeDescriptor make_node_a_desc() {
         .free_str      = [](const char* s) { free(const_cast<char*>(s)); },
         .deserialize   = [](void*, const char*) {},
         .push_textures = nullptr,
+        .source_header = nullptr,
+        .source_cpp    = nullptr,
     };
 }
 
@@ -34,6 +36,8 @@ static EyeballsNodeDescriptor make_node_b_desc() {
         .free_str      = [](const char* s) { free(const_cast<char*>(s)); },
         .deserialize   = [](void*, const char*) {},
         .push_textures = nullptr,
+        .source_header = nullptr,
+        .source_cpp    = nullptr,
     };
 }
 

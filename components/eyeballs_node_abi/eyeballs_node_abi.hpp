@@ -15,6 +15,12 @@ template<typename N>
 concept HasProcess = requires(N& n, double t) { n(t); };
 
 template<typename N>
+concept HasSourceHeader = requires { { N::source_header() } -> std::convertible_to<std::string_view>; };
+
+template<typename N>
+concept HasSourceCpp = requires { { N::source_cpp() } -> std::convertible_to<std::string_view>; };
+
+template<typename N>
 concept HasName = requires { { N::name() } -> std::convertible_to<std::string_view>; };
 
 // Detect whether a field is a texture_output<> by checking for GpuTexture value member.
@@ -60,6 +66,15 @@ const EyeballsNodeDescriptor* make_descriptor() {
         };
     }
 
+    static const char* source_header_ptr = nullptr;
+    if constexpr (HasSourceHeader<Node>) {
+        source_header_ptr = Node::source_header().data();
+    }
+    static const char* source_cpp_ptr = nullptr;
+    if constexpr (HasSourceCpp<Node>) {
+        source_cpp_ptr = Node::source_cpp().data();
+    }
+
     static EyeballsNodeDescriptor d {
         .version       = EYEBALLS_ABI_VERSION,
         .type_name     = Node::name().data(),
@@ -76,6 +91,8 @@ const EyeballsNodeDescriptor* make_descriptor() {
             from_json(*static_cast<Node*>(p), json);
         },
         .push_textures = push_textures_fn,
+        .source_header = source_header_ptr,
+        .source_cpp    = source_cpp_ptr,
     };
     return &d;
 }

@@ -29,7 +29,9 @@ struct SkyParams {
 
 class SkyDome {
 public:
-    static consteval std::string_view name() { return "sky_dome"; }
+    static consteval std::string_view name()          { return "sky_dome"; }
+    static consteval std::string_view source_header() { return "components/sky_dome/sky_dome.hpp"; }
+    static consteval std::string_view source_cpp()    { return "components/sky_dome/sky_dome.cpp"; }
 
     struct inputs {
         slider<"sun elevation", "", float, -1.0, 1.0, 0.5> sun_elevation;

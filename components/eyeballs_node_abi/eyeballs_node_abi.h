@@ -2,7 +2,7 @@
 #ifndef EYEBALLS_NODE_ABI_H
 #define EYEBALLS_NODE_ABI_H
 
-#define EYEBALLS_ABI_VERSION 2
+#define EYEBALLS_ABI_VERSION 3
 
 typedef struct {
     int         version;       /* must be >= 1, current is EYEBALLS_ABI_VERSION */
@@ -16,6 +16,9 @@ typedef struct {
     void        (*deserialize)(void* node, const char* json);
     /* v2: push texture outputs into the graph texture store; may be NULL */
     void        (*push_textures)(void* node, void* graph_ctx);
+    /* v3: relative paths to source files; may be NULL */
+    const char* source_header; /* relative path to .hpp, or NULL */
+    const char* source_cpp;    /* relative path to .cpp, or NULL */
 } EyeballsNodeDescriptor;
 
 /* Every plugin .so must export this symbol: */
