@@ -35,6 +35,8 @@ public:
         port<"render", DrawFn> render;
     } outputs;
 
+    Lissajous() { *this = create({}); }
+
     static Lissajous create(LissajousParams const&);
     void update(float time_s);
     void operator()(double time_s);

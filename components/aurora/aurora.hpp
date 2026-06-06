@@ -42,7 +42,7 @@ public:
     void draw(Eigen::Matrix4f const& vp) const;
 
     ~Aurora();
-    Aurora() = default;
+    Aurora();
     Aurora(Aurora const&) = delete;
     Aurora& operator=(Aurora const&) = delete;
     Aurora(Aurora&&) noexcept;

@@ -222,6 +222,8 @@ void Aurora::draw(Eigen::Matrix4f const& vp) const {
     glEnable(GL_DEPTH_TEST);
 }
 
+Aurora::Aurora() { *this = create({}); }
+
 Aurora::~Aurora() {
     for (auto& c : curtains_) {
         if (c.vao) { glDeleteVertexArrays(1, &c.vao); c.vao = 0; }

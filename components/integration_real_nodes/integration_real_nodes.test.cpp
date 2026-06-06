@@ -8,9 +8,10 @@
 #include "port_schema_reader.hpp"
 #include "water_surface.hpp"
 #include "sky_dome.hpp"
-// Note: lissajous, chladni, reaction_diffusion, aurora not tested here because their
-// default constructors leave internal buffers uninitialised; process() crashes without
-// first calling T::create(params). See kanban/backlog: fix-visual-node-default-ctors.
+#include "lissajous.hpp"
+#include "chladni.hpp"
+#include "reaction_diffusion.hpp"
+#include "aurora.hpp"
 #include <GLES3/gl3.h>
 #include <Eigen/Core>
 #include <gtest/gtest.h>
@@ -182,15 +183,14 @@ TEST_F(RealNodesTest, EdgePropagationSkyToWater) {
 
 TEST_F(RealNodesTest, AllVisualNodesHaveDrawCalls) {
     ASSERT_TRUE(ctx_.has_value());
-    // Only test nodes whose default constructors produce a safe-to-process state.
-    // Lissajous, Chladni, ReactionDiffusion, and Aurora rely on their static create()
-    // factory to initialize internal buffers; their default ctors leave buffers empty,
-    // so calling process() on a default-constructed instance crashes.
-    // See kanban/backlog for the fix-default-ctor work item.
     struct NodeDesc { const char* type; const EyeballsNodeDescriptor* desc; };
     static NodeDesc nodes[] = {
-        { "sky_dome",      make_descriptor<SkyDome>() },
-        { "water_surface", make_descriptor<WaterSurface>() },
+        { "sky_dome",           make_descriptor<SkyDome>() },
+        { "water_surface",      make_descriptor<WaterSurface>() },
+        { "lissajous",          make_descriptor<Lissajous>() },
+        { "chladni",            make_descriptor<Chladni>() },
+        { "reaction_diffusion", make_descriptor<ReactionDiffusion>() },
+        { "aurora",             make_descriptor<Aurora>() },
     };
 
     for (auto& nd : nodes) {

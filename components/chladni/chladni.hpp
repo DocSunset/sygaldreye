@@ -30,6 +30,8 @@ public:
         port<"render", DrawFn> render;
     } outputs;
 
+    Chladni() { *this = create({}); }
+
     static Chladni create(ChladniParams const&);
     void update(float time_s);
     void operator()(double time_s);

@@ -36,6 +36,8 @@ public:
         port<"render", DrawFn> render;
     } outputs;
 
+    ReactionDiffusion() { *this = create({}); }
+
     static ReactionDiffusion create(RDParams const&);
     void update();
     void operator()(double time_s);
