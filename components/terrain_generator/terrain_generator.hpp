@@ -5,7 +5,9 @@
 #include "light.hpp"
 #include "material.hpp"
 #include "gl_program.hpp"
+#include "sygaldry_endpoints.hpp"
 #include <memory>
+#include <string_view>
 
 struct TerrainBand {
     float           threshold; // normalized height [0,1]
@@ -42,6 +44,19 @@ TriMeshData generate_terrain(TerrainParams const&);
 
 class TerrainRenderer {
 public:
+    static consteval std::string_view name()          { return "terrain"; }
+    static consteval std::string_view source_header() { return "components/terrain_generator/terrain_generator.hpp"; }
+    static consteval std::string_view source_cpp()    { return "components/terrain_generator/terrain_generator.cpp"; }
+
+    struct inputs {
+        slider<"height scale",    "", float, fp(0.f),    fp(100.f),  fp(20.f)>  height_scale;
+        slider<"lacunarity",      "", float, fp(1.f),    fp(4.f),    fp(2.f)>   lacunarity;
+        slider<"gain",            "", float, fp(0.1f),   fp(1.f),    fp(0.5f)>  gain;
+        slider<"noise offset x",  "", float, fp(-100.f), fp(100.f),  fp(0.f)>   noise_offset_x;
+        slider<"noise offset z",  "", float, fp(-100.f), fp(100.f),  fp(0.f)>   noise_offset_z;
+        slider<"sun intensity",   "", float, fp(0.f),    fp(5.f),    fp(1.2f)>  sun_intensity;
+    } inputs;
+
     static TerrainRenderer create(TerrainParams const&);
 
     TerrainRenderer() = default;
@@ -51,7 +66,12 @@ public:
     TerrainRenderer(TerrainRenderer&&) noexcept = default;
     TerrainRenderer& operator=(TerrainRenderer&&) noexcept = default;
 
+    struct outputs {
+        port<"render", DrawFn> render;
+    } outputs;
+
     void set_sun(Light const& sun);
+    void operator()(double time_s);
     void draw(Eigen::Matrix4f const& mvp,
               Eigen::Matrix4f const& model,
               Eigen::Vector3f const& view_pos) const;

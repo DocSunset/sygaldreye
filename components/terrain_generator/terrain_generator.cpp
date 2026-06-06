@@ -159,6 +159,28 @@ TerrainRenderer TerrainRenderer::create(TerrainParams const& p) {
     return r;
 }
 
+void TerrainRenderer::operator()(double /*time_s*/) {
+    bool dirty = (params_.height_scale   != inputs.height_scale.value)
+              || (params_.lacunarity     != inputs.lacunarity.value)
+              || (params_.gain           != inputs.gain.value)
+              || (params_.noise_offset_x != inputs.noise_offset_x.value)
+              || (params_.noise_offset_z != inputs.noise_offset_z.value);
+    params_.height_scale   = inputs.height_scale.value;
+    params_.lacunarity     = inputs.lacunarity.value;
+    params_.gain           = inputs.gain.value;
+    params_.noise_offset_x = inputs.noise_offset_x.value;
+    params_.noise_offset_z = inputs.noise_offset_z.value;
+    params_.sun.intensity  = inputs.sun_intensity.value;
+    if (dirty) {
+        auto saved = inputs;
+        *this = TerrainRenderer::create(params_);
+        inputs = saved;
+    }
+    outputs.render.value = [this](const Eigen::Matrix4f& vp) {
+        draw(vp, Eigen::Matrix4f::Identity(), Eigen::Vector3f::Zero());
+    };
+}
+
 void TerrainRenderer::set_sun(Light const& sun) { params_.sun = sun; }
 
 void TerrainRenderer::draw(Eigen::Matrix4f const& mvp,

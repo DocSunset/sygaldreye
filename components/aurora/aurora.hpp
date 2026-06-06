@@ -1,8 +1,10 @@
 // Copyright 2025 Travis West
 #pragma once
 #include "gl_program.hpp"
+#include "sygaldry_endpoints.hpp"
 #include <Eigen/Core>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 struct AuroraParams {
@@ -18,8 +20,25 @@ struct AuroraParams {
 
 class Aurora {
 public:
+    static consteval std::string_view name()          { return "aurora"; }
+    static consteval std::string_view source_header() { return "components/aurora/aurora.hpp"; }
+    static consteval std::string_view source_cpp()    { return "components/aurora/aurora.cpp"; }
+
+    struct inputs {
+        slider<"curtain width",    "", float, fp(50.f),  fp(1000.f), fp(400.f)> curtain_width;
+        slider<"altitude base",    "", float, fp(0.f),   fp(200.f),  fp(60.f)>  altitude_base;
+        slider<"altitude height",  "", float, fp(10.f),  fp(500.f),  fp(170.f)> altitude_height;
+        slider<"ripple amplitude", "", float, fp(0.f),   fp(100.f),  fp(22.f)>  ripple_amplitude;
+        slider<"ripple speed",     "", float, fp(0.f),   fp(5.f),    fp(0.5f)>  ripple_speed;
+    } inputs;
+
+    struct outputs {
+        port<"render", DrawFn> render;
+    } outputs;
+
     static Aurora create(AuroraParams const&);
     void update(float time_s);
+    void operator()(double time_s);
     void draw(Eigen::Matrix4f const& vp) const;
 
     ~Aurora();

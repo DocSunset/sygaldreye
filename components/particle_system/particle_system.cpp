@@ -69,6 +69,23 @@ void ParticleSystem::destroy_gl_resources() {
 
 void ParticleSystem::set_emitter(EmitterParams const& p) { params_ = p; }
 
+void ParticleSystem::operator()(double time_s) {
+    params_.emit_rate    = inputs.emit_rate.value;
+    params_.lifetime_min = inputs.lifetime_min.value;
+    params_.lifetime_max = inputs.lifetime_max.value;
+    params_.size_start   = inputs.size_start.value;
+    params_.size_end     = inputs.size_end.value;
+    float dt = (prev_time_ < 0.0) ? 0.0f : static_cast<float>(time_s - prev_time_);
+    prev_time_ = time_s;
+    if (dt > 0.f) update(dt);
+    outputs.render.value = [this](const Eigen::Matrix4f& vp) {
+        // Camera right and up derived from view matrix rows
+        Eigen::Vector3f right = vp.row(0).head<3>().normalized();
+        Eigen::Vector3f up    = vp.row(1).head<3>().normalized();
+        draw(vp, right, up);
+    };
+}
+
 void ParticleSystem::emit_one(float lifetime) {
     Particle& p = pool_[static_cast<size_t>(next_dead_ % capacity_)];
     p.position  = params_.origin;

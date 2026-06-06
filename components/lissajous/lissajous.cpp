@@ -100,6 +100,17 @@ void Lissajous::update(float time_s) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+void Lissajous::operator()(double time_s) {
+    params_.freq_x  = inputs.freq_x.value;
+    params_.freq_y  = inputs.freq_y.value;
+    params_.freq_z  = inputs.freq_z.value;
+    params_.phase_x = inputs.phase_x.value;
+    params_.amp     = inputs.amp.value;
+    params_.samples = static_cast<int>(inputs.samples.value);
+    update(static_cast<float>(time_s));
+    outputs.render.value = [this](const Eigen::Matrix4f& vp) { draw(vp); };
+}
+
 void Lissajous::draw(Eigen::Matrix4f const& mvp) const {
     if (!prog_) return;
     prog_->use();

@@ -162,6 +162,17 @@ void ReactionDiffusion::update() {
     mesh_.update(data_);
 }
 
+void ReactionDiffusion::operator()(double /*time_s*/) {
+    params_.Du              = inputs.Du.value;
+    params_.Dv              = inputs.Dv.value;
+    params_.F               = inputs.F.value;
+    params_.k               = inputs.k.value;
+    params_.dt              = inputs.dt.value;
+    params_.steps_per_frame = static_cast<int>(inputs.steps_per_frame.value);
+    update();
+    outputs.render.value = [this](const Eigen::Matrix4f& vp) { draw(vp); };
+}
+
 void ReactionDiffusion::draw(Eigen::Matrix4f const& mvp) const {
     if (!prog_) return;
     prog_->use();

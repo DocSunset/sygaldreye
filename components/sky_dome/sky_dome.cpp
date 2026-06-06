@@ -41,6 +41,14 @@ SkyDome SkyDome::create(SkyParams const& p) {
 
 void SkyDome::set_params(SkyParams const& p) { params_ = p; }
 
+void SkyDome::operator()(double /*time_s*/) {
+    // Sync params from input ports
+    params_.sun_elevation = inputs.sun_elevation.value;
+    params_.star_count    = static_cast<int>(inputs.star_count.value);
+    params_.radius        = inputs.radius.value;
+    outputs.render.value  = [this](const Eigen::Matrix4f& vp) { draw(vp); };
+}
+
 void SkyDome::draw(Eigen::Matrix4f const& vp) const {
     if (!sky_prog_) { LOGE("sky_prog_ is null, skipping draw"); return; }
     static bool once = false;

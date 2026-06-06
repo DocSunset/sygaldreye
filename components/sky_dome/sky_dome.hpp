@@ -39,6 +39,12 @@ public:
         slider<"radius",        "", float, 10.0, 2000.0, 500.0> radius;
     } inputs;
 
+    struct outputs {
+        port<"render", DrawFn> render;
+    } outputs;
+
+    void operator()(double time_s);
+
     static SkyDome create(SkyParams const&);
 
     SkyDome() = default;

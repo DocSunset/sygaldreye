@@ -50,6 +50,12 @@ public:
         slider<"sun intensity",  "", float, 0.0, 5.0,  1.2>  sun_intensity;
     } inputs;
 
+    struct outputs {
+        port<"render", DrawFn> render;
+    } outputs;
+
+    void operator()(double time_s);
+
     static WaterSurface create(WaterParams const&);
 
     WaterSurface() = default;

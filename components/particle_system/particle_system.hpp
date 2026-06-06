@@ -2,7 +2,9 @@
 #include <Eigen/Core>
 #include <GLES3/gl3.h>
 #include <memory>
+#include <string_view>
 #include <vector>
+#include "sygaldry_endpoints.hpp"
 
 struct GlProgram;
 
@@ -25,15 +27,32 @@ struct EmitterParams {
 
 class ParticleSystem {
 public:
-    explicit ParticleSystem(int capacity);
+    static consteval std::string_view name()          { return "particle_system"; }
+    static consteval std::string_view source_header() { return "components/particle_system/particle_system.hpp"; }
+    static consteval std::string_view source_cpp()    { return "components/particle_system/particle_system.cpp"; }
+
+    struct inputs {
+        slider<"emit rate",    "", float, fp(0.f),   fp(500.f),  fp(50.f)>  emit_rate;
+        slider<"lifetime min", "", float, fp(0.1f),  fp(10.f),   fp(0.5f)>  lifetime_min;
+        slider<"lifetime max", "", float, fp(0.1f),  fp(10.f),   fp(2.f)>   lifetime_max;
+        slider<"size start",   "", float, fp(0.01f), fp(1.f),    fp(0.05f)> size_start;
+        slider<"size end",     "", float, fp(0.f),   fp(1.f),    fp(0.f)>   size_end;
+    } inputs;
+
+    explicit ParticleSystem(int capacity = 1000);
     ~ParticleSystem();
     ParticleSystem(const ParticleSystem&) = delete;
     ParticleSystem& operator=(const ParticleSystem&) = delete;
     ParticleSystem(ParticleSystem&&) noexcept;
     ParticleSystem& operator=(ParticleSystem&&) noexcept;
 
+    struct outputs {
+        port<"render", DrawFn> render;
+    } outputs;
+
     void set_emitter(EmitterParams const&);
     void update(float dt, Eigen::Vector3f gravity = {0.f, -9.8f, 0.f});
+    void operator()(double time_s);
     void draw(Eigen::Matrix4f const& vp,
               Eigen::Vector3f camera_right,
               Eigen::Vector3f camera_up) const;
@@ -58,4 +77,5 @@ private:
     GLint  loc_up_    = -1;
 
     mutable std::vector<float> inst_buf_;
+    double                prev_time_ = -1.0;
 };

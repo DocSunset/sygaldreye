@@ -208,6 +208,14 @@ WaterSurface WaterSurface::create(WaterParams const& p) {
     return w;
 }
 
+void WaterSurface::operator()(double time_s) {
+    update(static_cast<float>(time_s));
+    outputs.render.value = [this](const Eigen::Matrix4f& vp) {
+        // Use identity model and zero view_pos as defaults; app can override via set_sun().
+        draw(vp, Eigen::Matrix4f::Identity(), Eigen::Vector3f::Zero());
+    };
+}
+
 void WaterSurface::draw(Eigen::Matrix4f const& mvp,
                         Eigen::Matrix4f const& model,
                         Eigen::Vector3f const& view_pos) const {
