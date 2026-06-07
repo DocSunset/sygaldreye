@@ -36,6 +36,7 @@
 #include "reaction_diffusion.hpp"
 #include "water_surface.hpp"
 #include "sky_dome.hpp"
+#include "ptt_gate.hpp"
 #include <GLES3/gl3.h>
 #include <cmath>
 #include <cstdio>
@@ -176,6 +177,7 @@ void android_main(struct android_app* app) {
     state.registry_.register_builtin(make_descriptor<ParticleSystem>());
     state.registry_.register_builtin(make_descriptor<ReactionDiffusion>());
     state.registry_.register_builtin(make_descriptor<RendererNode>());
+    state.registry_.register_builtin(make_descriptor<PttGate>());
 
     constexpr const char* kDefaultGraph = R"({
         "nodes":[
