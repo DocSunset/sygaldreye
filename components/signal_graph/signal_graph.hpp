@@ -34,9 +34,14 @@ struct Edge {
     std::string to_node,   to_port;
 };
 
+struct InletDecl  { std::string name, node, port; };
+struct OutletDecl { std::string name, node, port; };
+
 struct Graph {
     std::vector<NodeInstance>                    nodes;
     std::vector<Edge>                            edges;
+    std::vector<InletDecl>                       inlets;
+    std::vector<OutletDecl>                      outlets;
     std::unordered_map<std::string, PortValue>   values;      // "node_id.port_name" → typed value
     std::vector<DrawFn>                          draw_calls;  // cleared each tick
 

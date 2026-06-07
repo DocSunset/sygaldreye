@@ -193,6 +193,57 @@ TEST(SignalGraph, TickGraphCollectsDrawCalls) {
     EXPECT_TRUE(DrawNode::drawn);
 }
 
+TEST(SignalGraph, InletOutletRoundTrip) {
+    static auto desc_a = make_node_a_desc();
+    static auto desc_b = make_node_b_desc();
+    ComponentRegistry reg;
+    reg.register_builtin(&desc_a);
+    reg.register_builtin(&desc_b);
+
+    const char* json = R"({
+        "nodes":[
+            {"id":"a","type":"node_a","params":{}},
+            {"id":"b","type":"node_b","params":{}}
+        ],
+        "edges":[],
+        "inlets":[{"name":"in1","node":"a","port":"x"}],
+        "outlets":[{"name":"out1","node":"b","port":"y"}]
+    })";
+
+    auto g = parse_graph(json, reg);
+    ASSERT_NE(g, nullptr);
+    ASSERT_EQ(g->inlets.size(), 1u);
+    EXPECT_EQ(g->inlets[0].name, "in1");
+    EXPECT_EQ(g->inlets[0].node, "a");
+    EXPECT_EQ(g->inlets[0].port, "x");
+    ASSERT_EQ(g->outlets.size(), 1u);
+    EXPECT_EQ(g->outlets[0].name, "out1");
+    EXPECT_EQ(g->outlets[0].node, "b");
+    EXPECT_EQ(g->outlets[0].port, "y");
+
+    auto s = serialize_graph(*g);
+    EXPECT_NE(s.find("\"inlets\""), std::string::npos);
+    EXPECT_NE(s.find("\"outlets\""), std::string::npos);
+    EXPECT_NE(s.find("in1"), std::string::npos);
+    EXPECT_NE(s.find("out1"), std::string::npos);
+}
+
+TEST(SignalGraph, NoInletsOutletsIsEmpty) {
+    static auto desc_a = make_node_a_desc();
+    ComponentRegistry reg;
+    reg.register_builtin(&desc_a);
+
+    const char* json = R"({"nodes":[{"id":"a","type":"node_a","params":{}}],"edges":[]})";
+    auto g = parse_graph(json, reg);
+    ASSERT_NE(g, nullptr);
+    EXPECT_TRUE(g->inlets.empty());
+    EXPECT_TRUE(g->outlets.empty());
+
+    auto s = serialize_graph(*g);
+    EXPECT_EQ(s.find("\"inlets\""), std::string::npos);
+    EXPECT_EQ(s.find("\"outlets\""), std::string::npos);
+}
+
 TEST(SignalGraph, EdgeRoundTrip) {
     static auto desc_a = make_node_a_desc();
     static auto desc_b = make_node_b_desc();

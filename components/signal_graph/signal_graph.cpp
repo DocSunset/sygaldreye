@@ -112,6 +112,36 @@ std::unique_ptr<Graph> parse_graph(const std::string& json, const ComponentRegis
         }
     }
 
+    // Parse inlets array
+    auto inlets_key = std::string_view(json).find("\"inlets\"");
+    if (inlets_key != std::string_view::npos) {
+        auto ia_start = json.find('[', inlets_key);
+        if (ia_start != std::string_view::npos) {
+            for (const auto& obj : split_array_objects(std::string_view(json).substr(ia_start))) {
+                InletDecl d;
+                d.name = find_string(obj, "name");
+                d.node = find_string(obj, "node");
+                d.port = find_string(obj, "port");
+                g->inlets.push_back(std::move(d));
+            }
+        }
+    }
+
+    // Parse outlets array
+    auto outlets_key = std::string_view(json).find("\"outlets\"");
+    if (outlets_key != std::string_view::npos) {
+        auto oa_start = json.find('[', outlets_key);
+        if (oa_start != std::string_view::npos) {
+            for (const auto& obj : split_array_objects(std::string_view(json).substr(oa_start))) {
+                OutletDecl d;
+                d.name = find_string(obj, "name");
+                d.node = find_string(obj, "node");
+                d.port = find_string(obj, "port");
+                g->outlets.push_back(std::move(d));
+            }
+        }
+    }
+
     return g;
 }
 
@@ -149,7 +179,32 @@ std::string serialize_graph(const Graph& g) {
         out += "\",\"to\":\""; out += e.to_node;   out += '.'; out += e.to_port;
         out += "\"}";
     }
-    out += "]}";
+    out += ']';
+    if (!g.inlets.empty()) {
+        out += ",\"inlets\":[";
+        bool first_in = true;
+        for (const auto& d : g.inlets) {
+            if (!first_in) out += ',';
+            first_in = false;
+            out += "{\"name\":\""; out += d.name;
+            out += "\",\"node\":\""; out += d.node;
+            out += "\",\"port\":\""; out += d.port; out += "\"}";
+        }
+        out += ']';
+    }
+    if (!g.outlets.empty()) {
+        out += ",\"outlets\":[";
+        bool first_out = true;
+        for (const auto& d : g.outlets) {
+            if (!first_out) out += ',';
+            first_out = false;
+            out += "{\"name\":\""; out += d.name;
+            out += "\",\"node\":\""; out += d.node;
+            out += "\",\"port\":\""; out += d.port; out += "\"}";
+        }
+        out += ']';
+    }
+    out += '}';
     return out;
 }
 
