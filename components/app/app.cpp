@@ -11,9 +11,8 @@
 #include "http_server.hpp"
 #include "mdns_advertiser.hpp"
 #include "param_registry.hpp"
-#include "mic_capture.hpp"
-#include "push_to_talk.hpp"
 #include "eyeballs_node_abi.hpp"
+#include "speech_to_text.hpp"
 #include "component_registry.hpp"
 #include "signal_graph.hpp"
 #include "vr_editor.hpp"
@@ -68,11 +67,8 @@ struct AppState {
     Scene scene_{};
     Input input_{};
     TextMesh text_mesh_{};
-    std::optional<MicCapture>    mic_{};
-    PushToTalk                   push_to_talk_{};
     ComponentRegistry            registry_{};
     VrEditor                     vr_editor_{};
-    bool                         prev_trigger_left_ = false;
     std::mutex                   graph_mutex_{};
     std::unique_ptr<Graph>       pending_graph_{};
     std::unique_ptr<Graph>       active_graph_{};
@@ -182,6 +178,7 @@ void android_main(struct android_app* app) {
     state.registry_.register_builtin(make_descriptor<MicInputNode>());
     state.registry_.register_builtin(make_descriptor<CubeNode>());
     state.registry_.register_builtin(make_descriptor<TextLabelNode>());
+    state.registry_.register_builtin(make_descriptor<SpeechToTextNode>());
 
     constexpr const char* kDefaultGraph = R"({
         "nodes":[
@@ -200,20 +197,6 @@ void android_main(struct android_app* app) {
         state.active_graph_ = std::move(g);
 
     state.vr_editor_.init(state.registry_, state.active_graph_.get());
-
-    constexpr const char* kCompanionUrl = "http://192.168.1.1:9090";
-    state.push_to_talk_.set_companion_url(kCompanionUrl);
-    LOG("push_to_talk: using fallback companion URL %s", kCompanionUrl);
-
-    state.mic_ = MicCapture::create([&state](const float* samples, int frames) {
-        state.push_to_talk_.feed(samples, frames);
-    });
-    if (state.mic_) {
-        state.mic_->start();
-        LOG("mic capture started");
-    } else {
-        LOGE("mic capture failed to create");
-    }
 
     const char* data_path = app->activity->internalDataPath;
     HttpServer http_server;
@@ -330,17 +313,6 @@ void android_main(struct android_app* app) {
                                        state.xrSession.should_render())) {
                     LOGW("input sync failed — skipping input");
                 }
-
-                bool trigger_left = state.input_.trigger_pressed(Hand::LEFT);
-                if (trigger_left && !state.prev_trigger_left_) {
-                    state.push_to_talk_.begin_recording();
-                    LOG("push_to_talk: recording started");
-                } else if (!trigger_left && state.prev_trigger_left_) {
-                    state.push_to_talk_.end_recording([](std::string_view text) {
-                        LOG("transcript: %s", std::string(text).c_str());
-                    });
-                }
-                state.prev_trigger_left_ = trigger_left;
 
                 auto lh = state.input_.hand_pose(Hand::LEFT);
                 auto rh = state.input_.hand_pose(Hand::RIGHT);
