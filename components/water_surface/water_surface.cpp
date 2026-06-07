@@ -1,5 +1,6 @@
 // Copyright 2025 Travis West
 #include "water_surface.hpp"
+#include "glsl_blinn_phong.hpp"
 #include "log.hpp"
 #include <Eigen/Geometry>
 #include <array>
@@ -84,9 +85,9 @@ void main() {
     vec3  viewDir  = normalize(uViewPos - vFragPos);
     vec3  norm     = normalize(cross(dFdx(vFragPos), dFdy(vFragPos)));
     if (dot(norm, viewDir) < 0.0) norm = -norm;
-    vec3  halfDir  = normalize(lightDir + viewDir);
-    float diff     = max(dot(norm, lightDir), 0.0);
-    float spec     = pow(max(dot(norm, halfDir), 0.0), uMatShininess);
+    vec2  ds   = blinn_phong(norm, lightDir, viewDir, uMatShininess);
+    float diff = ds.x;
+    float spec = ds.y;
     vec3  sun      = uSunColor * uSunIntensity;
     vec3  result   = base * uMatAmbient
                    + base * sun * diff
@@ -147,7 +148,8 @@ WaterSurface WaterSurface::create(WaterParams const& p) {
     WaterSurface w;
     w.params_ = p;
 
-    auto prog = GlProgram::build(VERT, FRAG);
+    std::string frag_src = std::string(BLINN_PHONG_GLSL) + FRAG;
+    auto prog = GlProgram::build(VERT, frag_src.c_str());
     if (!prog) { LOG_E(TAG, "shader build failed"); return w; }
     w.prog_            = std::make_unique<GlProgram>(std::move(*prog));
     w.mvp_loc_         = w.prog_->uniform_location("uMVP");

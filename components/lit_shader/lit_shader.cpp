@@ -1,5 +1,6 @@
 // Copyright 2024 Travis West
 #include "lit_shader.hpp"
+#include "glsl_blinn_phong.hpp"
 #include "gl_program.hpp"
 #include "light.hpp"
 #include "material.hpp"
@@ -57,9 +58,8 @@ void main() {
     for (int i = 0; i < MAX_LIGHTS; ++i) {
         if (i >= uLightCount) break;
         vec3 lightDir = normalize(-uLights[i].direction);
-        float diff = max(dot(norm, lightDir), 0.0);
-        vec3 halfDir = normalize(lightDir + viewDir);
-        float spec = pow(max(dot(norm, halfDir), 0.0), uMaterial.shininess);
+        vec2 ds = blinn_phong(norm, lightDir, viewDir, uMaterial.shininess);
+        float diff = ds.x, spec = ds.y;
         vec3 lightCol = uLights[i].color * uLights[i].intensity;
         result += uMaterial.ambient * lightCol;
         result += uMaterial.diffuse * lightCol * diff;
@@ -81,7 +81,8 @@ LitShader::LitShader(LitShader&&) noexcept = default;
 LitShader& LitShader::operator=(LitShader&&) noexcept = default;
 
 void LitShader::init() {
-    auto result = GlProgram::build(VERT, FRAG);
+    std::string frag_src = std::string(BLINN_PHONG_GLSL) + FRAG;
+    auto result = GlProgram::build(VERT, frag_src.c_str());
     if (!result) { LOGE("shader build failed"); return; }
     prog_ = std::make_unique<GlProgram>(std::move(*result));
     mvp_loc_          = prog_->uniform_location("uMVP");

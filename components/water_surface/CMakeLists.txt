@@ -1,7 +1,7 @@
 add_library(water_surface STATIC water_surface.cpp)
 target_include_directories(water_surface PUBLIC .)
 target_include_directories(water_surface PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(water_surface PUBLIC gl_program light material sygaldry_endpoints param_registry PRIVATE log_component)
+target_link_libraries(water_surface PUBLIC gl_program light material sygaldry_endpoints param_registry glsl_blinn_phong PRIVATE log_component)
 target_compile_options(water_surface PRIVATE -Wall -Wextra)
 
 if(CMAKE_CROSSCOMPILING)

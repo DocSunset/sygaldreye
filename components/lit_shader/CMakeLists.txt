@@ -1,7 +1,7 @@
 add_library(lit_shader STATIC lit_shader.cpp)
 target_include_directories(lit_shader PUBLIC .)
 target_include_directories(lit_shader PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(lit_shader PUBLIC gl_program log_component)
+target_link_libraries(lit_shader PUBLIC gl_program log_component glsl_blinn_phong)
 target_link_libraries(lit_shader PRIVATE light material)
 target_compile_options(lit_shader PRIVATE -Wall -Wextra)
 

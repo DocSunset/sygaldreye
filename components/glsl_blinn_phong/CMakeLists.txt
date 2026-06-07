@@ -1,0 +1,2 @@
+add_library(glsl_blinn_phong INTERFACE)
+target_include_directories(glsl_blinn_phong INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
