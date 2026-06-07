@@ -6,9 +6,8 @@
 #include "frame_loop.hpp"
 #include "scene.hpp"
 #include "input.hpp"
-#include "cube_mesh.hpp"
+#include "cube_node.hpp"
 #include "text_mesh.hpp"
-#include "light.hpp"
 #include "http_server.hpp"
 #include "mdns_advertiser.hpp"
 #include "param_registry.hpp"
@@ -37,7 +36,6 @@
 #include "water_surface.hpp"
 #include "sky_dome.hpp"
 #include <GLES3/gl3.h>
-#include <cmath>
 #include <cstdio>
 #include <ctime>
 #include <memory>
@@ -64,7 +62,6 @@ struct AppState {
     FrameLoop    frame_loop_{};
     Scene scene_{};
     Input input_{};
-    CubeMesh cube_mesh_{};
     TextMesh text_mesh_{};
     std::optional<MicCapture>    mic_{};
     PushToTalk                   push_to_talk_{};
@@ -75,7 +72,6 @@ struct AppState {
     std::unique_ptr<Graph>       pending_graph_{};
     std::unique_ptr<Graph>       active_graph_{};
     std::string                  meta_graph_json_{};
-    Light                        sun_light_{};
     double                       prev_frame_time_s_ = 0.0;
 };
 
@@ -152,7 +148,6 @@ void android_main(struct android_app* app) {
     if (!binding) { LOGE("renderer init failed"); return; }
     state.xrSession.create(state.xrInstance, state.xrSystemId, &binding->xr_binding);
     state.renderer.create_swapchains(state.xrInstance, state.xrSystemId, state.xrSession.get());
-    state.cube_mesh_.init();
     state.text_mesh_.init();
     state.input_.create(state.xrInstance, state.xrSession.get());
 
@@ -176,13 +171,15 @@ void android_main(struct android_app* app) {
     state.registry_.register_builtin(make_descriptor<ParticleSystem>());
     state.registry_.register_builtin(make_descriptor<ReactionDiffusion>());
     state.registry_.register_builtin(make_descriptor<RendererNode>());
+    state.registry_.register_builtin(make_descriptor<CubeNode>());
 
     constexpr const char* kDefaultGraph = R"({
         "nodes":[
             {"id":"sky","type":"sky_dome","params":{}},
             {"id":"water","type":"water_surface","params":{}},
             {"id":"head","type":"head_pose","params":{}},
-            {"id":"renderer","type":"renderer","params":{}}
+            {"id":"renderer","type":"renderer","params":{}},
+            {"id":"cube","type":"cube","params":{}}
         ],
         "edges":[
             {"from":"sky.sun_elevation_out","to":"water.sun intensity"}
@@ -374,21 +371,6 @@ void android_main(struct android_app* app) {
                     lh ? std::optional<XrPosef>{lh->pose} : std::nullopt,
                     rh ? std::optional<XrPosef>{rh->pose} : std::nullopt);
 
-                // Derive a sun light for scene cube rendering from time
-                {
-                    constexpr double kDayPeriod = 180.0;
-                    float phase      = static_cast<float>(fmod(time_sec + kDayPeriod * 0.25, kDayPeriod) / kDayPeriod);
-                    float elev_norm  = sinf(2.0f * static_cast<float>(M_PI) * phase);
-                    float elev_rad   = elev_norm * (static_cast<float>(M_PI) / 2.0f);
-                    float azimuth    = static_cast<float>(M_PI) * phase;
-                    float ce         = cosf(elev_rad);
-                    state.sun_light_.direction = {-ce * cosf(azimuth), -sinf(elev_rad), -ce * sinf(azimuth)};
-                    float warm = std::max(0.0f, 1.0f - fabsf(elev_norm) * 3.5f);
-                    warm *= warm;
-                    state.sun_light_.color = {1.0f, 0.85f + 0.15f * (1.0f - warm), 0.65f + 0.35f * (1.0f - warm)};
-                    state.sun_light_.intensity = std::max(0.05f, sinf(elev_rad) * 1.3f);
-                }
-
                 // Check RendererNode for eye-pose overrides
                 bool left_eye_override  = false;
                 bool right_eye_override = false;
@@ -416,8 +398,6 @@ void android_main(struct android_app* app) {
                     state.xrSession.worldSpace_(), t,
                     [&](const Eigen::Matrix4f& proj, const Eigen::Matrix4f& view) {
                         const Eigen::Matrix4f pv = proj * view;
-                        const Eigen::Vector3f view_pos =
-                            -(view.block<3,3>(0,0).transpose() * view.block<3,1>(0,3));
 
                         // Draw all graph nodes' render outputs
                         if (state.active_graph_) {
@@ -425,12 +405,6 @@ void android_main(struct android_app* app) {
                                 call(pv);
                         }
 
-                        // Scene cubes (hard-wired for now — scene management is Phase 11)
-                        state.cube_mesh_.begin_batch({&state.sun_light_, 1}, view_pos);
-                        for (const auto& cube : state.scene_.cubes()) {
-                            state.cube_mesh_.draw(pv * cube.model, cube.model, cube.material);
-                        }
-                        state.cube_mesh_.end_batch();
                         for (const auto& lbl : state.scene_.labels()) {
                             state.text_mesh_.draw(lbl.text, pv * lbl.transform);
                         }
