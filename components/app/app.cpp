@@ -38,6 +38,7 @@
 #include "sky_dome.hpp"
 #include "sun_light.hpp"
 #include "trigger_edge.hpp"
+#include "ptt_gate.hpp"
 #include <GLES3/gl3.h>
 #include <cmath>
 #include <cstdio>
@@ -180,6 +181,7 @@ void android_main(struct android_app* app) {
     state.registry_.register_builtin(make_descriptor<RendererNode>());
     state.registry_.register_builtin(make_descriptor<SunLight>());
     state.registry_.register_builtin(make_descriptor<TriggerEdge>());
+    state.registry_.register_builtin(make_descriptor<PttGate>());
 
     constexpr const char* kDefaultGraph = R"({
         "nodes":[
