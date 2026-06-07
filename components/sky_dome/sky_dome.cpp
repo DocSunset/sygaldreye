@@ -27,15 +27,7 @@ SkyDome SkyDome::create(SkyParams const& p) {
     d.horizon_loc_     = d.sky_prog_->uniform_location("uHorizon");
     d.zenith_loc_      = d.sky_prog_->uniform_location("uZenith");
 
-    auto star = GlProgram::build(sky_dome_shaders::STAR_VERT, sky_dome_shaders::STAR_FRAG);
-    if (!star) { LOGE("star shader build failed"); return d; }
-    d.star_prog_       = std::make_unique<GlProgram>(std::move(*star));
-    d.star_vp_loc_     = d.star_prog_->uniform_location("uVP");
-    d.star_alpha_loc_  = d.star_prog_->uniform_location("uStarAlpha");
-    d.star_radius_loc_ = d.star_prog_->uniform_location("uRadius");
-
-    d.star_count_ = static_cast<GLsizei>(p.star_count);
-    glGenVertexArrays(1, &d.star_vao_);
+    d.star_field_ = StarField::create(p.star_count, p.radius);
     return d;
 }
 
@@ -46,6 +38,9 @@ void SkyDome::operator()(double /*time_s*/) {
     params_.sun_elevation = inputs.sun_elevation.value;
     params_.star_count    = static_cast<int>(inputs.star_count.value);
     params_.radius        = inputs.radius.value;
+    star_field_.inputs.sun_elevation.value = inputs.sun_elevation.value;
+    star_field_.inputs.star_count.value    = inputs.star_count.value;
+    star_field_.inputs.radius.value        = inputs.radius.value;
     outputs.render.value  = [this](const Eigen::Matrix4f& vp) { draw(vp); };
 
     // Publish scalar outputs for downstream wiring
@@ -79,28 +74,13 @@ void SkyDome::draw(Eigen::Matrix4f const& vp) const {
     glUniform4fv(zenith_loc_,     1, params_.zenith_color.data());
     dome_mesh_.draw();
 
-    // Stars: fade in as sun dips below horizon
-    float star_alpha = std::clamp(-params_.sun_elevation * 3.0f, 0.0f, 1.0f);
-    if (star_count_ > 0 && star_alpha > 0.01f) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        star_prog_->use();
-        GlProgram::uniform(star_vp_loc_, vp);
-        glUniform1f(star_alpha_loc_,  star_alpha);
-        glUniform1f(star_radius_loc_, params_.radius);
-        glBindVertexArray(star_vao_);
-        glDrawArrays(GL_POINTS, 0, star_count_);
-        glBindVertexArray(0);
-        glDisable(GL_BLEND);
-    }
+    star_field_.draw(vp);
 
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
 }
 
-SkyDome::~SkyDome() {
-    if (star_vao_ != 0U) { glDeleteVertexArrays(1, &star_vao_); }
-}
+SkyDome::~SkyDome() = default;
 
 SkyDome::SkyDome(SkyDome&& src) noexcept
     : dome_mesh_(std::move(src.dome_mesh_)),
@@ -113,18 +93,11 @@ SkyDome::SkyDome(SkyDome&& src) noexcept
       use_override_loc_(src.use_override_loc_),
       horizon_loc_(src.horizon_loc_),
       zenith_loc_(src.zenith_loc_),
-      star_vao_(src.star_vao_),
-      star_prog_(std::move(src.star_prog_)),
-      star_vp_loc_(src.star_vp_loc_),
-      star_alpha_loc_(src.star_alpha_loc_),
-      star_radius_loc_(src.star_radius_loc_),
-      star_count_(src.star_count_), params_(src.params_) {
-    src.star_vao_ = 0U;
-}
+      star_field_(std::move(src.star_field_)),
+      params_(src.params_) {}
 
 SkyDome& SkyDome::operator=(SkyDome&& src) noexcept {
     if (this != &src) {
-        if (star_vao_ != 0U) { glDeleteVertexArrays(1, &star_vao_); }
         dome_mesh_        = std::move(src.dome_mesh_);
         sky_prog_         = std::move(src.sky_prog_);
         vp_loc_           = src.vp_loc_;
@@ -135,12 +108,7 @@ SkyDome& SkyDome::operator=(SkyDome&& src) noexcept {
         use_override_loc_ = src.use_override_loc_;
         horizon_loc_      = src.horizon_loc_;
         zenith_loc_       = src.zenith_loc_;
-        star_vao_         = src.star_vao_;  src.star_vao_ = 0U;
-        star_prog_        = std::move(src.star_prog_);
-        star_vp_loc_      = src.star_vp_loc_;
-        star_alpha_loc_   = src.star_alpha_loc_;
-        star_radius_loc_  = src.star_radius_loc_;
-        star_count_       = src.star_count_;
+        star_field_       = std::move(src.star_field_);
         params_           = src.params_;
     }
     return *this;

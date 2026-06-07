@@ -6,6 +6,7 @@
 #include <string_view>
 #include "sphere_mesh.hpp"
 #include "sygaldry_endpoints.hpp"
+#include "star_field.hpp"
 
 struct GlProgram;
 
@@ -73,12 +74,6 @@ private:
     GLint horizon_loc_     = -1;
     GLint zenith_loc_      = -1;
 
-    GLuint star_vao_   = 0;
-    std::unique_ptr<GlProgram> star_prog_;
-    GLint star_vp_loc_     = -1;
-    GLint star_alpha_loc_  = -1;
-    GLint star_radius_loc_ = -1;
-    GLsizei star_count_    = 0;
-
+    StarField star_field_;
     SkyParams params_;
 };
