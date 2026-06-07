@@ -3,6 +3,7 @@
 #include "eyeballs_node_abi.hpp"
 #include "sygaldry_endpoints.hpp"
 #include <gtest/gtest.h>
+#include <cstdio>
 #include <string>
 
 struct RegistryTestNode {
@@ -41,4 +42,28 @@ TEST(ComponentRegistry, CreateDestroyViaRegistry) {
     void* node = d->create();
     ASSERT_NE(node, nullptr);
     d->destroy(node);
+}
+
+TEST(ComponentRegistry, LoadJsonSubgraph) {
+    const char* path = "/tmp/test_sub.json";
+    const char* json = "{\"nodes\":[],\"edges\":[]}";
+    std::FILE* f = std::fopen(path, "wb");
+    ASSERT_NE(f, nullptr);
+    std::fputs(json, f);
+    std::fclose(f);
+
+    ComponentRegistry reg;
+    EXPECT_TRUE(reg.load_plugin(path));
+    EXPECT_NE(reg.find("test_sub"), nullptr);
+}
+
+TEST(ComponentRegistry, LoadJsonMalformed) {
+    const char* path = "/tmp/eyeballs_bad.json";
+    std::FILE* f = std::fopen(path, "wb");
+    ASSERT_NE(f, nullptr);
+    std::fputs("{invalid}", f);
+    std::fclose(f);
+
+    ComponentRegistry reg;
+    EXPECT_FALSE(reg.load_plugin(path));
 }

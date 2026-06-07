@@ -1,5 +1,8 @@
 add_library(signal_graph STATIC signal_graph.cpp)
-target_include_directories(signal_graph PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
+# subgraph_node.hpp is needed for the complete SubgraphDescriptor type in
+# ~Graph (owned_descriptors). Include path only — definitions resolved at final
+# link; signal_graph must not create a link cycle with subgraph_node.
+target_include_directories(signal_graph PUBLIC . ../subgraph_node $ENV{EIGEN3_INCLUDE_DIR})
 target_link_libraries(signal_graph PUBLIC component_registry eyeballs_node_abi gpu_texture sygaldry_endpoints)
 target_compile_options(signal_graph PRIVATE -Wall -Wextra)
 

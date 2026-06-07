@@ -1,6 +1,8 @@
 // Copyright 2025 Travis West
 #pragma once
 #include "eyeballs_node_abi.h"
+#include "subgraph_node.hpp"
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -15,7 +17,11 @@ struct ComponentRegistry {
     void register_builtin(const EyeballsNodeDescriptor* desc);
 
     // Load a plugin .so and register it; returns false on failure.
+    // If path ends in ".json", parses it as a subgraph definition instead.
     bool load_plugin(const std::string& path);
+
+    // Parse and register a subgraph JSON file; returns false on failure.
+    bool load_subgraph_json(const std::string& path);
 
     // Look up a type by name; returns nullptr if not found.
     const EyeballsNodeDescriptor* find(const std::string& type_name) const;
@@ -26,5 +32,6 @@ struct ComponentRegistry {
     ~ComponentRegistry();
 
 private:
-    std::unordered_map<std::string, RegistryEntry> entries_;
+    std::unordered_map<std::string, RegistryEntry>      entries_;
+    std::vector<std::unique_ptr<SubgraphDescriptor>>    subgraph_descriptors_;
 };

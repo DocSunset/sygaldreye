@@ -1,5 +1,6 @@
 // Copyright 2025 Travis West
 #include "component_registry.hpp"
+#include "signal_graph.hpp"
 #include <cstdio>
 #include <dlfcn.h>
 
@@ -19,7 +20,41 @@ void ComponentRegistry::register_builtin(const EyeballsNodeDescriptor* desc) {
     entries_[desc->type_name] = RegistryEntry{desc, nullptr};
 }
 
+bool ComponentRegistry::load_subgraph_json(const std::string& path) {
+    std::FILE* f = std::fopen(path.c_str(), "rb");
+    if (!f) {
+        LOGE("component_registry: cannot open %s", path.c_str());
+        return false;
+    }
+    std::fseek(f, 0, SEEK_END);
+    long sz = std::ftell(f);
+    std::rewind(f);
+    std::string contents(static_cast<std::size_t>(sz), '\0');
+    std::fread(contents.data(), 1, static_cast<std::size_t>(sz), f);
+    std::fclose(f);
+
+    // Derive type name from file stem.
+    std::size_t slash = path.find_last_of("/\\");
+    std::string stem = (slash == std::string::npos) ? path : path.substr(slash + 1);
+    // Strip ".json" suffix (5 chars).
+    std::string type_name = stem.substr(0, stem.size() - 5);
+
+    auto graph = parse_graph(contents, *this);
+    if (!graph) {
+        LOGE("component_registry: failed to parse subgraph JSON %s", path.c_str());
+        return false;
+    }
+    auto desc = std::make_unique<SubgraphDescriptor>(std::move(graph), type_name);
+    register_builtin(desc->descriptor());
+    subgraph_descriptors_.push_back(std::move(desc));
+    LOG("component_registry: registered subgraph '%s' from %s", type_name.c_str(), path.c_str());
+    return true;
+}
+
 bool ComponentRegistry::load_plugin(const std::string& path) {
+    if (path.size() >= 5 && path.compare(path.size() - 5, 5, ".json") == 0)
+        return load_subgraph_json(path);
+
     void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (!handle) {
         LOGE("component_registry: dlopen(%s) failed: %s", path.c_str(), dlerror());

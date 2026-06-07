@@ -1,5 +1,7 @@
 add_library(component_registry STATIC component_registry.cpp)
-target_include_directories(component_registry PUBLIC .)
+target_include_directories(component_registry PUBLIC .
+    # Include paths only — no link dep to avoid cycles with signal_graph/subgraph_node.
+    ../signal_graph ../subgraph_node $ENV{EIGEN3_INCLUDE_DIR})
 target_link_libraries(component_registry PUBLIC eyeballs_node_abi PRIVATE dl)
 target_compile_options(component_registry PRIVATE -Wall -Wextra)
 if(ANDROID)
@@ -13,5 +15,6 @@ add_library(component_registry_gtest STATIC
 target_include_directories(component_registry_gtest PUBLIC ${GTEST_ROOT}/include PRIVATE ${GTEST_ROOT})
 
 add_executable(component_registry_test component_registry.test.cpp)
-target_link_libraries(component_registry_test PRIVATE component_registry component_registry_gtest)
+# subgraph_node and signal_graph needed to resolve subgraph/parse_graph symbols.
+target_link_libraries(component_registry_test PRIVATE subgraph_node signal_graph component_registry component_registry_gtest)
 target_compile_options(component_registry_test PRIVATE -Wall -Wextra -Wpedantic)
