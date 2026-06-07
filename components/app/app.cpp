@@ -354,28 +354,6 @@ void android_main(struct android_app* app) {
                     lh ? std::optional<XrPosef>{lh->pose} : std::nullopt,
                     rh ? std::optional<XrPosef>{rh->pose} : std::nullopt);
 
-                // Check RendererNode for eye-pose overrides
-                bool left_eye_override  = false;
-                bool right_eye_override = false;
-                RendererNode* renderer_node = nullptr;
-                if (state.active_graph_) {
-                    for (auto& n : state.active_graph_->nodes) {
-                        if (std::string_view(n.desc->type_name) == "renderer") {
-                            renderer_node = static_cast<RendererNode*>(n.data);
-                            for (const auto& e : state.active_graph_->edges) {
-                                if (e.to_node == n.id) {
-                                    if (e.to_port.rfind("left_", 0) == 0)  left_eye_override  = true;
-                                    if (e.to_port.rfind("right_", 0) == 0) right_eye_override = true;
-                                }
-                            }
-                            break;
-                        }
-                    }
-                }
-                (void)left_eye_override;   // used implicitly below
-                (void)right_eye_override;
-                (void)renderer_node;
-
                 bool ok = state.renderer.render_eyes(
                     state.xrInstance, state.xrSession.get(),
                     state.xrSession.worldSpace_(), t,
