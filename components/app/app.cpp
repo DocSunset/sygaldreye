@@ -36,6 +36,7 @@
 #include "reaction_diffusion.hpp"
 #include "water_surface.hpp"
 #include "sky_dome.hpp"
+#include "sun_light.hpp"
 #include <GLES3/gl3.h>
 #include <cmath>
 #include <cstdio>
@@ -176,13 +177,15 @@ void android_main(struct android_app* app) {
     state.registry_.register_builtin(make_descriptor<ParticleSystem>());
     state.registry_.register_builtin(make_descriptor<ReactionDiffusion>());
     state.registry_.register_builtin(make_descriptor<RendererNode>());
+    state.registry_.register_builtin(make_descriptor<SunLight>());
 
     constexpr const char* kDefaultGraph = R"({
         "nodes":[
             {"id":"sky","type":"sky_dome","params":{}},
             {"id":"water","type":"water_surface","params":{}},
             {"id":"head","type":"head_pose","params":{}},
-            {"id":"renderer","type":"renderer","params":{}}
+            {"id":"renderer","type":"renderer","params":{}},
+            {"id":"sun","type":"sun_light","params":{}}
         ],
         "edges":[
             {"from":"sky.sun_elevation_out","to":"water.sun intensity"}
