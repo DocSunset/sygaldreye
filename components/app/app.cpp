@@ -36,6 +36,7 @@
 #include "reaction_diffusion.hpp"
 #include "water_surface.hpp"
 #include "sky_dome.hpp"
+#include "text_label.hpp"
 #include <GLES3/gl3.h>
 #include <cmath>
 #include <cstdio>
@@ -176,6 +177,7 @@ void android_main(struct android_app* app) {
     state.registry_.register_builtin(make_descriptor<ParticleSystem>());
     state.registry_.register_builtin(make_descriptor<ReactionDiffusion>());
     state.registry_.register_builtin(make_descriptor<RendererNode>());
+    state.registry_.register_builtin(make_descriptor<TextLabelNode>());
 
     constexpr const char* kDefaultGraph = R"({
         "nodes":[
@@ -431,10 +433,6 @@ void android_main(struct android_app* app) {
                             state.cube_mesh_.draw(pv * cube.model, cube.model, cube.material);
                         }
                         state.cube_mesh_.end_batch();
-                        for (const auto& lbl : state.scene_.labels()) {
-                            state.text_mesh_.draw(lbl.text, pv * lbl.transform);
-                        }
-
                         state.vr_editor_.draw(pv, state.text_mesh_);
                     });
                 if (!ok) { return {}; }
