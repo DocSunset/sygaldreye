@@ -37,6 +37,11 @@ struct Edge {
 struct InletDecl  { std::string name, node, port; };
 struct OutletDecl { std::string name, node, port; };
 
+// Forward declaration — defined in subgraph_node. Inline subgraphs transfer
+// descriptor ownership to the containing Graph. signal_graph.hpp must not
+// include subgraph_node.hpp (which includes this header).
+struct SubgraphDescriptor;
+
 struct Graph {
     std::vector<NodeInstance>                    nodes;
     std::vector<Edge>                            edges;
@@ -44,9 +49,15 @@ struct Graph {
     std::vector<OutletDecl>                      outlets;
     std::unordered_map<std::string, PortValue>   values;      // "node_id.port_name" → typed value
     std::vector<DrawFn>                          draw_calls;  // cleared each tick
+    std::vector<std::unique_ptr<SubgraphDescriptor>> owned_descriptors;
 
     ~Graph();
 };
+
+// Deep-clones a graph: re-instantiates each node via desc->create() and
+// serialize/deserialize, copies edges, inlets, outlets. owned_descriptors are
+// not cloned (only valid for templates of non-subgraph nodes).
+std::unique_ptr<Graph> clone_graph(const Graph& src);
 
 // Parses JSON graph description, instantiates nodes via registry.
 // Returns nullptr on error.

@@ -1,6 +1,8 @@
 // Copyright 2025 Travis West
 #include "signal_graph.hpp"
+#include "subgraph_node.hpp"  // complete SubgraphDescriptor for owned_descriptors dtor
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <queue>
 #include <unordered_map>
@@ -142,6 +144,26 @@ std::unique_ptr<Graph> parse_graph(const std::string& json, const ComponentRegis
         }
     }
 
+    return g;
+}
+
+std::unique_ptr<Graph> clone_graph(const Graph& src) {
+    auto g = std::make_unique<Graph>();
+    for (const auto& n : src.nodes) {
+        void* data = n.desc->create();
+        if (n.desc->serialize && n.desc->deserialize) {
+            const char* s = n.desc->serialize(n.data);
+            n.desc->deserialize(data, s);
+            if (n.desc->free_str) n.desc->free_str(s);
+        }
+        g->nodes.push_back({n.desc, data, n.id});
+    }
+    g->edges   = src.edges;
+    g->inlets  = src.inlets;
+    g->outlets = src.outlets;
+    if (!src.owned_descriptors.empty())
+        std::fprintf(stderr,
+            "clone_graph: src has owned_descriptors; not cloned\n");
     return g;
 }
 
