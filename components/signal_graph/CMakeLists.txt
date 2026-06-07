@@ -14,6 +14,6 @@ if(EXISTS ${GTEST_ROOT})
     target_include_directories(signal_graph_gtest PUBLIC ${GTEST_ROOT}/include PRIVATE ${GTEST_ROOT})
 
     add_executable(signal_graph_test signal_graph.test.cpp)
-    target_link_libraries(signal_graph_test PRIVATE signal_graph signal_graph_gtest)
+    target_link_libraries(signal_graph_test PRIVATE subgraph_node signal_graph signal_graph_gtest)
     target_compile_options(signal_graph_test PRIVATE -Wall -Wextra -Wpedantic)
 endif()
