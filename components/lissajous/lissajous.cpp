@@ -52,20 +52,11 @@ Lissajous Lissajous::create(LissajousParams const& p) {
     l.params_ = p;
     l.vbo_data_.resize(static_cast<size_t>(p.samples) * 6);
 
-    glGenVertexArrays(1, &l.vao_);
-    glGenBuffers(1, &l.vbo_);
-    glBindVertexArray(l.vao_);
-    glBindBuffer(GL_ARRAY_BUFFER, l.vbo_);
-    glBufferData(GL_ARRAY_BUFFER,
-        static_cast<GLsizeiptr>(l.vbo_data_.size() * sizeof(float)),
-        nullptr, GL_DYNAMIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(1);
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
-        reinterpret_cast<const void*>(3 * sizeof(float)));
-    glBindVertexArray(0);
+    l.geom_ = GlGeometry::create(
+        std::span<const float>{l.vbo_data_},
+        {},
+        {{0, 3, 6 * sizeof(float), 0}, {1, 3, 6 * sizeof(float), 3 * sizeof(float)}},
+        GL_DYNAMIC_DRAW);
 
     auto prog = GlProgram::build(VERT, FRAG);
     if (prog) {
@@ -95,11 +86,7 @@ void Lissajous::update(float time_s) {
         vbo_data_[base+3] = rgb.x(); vbo_data_[base+4] = rgb.y(); vbo_data_[base+5] = rgb.z();
     }
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-    glBufferSubData(GL_ARRAY_BUFFER, 0,
-        static_cast<GLsizeiptr>(vbo_data_.size() * sizeof(float)),
-        vbo_data_.data());
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    geom_.update_verts(vbo_data_);
 }
 
 void Lissajous::sync_params() {
@@ -115,7 +102,5 @@ void Lissajous::draw(Eigen::Matrix4f const& mvp) const {
     if (!prog_) return;
     prog_->use();
     GlProgram::uniform(mvp_loc_, mvp);
-    glBindVertexArray(vao_);
-    glDrawArrays(GL_LINE_STRIP, 0, static_cast<GLsizei>(params_.samples));
-    glBindVertexArray(0);
+    geom_.draw_arrays(GL_LINE_STRIP, static_cast<GLsizei>(params_.samples));
 }

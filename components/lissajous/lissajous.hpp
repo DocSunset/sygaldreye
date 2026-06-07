@@ -1,5 +1,6 @@
 // Copyright 2025 Travis West
 #pragma once
+#include "gl_geometry.hpp"
 #include "gl_program.hpp"
 #include "sygaldry_endpoints.hpp"
 #include "visual_node.hpp"
@@ -49,8 +50,7 @@ private:
     static Lissajous create_default();
     LissajousParams params_;
     std::vector<float> vbo_data_; // interleaved: x,y,z,r,g,b (6 floats per vertex)
-    GLuint vao_  = 0;
-    GLuint vbo_  = 0;
+    GlGeometry geom_;
     std::unique_ptr<GlProgram> prog_;
     GLint mvp_loc_ = -1;
 };
