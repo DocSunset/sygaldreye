@@ -244,6 +244,84 @@ TEST(SignalGraph, NoInletsOutletsIsEmpty) {
     EXPECT_EQ(s.find("\"outlets\""), std::string::npos);
 }
 
+// ── Inline subgraph tests ──────────────────────────────────────────────────────
+
+TEST(SignalGraph, InlineSubgraphParsed) {
+    static auto desc_a = make_node_a_desc();
+    ComponentRegistry reg;
+    reg.register_builtin(&desc_a);
+
+    // Node with "graph" key — no "type". Inner graph is empty.
+    const char* json = R"({
+        "nodes":[{"id":"sub","graph":{"nodes":[],"edges":[]}}],
+        "edges":[]
+    })";
+
+    auto g = parse_graph(json, reg);
+    ASSERT_NE(g, nullptr);
+    ASSERT_EQ(g->nodes.size(), 1u);
+    EXPECT_EQ(std::string(g->nodes[0].desc->type_name).find("__inline_"), 0u);
+}
+
+TEST(SignalGraph, InlineSubgraphEndToEnd) {
+    // Inner graph: one ProducerNode, outlet mapped to "out"
+    static auto desc_p = make_descriptor<ProducerNode>();
+    ComponentRegistry reg;
+    reg.register_builtin(desc_p);
+
+    const char* json = R"({
+        "nodes":[{
+            "id":"sub",
+            "graph":{
+                "nodes":[{"id":"p","type":"producer","params":{}}],
+                "edges":[],
+                "outlets":[{"name":"out","node":"p","port":"val"}]
+            }
+        }],
+        "edges":[]
+    })";
+
+    auto g = parse_graph(json, reg);
+    ASSERT_NE(g, nullptr);
+    ASSERT_EQ(g->nodes.size(), 1u);
+
+    tick_graph(*g, 0.0);
+
+    auto it = g->values.find("sub.out");
+    ASSERT_NE(it, g->values.end());
+    EXPECT_NEAR(std::get<double>(it->second), 42.0, 1e-6);
+}
+
+TEST(SignalGraph, NestedInlineSubgraph) {
+    // Outer graph contains an inline subgraph, which itself contains another inline subgraph.
+    static auto desc_p = make_descriptor<ProducerNode>();
+    ComponentRegistry reg;
+    reg.register_builtin(desc_p);
+
+    const char* json = R"({
+        "nodes":[{
+            "id":"outer",
+            "graph":{
+                "nodes":[{
+                    "id":"inner",
+                    "graph":{
+                        "nodes":[{"id":"p","type":"producer","params":{}}],
+                        "edges":[]
+                    }
+                }],
+                "edges":[]
+            }
+        }],
+        "edges":[]
+    })";
+
+    auto g = parse_graph(json, reg);
+    ASSERT_NE(g, nullptr);
+    ASSERT_EQ(g->nodes.size(), 1u);
+    // Should not crash
+    tick_graph(*g, 0.0);
+}
+
 TEST(SignalGraph, EdgeRoundTrip) {
     static auto desc_a = make_node_a_desc();
     static auto desc_b = make_node_b_desc();

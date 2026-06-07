@@ -80,8 +80,25 @@ std::unique_ptr<Graph> parse_graph(const std::string& json, const ComponentRegis
     auto g = std::make_unique<Graph>();
     for (const auto& obj : node_objs) {
         auto id   = find_string(obj, "id");
+        if (id.empty()) return nullptr;
+
+        // Inline subgraph: node has a "graph" key instead of "type"
+        auto inline_graph_json = find_object(obj, "graph");
+        if (!inline_graph_json.empty()) {
+            auto inner = parse_graph(std::string(inline_graph_json), registry);
+            if (!inner) return nullptr;
+            std::string inline_type = "__inline_" + std::string(id);
+            auto subdesc = std::make_unique<SubgraphDescriptor>(std::move(inner), inline_type);
+            const EyeballsNodeDescriptor* desc = subdesc->descriptor();
+            void* data = desc->create();
+            if (!data) return nullptr;
+            g->nodes.push_back({desc, data, std::string(id)});
+            g->owned_descriptors.push_back(std::move(subdesc));
+            continue;
+        }
+
         auto type = find_string(obj, "type");
-        if (id.empty() || type.empty()) return nullptr;
+        if (type.empty()) return nullptr;
 
         const auto* desc = registry.find(std::string(type));
         if (!desc) return nullptr;
