@@ -39,6 +39,7 @@
 #include "trigger_edge.hpp"
 #include "ptt_gate.hpp"
 #include "mic_input.hpp"
+#include "text_label.hpp"
 #include <GLES3/gl3.h>
 #include <cstdio>
 #include <ctime>
@@ -180,6 +181,7 @@ void android_main(struct android_app* app) {
     state.registry_.register_builtin(make_descriptor<PttGate>());
     state.registry_.register_builtin(make_descriptor<MicInputNode>());
     state.registry_.register_builtin(make_descriptor<CubeNode>());
+    state.registry_.register_builtin(make_descriptor<TextLabelNode>());
 
     constexpr const char* kDefaultGraph = R"({
         "nodes":[
@@ -412,10 +414,6 @@ void android_main(struct android_app* app) {
                         if (state.active_graph_) {
                             for (auto& call : state.active_graph_->draw_calls)
                                 call(pv);
-                        }
-
-                        for (const auto& lbl : state.scene_.labels()) {
-                            state.text_mesh_.draw(lbl.text, pv * lbl.transform);
                         }
 
                         state.vr_editor_.draw(pv, state.text_mesh_);
