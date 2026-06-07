@@ -3,6 +3,7 @@
 #include "tri_mesh.hpp"
 #include "gl_program.hpp"
 #include "sygaldry_endpoints.hpp"
+#include "visual_node.hpp"
 #include <Eigen/Core>
 #include <memory>
 #include <string_view>
@@ -16,7 +17,7 @@ struct ChladniParams {
     Eigen::Vector4f anti_color  = {0.05f, 0.08f, 0.18f, 1.0f}; // dark blue
 };
 
-class Chladni {
+class Chladni : public VisualNode<Chladni> {
 public:
     static consteval std::string_view name()          { return "chladni"; }
     static consteval std::string_view source_header() { return "components/chladni/chladni.hpp"; }
@@ -33,8 +34,8 @@ public:
     Chladni() { *this = create_default(); }
 
     static Chladni create(ChladniParams const&);
+    void sync_params();
     void update(float time_s);
-    void operator()(double time_s);
     void draw(Eigen::Matrix4f const& mvp) const;
 
 private:

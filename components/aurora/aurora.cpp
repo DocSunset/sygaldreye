@@ -183,14 +183,12 @@ Aurora Aurora::create(AuroraParams const& p) {
 
 void Aurora::update(float time_s) { time_s_ = time_s; }
 
-void Aurora::operator()(double time_s) {
+void Aurora::sync_params() {
     params_.curtain_width     = inputs.curtain_width.value;
     params_.altitude_base     = inputs.altitude_base.value;
     params_.altitude_height   = inputs.altitude_height.value;
     params_.ripple_amplitude  = inputs.ripple_amplitude.value;
     params_.ripple_speed      = inputs.ripple_speed.value;
-    update(static_cast<float>(time_s));
-    outputs.render.value = [this](const Eigen::Matrix4f& vp) { draw(vp); };
 }
 
 void Aurora::draw(Eigen::Matrix4f const& vp) const {

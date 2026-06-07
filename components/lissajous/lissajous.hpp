@@ -2,6 +2,7 @@
 #pragma once
 #include "gl_program.hpp"
 #include "sygaldry_endpoints.hpp"
+#include "visual_node.hpp"
 #include <Eigen/Core>
 #include <memory>
 #include <string_view>
@@ -16,7 +17,7 @@ struct LissajousParams {
     int   samples   = 4000;
 };
 
-class Lissajous {
+class Lissajous : public VisualNode<Lissajous> {
 public:
     static consteval std::string_view name()          { return "lissajous"; }
     static consteval std::string_view source_header() { return "components/lissajous/lissajous.hpp"; }
@@ -38,8 +39,8 @@ public:
     Lissajous() { *this = create_default(); }
 
     static Lissajous create(LissajousParams const&);
+    void sync_params();
     void update(float time_s);
-    void operator()(double time_s);
     void draw(Eigen::Matrix4f const& mvp) const;
 
 private:

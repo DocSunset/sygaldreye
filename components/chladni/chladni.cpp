@@ -103,10 +103,8 @@ void Chladni::update(float time_s) {
     mesh_.update(data_);
 }
 
-void Chladni::operator()(double time_s) {
+void Chladni::sync_params() {
     params_.omega = inputs.omega.value;
-    update(static_cast<float>(time_s));
-    outputs.render.value = [this](const Eigen::Matrix4f& vp) { draw(vp); };
 }
 
 void Chladni::draw(Eigen::Matrix4f const& mvp) const {

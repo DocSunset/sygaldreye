@@ -1,6 +1,6 @@
 add_library(aurora STATIC aurora.cpp)
 target_include_directories(aurora PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(aurora PUBLIC gl_program sygaldry_endpoints)
+target_link_libraries(aurora PUBLIC gl_program sygaldry_endpoints visual_node)
 target_compile_options(aurora PRIVATE -Wall -Wextra)
 
 if(CMAKE_CROSSCOMPILING)

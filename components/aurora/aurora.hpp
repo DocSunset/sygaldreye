@@ -2,6 +2,7 @@
 #pragma once
 #include "gl_program.hpp"
 #include "sygaldry_endpoints.hpp"
+#include "visual_node.hpp"
 #include <Eigen/Core>
 #include <memory>
 #include <string_view>
@@ -18,7 +19,7 @@ struct AuroraParams {
     float ripple_speed       = 0.5f;
 };
 
-class Aurora {
+class Aurora : public VisualNode<Aurora> {
 public:
     static consteval std::string_view name()          { return "aurora"; }
     static consteval std::string_view source_header() { return "components/aurora/aurora.hpp"; }
@@ -37,8 +38,8 @@ public:
     } outputs;
 
     static Aurora create(AuroraParams const&);
+    void sync_params();
     void update(float time_s);
-    void operator()(double time_s);
     void draw(Eigen::Matrix4f const& vp) const;
 
     ~Aurora();
