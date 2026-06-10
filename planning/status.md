@@ -109,11 +109,41 @@ Architecture now (host):
   rd_gpu violated all three; fixed. Float32 textures need NEAREST in core
   GLES3 (Adreno extension hid this).
 
-Next:
-- water decomposition (mesh/shader split)
-- text_label node on host (labels for graph-built UIs)
-- editor-as-subgraph increments: palette from ui_buttons first
-- GL-state audit of remaining FBO users when they become nodes
+## 2026-06-10 (cont. 5) — the graph grows itself; decomposition pause point
+
+- text<"name"> string params (serialize/deserialize/schema kind "text").
+- text_label on host, refactored onto text params (custom serializers
+  deleted). Labels render clean — the glyph-corruption kanban bug is
+  isolated to vr_editor's own draw path, not text_mesh.
+- spawner node (trigger edge + type param → graph edit). A palette of
+  ui_pane + text_labels + ui_buttons + spawners — pure JSON, zero new
+  C++ — added a lissajous node to its own graph when pressed.
+
+### Where decomposition pauses, and why
+
+The pattern is proven and repeatable: producer/consumer over typed ports
+(sky→stars, rd sim→renderer), subgraph plugins (.json as node types),
+UI-as-nodes, graph-edits-as-node-output. What remains is either:
+1. MECHANICAL repeats (water mesh/shader split, aurora curtains,
+   particle emitter/renderer) — valuable but no new architecture; safe to
+   do anytime, ideally after canonical port names land.
+2. DESIGN-GATED work that should NOT be improvised:
+   - context injection for nodes inside subgraphs (spawner/editor in a
+     subgraph never gets graph/registry — needs the executor's context
+     story, not more special cases in host_app)
+   - string EDGES (events/JSON through ports) vs string params
+   - audio decomposition (needs host audio output + thread regions —
+     the edge/executor design's core case)
+   - registry-driven UI (palette enumerating types = graph generated
+     from app state — wants a principled reflection mechanism)
+3. HARDWARE-GATED: Android shell parity + Quest validation (headset
+   session), browser peer.
+Category 2 is the edge/executor design doc (slice 3) — Travis ratifies.
+Decomposing further without it would bake in seams we'd have to unwind.
+
+Next session: edge/executor design doc draft + network bridge walkthrough
+(see memory: followup-network-bridge-design); or mechanical splits if
+Travis prefers momentum.
 - string PortValue/params (UDP host addressing, labels, JSON events)
 - editor deep bug hunt: wire-drag (grip), sliders, dwell-delete, undo
 - Android app.cpp: adopt migrate_graph + hand/editor nodes (currently still
