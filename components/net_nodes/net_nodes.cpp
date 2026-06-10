@@ -1,6 +1,7 @@
 // Copyright 2026 Travis West
 #include "net_nodes.hpp"
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -20,10 +21,22 @@ sockaddr_in loopback(int port) {
 void UdpSendNode::operator()(double) {
     if (fd_ < 0) fd_ = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd_ < 0) return;
+    auto addr = loopback(int(inputs.port.value));
+    if (!inputs.host.value.empty()) {
+        if (inputs.host.value != resolved_host_) {  // resolve once per change
+            addrinfo hints{}; hints.ai_family = AF_INET; hints.ai_socktype = SOCK_DGRAM;
+            addrinfo* res = nullptr;
+            if (getaddrinfo(inputs.host.value.c_str(), nullptr, &hints, &res) == 0 && res) {
+                resolved_addr_ = reinterpret_cast<sockaddr_in*>(res->ai_addr)->sin_addr;
+                freeaddrinfo(res);
+                resolved_host_ = inputs.host.value;
+            }
+        }
+        if (inputs.host.value == resolved_host_) addr.sin_addr = resolved_addr_;
+    }
     char buf[48];
     int n = std::snprintf(buf, sizeof(buf), "%d %g",
                           int(inputs.channel.value), double(inputs.in.value));
-    auto addr = loopback(int(inputs.port.value));
     sendto(fd_, buf, size_t(n), 0,
            reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
 }

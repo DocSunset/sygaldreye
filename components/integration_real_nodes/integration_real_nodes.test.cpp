@@ -59,8 +59,7 @@ TEST_F(RealNodesTest, WaterSurfaceSetScalarIn) {
     auto* d = make_descriptor<WaterSurface>();
     ASSERT_NE(d->set_scalar_in, nullptr);
     void* node = d->create();
-    // slider name is "cell size" (with space) per water_surface.hpp
-    d->set_scalar_in(node, "cell size", 3.14);
+    d->set_scalar_in(node, "cell_size", 3.14);
     const char* json = d->serialize(node);
     ASSERT_NE(json, nullptr);
     std::string s(json);

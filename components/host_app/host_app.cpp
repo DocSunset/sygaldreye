@@ -74,6 +74,8 @@ void HostApp::init(int http_port) {
     registry_.register_builtin(make_descriptor<SmoothNode>());
     registry_.register_builtin(make_descriptor<Split3Node>());
     registry_.register_builtin(make_descriptor<Join3Node>());
+    registry_.register_builtin(make_descriptor<HsvColorNode>());
+    registry_.register_builtin(make_descriptor<TimeNode>());
     registry_.register_builtin(make_descriptor<UiSliderNode>());
     registry_.register_builtin(make_descriptor<UiButtonNode>());
     registry_.register_builtin(make_descriptor<UiPaneNode>());

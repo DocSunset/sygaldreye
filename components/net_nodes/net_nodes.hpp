@@ -1,6 +1,8 @@
 // Copyright 2026 Travis West
 #pragma once
 #include "sygaldry_endpoints.hpp"
+#include <netinet/in.h>
+#include <string>
 #include <string_view>
 
 // First network bridge, graph-native: a value leaves one instance's graph
@@ -14,12 +16,15 @@ struct UdpSendNode {
         slider<"in",      "", float, fp(-1e6f),  fp(1e6f),   fp(0.f)>    in;
         slider<"channel", "", float, fp(0.f),    fp(127.f),  fp(0.f)>    channel;
         slider<"port",    "", float, fp(1024.f), fp(65535.f),fp(9100.f)> port;
+        ::text<"host"> host;  // empty = 127.0.0.1
     } inputs;
     struct outputs {} outputs;
     void operator()(double);
     ~UdpSendNode();
 private:
     int fd_ = -1;
+    std::string resolved_host_;
+    struct in_addr resolved_addr_ {};
 };
 
 struct UdpRecvNode {

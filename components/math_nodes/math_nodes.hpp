@@ -161,3 +161,58 @@ struct Join3Node {
         outputs.out.value = {inputs.x.value, inputs.y.value, inputs.z.value};
     }
 };
+
+// HSV→RGB as vec3 — patch an lfo into hue and everything rainbow-cycles.
+struct HsvColorNode {
+    static consteval std::string_view name() { return "hsv_color"; }
+    struct inputs {
+        slider<"h", "", float, fp(0.f), fp(1.f), fp(0.f)>  h;
+        slider<"s", "", float, fp(0.f), fp(1.f), fp(0.9f)> s;
+        slider<"v", "", float, fp(0.f), fp(1.f), fp(1.f)>  v;
+    } inputs;
+    struct outputs {
+        port<"rgb", Eigen::Vector3f> rgb;
+        port<"r", float> r;
+        port<"g", float> g;
+        port<"b", float> b;
+    } outputs;
+    void operator()(double) {
+        float h = inputs.h.value - std::floor(inputs.h.value);
+        float s = inputs.s.value, v = inputs.v.value;
+        float c = v * s, x = c * (1.f - std::fabs(std::fmod(h * 6.f, 2.f) - 1.f));
+        float m = v - c;
+        float rr, gg, bb;
+        switch (int(h * 6.f) % 6) {
+            case 0: rr = c; gg = x; bb = 0; break;
+            case 1: rr = x; gg = c; bb = 0; break;
+            case 2: rr = 0; gg = c; bb = x; break;
+            case 3: rr = 0; gg = x; bb = c; break;
+            case 4: rr = x; gg = 0; bb = c; break;
+            default: rr = c; gg = 0; bb = x; break;
+        }
+        outputs.rgb.value = {rr + m, gg + m, bb + m};
+        outputs.r.value = rr + m; outputs.g.value = gg + m; outputs.b.value = bb + m;
+    }
+};
+
+// Tick time as a patchable signal, with scale and pause.
+struct TimeNode {
+    static consteval std::string_view name() { return "time"; }
+    struct inputs {
+        slider<"scale", "", float, fp(-10.f), fp(10.f), fp(1.f)> scale;
+    } inputs;
+    struct outputs {
+        port<"t",  float> t;
+        port<"dt", float> dt;
+    } outputs;
+    void operator()(double t) {
+        float dt = (prev_ >= 0.0) ? float(t - prev_) : 0.f;
+        prev_ = t;
+        scaled_ += dt * inputs.scale.value;
+        outputs.t.value  = scaled_;
+        outputs.dt.value = dt * inputs.scale.value;
+    }
+private:
+    double prev_ = -1.0;
+    float  scaled_ = 0.f;
+};
