@@ -164,3 +164,28 @@ Next session: edge/executor design doc draft + network bridge walkthrough
   the old C++ editor member; works but diverges from host architecture)
 - Quest on-device validation pass
 - update planning/vision.md slice plan as slices merge
+
+
+## 2026-06-10 (autonomous run while Travis away)
+
+Worked the agreed list top-down; all six items done:
+1. planning/edge_executor.design.md (taxonomy/regions/context — 5 questions
+   to ratify) + planning/network_bridge.md (walkthrough he asked for).
+2. Editor interaction hunt — 4 bugs: stale card model (EditorNode never
+   called on_graph_changed), BARE-HOVER DELETE (1 s gaze = node gone; now
+   grip-gated), wire-drop first-in-radius (now nearest), sliders stuck on
+   0..1 (schema now carries min/max). All verified via virtual hands.
+3. Backlog cleared: MSDF screen-range formula fixed (glyph corruption
+   dead; '[' glyphs were thumbs, misdiagnosis), editor cards now an
+   eye-level 4-wide grid, cube ambient 0.1→0.25.
+4. Tests: +8 (ui widget math headless; text round-trip; subgraph instance
+   migration; two-level nested inlets). 33 total, all green.
+5. Design docs for the 10 new components.
+6. Android parity build-only: full node vocabulary registered + migrate on
+   swap; rig NOT wired, nothing flashed — needs headset session.
+Legacy snapshot exes broke on the sky decomposition (fixed minimally);
+kanban proposes deleting that system — wants Travis's nod.
+
+Awaiting Travis: edge/executor ratification (5 questions in the doc),
+bridge conversation, port-name canonicalization nod, snapshot deletion
+nod, headset session for device verification.
