@@ -108,6 +108,9 @@ SubgraphDescriptor::SubgraphDescriptor(std::unique_ptr<Graph> graph_template,
     desc_.set_drawfn_in = [](void* p, const char* port, const void* fn) {
         static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{*static_cast<const DrawFn*>(fn)});
     };
+    desc_.set_mesh_in = [](void* p, const char* port, const void* mesh) {
+        static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{*static_cast<const MeshPtr*>(mesh)});
+    };
 }
 
 SubgraphDescriptor::~SubgraphDescriptor() {

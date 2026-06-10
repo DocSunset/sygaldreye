@@ -54,6 +54,10 @@ void tick_graph(Graph& g, double time_s) {
                     if (n.desc->set_drawfn_in)
                         n.desc->set_drawfn_in(n.data, e.to_port.c_str(),
                                               static_cast<const void*>(&val));
+                } else if constexpr (std::is_same_v<T, MeshPtr>) {
+                    if (n.desc->set_mesh_in)
+                        n.desc->set_mesh_in(n.data, e.to_port.c_str(),
+                                            static_cast<const void*>(&val));
                 }
             }, it->second);
         }
@@ -104,6 +108,11 @@ void tick_graph(Graph& g, double time_s) {
                                  const void* fn) {
                 auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
                 m[std::string(nid) + "." + port] = *static_cast<const DrawFn*>(fn);
+            };
+            ctx.emit_mesh = [](void* store, const char* nid, const char* port,
+                               const void* mesh) {
+                auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
+                m[std::string(nid) + "." + port] = *static_cast<const MeshPtr*>(mesh);
             };
             ctx.emit_audio = [](void* store, const char* nid, const char* port,
                                 const float* data, int frames, int channels, int rate) {

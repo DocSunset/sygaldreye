@@ -19,6 +19,9 @@ typedef struct EyeballsOutputCtx {
     /* v5: draw-call values through edges; fn points at a C++ DrawFn */
     void (*emit_drawfn) (void* store, const char* nid, const char* port,
                          const void* fn);
+    /* v5: CPU mesh values; mesh points at a C++ MeshPtr (shared_ptr) */
+    void (*emit_mesh)   (void* store, const char* nid, const char* port,
+                         const void* mesh);
     void (*emit_audio)  (void* store, const char* nid, const char* port,
                          const float* samples, int frames, int channels, int rate);
 } EyeballsOutputCtx;
@@ -55,6 +58,8 @@ typedef struct {
                                   const float* samples, int frames, int channels, int rate);
     /* v5: fn points at a C++ DrawFn to copy; nullable */
     void        (*set_drawfn_in)(void* node, const char* port, const void* fn);
+    /* v5: mesh points at a C++ MeshPtr to copy; nullable */
+    void        (*set_mesh_in)  (void* node, const char* port, const void* mesh);
 } EyeballsNodeDescriptor;
 
 /* Every plugin .so must export this symbol: */

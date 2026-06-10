@@ -61,6 +61,8 @@ std::string value_json(const PortValue& val) {
             std::snprintf(buf, sizeof(buf), R"("texture:%u")", v.id);
         } else if constexpr (std::is_same_v<T, DrawFn>) {
             std::snprintf(buf, sizeof(buf), R"("drawfn")");
+        } else if constexpr (std::is_same_v<T, MeshPtr>) {
+            std::snprintf(buf, sizeof(buf), R"("mesh:%zuv")", v ? v->vertices.size() : 0);
         } else {
             std::snprintf(buf, sizeof(buf), R"("audio")");
         }

@@ -2,6 +2,7 @@
 #pragma once
 #include "eyeballs_node_abi.h"
 #include "gpu_texture.hpp"
+#include "tri_mesh.hpp"
 #include "param_registry.hpp"
 #include "sygaldry_endpoints.hpp"
 #include <Eigen/Core>
@@ -10,6 +11,7 @@
 #include <concepts>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -82,6 +84,14 @@ template<typename F>
 concept AudioPortField = PortField<F> &&
     std::same_as<typename F::value_type, AudioBuffer>;
 
+// CPU mesh flowing through edges; shared so producers can regenerate while
+// consumers hold the previous frame.
+using MeshPtr = std::shared_ptr<const TriMeshData>;
+
+template<typename F>
+concept MeshPortField = PortField<F> &&
+    std::same_as<typename F::value_type, MeshPtr>;
+
 // SliderField and ToggleField are defined in param_registry.hpp (already included).
 
 // GraphTextureCtx: legacy v2 context for push_textures. Kept for ABI compatibility.
@@ -105,6 +115,7 @@ template<typename F>
 constexpr std::string_view port_kind() {
     if constexpr (DrawCallField<F>)   return "draw_call";
     else if constexpr (TexturePortField<F>) return "texture";
+    else if constexpr (MeshPortField<F>)   return "mesh";
     else if constexpr (AudioPortField<F>)  return "audio";
     else if constexpr (Mat4PortField<F>)   return "mat4";
     else if constexpr (QuatPortField<F>)   return "quat";
@@ -211,6 +222,10 @@ const EyeballsNodeDescriptor* make_descriptor() {
                         if (ctx->emit_drawfn && field.value)
                             ctx->emit_drawfn(ctx->store, ctx->node_id, nm.data(),
                                              static_cast<const void*>(&field.value));
+                    } else if constexpr (MeshPortField<F>) {
+                        if (ctx->emit_mesh && field.value)
+                            ctx->emit_mesh(ctx->store, ctx->node_id, nm.data(),
+                                           static_cast<const void*>(&field.value));
                     } else if constexpr (ScalarPortField<F>) {
                         ctx->emit_scalar(ctx->store, ctx->node_id, nm.data(),
                                          static_cast<double>(field.value));
@@ -397,6 +412,22 @@ const EyeballsNodeDescriptor* make_descriptor() {
         };
     }
 
+    // set_mesh_in (v5)
+    static void (*set_mesh_in_fn)(void*, const char*, const void*) = nullptr;
+    if constexpr (HasInputs<Node>) {
+        set_mesh_in_fn = [](void* p, const char* port_name, const void* mesh) {
+            auto* node = static_cast<Node*>(p);
+            boost::pfr::for_each_field(node->inputs,
+                [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
+                    using F = std::remove_cvref_t<decltype(field)>;
+                    if constexpr (MeshPortField<F>) {
+                        if (F::name() == std::string_view(port_name))
+                            field.value = *static_cast<const MeshPtr*>(mesh);
+                    }
+                });
+        };
+    }
+
     // set_drawfn_in (v5)
     static void (*set_drawfn_in_fn)(void*, const char*, const void*) = nullptr;
     if constexpr (HasInputs<Node>) {
@@ -443,6 +474,7 @@ const EyeballsNodeDescriptor* make_descriptor() {
         .set_texture_in   = set_texture_in_fn,
         .set_audio_in     = set_audio_in_fn,
         .set_drawfn_in    = set_drawfn_in_fn,
+        .set_mesh_in      = set_mesh_in_fn,
     };
     return &d;
 }

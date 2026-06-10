@@ -45,6 +45,9 @@ void SubgraphNode::operator()(double t) {
             } else if constexpr (std::is_same_v<T, DrawFn>) {
                 if (d->set_drawfn_in)
                     d->set_drawfn_in(data, p, static_cast<const void*>(&val));
+            } else if constexpr (std::is_same_v<T, MeshPtr>) {
+                if (d->set_mesh_in)
+                    d->set_mesh_in(data, p, static_cast<const void*>(&val));
             }
         }, cv->second);
     }
@@ -80,6 +83,10 @@ void SubgraphNode::push_outlets(EyeballsOutputCtx* ctx) const {
                 if (ctx->emit_drawfn)
                     ctx->emit_drawfn(ctx->store, ctx->node_id, nm,
                                      static_cast<const void*>(&val));
+            } else if constexpr (std::is_same_v<T, MeshPtr>) {
+                if (ctx->emit_mesh)
+                    ctx->emit_mesh(ctx->store, ctx->node_id, nm,
+                                   static_cast<const void*>(&val));
             }
         }, it->second);
     }
