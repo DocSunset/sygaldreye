@@ -81,9 +81,16 @@ Aurora Aurora::create_default() { return create({}); }
 Aurora Aurora::create(AuroraParams const& p) {
     Aurora a{RawTag{}};
     a.params_ = p;
+    a.init_gl();
+    return a;
+}
+
+void Aurora::init_gl() {
+    Aurora& a = *this;
+    AuroraParams const& p = params_;
 
     auto prog = GlProgram::build(VERT, FRAG);
-    if (!prog) { std::fprintf(stderr, "aurora: shader build failed\n"); return a; }
+    if (!prog) { std::fprintf(stderr, "aurora: shader build failed\n"); return; }
     a.prog_ = std::make_unique<GlProgram>(std::move(*prog));
 
     a.vp_loc_          = a.prog_->uniform_location("uVP");
@@ -177,8 +184,6 @@ Aurora Aurora::create(AuroraParams const& p) {
     }
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-    return a;
 }
 
 void Aurora::update(float time_s) { time_s_ = time_s; }
@@ -222,7 +227,7 @@ void Aurora::draw(Eigen::Matrix4f const& vp) const {
     glEnable(GL_DEPTH_TEST);
 }
 
-Aurora::Aurora() { *this = create_default(); }
+Aurora::Aurora() = default;
 
 Aurora::~Aurora() {
     for (auto& c : curtains_) {

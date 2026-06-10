@@ -70,6 +70,7 @@ void ParticleSystem::destroy_gl_resources() {
 void ParticleSystem::set_emitter(EmitterParams const& p) { params_ = p; }
 
 void ParticleSystem::operator()(double time_s) {
+    if (!prog_) create_gl_resources();  // constructed off render thread (HTTP parse)
     params_.emit_rate    = inputs.emit_rate.value;
     params_.lifetime_min = inputs.lifetime_min.value;
     params_.lifetime_max = inputs.lifetime_max.value;

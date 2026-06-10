@@ -50,6 +50,13 @@ Lissajous Lissajous::create_default() { return create({}); }
 Lissajous Lissajous::create(LissajousParams const& p) {
     Lissajous l{RawTag{}};
     l.params_ = p;
+    l.init_gl();
+    return l;
+}
+
+void Lissajous::init_gl() {
+    Lissajous& l = *this;
+    LissajousParams const& p = params_;
     l.vbo_data_.resize(static_cast<size_t>(p.samples) * 6);
 
     l.geom_ = GlGeometry::create(
@@ -63,7 +70,6 @@ Lissajous Lissajous::create(LissajousParams const& p) {
         l.prog_    = std::make_unique<GlProgram>(std::move(*prog));
         l.mvp_loc_ = l.prog_->uniform_location("uMVP");
     }
-    return l;
 }
 
 void Lissajous::update(float time_s) {

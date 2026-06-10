@@ -171,7 +171,7 @@ void TerrainRenderer::operator()(double /*time_s*/) {
     params_.noise_offset_x = inputs.noise_offset_x.value;
     params_.noise_offset_z = inputs.noise_offset_z.value;
     params_.sun.intensity  = inputs.sun_intensity.value;
-    if (dirty) {
+    if (dirty || !prog_) {  // !prog_: constructed off render thread (HTTP parse)
         auto saved = inputs;
         *this = TerrainRenderer::create(params_);
         inputs = saved;

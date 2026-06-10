@@ -37,6 +37,9 @@ private:
     std::mutex cam_mutex_;
     FlyCamera  cam_;
 
+    std::mutex                                 values_mutex_;
+    std::unordered_map<std::string, PortValue> values_snapshot_;  // copied each tick
+
     std::mutex              shot_mutex_;
     std::condition_variable shot_cv_;
     std::string             shot_path_;   // non-empty: a request is pending

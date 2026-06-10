@@ -58,7 +58,11 @@ void HostApp::frame(int width, int height, double time_s) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
-    if (active_) tick_graph(*active_, time_s);
+    if (active_) {
+        tick_graph(*active_, time_s);
+        std::lock_guard<std::mutex> lock(values_mutex_);
+        values_snapshot_ = active_->values;
+    }
 
     FlyCamera cam = camera();
     float aspect = (height > 0) ? float(width) / float(height) : 1.f;

@@ -32,6 +32,13 @@ Chladni Chladni::create_default() { return create({}); }
 Chladni Chladni::create(ChladniParams const& p) {
     Chladni c{RawTag{}};
     c.params_ = p;
+    c.init_gl();
+    return c;
+}
+
+void Chladni::init_gl() {
+    Chladni& c = *this;
+    ChladniParams const& p = params_;
     int n = p.grid_n;
     int nfaces = (n - 1) * (n - 1) * 2;
     c.data_.vertices.resize(static_cast<size_t>(nfaces * 3));
@@ -45,7 +52,6 @@ Chladni Chladni::create(ChladniParams const& p) {
         c.prog_    = std::make_unique<GlProgram>(std::move(*prog));
         c.mvp_loc_ = c.prog_->uniform_location("uMVP");
     }
-    return c;
 }
 
 void Chladni::update(float time_s) {

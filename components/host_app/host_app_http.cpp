@@ -66,6 +66,40 @@ void HostApp::install_routes() {
         }
         return out + "]";
     });
+    // Value probe: every "node.port" value that flowed through edges last tick.
+    http_.add_route("GET", "/values", [this](std::string_view) -> std::string {
+        std::lock_guard<std::mutex> lock(values_mutex_);
+        std::string out = "{";
+        bool first = true;
+        for (const auto& [key, val] : values_snapshot_) {
+            if (!first) out += ',';
+            first = false;
+            out += '"'; out += key; out += "\":";
+            out += std::visit([](const auto& v) -> std::string {
+                using T = std::decay_t<decltype(v)>;
+                char buf[160];
+                if constexpr (std::is_same_v<T, double>) {
+                    std::snprintf(buf, sizeof(buf), "%g", v);
+                } else if constexpr (std::is_same_v<T, Eigen::Vector2f>) {
+                    std::snprintf(buf, sizeof(buf), "[%g,%g]", double(v.x()), double(v.y()));
+                } else if constexpr (std::is_same_v<T, Eigen::Vector3f>) {
+                    std::snprintf(buf, sizeof(buf), "[%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()));
+                } else if constexpr (std::is_same_v<T, Eigen::Vector4f>) {
+                    std::snprintf(buf, sizeof(buf), "[%g,%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()), double(v.w()));
+                } else if constexpr (std::is_same_v<T, Eigen::Quaternionf>) {
+                    std::snprintf(buf, sizeof(buf), "[%g,%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()), double(v.w()));
+                } else if constexpr (std::is_same_v<T, Eigen::Matrix4f>) {
+                    std::snprintf(buf, sizeof(buf), R"("matrix4")");
+                } else if constexpr (std::is_same_v<T, GpuTexture>) {
+                    std::snprintf(buf, sizeof(buf), R"("texture:%u")", v.id);
+                } else {
+                    std::snprintf(buf, sizeof(buf), R"("audio")");
+                }
+                return buf;
+            }, val);
+        }
+        return out + "}";
+    });
     http_.add_route("GET", "/camera", [this](std::string_view) -> std::string {
         return camera_json(camera());
     });

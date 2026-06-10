@@ -37,9 +37,11 @@ public:
         port<"render", DrawFn> render;
     } outputs;
 
-    Lissajous() { *this = create_default(); }
+    Lissajous() = default;
 
     static Lissajous create(LissajousParams const&);
+    bool gl_ready() const { return prog_ != nullptr; }
+    void init_gl();
     void sync_params();
     void update(float time_s);
     void draw(Eigen::Matrix4f const& mvp) const;

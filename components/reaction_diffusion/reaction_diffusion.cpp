@@ -165,6 +165,11 @@ void ReactionDiffusion::update() {
 }
 
 void ReactionDiffusion::operator()(double /*time_s*/) {
+    if (!prog_) {  // constructed off render thread (HTTP parse): redo GL init
+        auto saved = inputs;
+        *this = ReactionDiffusion::create(params_);
+        inputs = saved;
+    }
     params_.Du              = inputs.Du.value;
     params_.Dv              = inputs.Dv.value;
     params_.F               = inputs.F.value;
