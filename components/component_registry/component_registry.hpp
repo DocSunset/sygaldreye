@@ -1,12 +1,11 @@
 // Copyright 2025 Travis West
 #pragma once
 #include "eyeballs_node_abi.h"
+#include "subgraph_descriptor_fwd.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-struct SubgraphDescriptor;
 
 struct RegistryEntry {
     const EyeballsNodeDescriptor* desc;
@@ -34,5 +33,5 @@ struct ComponentRegistry {
 
 private:
     std::unordered_map<std::string, RegistryEntry>      entries_;
-    std::vector<std::unique_ptr<SubgraphDescriptor>>    subgraph_descriptors_;
+    std::vector<SubgraphDescriptorPtr>                  subgraph_descriptors_;
 };

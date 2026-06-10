@@ -81,7 +81,10 @@ LitShader::LitShader(LitShader&&) noexcept = default;
 LitShader& LitShader::operator=(LitShader&&) noexcept = default;
 
 void LitShader::init() {
-    std::string frag_src = std::string(BLINN_PHONG_GLSL) + FRAG;
+    // Insert before main(), never before #version (a preprocessor error —
+    // Adreno tolerates it, Mesa does not).
+    std::string frag_src{FRAG};
+    frag_src.insert(frag_src.find("void main"), BLINN_PHONG_GLSL);
     auto result = GlProgram::build(VERT, frag_src.c_str());
     if (!result) { LOGE("shader build failed"); return; }
     prog_ = std::make_unique<GlProgram>(std::move(*result));

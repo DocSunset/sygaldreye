@@ -2,6 +2,7 @@
 #pragma once
 #include "eyeballs_node_abi.hpp"
 #include "gpu_texture.hpp"
+#include "subgraph_descriptor_fwd.hpp"
 #include "sygaldry_endpoints.hpp"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -36,9 +37,7 @@ struct Edge {
 struct InletDecl  { std::string name, node, port; };
 struct OutletDecl { std::string name, node, port; };
 
-// Forward declarations — subgraph_node and component_registry both include
-// this header; including either back would be circular.
-struct SubgraphDescriptor;
+// component_registry includes this header; including it back would be circular.
 struct ComponentRegistry;
 
 struct Graph {
@@ -48,7 +47,7 @@ struct Graph {
     std::vector<OutletDecl>                      outlets;
     std::unordered_map<std::string, PortValue>   values;      // "node_id.port_name" → typed value
     std::vector<DrawFn>                          draw_calls;  // cleared each tick
-    std::vector<std::unique_ptr<SubgraphDescriptor>> owned_descriptors;
+    std::vector<SubgraphDescriptorPtr>           owned_descriptors;
 
     ~Graph();
 };

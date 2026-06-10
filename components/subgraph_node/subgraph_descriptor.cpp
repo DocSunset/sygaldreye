@@ -110,3 +110,5 @@ SubgraphDescriptor::SubgraphDescriptor(std::unique_ptr<Graph> graph_template,
 SubgraphDescriptor::~SubgraphDescriptor() {
     if (slot_ >= 0 && g_slots[slot_] == this) g_slots[slot_] = nullptr;
 }
+
+void SubgraphDescriptorDeleter::operator()(SubgraphDescriptor* p) const { delete p; }

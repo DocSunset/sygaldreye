@@ -27,12 +27,17 @@ HostGlWindow& HostGlWindow::operator=(HostGlWindow&& other) noexcept {
 
 HostGlWindow::~HostGlWindow() { delete impl_; }
 
+void* HostGlWindow::native() const { return impl_ ? impl_->window : nullptr; }
+
 std::optional<HostGlWindow> HostGlWindow::create(int width, int height, const char* title) {
     if (!glfwInit()) return std::nullopt;
 
+    // GLES 3.2 via EGL — matches the Android/Quest context so "300 es"
+    // shaders compile identically on host.
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+    glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
 
     GLFWwindow* win = glfwCreateWindow(width, height, title, nullptr, nullptr);
     if (!win) { glfwTerminate(); return std::nullopt; }

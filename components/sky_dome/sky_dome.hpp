@@ -63,6 +63,7 @@ public:
     void draw(Eigen::Matrix4f const& vp) const;
 
 private:
+    void init_gl();
     SphereMesh dome_mesh_;
     std::unique_ptr<GlProgram> sky_prog_;
     GLint vp_loc_          = -1;

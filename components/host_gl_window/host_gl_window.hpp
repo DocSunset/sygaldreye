@@ -12,6 +12,9 @@ struct HostGlWindow {
     // Run the render loop until window is closed.
     void run(RenderCallback callback);
 
+    // Underlying GLFWwindow*, for input polling by callers that link GLFW.
+    void* native() const;
+
     ~HostGlWindow();
     HostGlWindow(HostGlWindow&&) noexcept;
     HostGlWindow& operator=(HostGlWindow&&) noexcept;

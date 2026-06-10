@@ -13,10 +13,19 @@
 SkyDome SkyDome::create(SkyParams const& p) {
     SkyDome d;
     d.params_ = p;
+    d.init_gl();
+    return d;
+}
+
+// Builds GL programs/meshes from params_. Called by create() and lazily on
+// first tick: graph nodes are default-constructed, never via create().
+void SkyDome::init_gl() {
+    SkyDome& d = *this;
+    SkyParams const& p = params_;
     d.dome_mesh_ = SphereMesh::create(make_sphere(32, 16));
 
     auto sky = GlProgram::build(sky_dome_shaders::DOME_VERT, sky_dome_shaders::DOME_FRAG);
-    if (!sky) { LOGE("sky shader build failed"); return d; }
+    if (!sky) { LOGE("sky shader build failed"); return; }
     d.sky_prog_        = std::make_unique<GlProgram>(std::move(*sky));
     d.vp_loc_          = d.sky_prog_->uniform_location("uVP");
     d.body_dir_loc_    = d.sky_prog_->uniform_location("uBodyDir");
@@ -28,12 +37,12 @@ SkyDome SkyDome::create(SkyParams const& p) {
     d.zenith_loc_      = d.sky_prog_->uniform_location("uZenith");
 
     d.star_field_ = StarField::create(p.star_count, p.radius);
-    return d;
 }
 
 void SkyDome::set_params(SkyParams const& p) { params_ = p; }
 
 void SkyDome::operator()(double /*time_s*/) {
+    if (!sky_prog_) init_gl();
     // Sync params from input ports
     params_.sun_elevation = inputs.sun_elevation.value;
     params_.star_count    = static_cast<int>(inputs.star_count.value);

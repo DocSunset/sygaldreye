@@ -1,95 +1,82 @@
-// Copyright 2025 Travis West
-// Phase 6 spectator: renders water + sky on Linux using a fixed overview camera.
+// Copyright 2026 Travis West
+// Host app: live signal graph + HTTP control surface.
+// Windowed (GLFW, FPS controls) by default; --headless renders to an
+// offscreen FBO via EGL so agents can run instances anywhere.
+#include "host_app.hpp"
+#include "host_input.hpp"
 #include "host_gl_window.hpp"
-#include "water_surface.hpp"
-#include "sky_dome.hpp"
+#include "host_gl_context.hpp"
 #include <GLES3/gl3.h>
-#include <Eigen/Core>
-#include <cmath>
+#include <chrono>
 #include <cstdio>
-#include <optional>
+#include <cstdlib>
+#include <cstring>
+#include <thread>
 
 namespace {
 
-// Simple orthographic-ish overview: camera 20m above origin looking down at 30°.
-Eigen::Matrix4f make_view() {
-    Eigen::Matrix4f v = Eigen::Matrix4f::Identity();
-    // pitch -30°
-    float c = std::cos(-0.52f);
-    float s = std::sin(-0.52f);
-    v(1,1) =  c; v(1,2) = s;
-    v(2,1) = -s; v(2,2) = c;
-    v(1,3) = -20.0f * c;
-    v(2,3) =  20.0f * s;
-    return v;
+double now_s() {
+    using namespace std::chrono;
+    return duration<double>(steady_clock::now().time_since_epoch()).count();
 }
 
-Eigen::Matrix4f make_proj(float aspect) {
-    float fov  = 0.9f; // ~52°
-    float near = 0.1f;
-    float far  = 1000.0f;
-    float f    = 1.0f / std::tan(fov / 2.0f);
-    Eigen::Matrix4f p = Eigen::Matrix4f::Zero();
-    p(0,0) = f / aspect;
-    p(1,1) = f;
-    p(2,2) = (far + near) / (near - far);
-    p(2,3) = (2.0f * far * near) / (near - far);
-    p(3,2) = -1.0f;
-    return p;
+int run_headless(HostApp& app, int port, int w, int h) {
+    auto ctx = HostGlContext::create();
+    if (!ctx) { std::puts("headless: EGL context failed"); return 1; }
+    app.init(port);  // after context: some nodes compile shaders in constructors
+
+    GLuint fbo, color, depth;
+    glGenFramebuffers(1, &fbo);
+    glGenTextures(1, &color);
+    glGenRenderbuffers(1, &depth);
+    glBindTexture(GL_TEXTURE_2D, color);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glBindRenderbuffer(GL_RENDERBUFFER, depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::puts("headless: framebuffer incomplete");
+        return 1;
+    }
+
+    std::printf("headless: running at %dx%d\n", w, h);
+    const double t0 = now_s();
+    while (!app.quit_requested()) {
+        app.frame(w, h, now_s() - t0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+    }
+    return 0;
 }
 
 } // namespace
 
-int main() {
-    auto win = HostGlWindow::create(1280, 720, "eyeballs spectator");
-    if (!win) {
-        std::puts("spectator: could not create window");
-        return 1;
+int main(int argc, char** argv) {
+    bool headless = false;
+    int  port     = 8080;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--headless") == 0) headless = true;
+        else if (std::strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = std::atoi(argv[++i]);
     }
 
-    WaterParams wp;
-    wp.grid_w    = 64;
-    wp.grid_h    = 64;
-    wp.cell_size = 0.375f;
-    auto water = WaterSurface::create(wp);
+    HostApp app;
+    if (headless) return run_headless(app, port, 1280, 720);
 
-    SkyParams sp;
-    sp.radius     = 500.0f;
-    sp.star_count = 2000;
-    auto sky = SkyDome::create(sp);
+    auto win = HostGlWindow::create(1280, 720, "sygaldreye");
+    if (!win) { std::puts("could not create window"); return 1; }
+    app.init(port);  // after context: some nodes compile shaders in constructors
 
-    const Eigen::Matrix4f view = make_view();
-    const Eigen::Vector3f view_pos{0.0f, 20.0f, 0.0f};
-
-    constexpr float kWaterY    = -1.5f;
-    constexpr float kCellSize  = 0.375f;
-    constexpr int   kGridW     = 64;
-    constexpr int   kGridH     = 64;
-    Eigen::Matrix4f water_model = Eigen::Matrix4f::Identity();
-    water_model(0,3) = -(kGridW - 1) * kCellSize * 0.5f;
-    water_model(1,3) = kWaterY;
-    water_model(2,3) = -(kGridH - 1) * kCellSize * 0.5f;
-
-    double time_s = 0.0;
-
+    const double t0 = now_s();
+    double prev = 0.0;
     win->run([&](int w, int h) {
-        glViewport(0, 0, w, h);
-        glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-
-        float aspect = (h > 0) ? static_cast<float>(w) / static_cast<float>(h) : 1.0f;
-        const Eigen::Matrix4f pv = make_proj(aspect) * view;
-
-        glDepthMask(GL_FALSE);
-        sky.draw(pv);
-        glDepthMask(GL_TRUE);
-
-        water.update(static_cast<float>(time_s));
-        water.draw(pv * water_model, water_model, view_pos);
-
-        time_s += 1.0 / 60.0;
+        double t = now_s() - t0;
+        FlyCamera cam = app.camera();
+        apply_fps_input(win->native(), cam, float(t - prev));
+        app.set_camera(cam);
+        prev = t;
+        app.frame(w, h, t);
+        if (app.quit_requested()) std::exit(0);
     });
-
     return 0;
 }

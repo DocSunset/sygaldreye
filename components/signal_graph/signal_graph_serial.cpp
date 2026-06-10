@@ -88,7 +88,7 @@ std::unique_ptr<Graph> parse_graph(const std::string& json, const ComponentRegis
             auto inner = parse_graph(std::string(inline_graph_json), registry);
             if (!inner) return nullptr;
             std::string inline_type = "__inline_" + std::string(id);
-            auto subdesc = std::make_unique<SubgraphDescriptor>(std::move(inner), inline_type);
+            SubgraphDescriptorPtr subdesc(new SubgraphDescriptor(std::move(inner), inline_type));
             const EyeballsNodeDescriptor* desc = subdesc->descriptor();
             void* data = desc->create();
             if (!data) return nullptr;

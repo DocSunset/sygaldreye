@@ -45,7 +45,7 @@ bool ComponentRegistry::load_subgraph_json(const std::string& path) {
         LOGE("component_registry: failed to parse subgraph JSON %s", path.c_str());
         return false;
     }
-    auto desc = std::make_unique<SubgraphDescriptor>(std::move(graph), type_name);
+    SubgraphDescriptorPtr desc(new SubgraphDescriptor(std::move(graph), type_name));
     register_builtin(desc->descriptor());
     subgraph_descriptors_.push_back(std::move(desc));
     LOG("component_registry: registered subgraph '%s' from %s", type_name.c_str(), path.c_str());

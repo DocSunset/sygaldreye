@@ -147,10 +147,22 @@ void WaterSurface::upload_wave_params() {
 WaterSurface WaterSurface::create(WaterParams const& p) {
     WaterSurface w;
     w.params_ = p;
+    w.init_gl();
+    return w;
+}
 
-    std::string frag_src = std::string(BLINN_PHONG_GLSL) + FRAG;
+// Builds GL programs/buffers from params_. Called by create() and lazily on
+// first tick: graph nodes are default-constructed, never via create().
+void WaterSurface::init_gl() {
+    WaterSurface& w = *this;
+    WaterParams const& p = params_;
+
+    // Insert before main(), never before #version (a preprocessor error —
+    // Adreno tolerates it, Mesa does not).
+    std::string frag_src{FRAG};
+    frag_src.insert(frag_src.find("void main"), BLINN_PHONG_GLSL);
     auto prog = GlProgram::build(VERT, frag_src.c_str());
-    if (!prog) { LOG_E(TAG, "shader build failed"); return w; }
+    if (!prog) { LOG_E(TAG, "shader build failed"); return; }
     w.prog_            = std::make_unique<GlProgram>(std::move(*prog));
     w.mvp_loc_         = w.prog_->uniform_location("uMVP");
     w.model_loc_       = w.prog_->uniform_location("uModel");
@@ -207,10 +219,10 @@ WaterSurface WaterSurface::create(WaterParams const& p) {
         static_cast<GLsizeiptr>(indices.size() * sizeof(uint32_t)),
         indices.data(), GL_STATIC_DRAW);
     glBindVertexArray(0);
-    return w;
 }
 
 void WaterSurface::operator()(double time_s) {
+    if (!prog_) init_gl();
     update(static_cast<float>(time_s));
     outputs.render.value = [this](const Eigen::Matrix4f& vp) {
         // Use identity model and zero view_pos as defaults; app can override via set_sun().

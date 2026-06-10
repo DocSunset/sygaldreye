@@ -77,6 +77,7 @@ public:
               Eigen::Vector3f const& view_pos) const;
 
 private:
+    void init_gl();
     void upload_wave_params();
 
     WaterParams                params_;
