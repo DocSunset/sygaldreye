@@ -32,8 +32,25 @@ Gotchas:
 - Some nodes compile shaders in constructors → GL context must exist before
   `HostApp::init` (`parse_graph`, `/palette` create temp instances too).
 
+Slice 1 COMPLETE (2026-06-10, later):
+- `sh/agent/`: launch/stop/screenshot/camera/graph/values/controller.sh
+- GET /values port-value probe; POST /controller virtual hands
+- Lazy GL init across all visual nodes (graphs parsed on HTTP thread got
+  GL-less nodes — every live-added node was invisible, Quest included)
+- vr_editor runs ON HOST (it was never XR-bound — only XrPosef types);
+  text_mesh ported (android log → log_component)
+- Agent drove the editor end to end: virtual trigger over palette spawned a
+  live lissajous node. Proven by screenshot.
+
+More bugs found & fixed:
+- palette spawn inserted nodes into the EDGES array (json.rfind) — palette
+  spawning never worked on any platform
+- to_json emitted invalid JSON for vector ports ("light_dir":,) — every
+  /graph response was unparseable by strict parsers
+Logged to kanban/backlog: text_mesh glyph corruption, editor card layout.
+
 Next:
-- `sh/agent/` script kit (launch/screenshot/look/move/graph)
-- value-probe endpoint (read graph `values` map over HTTP)
-- audit remaining visual nodes for the init_gl bug (aurora, chladni, etc.)
-- editor on host + bug hunt (task list in session; kanban for found bugs)
+- editor deep bug hunt: wire-drag (grip), sliders, dwell-delete, undo
+- input as graph source nodes (mouse/keyboard/agent = same edges)
+- /graph validation pass on Quest build; run sh/test.sh on device
+- then: edge/executor design doc (slice 3)
