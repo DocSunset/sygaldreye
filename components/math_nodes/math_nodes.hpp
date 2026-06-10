@@ -130,3 +130,34 @@ private:
     float  state_  = 0.f;
     double prev_t_ = -1.0;
 };
+
+#include <Eigen/Core>
+
+// vec3 plumbing: route component signals into/out of vector ports.
+struct Split3Node {
+    static consteval std::string_view name() { return "split3"; }
+    struct inputs  { port<"in", Eigen::Vector3f> in; } inputs;
+    struct outputs {
+        port<"x", float> x;
+        port<"y", float> y;
+        port<"z", float> z;
+    } outputs;
+    void operator()(double) {
+        outputs.x.value = inputs.in.value.x();
+        outputs.y.value = inputs.in.value.y();
+        outputs.z.value = inputs.in.value.z();
+    }
+};
+
+struct Join3Node {
+    static consteval std::string_view name() { return "join3"; }
+    struct inputs {
+        slider<"x", "", float, fp(-1000.f), fp(1000.f), fp(0.f)> x;
+        slider<"y", "", float, fp(-1000.f), fp(1000.f), fp(0.f)> y;
+        slider<"z", "", float, fp(-1000.f), fp(1000.f), fp(0.f)> z;
+    } inputs;
+    struct outputs { port<"out", Eigen::Vector3f> out; } outputs;
+    void operator()(double) {
+        outputs.out.value = {inputs.x.value, inputs.y.value, inputs.z.value};
+    }
+};

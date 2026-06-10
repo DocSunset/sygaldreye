@@ -37,6 +37,15 @@ public:
         slider<"lifetime max", "", float, fp(0.1f),  fp(10.f),   fp(2.f)>   lifetime_max;
         slider<"size start",   "", float, fp(0.01f), fp(1.f),    fp(0.05f)> size_start;
         slider<"size end",     "", float, fp(0.f),   fp(1.f),    fp(0.f)>   size_end;
+        slider<"emit_x",       "", float, fp(-50.f),  fp(50.f),   fp(0.f)>   emit_x;
+        slider<"emit_y",       "", float, fp(-50.f),  fp(50.f),   fp(0.f)>   emit_y;
+        slider<"emit_z",       "", float, fp(-50.f),  fp(50.f),   fp(0.f)>   emit_z;
+        slider<"vel_up",       "", float, fp(0.f),    fp(20.f),   fp(3.f)>   vel_up;
+        slider<"vel_spread",   "", float, fp(0.f),    fp(10.f),   fp(1.f)>   vel_spread;
+        slider<"gravity_y",    "", float, fp(-30.f),  fp(30.f),   fp(-9.8f)> gravity_y;
+        slider<"r",            "", float, fp(0.f),    fp(1.f),    fp(1.f)>   r;
+        slider<"g",            "", float, fp(0.f),    fp(1.f),    fp(0.75f)> g;
+        slider<"b",            "", float, fp(0.f),    fp(1.f),    fp(0.3f)>  b;
     } inputs;
 
     explicit ParticleSystem(int capacity = 1000);

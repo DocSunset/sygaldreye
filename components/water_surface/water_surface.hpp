@@ -20,6 +20,8 @@ struct GerstnerWave {
 };
 
 // 32 waves: harmonic series from 56m fundamental, A∝λ, random inharmonicity/phase/direction.
+std::vector<GerstnerWave> make_waves(float base_wavelength, float amp_coeff,
+                                     float base_steepness);
 std::vector<GerstnerWave> make_default_waves();
 
 struct WaterParams {
@@ -48,6 +50,9 @@ public:
         slider<"cell size",      "", float, 0.1, 5.0,  1.0>  cell_size;
         slider<"foam threshold", "", float, 0.0, 1.0,  0.55> foam_threshold;
         slider<"sun intensity",  "", float, 0.0, 5.0,  1.2>  sun_intensity;
+        slider<"wavelength",     "", float, 8.0,  150.0, 56.0> wavelength;
+        slider<"choppiness",     "", float, 0.0,  1.0,   0.6>  choppiness;
+        slider<"amplitude",      "", float, 0.0,  0.05,  0.016> amplitude;
     } inputs;
 
     struct outputs {
@@ -78,6 +83,7 @@ public:
 
 private:
     void init_gl();
+    float spec_wl_ = 56.f, spec_steep_ = 0.6f, spec_amp_ = 0.016f;
     void upload_wave_params();
 
     WaterParams                params_;

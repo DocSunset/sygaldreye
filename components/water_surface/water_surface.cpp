@@ -98,12 +98,11 @@ void main() {
 
 } // namespace
 
-std::vector<GerstnerWave> make_default_waves() {
+std::vector<GerstnerWave> make_default_waves() { return make_waves(56.f, 0.016f, 0.6f); }
+
+std::vector<GerstnerWave> make_waves(float base_wl, float k_amp, float base_steep) {
     std::vector<GerstnerWave> waves;
     waves.reserve(32);
-    constexpr float base_wl    = 56.0f;
-    constexpr float k_amp      = 0.016f;
-    constexpr float base_steep = 0.60f;
     auto lcg = [](uint32_t& s) {
         s = s * 1664525u + 1013904223u;
         return float(s >> 8) / float(1u << 24);
@@ -223,6 +222,16 @@ void WaterSurface::init_gl() {
 
 void WaterSurface::operator()(double time_s) {
     if (!prog_) init_gl();
+    // Spectrum inputs are patchable; rebuild + re-upload waves when they move.
+    if (inputs.wavelength.value != spec_wl_ ||
+        inputs.choppiness.value != spec_steep_ ||
+        inputs.amplitude.value  != spec_amp_) {
+        spec_wl_ = inputs.wavelength.value;
+        spec_steep_ = inputs.choppiness.value;
+        spec_amp_ = inputs.amplitude.value;
+        params_.waves = make_waves(spec_wl_, spec_amp_, spec_steep_);
+        upload_wave_params();
+    }
     update(static_cast<float>(time_s));
     outputs.render.value = [this](const Eigen::Matrix4f& vp) {
         // Use identity model and zero view_pos as defaults; app can override via set_sun().
