@@ -9,6 +9,7 @@
 #include "net_nodes.hpp"
 #include "water_surface.hpp"
 #include "sky_dome.hpp"
+#include "star_field.hpp"
 #include "sun_light.hpp"
 #include "cube_node.hpp"
 #include "lissajous.hpp"
@@ -61,6 +62,7 @@ void HostApp::init(int http_port) {
     registry_.register_builtin(make_descriptor<UdpRecvNode>());
     registry_.register_builtin(make_descriptor<WaterSurface>());
     registry_.register_builtin(make_descriptor<SkyDome>());
+    registry_.register_builtin(make_descriptor<StarField>());
     registry_.register_builtin(make_descriptor<SunLight>());
     registry_.register_builtin(make_descriptor<CubeNode>());
     registry_.register_builtin(make_descriptor<Lissajous>());

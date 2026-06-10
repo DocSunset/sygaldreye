@@ -49,8 +49,34 @@ More bugs found & fixed:
   /graph response was unparseable by strict parsers
 Logged to kanban/backlog: text_mesh glyph corruption, editor card layout.
 
+## 2026-06-10 (cont.) — Decomposition slice: spine graphified
+
+Architecture now (host):
+- migrate_graph: live graph swaps adopt node state by (id, descriptor);
+  fresh params re-applied. Editor lives in the graph it edits and survives
+  its own edits. THE enabling primitive for live patching.
+- Nodes: fly_camera (app renders with values["camera.pv"]), hand (HTTP-fed
+  on host / XR-fed on device), editor (hand poses via ordinary edges),
+  lfo/scale/add/mul, udp_send/udp_recv (loopback bridge; string params
+  needed for cross-device addressing).
+- host_app seams that remain C++: param queue (POST /param → deserialize on
+  render thread), editor context injection (set_context/take_edit), camera
+  aspect pump, final draw using camera.pv, screenshot.
+- assets/graphs/*.json auto-register as subgraph node types ("plugins in
+  JSON"). orbit_cam.json = adds + lfos; proven driving a cube live.
+- Two-instance UDP bridge proven: B's cube bobs on A's lfo (channel 0,
+  port 9100, ~1 frame lag).
+- parse_graph accepts standard (whitespace) JSON now.
+- "add" node doubles as a constant source (a unwired, b=value) — inlet
+  fan-out inside subgraphs uses this trick; a dedicated const node would
+  read better.
+
 Next:
+- decompose coarse visual nodes (sky_dome → gradient + star_field + sun
+  disc; water; rd) as node splits + .json subgraphs
+- string PortValue/params (UDP host addressing, labels, JSON events)
 - editor deep bug hunt: wire-drag (grip), sliders, dwell-delete, undo
-- input as graph source nodes (mouse/keyboard/agent = same edges)
-- /graph validation pass on Quest build; run sh/test.sh on device
-- then: edge/executor design doc (slice 3)
+- Android app.cpp: adopt migrate_graph + hand/editor nodes (currently still
+  the old C++ editor member; works but diverges from host architecture)
+- Quest on-device validation pass
+- update planning/vision.md slice plan as slices merge

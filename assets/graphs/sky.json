@@ -1,0 +1,12 @@
+{
+  "inlets":  [{"name":"sun_elevation","node":"grad","port":"sun_elevation"},
+              {"name":"sun_elevation","node":"stars","port":"sun elevation"}],
+  "outlets": [{"name":"sun_dir","node":"grad","port":"sun_dir"},
+              {"name":"sun_color","node":"grad","port":"sun_color"},
+              {"name":"sun_elevation_out","node":"grad","port":"sun_elevation_out"}],
+  "nodes":[
+    {"id":"grad","type":"sky_dome","params":{}},
+    {"id":"stars","type":"star_field","params":{}}
+  ],
+  "edges":[]
+}

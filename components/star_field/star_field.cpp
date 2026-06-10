@@ -24,6 +24,11 @@ StarField StarField::create(int star_count, float radius) {
 }
 
 void StarField::operator()(double /*time_s*/) {
+    if (!prog_) {  // constructed off render thread (graph parse): lazy init
+        auto saved = inputs;
+        *this = create(int(inputs.star_count.value), inputs.radius.value);
+        inputs = saved;
+    }
     sun_elev_   = inputs.sun_elevation.value;
     star_count_ = static_cast<GLsizei>(inputs.star_count.value);
     radius_     = inputs.radius.value;
@@ -34,6 +39,11 @@ void StarField::draw(Eigen::Matrix4f const& vp) const {
     if (!prog_) return;
     float alpha = std::clamp(-sun_elev_ * 3.0f, 0.0f, 1.0f);
     if (star_count_ <= 0 || alpha <= 0.01f) return;
+    // Background layer: xyww in the shader pins depth to exactly 1.0, which
+    // loses a GL_LESS test against the cleared buffer (Adreno's rounding
+    // sometimes let it pass; Mesa never does). Skip depth entirely.
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     prog_->use();
@@ -44,6 +54,8 @@ void StarField::draw(Eigen::Matrix4f const& vp) const {
     glDrawArrays(GL_POINTS, 0, star_count_);
     glBindVertexArray(0);
     glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
 }
 
 StarField::~StarField() {

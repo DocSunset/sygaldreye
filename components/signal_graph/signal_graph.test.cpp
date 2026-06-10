@@ -406,3 +406,37 @@ TEST(ParseGraph, ToleratesStandardJsonWhitespace) {
     ASSERT_TRUE(g);
     EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g->nodes[0].data)->inputs.step.value, 3.f);
 }
+
+TEST(SubgraphInlets, RegistryJsonInjectionFansOut) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+    const char* sub = R"({
+      "inlets":[{"name":"v","node":"c1","port":"step"},
+                {"name":"v","node":"c2","port":"step"}],
+      "outlets":[{"name":"n1","node":"c1","port":"count"},
+                 {"name":"n2","node":"c2","port":"count"}],
+      "nodes":[{"id":"c1","type":"counter","params":{}},
+               {"id":"c2","type":"counter","params":{}}],
+      "edges":[]
+    })";
+    std::string path = "/tmp/twin_counter.json";
+    FILE* f = fopen(path.c_str(), "w");
+    fwrite(sub, 1, strlen(sub), f);
+    fclose(f);
+    ASSERT_TRUE(reg.load_plugin(path));
+
+    auto g = parse_graph(R"({
+      "nodes":[{"id":"src","type":"counter","params":{"step":5}},
+               {"id":"tw","type":"twin_counter","params":{}}],
+      "edges":[{"from":"src.count","to":"tw.v"}]
+    })", reg);
+    ASSERT_TRUE(g);
+    tick_graph(*g, 0.0);  // src.count=5 published; tw sees stale/no inlet yet
+    tick_graph(*g, 0.0);  // tw receives 5 → both counters step by 5
+    auto n1 = g->values.find("tw.n1");
+    ASSERT_NE(n1, g->values.end());
+    EXPECT_GE(std::get<double>(n1->second), 5.0);
+    auto n2 = g->values.find("tw.n2");
+    ASSERT_NE(n2, g->values.end());
+    EXPECT_GE(std::get<double>(n2->second), 5.0);
+}

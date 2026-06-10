@@ -6,7 +6,6 @@
 #include <string_view>
 #include "sphere_mesh.hpp"
 #include "sygaldry_endpoints.hpp"
-#include "star_field.hpp"
 
 struct GlProgram;
 
@@ -25,7 +24,6 @@ struct SkyParams {
     Eigen::Vector4f body_color{1.0f, 0.98f, 0.85f, 1.0f};
     float body_angular_radius = 0.009f;
     // Stars fade in when sun_elevation < 0
-    int star_count = 2000;
 };
 
 class SkyDome {
@@ -36,7 +34,6 @@ public:
 
     struct inputs {
         slider<"sun elevation", "", float, -1.0, 1.0, 0.5> sun_elevation;
-        slider<"star count",    "", float, 0.0, 5000.0, 2000.0> star_count;
         slider<"radius",        "", float, 10.0, 2000.0, 500.0> radius;
     } inputs;
 
@@ -75,6 +72,5 @@ private:
     GLint horizon_loc_     = -1;
     GLint zenith_loc_      = -1;
 
-    StarField star_field_;
     SkyParams params_;
 };

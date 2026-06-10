@@ -36,7 +36,6 @@ void SkyDome::init_gl() {
     d.horizon_loc_     = d.sky_prog_->uniform_location("uHorizon");
     d.zenith_loc_      = d.sky_prog_->uniform_location("uZenith");
 
-    d.star_field_ = StarField::create(p.star_count, p.radius);
 }
 
 void SkyDome::set_params(SkyParams const& p) { params_ = p; }
@@ -45,11 +44,7 @@ void SkyDome::operator()(double /*time_s*/) {
     if (!sky_prog_) init_gl();
     // Sync params from input ports
     params_.sun_elevation = inputs.sun_elevation.value;
-    params_.star_count    = static_cast<int>(inputs.star_count.value);
     params_.radius        = inputs.radius.value;
-    star_field_.inputs.sun_elevation.value = inputs.sun_elevation.value;
-    star_field_.inputs.star_count.value    = inputs.star_count.value;
-    star_field_.inputs.radius.value        = inputs.radius.value;
     outputs.render.value  = [this](const Eigen::Matrix4f& vp) { draw(vp); };
 
     // Publish scalar outputs for downstream wiring
@@ -83,7 +78,6 @@ void SkyDome::draw(Eigen::Matrix4f const& vp) const {
     glUniform4fv(zenith_loc_,     1, params_.zenith_color.data());
     dome_mesh_.draw();
 
-    star_field_.draw(vp);
 
     glDepthMask(GL_TRUE);
     glEnable(GL_DEPTH_TEST);
@@ -102,7 +96,6 @@ SkyDome::SkyDome(SkyDome&& src) noexcept
       use_override_loc_(src.use_override_loc_),
       horizon_loc_(src.horizon_loc_),
       zenith_loc_(src.zenith_loc_),
-      star_field_(std::move(src.star_field_)),
       params_(src.params_) {}
 
 SkyDome& SkyDome::operator=(SkyDome&& src) noexcept {
@@ -117,7 +110,6 @@ SkyDome& SkyDome::operator=(SkyDome&& src) noexcept {
         use_override_loc_ = src.use_override_loc_;
         horizon_loc_      = src.horizon_loc_;
         zenith_loc_       = src.zenith_loc_;
-        star_field_       = std::move(src.star_field_);
         params_           = src.params_;
     }
     return *this;

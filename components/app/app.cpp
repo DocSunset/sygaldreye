@@ -34,6 +34,7 @@
 #include "reaction_diffusion.hpp"
 #include "water_surface.hpp"
 #include "sky_dome.hpp"
+#include "star_field.hpp"
 #include "sun_light.hpp"
 #include "trigger_edge.hpp"
 #include "ptt_gate.hpp"
@@ -154,6 +155,7 @@ void android_main(struct android_app* app) {
 
     state.registry_.register_builtin(make_descriptor<WaterSurface>());
     state.registry_.register_builtin(make_descriptor<SkyDome>());
+    state.registry_.register_builtin(make_descriptor<StarField>());
     state.registry_.register_builtin(make_descriptor<RdGpu>());
     state.registry_.register_builtin(make_descriptor<HeadPoseNode>());
     state.registry_.register_builtin(make_descriptor<LeftControllerNode>());
