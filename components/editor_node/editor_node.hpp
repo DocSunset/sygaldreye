@@ -54,8 +54,9 @@ private:
     VrEditor    editor_;
     TextMesh    text_;
     bool        ready_ = false;
-    const Graph*             graph_    = nullptr;
-    const ComponentRegistry* registry_ = nullptr;
+    const Graph*             graph_      = nullptr;
+    const Graph*             last_graph_ = nullptr;
+    const ComponentRegistry* registry_   = nullptr;
     std::string pending_edit_;
     double      prev_time_s_ = 0.0;
 };

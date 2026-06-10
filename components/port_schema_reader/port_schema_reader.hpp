@@ -6,6 +6,8 @@
 struct PortInfo {
     std::string name;
     std::string kind;  // "scalar", "vec3", "vec4", "mat4", "texture", "draw_call", "audio", etc.
+    float min = 0.f;   // slider range; 0/1 when the schema doesn't say
+    float max = 1.f;
     bool is_drawable() const { return kind == "draw_call"; }
     bool is_wirable()  const { return kind != "draw_call"; }
 };

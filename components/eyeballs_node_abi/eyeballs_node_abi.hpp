@@ -133,7 +133,14 @@ void append_ports_json(const S& s, std::string& out) {
             out += nm;
             out += "\",\"kind\":\"";
             out += kind;
-            out += "\"}";
+            out += '"';
+            if constexpr (SliderField<F>) {  // range so editors scale correctly
+                char buf[64];
+                std::snprintf(buf, sizeof(buf), ",\"min\":%g,\"max\":%g",
+                              double(F::min()), double(F::max()));
+                out += buf;
+            }
+            out += '}';
         });
 }
 

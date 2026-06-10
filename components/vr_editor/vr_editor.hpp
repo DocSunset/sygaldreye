@@ -93,6 +93,6 @@ struct VrEditor {
     // sub-update helpers
     std::optional<GraphEdit> update_drag(bool grip_right, const Graph*);
     std::optional<GraphEdit> update_sliders(const XrPosef*, bool trigger, const Graph*);
-    std::optional<GraphEdit> update_dwell(const XrPosef*, float dt, const Graph*);
+    std::optional<GraphEdit> update_dwell(const XrPosef*, bool grip_right, float dt, const Graph*);
     std::optional<GraphEdit> update_undo(const Eigen::Vector2f& thumb);
 };

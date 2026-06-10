@@ -93,7 +93,7 @@ std::optional<VrEditor::GraphEdit> VrEditor::update(
 
     if (auto e = update_drag(grip_right, current_graph))         return e;
     if (auto e = update_sliders(right_pose, trigger_right, current_graph)) return e;
-    if (auto e = update_dwell(right_pose, delta_time_s, current_graph))    return e;
+    if (auto e = update_dwell(right_pose, grip_right, delta_time_s, current_graph)) return e;
     if (auto e = update_undo(thumbstick_left))                   return e;
 
     if (!fire || !right_pose || palette_types_.empty()) return std::nullopt;

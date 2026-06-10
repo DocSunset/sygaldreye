@@ -87,6 +87,8 @@ build_port_handles_for_card(const VrPanel& card, const std::string& node_id,
             sl.port_name = p.name;
             sl.world_pos = {card.position.x(), y, z};
             sl.width     = card.width * 0.6f;
+            sl.min_val   = p.min;
+            sl.max_val   = p.max;
             sliders.push_back(sl);
         }
         ++row;

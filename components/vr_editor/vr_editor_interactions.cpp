@@ -104,28 +104,41 @@ std::optional<VrEditor::GraphEdit> VrEditor::update_drag(
     prev_grip_right_ = grip_right;
 
     if (drag_state_ == DragState::Idle && grip_edge_down) {
-        // Test controller tip against all output handles (radius 0.02 m)
-        for (size_t ci = 0; ci < node_cards_.size(); ++ci) {
+        // Nearest output handle within radius — rows are 0.018 m apart, so
+        // first-match within 0.02 m grabbed neighbours instead of the aim.
+        const PortHandle* best = nullptr;
+        float best_d = 0.02f;
+        for (size_t ci = 0; ci < node_cards_.size(); ++ci)
             for (const auto& h : output_handles_[ci]) {
-                if ((controller_tip_ - h.world_pos).norm() < 0.02f) {
-                    drag_state_       = DragState::Dragging;
-                    drag_from_node_   = h.node_id;
-                    drag_from_port_   = h.port_name;
-                    drag_from_kind_   = h.port_kind;
-                    drag_from_pos_    = h.world_pos;
-                    return std::nullopt;
-                }
+                float d = (controller_tip_ - h.world_pos).norm();
+                if (d < best_d) { best_d = d; best = &h; }
             }
+        if (best) {
+            drag_state_       = DragState::Dragging;
+            drag_from_node_   = best->node_id;
+            drag_from_port_   = best->port_name;
+            drag_from_kind_   = best->port_kind;
+            drag_from_pos_    = best->world_pos;
+            return std::nullopt;
         }
     }
 
     if (drag_state_ == DragState::Dragging && grip_edge_up) {
         drag_state_ = DragState::Idle;
-        // Test against input handles (radius 0.03 m)
-        for (size_t ci = 0; ci < node_cards_.size(); ++ci) {
-            for (const auto& h : input_handles_[ci]) {
-                if ((controller_tip_ - h.world_pos).norm() < 0.03f &&
-                    h.port_kind == drag_from_kind_) {
+        // Nearest kind-compatible input handle within radius.
+        const PortHandle* best = nullptr;
+        float best_d = 0.03f;
+        for (size_t ci = 0; ci < node_cards_.size(); ++ci)
+            for (const auto& h2 : input_handles_[ci]) {
+                float d = (controller_tip_ - h2.world_pos).norm();
+                if (d < best_d && h2.port_kind == drag_from_kind_) {
+                    best_d = d; best = &h2;
+                }
+            }
+        if (best) {
+            {
+                const auto& h = *best;
+                {
                     // Build new graph JSON with the new edge
                     if (!current_graph) return std::nullopt;
                     std::string json = serialize_graph(*current_graph);
@@ -198,8 +211,16 @@ std::optional<VrEditor::GraphEdit> VrEditor::update_sliders(
 // ── dwell delete ─────────────────────────────────────────────────────────────
 
 std::optional<VrEditor::GraphEdit> VrEditor::update_dwell(
-        const XrPosef* right_pose, float dt, const Graph* current_graph) {
+        const XrPosef* right_pose, bool grip_right, float dt, const Graph* current_graph) {
     if (!right_pose || !current_graph) return std::nullopt;
+    // Deletion must be deliberate: bare hover deleted whatever you looked
+    // at for 1 s. Require grip held, and never delete mid wire-drag.
+    if (!grip_right || drag_state_ == DragState::Dragging) {
+        dwell_s_ = 0.f;
+        dwell_card_idx_ = -1;
+        dwell_edge_idx_ = -1;
+        return std::nullopt;
+    }
 
     // Find which card (if any) the ray hits
     int hit_card = -1;

@@ -15,7 +15,13 @@ void EditorNode::operator()(double time_s) {
         text_.init();
         editor_.init(*registry_, graph_);
         ready_ = true;
+    } else if (graph_ != last_graph_) {
+        // Migration keeps this node alive across swaps; the editor's card
+        // model must follow the new graph or every interaction targets
+        // stale node ids.
+        editor_.on_graph_changed(graph_);
     }
+    last_graph_ = graph_;
 
     XrPosef lp = to_pose(inputs.left_pos.value,  inputs.left_rot.value);
     XrPosef rp = to_pose(inputs.right_pos.value, inputs.right_rot.value);

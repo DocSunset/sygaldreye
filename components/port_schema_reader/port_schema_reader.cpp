@@ -1,5 +1,6 @@
 // Copyright 2025 Travis West
 #include "port_schema_reader.hpp"
+#include <cstdlib>
 #include <cstring>
 #include <string_view>
 
@@ -52,8 +53,17 @@ static std::vector<PortInfo> parse_ports(std::string_view json, std::string_view
     for (const auto& obj : objs) {
         auto name = find_str(obj, "name");
         auto kind = find_str(obj, "kind");
-        if (!name.empty())
-            ports.push_back({std::string(name), std::string(kind)});
+        if (name.empty()) continue;
+        PortInfo info{std::string(name), std::string(kind), 0.f, 1.f};
+        auto num = [&](std::string_view key, float fallback) -> float {
+            std::string needle = "\"" + std::string(key) + "\":";
+            auto q = obj.find(needle);
+            if (q == std::string::npos) return fallback;
+            return std::strtof(obj.c_str() + q + needle.size(), nullptr);
+        };
+        info.min = num("min", 0.f);
+        info.max = num("max", 1.f);
+        ports.push_back(std::move(info));
     }
     return ports;
 }
