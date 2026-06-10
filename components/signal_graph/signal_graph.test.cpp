@@ -440,3 +440,75 @@ TEST(SubgraphInlets, RegistryJsonInjectionFansOut) {
     ASSERT_NE(n2, g->values.end());
     EXPECT_GE(std::get<double>(n2->second), 5.0);
 }
+
+// ── text params, subgraph migration, nesting ───────────────────────────────
+struct TextyNode {
+    static consteval std::string_view name() { return "texty"; }
+    struct inputs  { ::text<"label"> label; } inputs;
+    struct outputs { port<"out", float> out; } outputs;
+    void operator()(double) { outputs.out.value = float(inputs.label.value.size()); }
+};
+
+TEST(TextParams, RoundTripThroughGraphJson) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<TextyNode>());
+    auto g = parse_graph(R"({"nodes":[{"id":"t","type":"texty","params":{"label":"hello world"}}],"edges":[]})", reg);
+    ASSERT_TRUE(g);
+    EXPECT_EQ(static_cast<TextyNode*>(g->nodes[0].data)->inputs.label.value, "hello world");
+    auto json = serialize_graph(*g);
+    EXPECT_NE(json.find("\"label\":\"hello world\""), std::string::npos);
+    auto g2 = parse_graph(json, reg);
+    ASSERT_TRUE(g2);
+    EXPECT_EQ(static_cast<TextyNode*>(g2->nodes[0].data)->inputs.label.value, "hello world");
+}
+
+TEST(MigrateGraph, RegistrySubgraphInstanceStateAdopted) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+    const char* sub = R"({"inlets":[{"name":"v","node":"c","port":"step"}],
+        "outlets":[{"name":"n","node":"c","port":"count"}],
+        "nodes":[{"id":"c","type":"counter","params":{"step":1}}],"edges":[]})";
+    FILE* f = fopen("/tmp/one_counter.json", "w");
+    fwrite(sub, 1, strlen(sub), f); fclose(f);
+    ASSERT_TRUE(reg.load_plugin("/tmp/one_counter.json"));
+
+    auto g1 = parse_graph(R"({"nodes":[{"id":"s","type":"one_counter","params":{}}],"edges":[]})", reg);
+    ASSERT_TRUE(g1);
+    for (int i = 0; i < 4; ++i) tick_graph(*g1, 0.0);
+    double before = std::get<double>(g1->values.at("s.n"));
+    EXPECT_GE(before, 4.0);
+
+    auto g2 = parse_graph(R"({"nodes":[{"id":"s","type":"one_counter","params":{}}],"edges":[]})", reg);
+    migrate_graph(*g2, *g1);  // same registry descriptor → inner graph adopted
+    tick_graph(*g2, 0.0);
+    EXPECT_GE(std::get<double>(g2->values.at("s.n")), before + 1.0);
+}
+
+TEST(SubgraphInlets, NestedTwoLevelsForwards) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+    const char* inner = R"({"inlets":[{"name":"v","node":"c","port":"step"}],
+        "outlets":[{"name":"n","node":"c","port":"count"}],
+        "nodes":[{"id":"c","type":"counter","params":{}}],"edges":[]})";
+    FILE* f = fopen("/tmp/inner_counter.json", "w");
+    fwrite(inner, 1, strlen(inner), f); fclose(f);
+    ASSERT_TRUE(reg.load_plugin("/tmp/inner_counter.json"));
+    const char* outer = R"({"inlets":[{"name":"vv","node":"i","port":"v"}],
+        "outlets":[{"name":"nn","node":"i","port":"n"}],
+        "nodes":[{"id":"i","type":"inner_counter","params":{}}],"edges":[]})";
+    f = fopen("/tmp/outer_counter.json", "w");
+    fwrite(outer, 1, strlen(outer), f); fclose(f);
+    ASSERT_TRUE(reg.load_plugin("/tmp/outer_counter.json"));
+
+    auto g = parse_graph(R"({"nodes":[
+        {"id":"src","type":"counter","params":{"step":7}},
+        {"id":"o","type":"outer_counter","params":{}}],
+        "edges":[{"from":"src.count","to":"o.vv"}]})", reg);
+    ASSERT_TRUE(g);
+    tick_graph(*g, 0.0);
+    tick_graph(*g, 0.0);
+    tick_graph(*g, 0.0);
+    auto it = g->values.find("o.nn");
+    ASSERT_NE(it, g->values.end());
+    EXPECT_GE(std::get<double>(it->second), 7.0);  // step=7 reached two levels deep
+}
