@@ -1,0 +1,21 @@
+{
+  "inlets":[
+    {"name":"ripple_amp","node":"c1","port":"ripple_amp"},
+    {"name":"ripple_amp","node":"c2","port":"ripple_amp"},
+    {"name":"ripple_amp","node":"c3","port":"ripple_amp"},
+    {"name":"ripple_amp","node":"c4","port":"ripple_amp"},
+    {"name":"ripple_amp","node":"c5","port":"ripple_amp"},
+    {"name":"alt_base","node":"c1","port":"alt_base"},
+    {"name":"alt_base","node":"c2","port":"alt_base"},
+    {"name":"alt_base","node":"c3","port":"alt_base"},
+    {"name":"alt_base","node":"c4","port":"alt_base"},
+    {"name":"alt_base","node":"c5","port":"alt_base"}],
+  "outlets":[],
+  "nodes":[
+    {"id":"c1","type":"aurora_curtain","params":{"r":0.1,"g":0.9,"b":0.3,"x_offset":-120,"phase":0.7,"freq":0.8,"speed":0.7}},
+    {"id":"c2","type":"aurora_curtain","params":{"r":0.5,"g":0.1,"b":0.9,"x_offset":-60,"phase":2.1,"freq":1.2,"speed":0.9}},
+    {"id":"c3","type":"aurora_curtain","params":{"r":0.1,"g":0.7,"b":0.9,"x_offset":0,"phase":3.6,"freq":0.9,"speed":1.2}},
+    {"id":"c4","type":"aurora_curtain","params":{"r":0.05,"g":0.8,"b":0.5,"x_offset":60,"phase":4.9,"freq":1.5,"speed":0.6}},
+    {"id":"c5","type":"aurora_curtain","params":{"r":0.4,"g":0.05,"b":0.8,"x_offset":120,"phase":5.8,"freq":1.1,"speed":1.0}}],
+  "edges":[]
+}

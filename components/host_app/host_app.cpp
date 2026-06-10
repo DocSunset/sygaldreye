@@ -15,7 +15,7 @@
 #include "sun_light.hpp"
 #include "cube_node.hpp"
 #include "lissajous.hpp"
-#include "aurora.hpp"
+#include "aurora_curtain.hpp"
 #include "chladni.hpp"
 #include "terrain_generator.hpp"
 #include "particle_system.hpp"
@@ -80,7 +80,7 @@ void HostApp::init(int http_port) {
     registry_.register_builtin(make_descriptor<SunLight>());
     registry_.register_builtin(make_descriptor<CubeNode>());
     registry_.register_builtin(make_descriptor<Lissajous>());
-    registry_.register_builtin(make_descriptor<Aurora>());
+    registry_.register_builtin(make_descriptor<AuroraCurtainNode>());
     registry_.register_builtin(make_descriptor<Chladni>());
     registry_.register_builtin(make_descriptor<TerrainRenderer>());
     registry_.register_builtin(make_descriptor<ParticleSystem>());
