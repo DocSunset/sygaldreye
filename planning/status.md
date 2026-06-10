@@ -83,8 +83,26 @@ Architecture now (host):
 - Night-sky screenshot proves the whole chain: subgraph type from disk,
   edge-driven inlet fan-out, stars from the split-out node.
 
+## 2026-06-10 (cont. 3) — UI as graph nodes
+
+- ui_slider/ui_button/ui_pane (components/ui_nodes): widgets are nodes;
+  hand ray + trigger arrive via edges; values + draw calls flow out.
+  Slider drag state is node-internal → survives migration. VrPanel does
+  the ray→uv hit math.
+- assets/graphs/control_panel.json: pane + 2 sliders as a subgraph plugin
+  (ray/trigger inlets fan out; value outlets). Agent dragged sliders via
+  controller.sh; values verified through smooth → cube.scale.
+- math primitives: const, sub, div, phasor, smooth join lfo/scale/add/mul.
+- Path to editor-as-subgraph: palette = ui_pane + per-row ui_button grid;
+  node cards = panes + port ui_buttons + ui_sliders; wires need a
+  wire-render node + drag state machine node. Text labels need text_label
+  on host (text_mesh already ported — small lift). The C++ vr_editor
+  remains as scaffolding until those exist.
+
 Next:
 - decompose more coarse visual nodes (water; rd → sim+renderer)
+- text_label node on host (labels for graph-built UIs)
+- editor-as-subgraph increments: palette from ui_buttons first
 - string PortValue/params (UDP host addressing, labels, JSON events)
 - editor deep bug hunt: wire-drag (grip), sliders, dwell-delete, undo
 - Android app.cpp: adopt migrate_graph + hand/editor nodes (currently still
