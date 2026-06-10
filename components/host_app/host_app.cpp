@@ -22,6 +22,8 @@
 #include "reaction_diffusion.hpp"
 #include "rd_gpu.hpp"
 #include "rd_renderer.hpp"
+#include "render_nodes.hpp"
+#include "glsl_effect.hpp"
 #include "trigger_edge.hpp"
 #include "text_label.hpp"
 #include <GLES3/gl3.h>
@@ -89,6 +91,9 @@ void HostApp::init(int http_port) {
     registry_.register_builtin(make_descriptor<ReactionDiffusion>());
     registry_.register_builtin(make_descriptor<RdGpu>());
     registry_.register_builtin(make_descriptor<RDRenderer>());
+    registry_.register_builtin(make_descriptor<RenderTargetNode>());
+    registry_.register_builtin(make_descriptor<TextureViewNode>());
+    registry_.register_builtin(make_descriptor<GlslEffectNode>());
     registry_.register_builtin(make_descriptor<TriggerEdge>());
     registry_.register_builtin(make_descriptor<TextLabelNode>());
 

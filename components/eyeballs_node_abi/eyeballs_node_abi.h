@@ -2,7 +2,7 @@
 #ifndef EYEBALLS_NODE_ABI_H
 #define EYEBALLS_NODE_ABI_H
 
-#define EYEBALLS_ABI_VERSION 4
+#define EYEBALLS_ABI_VERSION 5
 
 /* v4: typed output emission context passed to push_outputs. */
 typedef struct EyeballsOutputCtx {
@@ -16,6 +16,9 @@ typedef struct EyeballsOutputCtx {
     void (*emit_quat)   (void* store, const char* nid, const char* port, float x, float y, float z, float w);
     void (*emit_texture)(void* store, const char* nid, const char* port,
                          unsigned int gl_id, int w, int h, unsigned int fmt, unsigned int filter);
+    /* v5: draw-call values through edges; fn points at a C++ DrawFn */
+    void (*emit_drawfn) (void* store, const char* nid, const char* port,
+                         const void* fn);
     void (*emit_audio)  (void* store, const char* nid, const char* port,
                          const float* samples, int frames, int channels, int rate);
 } EyeballsOutputCtx;
@@ -50,6 +53,8 @@ typedef struct {
                                   unsigned int fmt, unsigned int filter);
     void        (*set_audio_in)  (void* node, const char* port,
                                   const float* samples, int frames, int channels, int rate);
+    /* v5: fn points at a C++ DrawFn to copy; nullable */
+    void        (*set_drawfn_in)(void* node, const char* port, const void* fn);
 } EyeballsNodeDescriptor;
 
 /* Every plugin .so must export this symbol: */

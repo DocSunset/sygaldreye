@@ -105,6 +105,9 @@ SubgraphDescriptor::SubgraphDescriptor(std::unique_ptr<Graph> graph_template,
     desc_.set_audio_in = [](void* p, const char* port, const float* d, int f, int c, int r) {
         static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{AudioBuffer{d, f, c, r}});
     };
+    desc_.set_drawfn_in = [](void* p, const char* port, const void* fn) {
+        static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{*static_cast<const DrawFn*>(fn)});
+    };
 }
 
 SubgraphDescriptor::~SubgraphDescriptor() {

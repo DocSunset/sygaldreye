@@ -20,7 +20,8 @@ using PortValue = std::variant<
     Eigen::Matrix4f,
     Eigen::Quaternionf,
     GpuTexture,
-    AudioBuffer
+    AudioBuffer,
+    DrawFn
 >;
 
 struct NodeInstance {

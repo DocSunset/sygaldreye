@@ -11,7 +11,7 @@ if(NOT CMAKE_CROSSCOMPILING)
         PUBLIC component_registry signal_graph subgraph_node http_server fly_camera
         PRIVATE fly_camera_node hand_node editor_node spawner_node math_nodes net_nodes ui_nodes star_field
                 water_surface sky_dome sun_light cube_node lissajous aurora_curtain
-                chladni terrain_generator particle_system reaction_diffusion rd_gpu rd_renderer
+                chladni terrain_generator particle_system reaction_diffusion rd_gpu rd_renderer render_nodes glsl_effect
                 trigger_edge text_label eyeballs_node_abi
                 -L$ENV{GLFW_LIB_DIR} glfw GLESv2)
     target_compile_options(host_app PRIVATE -Wall -Wextra)

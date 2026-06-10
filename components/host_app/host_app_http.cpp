@@ -59,6 +59,8 @@ std::string value_json(const PortValue& val) {
             std::snprintf(buf, sizeof(buf), R"("matrix4")");
         } else if constexpr (std::is_same_v<T, GpuTexture>) {
             std::snprintf(buf, sizeof(buf), R"("texture:%u")", v.id);
+        } else if constexpr (std::is_same_v<T, DrawFn>) {
+            std::snprintf(buf, sizeof(buf), R"("drawfn")");
         } else {
             std::snprintf(buf, sizeof(buf), R"("audio")");
         }

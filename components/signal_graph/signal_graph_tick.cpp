@@ -50,6 +50,10 @@ void tick_graph(Graph& g, double time_s) {
                         n.desc->set_audio_in(n.data, e.to_port.c_str(),
                                              val.data, val.frames,
                                              val.channels, val.sample_rate);
+                } else if constexpr (std::is_same_v<T, DrawFn>) {
+                    if (n.desc->set_drawfn_in)
+                        n.desc->set_drawfn_in(n.data, e.to_port.c_str(),
+                                              static_cast<const void*>(&val));
                 }
             }, it->second);
         }
@@ -96,6 +100,11 @@ void tick_graph(Graph& g, double time_s) {
                 auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
                 m[std::string(nid) + "." + port] = GpuTexture{id, w, h, fmt, filt};
             };
+            ctx.emit_drawfn = [](void* store, const char* nid, const char* port,
+                                 const void* fn) {
+                auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
+                m[std::string(nid) + "." + port] = *static_cast<const DrawFn*>(fn);
+            };
             ctx.emit_audio = [](void* store, const char* nid, const char* port,
                                 const float* data, int frames, int channels, int rate) {
                 auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(store);
@@ -105,8 +114,22 @@ void tick_graph(Graph& g, double time_s) {
         }
 
         if (n.desc->push_draw_calls) {
-            DrawCallCtx ctx{n.id, &g.draw_calls};
-            n.desc->push_draw_calls(n.data, &ctx);
+            // A node whose draw output feeds an edge is consumed by that
+            // consumer (render_target etc.) and skips the global pass.
+            bool consumed = false;
+            for (const auto& e : g.edges) {
+                if (e.from_node != n.id) continue;
+                auto it = g.values.find(e.from_node + "." + e.from_port);
+                if (it != g.values.end() &&
+                    std::holds_alternative<DrawFn>(it->second)) {
+                    consumed = true;
+                    break;
+                }
+            }
+            if (!consumed) {
+                DrawCallCtx ctx{n.id, &g.draw_calls};
+                n.desc->push_draw_calls(n.data, &ctx);
+            }
         }
     }
 }

@@ -206,7 +206,11 @@ const EyeballsNodeDescriptor* make_descriptor() {
                     using F = std::remove_cvref_t<decltype(field)>;
                     constexpr auto nm = F::name();
                     if constexpr (DrawCallField<F>) {
-                        // skip — handled by push_draw_calls
+                        // also published as a value so draw-call EDGES work;
+                        // tick_graph skips the global pass for consumed nodes
+                        if (ctx->emit_drawfn && field.value)
+                            ctx->emit_drawfn(ctx->store, ctx->node_id, nm.data(),
+                                             static_cast<const void*>(&field.value));
                     } else if constexpr (ScalarPortField<F>) {
                         ctx->emit_scalar(ctx->store, ctx->node_id, nm.data(),
                                          static_cast<double>(field.value));
@@ -393,6 +397,22 @@ const EyeballsNodeDescriptor* make_descriptor() {
         };
     }
 
+    // set_drawfn_in (v5)
+    static void (*set_drawfn_in_fn)(void*, const char*, const void*) = nullptr;
+    if constexpr (HasInputs<Node>) {
+        set_drawfn_in_fn = [](void* p, const char* port_name, const void* fn) {
+            auto* node = static_cast<Node*>(p);
+            boost::pfr::for_each_field(node->inputs,
+                [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
+                    using F = std::remove_cvref_t<decltype(field)>;
+                    if constexpr (DrawCallField<F>) {
+                        if (F::name() == std::string_view(port_name))
+                            field.value = *static_cast<const DrawFn*>(fn);
+                    }
+                });
+        };
+    }
+
     static EyeballsNodeDescriptor d {
         .version          = EYEBALLS_ABI_VERSION,
         .type_name        = Node::name().data(),
@@ -422,6 +442,7 @@ const EyeballsNodeDescriptor* make_descriptor() {
         .set_quat_in      = set_quat_in_fn,
         .set_texture_in   = set_texture_in_fn,
         .set_audio_in     = set_audio_in_fn,
+        .set_drawfn_in    = set_drawfn_in_fn,
     };
     return &d;
 }

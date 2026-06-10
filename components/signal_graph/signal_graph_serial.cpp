@@ -31,10 +31,16 @@ static std::string_view find_object(std::string_view json, std::string_view key)
     if (p == std::string_view::npos) return {};
     p += needle.size() - 1;
     int depth = 0;
+    bool in_str = false;
     auto start = p;
     for (std::size_t i = p; i < json.size(); ++i) {
-        if (json[i] == '{') ++depth;
-        else if (json[i] == '}') { if (--depth == 0) return json.substr(start, i - start + 1); }
+        char ch = json[i];
+        if (in_str) {
+            if (ch == '\\') ++i;
+            else if (ch == '"') in_str = false;
+        } else if (ch == '"') in_str = true;
+        else if (ch == '{') ++depth;
+        else if (ch == '}') { if (--depth == 0) return json.substr(start, i - start + 1); }
     }
     return {};
 }
@@ -48,10 +54,16 @@ static std::vector<std::string> split_array_objects(std::string_view json) {
         while (p < json.size() && json[p] != '{' && json[p] != ']') ++p;
         if (p >= json.size() || json[p] == ']') break;
         int depth = 0;
+        bool in_str = false;
         auto start = p;
         for (std::size_t i = p; i < json.size(); ++i) {
-            if (json[i] == '{') ++depth;
-            else if (json[i] == '}') {
+            char ch = json[i];
+            if (in_str) {
+                if (ch == '\\') ++i;
+                else if (ch == '"') in_str = false;
+            } else if (ch == '"') in_str = true;
+            else if (ch == '{') ++depth;
+            else if (ch == '}') {
                 if (--depth == 0) {
                     result.push_back(std::string(json.substr(start, i - start + 1)));
                     p = i + 1;

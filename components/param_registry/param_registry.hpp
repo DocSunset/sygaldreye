@@ -86,8 +86,12 @@ std::string to_json(const T& node) {
                 if constexpr (TextField<F>) {
                     out += '"';
                     for (char c : field.value) {  // minimal escape
-                        if (c == '"' || c == '\\') out += '\\';
-                        out += c;
+                        if (c == '\n')      { out += "\\n"; }
+                        else if (c == '\t') { out += "\\t"; }
+                        else {
+                            if (c == '"' || c == '\\') out += '\\';
+                            out += c;
+                        }
                     }
                     out += '"';
                 } else {
@@ -120,15 +124,21 @@ void from_json(T& node, std::string_view json) {
         ++pos;
         // skip whitespace
         while (pos < json.size() && json[pos] == ' ') ++pos;
-        // read value (up to next , or })
-        auto val_end = json.find_first_of(",}", pos);
-        if (val_end == std::string_view::npos) val_end = json.size();
-        std::string_view val = json.substr(pos, val_end - pos);
-        // trim quotes for strings
-        if (!val.empty() && val.front() == '"') {
-            val = val.substr(1, val.size() - 2);
+        // read value: quoted strings may contain , } { — scan to the
+        // closing quote; bare values end at , or }
+        std::string_view val;
+        if (pos < json.size() && json[pos] == '"') {
+            auto q = pos + 1;
+            while (q < json.size() &&
+                   !(json[q] == '"' && json[q - 1] != '\\')) ++q;
+            val = json.substr(pos + 1, q - pos - 1);
+            pos = (q < json.size()) ? q + 1 : q;
+        } else {
+            auto val_end = json.find_first_of(",}", pos);
+            if (val_end == std::string_view::npos) val_end = json.size();
+            val = json.substr(pos, val_end - pos);
+            pos = val_end;
         }
-        pos = val_end;
 
         // match key against inputs fields
         boost::pfr::for_each_field(
@@ -138,7 +148,16 @@ void from_json(T& node, std::string_view json) {
                 if (std::string_view(fname) == key) {
                     using F = std::remove_cvref_t<decltype(field)>;
                     if constexpr (TextField<F>) {
-                        field.value = std::string(val);
+                        // JSON strings escape newlines; GLSL et al need them back
+                        std::string out;
+                        out.reserve(val.size());
+                        for (std::size_t i = 0; i < val.size(); ++i) {
+                            if (val[i] == '\\' && i + 1 < val.size()) {
+                                char c = val[++i];
+                                out += (c == 'n') ? '\n' : (c == 't') ? '\t' : c;
+                            } else out += val[i];
+                        }
+                        field.value = std::move(out);
                     } else if constexpr (SliderField<F> || ToggleField<F>) {
                         detail::set_from_sv(field.value, val);
                     }

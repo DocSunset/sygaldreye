@@ -42,6 +42,9 @@ void SubgraphNode::operator()(double t) {
             } else if constexpr (std::is_same_v<T, AudioBuffer>) {
                 if (d->set_audio_in)
                     d->set_audio_in(data, p, val.data, val.frames, val.channels, val.sample_rate);
+            } else if constexpr (std::is_same_v<T, DrawFn>) {
+                if (d->set_drawfn_in)
+                    d->set_drawfn_in(data, p, static_cast<const void*>(&val));
             }
         }, cv->second);
     }
@@ -73,6 +76,10 @@ void SubgraphNode::push_outlets(EyeballsOutputCtx* ctx) const {
             } else if constexpr (std::is_same_v<T, AudioBuffer>) {
                 ctx->emit_audio(ctx->store, ctx->node_id, nm, val.data, val.frames,
                                 val.channels, val.sample_rate);
+            } else if constexpr (std::is_same_v<T, DrawFn>) {
+                if (ctx->emit_drawfn)
+                    ctx->emit_drawfn(ctx->store, ctx->node_id, nm,
+                                     static_cast<const void*>(&val));
             }
         }, it->second);
     }
