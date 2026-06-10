@@ -189,3 +189,28 @@ kanban proposes deleting that system — wants Travis's nod.
 Awaiting Travis: edge/executor ratification (5 questions in the doc),
 bridge conversation, port-name canonicalization nod, snapshot deletion
 nod, headset session for device verification.
+
+
+## 2026-06-10 (second autonomous run — GL graph arc)
+
+Nods executed: canonical port names everywhere (dual matcher deleted);
+bespoke snapshot exes + sh/snapshot.sh deleted.
+
+New port types & nodes (ABI v5):
+- DrawFn through edges; edge-consumed draws skip the screen pass.
+  render_target (draw+pv → texture), texture_view (texture → screen).
+- glsl_effect: fragment shader BODY in a text param (uTex/uTime/uA..uD),
+  live-recompiled, typo keeps last good program. Shader→shader chains in
+  pure JSON proven (warp + chromatic grade over a lissajous texture).
+- MeshPtr (shared CPU TriMeshData) through edges. mesh_grid →
+  mesh_displace (GPU texture read BACK to CPU, vertex displacement,
+  smooth normals) → mesh_render. Proven: living Gray-Scott island.
+- udp_send 'host' text param (cross-device ready); hsv_color, time nodes.
+- sh/test_host.sh runs all 14 host test binaries (caught a stale test).
+
+Parser hardening: string values may contain commas/braces (GLSL in
+params); brace counters skip string literals; text params escape \n.
+
+Next candidates: feedback-loop textures (effect self-input), mesh
+generators (sphere/tube), render_target auto-sizing, palette buttons for
+the new node families, Quest session for the whole GL arc on device.
