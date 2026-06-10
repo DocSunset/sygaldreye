@@ -22,7 +22,7 @@ void VrEditor::init(const ComponentRegistry& registry, const Graph* graph) {
     shader_.create();
     palette_types_ = registry.type_names();
     float palette_h = kPaletteRowH * static_cast<float>(palette_types_.size());
-    palette_panel_.position = {-0.3f, 0.0f, -0.5f};
+    palette_panel_.position = {-0.55f, 1.2f, -0.5f};
     palette_panel_.normal   = { 0.0f, 0.0f,  1.0f};
     palette_panel_.width    = 0.35f;
     palette_panel_.height   = std::max(palette_h, 0.1f);
@@ -53,7 +53,11 @@ void VrEditor::on_graph_changed(const Graph* graph) {
         float card_h = kBaseCardH + kPortRowH * static_cast<float>(wirable_inputs);
 
         VrPanel card;
-        card.position = {static_cast<float>(i) * kCardSpacing, 0.0f, -0.5f};
+        // Eye-level grid, 4 cards per row — one endless ground-level row
+        // overlapped the scene and ran out of reach.
+        card.position = {static_cast<float>(i % 4) * kCardSpacing,
+                         1.45f - static_cast<float>(i / 4) * 0.5f,
+                         -0.5f};
         card.normal   = {0.0f, 0.0f, 1.0f};
         card.width    = kCardW;
         card.height   = card_h;

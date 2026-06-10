@@ -42,11 +42,14 @@ float median(float r, float g, float b) {
     return max(min(r, g), min(max(r, g), b));
 }
 void main() {
+    // Canonical msdfgen screen-px-range: differentiating the decoded
+    // distance saturates on small glyphs and corrupted letterforms.
     vec3 msd = texture(uAtlas, vUV).rgb;
-    float sd = median(msd.r, msd.g, msd.b);
-    float dx = dFdx(sd), dy = dFdy(sd);
-    float screen_px = uRange * length(vec2(dx, dy)) * 0.7071;
-    float alpha = smoothstep(0.5 - screen_px, 0.5 + screen_px, sd);
+    float sd = median(msd.r, msd.g, msd.b) - 0.5;
+    vec2 unit_range = vec2(uRange) / vec2(textureSize(uAtlas, 0));
+    vec2 screen_tex_size = vec2(1.0) / fwidth(vUV);
+    float px_range = max(0.5 * dot(unit_range, screen_tex_size), 1.0);
+    float alpha = clamp(sd * px_range + 0.5, 0.0, 1.0);
     fragColor = vec4(uColor.rgb, uColor.a * alpha);
 }
 )";

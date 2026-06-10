@@ -26,7 +26,7 @@ void CubeNode::operator()(double /*time_s*/) {
     Material mat;
     const Eigen::Vector3f col{inputs.color_r.value, inputs.color_g.value, inputs.color_b.value};
     mat.diffuse  = col;
-    mat.ambient  = col * 0.1f;
+    mat.ambient  = col * 0.25f;  // 0.1 read as pure black against bright skies
     const float r = inputs.roughness.value;
     mat.shininess = 2.f / (r * r + 1e-4f) - 1.f;
 
