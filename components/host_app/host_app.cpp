@@ -7,6 +7,7 @@
 #include "editor_node.hpp"
 #include "math_nodes.hpp"
 #include "net_nodes.hpp"
+#include "ui_nodes.hpp"
 #include "water_surface.hpp"
 #include "sky_dome.hpp"
 #include "star_field.hpp"
@@ -58,6 +59,14 @@ void HostApp::init(int http_port) {
     registry_.register_builtin(make_descriptor<ScaleNode>());
     registry_.register_builtin(make_descriptor<AddNode>());
     registry_.register_builtin(make_descriptor<MulNode>());
+    registry_.register_builtin(make_descriptor<ConstNode>());
+    registry_.register_builtin(make_descriptor<SubNode>());
+    registry_.register_builtin(make_descriptor<DivNode>());
+    registry_.register_builtin(make_descriptor<PhasorNode>());
+    registry_.register_builtin(make_descriptor<SmoothNode>());
+    registry_.register_builtin(make_descriptor<UiSliderNode>());
+    registry_.register_builtin(make_descriptor<UiButtonNode>());
+    registry_.register_builtin(make_descriptor<UiPaneNode>());
     registry_.register_builtin(make_descriptor<UdpSendNode>());
     registry_.register_builtin(make_descriptor<UdpRecvNode>());
     registry_.register_builtin(make_descriptor<WaterSurface>());
