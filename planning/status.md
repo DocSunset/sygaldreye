@@ -99,10 +99,21 @@ Architecture now (host):
   on host (text_mesh already ported — small lift). The C++ vr_editor
   remains as scaffolding until those exist.
 
+## 2026-06-10 (cont. 4) — RD split: textures flow over edges
+
+- rd_gpu (sim) ported to host + registered both platforms; rd_renderer
+  lazy-creates. sim.concentration → view.texture proven (Gray-Scott
+  patterns on host). Any texture-input node can now consume the sim.
+- GL state discipline lesson for ALL FBO nodes: own VAO, save/restore
+  framebuffer + viewport, never bind FBO 0 (headless renders into an FBO).
+  rd_gpu violated all three; fixed. Float32 textures need NEAREST in core
+  GLES3 (Adreno extension hid this).
+
 Next:
-- decompose more coarse visual nodes (water; rd → sim+renderer)
+- water decomposition (mesh/shader split)
 - text_label node on host (labels for graph-built UIs)
 - editor-as-subgraph increments: palette from ui_buttons first
+- GL-state audit of remaining FBO users when they become nodes
 - string PortValue/params (UDP host addressing, labels, JSON events)
 - editor deep bug hunt: wire-drag (grip), sliders, dwell-delete, undo
 - Android app.cpp: adopt migrate_graph + hand/editor nodes (currently still
