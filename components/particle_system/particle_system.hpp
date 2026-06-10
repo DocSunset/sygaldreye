@@ -32,11 +32,11 @@ public:
     static consteval std::string_view source_cpp()    { return "components/particle_system/particle_system.cpp"; }
 
     struct inputs {
-        slider<"emit rate",    "", float, fp(0.f),   fp(500.f),  fp(50.f)>  emit_rate;
-        slider<"lifetime min", "", float, fp(0.1f),  fp(10.f),   fp(0.5f)>  lifetime_min;
-        slider<"lifetime max", "", float, fp(0.1f),  fp(10.f),   fp(2.f)>   lifetime_max;
-        slider<"size start",   "", float, fp(0.01f), fp(1.f),    fp(0.05f)> size_start;
-        slider<"size end",     "", float, fp(0.f),   fp(1.f),    fp(0.f)>   size_end;
+        slider<"emit_rate",    "", float, fp(0.f),   fp(500.f),  fp(50.f)>  emit_rate;
+        slider<"lifetime_min", "", float, fp(0.1f),  fp(10.f),   fp(0.5f)>  lifetime_min;
+        slider<"lifetime_max", "", float, fp(0.1f),  fp(10.f),   fp(2.f)>   lifetime_max;
+        slider<"size_start",   "", float, fp(0.01f), fp(1.f),    fp(0.05f)> size_start;
+        slider<"size_end",     "", float, fp(0.f),   fp(1.f),    fp(0.f)>   size_end;
         slider<"emit_x",       "", float, fp(-50.f),  fp(50.f),   fp(0.f)>   emit_x;
         slider<"emit_y",       "", float, fp(-50.f),  fp(50.f),   fp(0.f)>   emit_y;
         slider<"emit_z",       "", float, fp(-50.f),  fp(50.f),   fp(0.f)>   emit_z;

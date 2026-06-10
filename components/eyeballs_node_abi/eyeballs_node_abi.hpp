@@ -146,17 +146,6 @@ void append_ports_json(const S& s, std::string& out) {
 
 } // namespace detail
 
-namespace detail {
-// Ports answer to both the display name (slider template string, may contain
-// spaces) and the C++ field name (what params/serialize use). Two namespaces
-// for one port is a footgun; until names are canonicalized, accept either.
-template<typename F, std::size_t I, typename S>
-bool port_matches(const char* port_name) {
-    std::string_view sv{port_name};
-    return F::name() == sv || std::string_view(boost::pfr::get_name<I, S>()) == sv;
-}
-} // namespace detail
-
 // ── make_descriptor<T>() ────────────────────────────────────────────────────
 
 template<HasName Node>
@@ -277,12 +266,11 @@ const EyeballsNodeDescriptor* make_descriptor() {
             boost::pfr::for_each_field(node->inputs,
                 [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
                     using F = std::remove_cvref_t<decltype(field)>;
-                    using S = std::remove_cvref_t<decltype(node->inputs)>;
                     if constexpr (ScalarPortField<F> || SliderField<F>) {
-                        if (detail::port_matches<F, I, S>(port_name))
+                        if (F::name() == std::string_view(port_name))
                             field.value = static_cast<typename std::remove_cvref_t<decltype(field.value)>>(v);
                     } else if constexpr (ToggleField<F>) {
-                        if (detail::port_matches<F, I, S>(port_name))
+                        if (F::name() == std::string_view(port_name))
                             field.value = (v != 0.0);
                     }
                 });
@@ -297,9 +285,8 @@ const EyeballsNodeDescriptor* make_descriptor() {
             boost::pfr::for_each_field(node->inputs,
                 [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
                     using F = std::remove_cvref_t<decltype(field)>;
-                    using S = std::remove_cvref_t<decltype(node->inputs)>;
                     if constexpr (Vec2PortField<F>) {
-                        if (detail::port_matches<F, I, S>(port_name))
+                        if (F::name() == std::string_view(port_name))
                             field.value = Eigen::Vector2f{x, y};
                     }
                 });
@@ -314,9 +301,8 @@ const EyeballsNodeDescriptor* make_descriptor() {
             boost::pfr::for_each_field(node->inputs,
                 [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
                     using F = std::remove_cvref_t<decltype(field)>;
-                    using S = std::remove_cvref_t<decltype(node->inputs)>;
                     if constexpr (Vec3PortField<F>) {
-                        if (detail::port_matches<F, I, S>(port_name))
+                        if (F::name() == std::string_view(port_name))
                             field.value = Eigen::Vector3f{x, y, z};
                     }
                 });
@@ -331,9 +317,8 @@ const EyeballsNodeDescriptor* make_descriptor() {
             boost::pfr::for_each_field(node->inputs,
                 [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
                     using F = std::remove_cvref_t<decltype(field)>;
-                    using S = std::remove_cvref_t<decltype(node->inputs)>;
                     if constexpr (Vec4PortField<F>) {
-                        if (detail::port_matches<F, I, S>(port_name))
+                        if (F::name() == std::string_view(port_name))
                             field.value = Eigen::Vector4f{x, y, z, w};
                     }
                 });
@@ -348,9 +333,8 @@ const EyeballsNodeDescriptor* make_descriptor() {
             boost::pfr::for_each_field(node->inputs,
                 [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
                     using F = std::remove_cvref_t<decltype(field)>;
-                    using S = std::remove_cvref_t<decltype(node->inputs)>;
                     if constexpr (Mat4PortField<F>) {
-                        if (detail::port_matches<F, I, S>(port_name))
+                        if (F::name() == std::string_view(port_name))
                             field.value = Eigen::Map<const Eigen::Matrix4f>(col16);
                     }
                 });
@@ -365,9 +349,8 @@ const EyeballsNodeDescriptor* make_descriptor() {
             boost::pfr::for_each_field(node->inputs,
                 [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
                     using F = std::remove_cvref_t<decltype(field)>;
-                    using S = std::remove_cvref_t<decltype(node->inputs)>;
                     if constexpr (QuatPortField<F>) {
-                        if (detail::port_matches<F, I, S>(port_name))
+                        if (F::name() == std::string_view(port_name))
                             field.value = Eigen::Quaternionf{w, x, y, z};
                     }
                 });
@@ -385,9 +368,8 @@ const EyeballsNodeDescriptor* make_descriptor() {
             boost::pfr::for_each_field(node->inputs,
                 [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
                     using F = std::remove_cvref_t<decltype(field)>;
-                    using S = std::remove_cvref_t<decltype(node->inputs)>;
                     if constexpr (TexturePortField<F>) {
-                        if (detail::port_matches<F, I, S>(port_name))
+                        if (F::name() == std::string_view(port_name))
                             field.value = GpuTexture{gl_id, w, h, fmt, filter};
                     }
                 });
@@ -403,9 +385,8 @@ const EyeballsNodeDescriptor* make_descriptor() {
             boost::pfr::for_each_field(node->inputs,
                 [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
                     using F = std::remove_cvref_t<decltype(field)>;
-                    using S = std::remove_cvref_t<decltype(node->inputs)>;
                     if constexpr (AudioPortField<F>) {
-                        if (detail::port_matches<F, I, S>(port_name))
+                        if (F::name() == std::string_view(port_name))
                             field.value = AudioBuffer{samples, frames, channels, rate};
                     }
                 });

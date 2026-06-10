@@ -1,6 +1,6 @@
 {
   "inlets":  [{"name":"sun_elevation","node":"grad","port":"sun_elevation"},
-              {"name":"sun_elevation","node":"stars","port":"sun elevation"}],
+              {"name":"sun_elevation","node":"stars","port":"sun_elevation"}],
   "outlets": [{"name":"sun_dir","node":"grad","port":"sun_dir"},
               {"name":"sun_color","node":"grad","port":"sun_color"},
               {"name":"sun_elevation_out","node":"grad","port":"sun_elevation_out"}],

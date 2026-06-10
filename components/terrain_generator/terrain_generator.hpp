@@ -49,12 +49,12 @@ public:
     static consteval std::string_view source_cpp()    { return "components/terrain_generator/terrain_generator.cpp"; }
 
     struct inputs {
-        slider<"height scale",    "", float, fp(0.f),    fp(100.f),  fp(20.f)>  height_scale;
+        slider<"height_scale",    "", float, fp(0.f),    fp(100.f),  fp(20.f)>  height_scale;
         slider<"lacunarity",      "", float, fp(1.f),    fp(4.f),    fp(2.f)>   lacunarity;
         slider<"gain",            "", float, fp(0.1f),   fp(1.f),    fp(0.5f)>  gain;
-        slider<"noise offset x",  "", float, fp(-100.f), fp(100.f),  fp(0.f)>   noise_offset_x;
-        slider<"noise offset z",  "", float, fp(-100.f), fp(100.f),  fp(0.f)>   noise_offset_z;
-        slider<"sun intensity",   "", float, fp(0.f),    fp(5.f),    fp(1.2f)>  sun_intensity;
+        slider<"noise_offset_x",  "", float, fp(-100.f), fp(100.f),  fp(0.f)>   noise_offset_x;
+        slider<"noise_offset_z",  "", float, fp(-100.f), fp(100.f),  fp(0.f)>   noise_offset_z;
+        slider<"sun_intensity",   "", float, fp(0.f),    fp(5.f),    fp(1.2f)>  sun_intensity;
     } inputs;
 
     static TerrainRenderer create(TerrainParams const&);

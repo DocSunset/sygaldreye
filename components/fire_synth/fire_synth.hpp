@@ -20,7 +20,7 @@ public:
 
     struct inputs {
         slider<"intensity",    "", float, fp(0.f), fp(5.f),   fp(1.f)>  intensity;
-        slider<"crackle rate", "", float, fp(0.f), fp(200.f), fp(40.f)> crackle_rate;
+        slider<"crackle_rate", "", float, fp(0.f), fp(200.f), fp(40.f)> crackle_rate;
     } inputs;
 
     static constexpr int k_max_crackles = 16;

@@ -24,10 +24,10 @@ public:
     static consteval std::string_view source_cpp()    { return "components/creature_synth/creature_synth.cpp"; }
 
     struct inputs {
-        slider<"carrier freq",       "", float, fp(100.f), fp(10000.f), fp(4500.f)> carrier_freq;
-        slider<"fm index",           "", float, fp(0.f),   fp(20.f),    fp(2.f)>    fm_index;
-        slider<"chirp rate",         "", float, fp(0.5f),  fp(100.f),   fp(20.f)>   chirp_rate;
-        slider<"phrase duration s",  "", float, fp(0.1f),  fp(10.f),    fp(2.f)>    phrase_duration_s;
+        slider<"carrier_freq",       "", float, fp(100.f), fp(10000.f), fp(4500.f)> carrier_freq;
+        slider<"fm_index",           "", float, fp(0.f),   fp(20.f),    fp(2.f)>    fm_index;
+        slider<"chirp_rate",         "", float, fp(0.5f),  fp(100.f),   fp(20.f)>   chirp_rate;
+        slider<"phrase_duration_s",  "", float, fp(0.1f),  fp(10.f),    fp(2.f)>    phrase_duration_s;
     } inputs;
 
     explicit CreatureSynth(CreatureParams const& = {});

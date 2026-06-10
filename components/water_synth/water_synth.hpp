@@ -22,9 +22,9 @@ public:
     static consteval std::string_view source_cpp()    { return "components/water_synth/water_synth.cpp"; }
 
     struct inputs {
-        slider<"flow speed",  "", float, fp(0.f), fp(10.f), fp(1.f)>  flow_speed;
-        slider<"wave rate",   "", float, fp(0.f), fp(2.f),  fp(0.2f)> wave_rate;
-        slider<"wave height", "", float, fp(0.f), fp(2.f),  fp(0.5f)> wave_height;
+        slider<"flow_speed",  "", float, fp(0.f), fp(10.f), fp(1.f)>  flow_speed;
+        slider<"wave_rate",   "", float, fp(0.f), fp(2.f),  fp(0.2f)> wave_rate;
+        slider<"wave_height", "", float, fp(0.f), fp(2.f),  fp(0.5f)> wave_height;
         slider<"brightness",  "", float, fp(0.f), fp(1.f),  fp(0.5f)> brightness;
     } inputs;
 

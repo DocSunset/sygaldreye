@@ -29,7 +29,7 @@ public:
         slider<"F",              "", float, fp(0.0f), fp(0.1f),  fp(0.06f)> F;
         slider<"k",              "", float, fp(0.0f), fp(0.1f),  fp(0.062f)> k;
         slider<"dt",             "", float, fp(0.1f), fp(2.0f),  fp(1.0f)>  dt;
-        slider<"steps per frame","", float, fp(1.0f), fp(32.0f), fp(8.0f)>  steps_per_frame;
+        slider<"steps_per_frame","", float, fp(1.0f), fp(32.0f), fp(8.0f)>  steps_per_frame;
     } inputs;
 
     struct outputs {

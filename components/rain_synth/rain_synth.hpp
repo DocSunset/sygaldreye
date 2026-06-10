@@ -21,8 +21,8 @@ public:
 
     struct inputs {
         slider<"rate",      "", float, fp(0.f),    fp(1000.f),  fp(200.f)>  rate;
-        slider<"drop freq", "", float, fp(500.f),  fp(10000.f), fp(4000.f)> drop_freq;
-        slider<"decay s",   "", float, fp(0.001f), fp(0.5f),    fp(0.01f)>  decay_s;
+        slider<"drop_freq", "", float, fp(500.f),  fp(10000.f), fp(4000.f)> drop_freq;
+        slider<"decay_s",   "", float, fp(0.001f), fp(0.5f),    fp(0.01f)>  decay_s;
     } inputs;
 
     static constexpr int k_max_drops = 64;

@@ -219,7 +219,7 @@ void android_main(struct android_app* app) {
             {"id":"cube","type":"cube","params":{}}
         ],
         "edges":[
-            {"from":"sky.sun_elevation_out","to":"water.sun intensity"}
+            {"from":"sky.sun_elevation_out","to":"water.sun_intensity"}
         ]
     })";
     if (auto g = parse_graph(kDefaultGraph, state.registry_))

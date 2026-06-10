@@ -19,8 +19,8 @@ public:
     static consteval std::string_view source_cpp()    { return "components/atmos_synth/atmos_synth.cpp"; }
 
     struct inputs {
-        slider<"wind speed", "", float, fp(0.f),   fp(10.f),   fp(1.f)>   wind_speed;
-        slider<"base freq",  "", float, fp(50.f),  fp(2000.f), fp(300.f)> base_freq;
+        slider<"wind_speed", "", float, fp(0.f),   fp(10.f),   fp(1.f)>   wind_speed;
+        slider<"base_freq",  "", float, fp(50.f),  fp(2000.f), fp(300.f)> base_freq;
         slider<"brightness", "", float, fp(0.f),   fp(1.f),    fp(0.5f)>  brightness;
     } inputs;
 

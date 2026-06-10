@@ -26,11 +26,11 @@ public:
     static consteval std::string_view source_cpp()    { return "components/aurora/aurora.cpp"; }
 
     struct inputs {
-        slider<"curtain width",    "", float, fp(50.f),  fp(1000.f), fp(400.f)> curtain_width;
-        slider<"altitude base",    "", float, fp(0.f),   fp(200.f),  fp(60.f)>  altitude_base;
-        slider<"altitude height",  "", float, fp(10.f),  fp(500.f),  fp(170.f)> altitude_height;
-        slider<"ripple amplitude", "", float, fp(0.f),   fp(100.f),  fp(22.f)>  ripple_amplitude;
-        slider<"ripple speed",     "", float, fp(0.f),   fp(5.f),    fp(0.5f)>  ripple_speed;
+        slider<"curtain_width",    "", float, fp(50.f),  fp(1000.f), fp(400.f)> curtain_width;
+        slider<"altitude_base",    "", float, fp(0.f),   fp(200.f),  fp(60.f)>  altitude_base;
+        slider<"altitude_height",  "", float, fp(10.f),  fp(500.f),  fp(170.f)> altitude_height;
+        slider<"ripple_amplitude", "", float, fp(0.f),   fp(100.f),  fp(22.f)>  ripple_amplitude;
+        slider<"ripple_speed",     "", float, fp(0.f),   fp(5.f),    fp(0.5f)>  ripple_speed;
     } inputs;
 
     struct outputs {

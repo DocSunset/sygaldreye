@@ -26,8 +26,8 @@ public:
     static consteval std::string_view source_cpp()    { return "components/chime_synth/chime_synth.cpp"; }
 
     struct inputs {
-        slider<"strike rate", "", float, fp(0.f), fp(10.f), fp(0.f)>  strike_rate;
-        slider<"strike gain", "", float, fp(0.f), fp(2.f),  fp(1.f)>  strike_gain;
+        slider<"strike_rate", "", float, fp(0.f), fp(10.f), fp(0.f)>  strike_rate;
+        slider<"strike_gain", "", float, fp(0.f), fp(2.f),  fp(1.f)>  strike_gain;
     } inputs;
 
     explicit ChimeSynth(ChimeParams const& = {});

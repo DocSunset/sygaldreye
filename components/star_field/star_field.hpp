@@ -15,8 +15,8 @@ public:
     static consteval std::string_view source_cpp()    { return "components/star_field/star_field.cpp"; }
 
     struct inputs {
-        slider<"sun elevation", "", float, fp(-1.f), fp(1.f), fp(0.5f)> sun_elevation;
-        slider<"star count",    "", float, fp(0.f), fp(5000.f), fp(2000.f)> star_count;
+        slider<"sun_elevation", "", float, fp(-1.f), fp(1.f), fp(0.5f)> sun_elevation;
+        slider<"star_count",    "", float, fp(0.f), fp(5000.f), fp(2000.f)> star_count;
         slider<"radius",        "", float, fp(10.f), fp(2000.f), fp(500.f)> radius;
     } inputs;
 

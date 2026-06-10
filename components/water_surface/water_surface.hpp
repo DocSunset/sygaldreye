@@ -47,9 +47,9 @@ public:
     static consteval std::string_view source_cpp()    { return "components/water_surface/water_surface.cpp"; }
 
     struct inputs {
-        slider<"cell size",      "", float, 0.1, 5.0,  1.0>  cell_size;
-        slider<"foam threshold", "", float, 0.0, 1.0,  0.55> foam_threshold;
-        slider<"sun intensity",  "", float, 0.0, 5.0,  1.2>  sun_intensity;
+        slider<"cell_size",      "", float, 0.1, 5.0,  1.0>  cell_size;
+        slider<"foam_threshold", "", float, 0.0, 1.0,  0.55> foam_threshold;
+        slider<"sun_intensity",  "", float, 0.0, 5.0,  1.2>  sun_intensity;
         slider<"wavelength",     "", float, 8.0,  150.0, 56.0> wavelength;
         slider<"choppiness",     "", float, 0.0,  1.0,   0.6>  choppiness;
         slider<"amplitude",      "", float, 0.0,  0.05,  0.016> amplitude;

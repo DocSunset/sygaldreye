@@ -25,10 +25,10 @@ public:
     static consteval std::string_view source_cpp()    { return "components/lissajous/lissajous.cpp"; }
 
     struct inputs {
-        slider<"freq x",   "", float, fp(0.5f),  fp(20.0f), fp(3.0f)>    freq_x;
-        slider<"freq y",   "", float, fp(0.5f),  fp(20.0f), fp(4.0f)>    freq_y;
-        slider<"freq z",   "", float, fp(0.0f),  fp(5.0f),  fp(0.5f)>    freq_z;
-        slider<"phase x",  "", float, fp(0.0f),  fp(6.283f),fp(0.0f)>    phase_x;
+        slider<"freq_x",   "", float, fp(0.5f),  fp(20.0f), fp(3.0f)>    freq_x;
+        slider<"freq_y",   "", float, fp(0.5f),  fp(20.0f), fp(4.0f)>    freq_y;
+        slider<"freq_z",   "", float, fp(0.0f),  fp(5.0f),  fp(0.5f)>    freq_z;
+        slider<"phase_x",  "", float, fp(0.0f),  fp(6.283f),fp(0.0f)>    phase_x;
         slider<"amp",      "", float, fp(0.1f),  fp(5.0f),  fp(1.0f)>    amp;
         slider<"samples",  "", float, fp(100.f), fp(10000.f),fp(4000.f)> samples;
     } inputs;
