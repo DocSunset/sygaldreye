@@ -67,13 +67,15 @@ std::string to_json(const T& node) {
         node.inputs,
         [&]<std::size_t I>(const auto& field, std::integral_constant<std::size_t, I>) {
             constexpr auto key = boost::pfr::get_name<I, typename std::remove_cvref_t<decltype(node.inputs)>>();
-            if (!first) out += ',';
-            first = false;
-            out += '"';
-            out += key;
-            out += "\":";
             using F = std::remove_cvref_t<decltype(field)>;
+            // Only value-bearing fields serialize; emitting a key with no
+            // value (e.g. vector ports) produces invalid JSON.
             if constexpr (SliderField<F> || ToggleField<F>) {
+                if (!first) out += ',';
+                first = false;
+                out += '"';
+                out += key;
+                out += "\":";
                 out += detail::value_to_json(field.value);
             }
         });

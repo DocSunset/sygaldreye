@@ -1,0 +1,45 @@
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1780051219,
+        "narHash": "sha256-WnxzG4x47uCgjz+uD+vOzbF+Qid+hKyYdJWbduA9w7g=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "e8e446a361172fe838243958325845d0b845c5e5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-26.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "openxr-sdk": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779318983,
+        "narHash": "sha256-SehumKdk1Mbsb5x83AQRTnYMteS1wvk/eKaQwl6p++A=",
+        "owner": "KhronosGroup",
+        "repo": "OpenXR-SDK",
+        "rev": "64f2b37c8c6da3d83c9b4d11865ba1fb752cb8ec",
+        "type": "github"
+      },
+      "original": {
+        "owner": "KhronosGroup",
+        "ref": "release-1.1.60",
+        "repo": "OpenXR-SDK",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs",
+        "openxr-sdk": "openxr-sdk"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

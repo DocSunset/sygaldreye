@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.eyeballs.vr"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <uses-sdk
+        android:minSdkVersion="26"
+        android:targetSdkVersion="34" />
+
+    <uses-feature
+        android:name="android.hardware.vr.headtracking"
+        android:required="true"
+        android:version="1" />
+
+    <application
+        android:hasCode="false"
+        android:label="eyeballs">
+
+        <meta-data
+            android:name="com.oculus.supportedDevices"
+            android:value="quest3" />
+
+        <meta-data
+            android:name="com.oculus.handtracking.version"
+            android:value="V2.0" />
+
+        <meta-data
+            android:name="com.oculus.noControllerRequired"
+            android:value="true" />
+
+        <activity
+            android:name="android.app.NativeActivity"
+            android:exported="true"
+            android:configChanges="orientation|keyboardHidden|screenSize|density"
+            android:screenOrientation="landscape"
+            android:resizeableActivity="false">
+
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="eyeballs" />
+
+            <meta-data
+                android:name="com.oculus.noControllerRequired"
+                android:value="true" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="com.oculus.intent.category.VR" />
+            </intent-filter>
+
+        </activity>
+
+    </application>
+
+</manifest>

@@ -133,6 +133,30 @@ void HostApp::install_routes() {
         if (!ok) return R"({"ok":false,"error":"capture timed out or failed"})";
         return std::string(R"({"ok":true,"path":")") + path + "\"}";
     });
+    // Virtual controller injection: {"hand":"right","x":..,"y":..,"z":..,
+    // "trigger":0|1,"grip":0|1,"thumb_x":..,"thumb_y":..}. Quaternion via
+    // qx/qy/qz/qw. Omitted fields keep their value.
+    http_.add_route("POST", "/controller", [this](std::string_view body) -> std::string {
+        std::lock_guard<std::mutex> lock(ctrl_mutex_);
+        bool right = body.find("\"hand\":\"left\"") == std::string_view::npos;
+        XrPosef& p = right ? ctrl_.right : ctrl_.left;
+        p.position.x    = float(find_number(body, "x",  p.position.x));
+        p.position.y    = float(find_number(body, "y",  p.position.y));
+        p.position.z    = float(find_number(body, "z",  p.position.z));
+        p.orientation.x = float(find_number(body, "qx", p.orientation.x));
+        p.orientation.y = float(find_number(body, "qy", p.orientation.y));
+        p.orientation.z = float(find_number(body, "qz", p.orientation.z));
+        p.orientation.w = float(find_number(body, "qw", p.orientation.w));
+        if (right) {
+            ctrl_.trigger_right = find_number(body, "trigger", ctrl_.trigger_right) != 0;
+            ctrl_.grip_right    = find_number(body, "grip",    ctrl_.grip_right)    != 0;
+        } else {
+            ctrl_.trigger_left  = find_number(body, "trigger", ctrl_.trigger_left)  != 0;
+            ctrl_.thumb_x       = float(find_number(body, "thumb_x", ctrl_.thumb_x));
+            ctrl_.thumb_y       = float(find_number(body, "thumb_y", ctrl_.thumb_y));
+        }
+        return R"({"ok":true})";
+    });
     http_.add_route("POST", "/quit", [this](std::string_view) -> std::string {
         quit_.store(true);
         return R"({"ok":true})";

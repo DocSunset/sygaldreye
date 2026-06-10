@@ -50,7 +50,15 @@ void HostApp::init(int http_port) {
 void HostApp::frame(int width, int height, double time_s) {
     {
         std::lock_guard<std::mutex> lock(graph_mutex_);
-        if (pending_) active_ = std::move(pending_);
+        if (pending_) {
+            active_ = std::move(pending_);
+            if (editor_ready_) vr_editor_.on_graph_changed(active_.get());
+        }
+    }
+    if (!editor_ready_) {
+        text_mesh_.init();
+        vr_editor_.init(registry_, active_.get());
+        editor_ready_ = true;
     }
 
     glViewport(0, 0, width, height);
@@ -64,12 +72,32 @@ void HostApp::frame(int width, int height, double time_s) {
         values_snapshot_ = active_->values;
     }
 
+    // Editor update through the same inputs the Quest provides.
+    VirtualControls c;
+    {
+        std::lock_guard<std::mutex> lock(ctrl_mutex_);
+        c = ctrl_;
+    }
+    float dt = (prev_time_s_ > 0.0) ? float(time_s - prev_time_s_) : 0.016f;
+    prev_time_s_ = time_s;
+    auto edit = vr_editor_.update(&c.left, &c.right, c.trigger_left,
+                                  c.trigger_right, c.grip_right,
+                                  {c.thumb_x, c.thumb_y}, dt,
+                                  active_.get(), registry_);
+    if (edit) {
+        if (auto g = parse_graph(edit->new_graph_json, registry_)) {
+            std::lock_guard<std::mutex> lock(graph_mutex_);
+            pending_ = std::move(g);
+        }
+    }
+
     FlyCamera cam = camera();
     float aspect = (height > 0) ? float(width) / float(height) : 1.f;
     const Eigen::Matrix4f pv = cam.proj(aspect) * cam.view();
     if (active_) {
         for (auto& call : active_->draw_calls) call(pv);
     }
+    vr_editor_.draw(pv, text_mesh_);
 
     fulfil_screenshot(width, height);
 }

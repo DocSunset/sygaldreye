@@ -23,6 +23,7 @@ void main() { fragColor = uColor; }
 }
 
 RgbaShader::RgbaShader() = default;
+RgbaShader::~RgbaShader() = default;
 
 RgbaShader::RgbaShader(RgbaShader&& src) noexcept
     : prog_(std::move(src.prog_)),

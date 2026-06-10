@@ -7,7 +7,7 @@ struct GlProgram;
 
 struct RgbaShader {
     RgbaShader();
-    ~RgbaShader() = default;
+    ~RgbaShader();
     RgbaShader(const RgbaShader&) = delete;
     RgbaShader& operator=(const RgbaShader&) = delete;
     RgbaShader(RgbaShader&& src) noexcept;

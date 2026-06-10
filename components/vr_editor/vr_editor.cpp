@@ -116,7 +116,10 @@ std::optional<VrEditor::GraphEdit> VrEditor::update(
                                      : std::string{"{\"nodes\":[],\"edges\":[]}"};
     undo_json_ = json;
 
-    auto pos = json.rfind(']');
+    // Insert into the nodes array — the last ']' in the document closes edges.
+    auto epos = json.find("\"edges\"");
+    auto pos  = (epos == std::string::npos) ? json.rfind(']')
+                                            : json.rfind(']', epos);
     if (pos == std::string::npos) return std::nullopt;
     std::string entry = (pos > 0 && json[pos-1] != '[') ? "," : "";
     entry += "{\"id\":\""; entry += id_buf; entry += "\",\"type\":\"";

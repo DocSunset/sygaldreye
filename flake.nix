@@ -21,6 +21,13 @@
 
       ndkRoot = "${androidComposition.androidsdk}/libexec/android-sdk/ndk/27.3.13750724";
 
+      concurrentqueue = pkgs.fetchFromGitHub {
+        owner = "cameron314";
+        repo  = "concurrentqueue";
+        rev   = "6dd38b8a1dbaa7863aa907045f32308a56a6ff5d";
+        hash  = "sha256-MkhlDme6ZwKPuRINhfpv7cxliI2GU3RmTfC6O0ke/IQ=";
+      };
+
       msdfAtlasGen = pkgs.stdenv.mkDerivation {
         name = "msdf-atlas-gen";
         src = pkgs.fetchFromGitHub {
@@ -71,6 +78,7 @@
         EIGEN3_INCLUDE_DIR = "${pkgs.eigen}/include/eigen3";
         GLFW_INCLUDE_DIR = "${pkgs.glfw}/include";
         GLFW_LIB_DIR = "${pkgs.glfw}/lib";
+        CONCURRENTQUEUE_INCLUDE_DIR = "${concurrentqueue}";
       };
     };
 }

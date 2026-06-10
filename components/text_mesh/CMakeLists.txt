@@ -6,5 +6,5 @@ add_library(text_mesh STATIC
 target_include_directories(text_mesh PUBLIC .)
 target_include_directories(text_mesh PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
 target_link_libraries(text_mesh PUBLIC gl_program)
-target_link_libraries(text_mesh PRIVATE log)
+target_link_libraries(text_mesh PRIVATE log_component)
 target_compile_options(text_mesh PRIVATE -Wall -Wextra)

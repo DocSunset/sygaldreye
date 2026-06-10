@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SESSION=claude_usage_query
+
+tmux kill-session -t "$SESSION" 2>/dev/null || true
+tmux new-session -d -s "$SESSION" -x 220 -y 60
+tmux send-keys -t "$SESSION" "claude" Enter
+
+# Wait for interactive prompt
+for i in $(seq 1 60); do
+    sleep 0.5
+    tmux capture-pane -t "$SESSION" -p | grep -q "❯" && break
+done
+
+tmux send-keys -t "$SESSION" "/usage" Enter
+
+# Wait for usage dialog
+for i in $(seq 1 20); do
+    sleep 0.5
+    tmux capture-pane -t "$SESSION" -p | grep -q "Resets" && break
+done
+
+tmux capture-pane -t "$SESSION" -p | python3 "$SCRIPT_DIR/parse-usage.py"
+tmux kill-session -t "$SESSION"

@@ -4,6 +4,8 @@
 #include "signal_graph.hpp"
 #include "http_server.hpp"
 #include "fly_camera.hpp"
+#include "vr_editor.hpp"
+#include "text_mesh.hpp"
 #include <atomic>
 #include <condition_variable>
 #include <memory>
@@ -13,6 +15,16 @@
 // Host (desktop) application spine: node registry, live graph editable over
 // HTTP (POST /graph), fly camera settable over HTTP (POST /camera), and a
 // frame-synchronized screenshot endpoint (POST /screenshot) for agents.
+// Virtual controllers: same inputs the Quest feeds the editor, injectable
+// over HTTP (POST /controller) so agents and remote humans drive the editor
+// through the identical path.
+struct VirtualControls {
+    XrPosef left  {{0,0,0,1}, {-0.25f, 1.2f, -0.4f}};
+    XrPosef right {{0,0,0,1}, { 0.25f, 1.2f, -0.4f}};
+    bool  trigger_left = false, trigger_right = false, grip_right = false;
+    float thumb_x = 0.f, thumb_y = 0.f;
+};
+
 struct HostApp {
     void init(int http_port);
 
@@ -36,6 +48,13 @@ private:
 
     std::mutex cam_mutex_;
     FlyCamera  cam_;
+
+    std::mutex      ctrl_mutex_;
+    VirtualControls ctrl_;
+    VrEditor        vr_editor_;
+    TextMesh        text_mesh_;
+    bool            editor_ready_ = false;
+    double          prev_time_s_  = 0.0;
 
     std::mutex                                 values_mutex_;
     std::unordered_map<std::string, PortValue> values_snapshot_;  // copied each tick

@@ -2,19 +2,22 @@
 #include "dejavu_sans_atlas.hpp"
 #include "gl_program.hpp"
 #include <GLES3/gl3.h>
-#include <android/log.h>
+#include "log.hpp"
 #include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_STDIO
 #define STBI_ONLY_PNG
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
+#endif
 #include "stb_image.h"
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
 
-namespace { constexpr const char* const TAG = "text_mesh"; }
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGE(...) LOG_E("text_mesh", __VA_ARGS__)
 
 namespace {
 constexpr const char* VERT = R"(#version 300 es

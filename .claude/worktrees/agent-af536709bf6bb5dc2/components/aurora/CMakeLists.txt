@@ -1,0 +1,10 @@
+add_library(aurora STATIC aurora.cpp)
+target_include_directories(aurora PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(aurora PUBLIC gl_program)
+target_compile_options(aurora PRIVATE -Wall -Wextra)
+
+if(CMAKE_CROSSCOMPILING)
+    target_link_libraries(aurora PRIVATE GLESv3)
+else()
+    target_link_libraries(aurora PRIVATE GLESv2)
+endif()

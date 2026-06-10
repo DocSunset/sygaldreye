@@ -1,0 +1,11 @@
+add_library(billboard_quad STATIC billboard_quad.cpp)
+target_include_directories(billboard_quad PUBLIC .)
+target_include_directories(billboard_quad PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
+target_link_libraries(billboard_quad PUBLIC gl_program log_component)
+target_compile_options(billboard_quad PRIVATE -Wall -Wextra)
+
+if(CMAKE_CROSSCOMPILING)
+    target_link_libraries(billboard_quad PUBLIC GLESv3)
+else()
+    target_link_libraries(billboard_quad PUBLIC GLESv2)
+endif()
