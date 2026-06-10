@@ -65,5 +65,12 @@ std::unique_ptr<Graph> parse_graph(const std::string& json,
 // Serializes current graph to JSON (node ids + types).
 std::string serialize_graph(const Graph& g);
 
+// Adopts live node state from `old` into `fresh` wherever a node keeps its
+// id and descriptor across an edit, so live graph updates don't reset the
+// world. Params freshly parsed from JSON are re-applied to the adopted
+// instance: declarative edits win, internal state survives. The displaced
+// fresh instances are destroyed with `old`.
+void migrate_graph(Graph& fresh, Graph& old);
+
 // Runs one evaluation step on all nodes in insertion order.
 void tick_graph(Graph& g, double time_s);

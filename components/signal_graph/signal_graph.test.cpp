@@ -353,3 +353,56 @@ TEST(SignalGraph, EdgeRoundTrip) {
     EXPECT_NE(s.find("a.out_val"), std::string::npos);
     EXPECT_NE(s.find("b.in_val"),  std::string::npos);
 }
+
+// ── migrate_graph ──────────────────────────────────────────────────────────
+// Counter node: state survives migration, params re-apply.
+struct CounterNode {
+    static consteval std::string_view name() { return "counter"; }
+    struct inputs  { slider<"step", "", float, fp(0.f), fp(10.f), fp(1.f)> step; } inputs;
+    struct outputs { port<"count", float> count; } outputs;
+    float count_ = 0.f;
+    void operator()(double) { count_ += inputs.step.value; outputs.count.value = count_; }
+};
+
+TEST(MigrateGraph, StateSurvivesParamsReapply) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+
+    auto g1 = parse_graph(R"({"nodes":[{"id":"c","type":"counter","params":{"step":1}}],"edges":[]})", reg);
+    ASSERT_TRUE(g1);
+    for (int i = 0; i < 5; ++i) tick_graph(*g1, 0.0);
+    EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g1->nodes[0].data)->count_, 5.f);
+
+    // Edit: same node id, new step param.
+    auto g2 = parse_graph(R"({"nodes":[{"id":"c","type":"counter","params":{"step":2}}],"edges":[]})", reg);
+    ASSERT_TRUE(g2);
+    migrate_graph(*g2, *g1);
+
+    auto* c = static_cast<CounterNode*>(g2->nodes[0].data);
+    EXPECT_FLOAT_EQ(c->count_, 5.f);            // live state adopted
+    EXPECT_FLOAT_EQ(c->inputs.step.value, 2.f); // declarative edit applied
+    tick_graph(*g2, 0.0);
+    EXPECT_FLOAT_EQ(c->count_, 7.f);
+}
+
+TEST(MigrateGraph, NewAndRetypedNodesRebuild) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+    auto g1 = parse_graph(R"({"nodes":[{"id":"a","type":"counter","params":{}}],"edges":[]})", reg);
+    tick_graph(*g1, 0.0);
+    auto g2 = parse_graph(R"({"nodes":[{"id":"a","type":"counter","params":{}},{"id":"b","type":"counter","params":{}}],"edges":[]})", reg);
+    migrate_graph(*g2, *g1);
+    EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g2->nodes[0].data)->count_, 1.f);
+    EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g2->nodes[1].data)->count_, 0.f);
+}
+
+TEST(ParseGraph, ToleratesStandardJsonWhitespace) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+    auto g = parse_graph(R"({
+        "nodes": [ {"id": "c", "type": "counter", "params": {"step": 3}} ],
+        "edges": []
+    })", reg);
+    ASSERT_TRUE(g);
+    EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g->nodes[0].data)->inputs.step.value, 3.f);
+}

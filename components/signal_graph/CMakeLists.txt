@@ -1,5 +1,6 @@
 add_library(signal_graph STATIC
     signal_graph_serial.cpp
+    signal_graph_migrate.cpp
     signal_graph_sort.cpp
     signal_graph_tick.cpp)
 target_include_directories(signal_graph PUBLIC . ../subgraph_node ../component_registry $ENV{EIGEN3_INCLUDE_DIR})

@@ -71,9 +71,7 @@ int main(int argc, char** argv) {
     double prev = 0.0;
     win->run([&](int w, int h) {
         double t = now_s() - t0;
-        FlyCamera cam = app.camera();
-        apply_fps_input(win->native(), cam, float(t - prev));
-        app.set_camera(cam);
+        apply_fps_input(win->native(), app, float(t - prev));
         prev = t;
         app.frame(w, h, t);
         if (app.quit_requested()) std::exit(0);

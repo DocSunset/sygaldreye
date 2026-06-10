@@ -7,12 +7,10 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <ctime>
 #include <vector>
 
 namespace {
 
-// Returns the number following "key": in json, or fallback if absent.
 double find_number(std::string_view json, std::string_view key, double fallback) {
     std::string needle = "\"" + std::string(key) + "\"";
     auto p = json.find(needle);
@@ -22,13 +20,50 @@ double find_number(std::string_view json, std::string_view key, double fallback)
     return std::strtod(std::string(json.substr(p + 1, 32)).c_str(), nullptr);
 }
 
-std::string camera_json(const FlyCamera& c) {
-    char buf[160];
-    std::snprintf(buf, sizeof(buf),
-        R"({"x":%.3f,"y":%.3f,"z":%.3f,"yaw":%.4f,"pitch":%.4f,"fov":%.4f})",
-        double(c.pos.x()), double(c.pos.y()), double(c.pos.z()),
-        double(c.yaw), double(c.pitch), double(c.fov));
-    return buf;
+std::string_view find_string(std::string_view json, std::string_view key) {
+    std::string needle = "\"" + std::string(key) + "\":\"";
+    auto p = json.find(needle);
+    if (p == std::string_view::npos) return {};
+    p += needle.size();
+    auto e = json.find('"', p);
+    return (e == std::string_view::npos) ? std::string_view{} : json.substr(p, e - p);
+}
+
+std::string_view find_object(std::string_view json, std::string_view key) {
+    std::string needle = "\"" + std::string(key) + "\":{";
+    auto p = json.find(needle);
+    if (p == std::string_view::npos) return {};
+    p += needle.size() - 1;
+    int depth = 0;
+    for (auto i = p; i < json.size(); ++i) {
+        if (json[i] == '{') ++depth;
+        else if (json[i] == '}' && --depth == 0) return json.substr(p, i - p + 1);
+    }
+    return {};
+}
+
+std::string value_json(const PortValue& val) {
+    return std::visit([](const auto& v) -> std::string {
+        using T = std::decay_t<decltype(v)>;
+        char buf[160];
+        if constexpr (std::is_same_v<T, double>) {
+            std::snprintf(buf, sizeof(buf), "%g", v);
+        } else if constexpr (std::is_same_v<T, Eigen::Vector2f>) {
+            std::snprintf(buf, sizeof(buf), "[%g,%g]", double(v.x()), double(v.y()));
+        } else if constexpr (std::is_same_v<T, Eigen::Vector3f>) {
+            std::snprintf(buf, sizeof(buf), "[%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()));
+        } else if constexpr (std::is_same_v<T, Eigen::Vector4f> ||
+                             std::is_same_v<T, Eigen::Quaternionf>) {
+            std::snprintf(buf, sizeof(buf), "[%g,%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()), double(v.w()));
+        } else if constexpr (std::is_same_v<T, Eigen::Matrix4f>) {
+            std::snprintf(buf, sizeof(buf), R"("matrix4")");
+        } else if constexpr (std::is_same_v<T, GpuTexture>) {
+            std::snprintf(buf, sizeof(buf), R"("texture:%u")", v.id);
+        } else {
+            std::snprintf(buf, sizeof(buf), R"("audio")");
+        }
+        return buf;
+    }, val);
 }
 
 } // namespace
@@ -66,7 +101,16 @@ void HostApp::install_routes() {
         }
         return out + "]";
     });
-    // Value probe: every "node.port" value that flowed through edges last tick.
+    // Generic param injection: {"node":"<id>","params":{...}} — works on any
+    // node's inputs. /camera and /controller are sugar over this.
+    http_.add_route("POST", "/param", [this](std::string_view body) -> std::string {
+        auto node = find_string(body, "node");
+        auto params = find_object(body, "params");
+        if (node.empty() || params.empty())
+            return R"({"ok":false,"error":"need node and params"})";
+        queue_param(std::string(node), std::string(params));
+        return R"({"ok":true})";
+    });
     http_.add_route("GET", "/values", [this](std::string_view) -> std::string {
         std::lock_guard<std::mutex> lock(values_mutex_);
         std::string out = "{";
@@ -75,55 +119,43 @@ void HostApp::install_routes() {
             if (!first) out += ',';
             first = false;
             out += '"'; out += key; out += "\":";
-            out += std::visit([](const auto& v) -> std::string {
-                using T = std::decay_t<decltype(v)>;
-                char buf[160];
-                if constexpr (std::is_same_v<T, double>) {
-                    std::snprintf(buf, sizeof(buf), "%g", v);
-                } else if constexpr (std::is_same_v<T, Eigen::Vector2f>) {
-                    std::snprintf(buf, sizeof(buf), "[%g,%g]", double(v.x()), double(v.y()));
-                } else if constexpr (std::is_same_v<T, Eigen::Vector3f>) {
-                    std::snprintf(buf, sizeof(buf), "[%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()));
-                } else if constexpr (std::is_same_v<T, Eigen::Vector4f>) {
-                    std::snprintf(buf, sizeof(buf), "[%g,%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()), double(v.w()));
-                } else if constexpr (std::is_same_v<T, Eigen::Quaternionf>) {
-                    std::snprintf(buf, sizeof(buf), "[%g,%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()), double(v.w()));
-                } else if constexpr (std::is_same_v<T, Eigen::Matrix4f>) {
-                    std::snprintf(buf, sizeof(buf), R"("matrix4")");
-                } else if constexpr (std::is_same_v<T, GpuTexture>) {
-                    std::snprintf(buf, sizeof(buf), R"("texture:%u")", v.id);
-                } else {
-                    std::snprintf(buf, sizeof(buf), R"("audio")");
-                }
-                return buf;
-            }, val);
+            out += value_json(val);
         }
         return out + "}";
     });
     http_.add_route("GET", "/camera", [this](std::string_view) -> std::string {
-        return camera_json(camera());
+        std::string out = "{";
+        for (const char* k : {"pos", "yaw", "pitch"}) {
+            if (auto v = probe(std::string("camera.") + k)) {
+                if (out.size() > 1) out += ',';
+                out += '"'; out += k; out += "\":"; out += value_json(*v);
+            }
+        }
+        return out + "}";
     });
     http_.add_route("POST", "/camera", [this](std::string_view body) -> std::string {
-        FlyCamera c = camera();
-        c.pos.x() = float(find_number(body, "x",     c.pos.x()));
-        c.pos.y() = float(find_number(body, "y",     c.pos.y()));
-        c.pos.z() = float(find_number(body, "z",     c.pos.z()));
-        c.yaw     = float(find_number(body, "yaw",   c.yaw));
-        c.pitch   = float(find_number(body, "pitch", c.pitch));
-        c.fov     = float(find_number(body, "fov",   c.fov));
-        set_camera(c);
-        return camera_json(c);
+        queue_param("camera", std::string(body));  // keys match camera inputs
+        return R"({"ok":true})";
+    });
+    http_.add_route("POST", "/controller", [this](std::string_view body) -> std::string {
+        bool right = find_string(body, "hand") != "left";
+        // Re-emit only numeric fields: hand node inputs share these names.
+        char params[256];
+        std::snprintf(params, sizeof(params),
+            R"({"x":%g,"y":%g,"z":%g,"qx":%g,"qy":%g,"qz":%g,"qw":%g,"trigger":%g,"grip":%g,"thumb_x":%g,"thumb_y":%g})",
+            find_number(body, "x", 0), find_number(body, "y", 1.2),
+            find_number(body, "z", -0.4),
+            find_number(body, "qx", 0), find_number(body, "qy", 0),
+            find_number(body, "qz", 0), find_number(body, "qw", 1),
+            find_number(body, "trigger", 0), find_number(body, "grip", 0),
+            find_number(body, "thumb_x", 0), find_number(body, "thumb_y", 0));
+        queue_param(right ? "hand_r" : "hand_l", params);
+        return R"({"ok":true})";
     });
     // Blocks until the render thread captures the next frame (2 s timeout).
     http_.add_route("POST", "/screenshot", [this](std::string_view body) -> std::string {
         std::string path = "/tmp/sygaldreye_shot.png";
-        auto p = body.find("\"path\"");
-        if (p != std::string_view::npos) {
-            auto a = body.find('"', body.find(':', p));
-            auto b = body.find('"', a + 1);
-            if (a != std::string_view::npos && b != std::string_view::npos)
-                path = std::string(body.substr(a + 1, b - a - 1));
-        }
+        if (auto p = find_string(body, "path"); !p.empty()) path = std::string(p);
         std::unique_lock<std::mutex> lock(shot_mutex_);
         shot_path_ = path;
         shot_done_ = false;
@@ -132,30 +164,6 @@ void HostApp::install_routes() {
         shot_path_.clear();
         if (!ok) return R"({"ok":false,"error":"capture timed out or failed"})";
         return std::string(R"({"ok":true,"path":")") + path + "\"}";
-    });
-    // Virtual controller injection: {"hand":"right","x":..,"y":..,"z":..,
-    // "trigger":0|1,"grip":0|1,"thumb_x":..,"thumb_y":..}. Quaternion via
-    // qx/qy/qz/qw. Omitted fields keep their value.
-    http_.add_route("POST", "/controller", [this](std::string_view body) -> std::string {
-        std::lock_guard<std::mutex> lock(ctrl_mutex_);
-        bool right = body.find("\"hand\":\"left\"") == std::string_view::npos;
-        XrPosef& p = right ? ctrl_.right : ctrl_.left;
-        p.position.x    = float(find_number(body, "x",  p.position.x));
-        p.position.y    = float(find_number(body, "y",  p.position.y));
-        p.position.z    = float(find_number(body, "z",  p.position.z));
-        p.orientation.x = float(find_number(body, "qx", p.orientation.x));
-        p.orientation.y = float(find_number(body, "qy", p.orientation.y));
-        p.orientation.z = float(find_number(body, "qz", p.orientation.z));
-        p.orientation.w = float(find_number(body, "qw", p.orientation.w));
-        if (right) {
-            ctrl_.trigger_right = find_number(body, "trigger", ctrl_.trigger_right) != 0;
-            ctrl_.grip_right    = find_number(body, "grip",    ctrl_.grip_right)    != 0;
-        } else {
-            ctrl_.trigger_left  = find_number(body, "trigger", ctrl_.trigger_left)  != 0;
-            ctrl_.thumb_x       = float(find_number(body, "thumb_x", ctrl_.thumb_x));
-            ctrl_.thumb_y       = float(find_number(body, "thumb_y", ctrl_.thumb_y));
-        }
-        return R"({"ok":true})";
     });
     http_.add_route("POST", "/quit", [this](std::string_view) -> std::string {
         quit_.store(true);

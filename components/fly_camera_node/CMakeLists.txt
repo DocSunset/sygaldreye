@@ -1,0 +1,3 @@
+add_library(fly_camera_node INTERFACE)
+target_include_directories(fly_camera_node INTERFACE .)
+target_link_libraries(fly_camera_node INTERFACE fly_camera sygaldry_endpoints)

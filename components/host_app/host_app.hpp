@@ -3,38 +3,36 @@
 #include "component_registry.hpp"
 #include "signal_graph.hpp"
 #include "http_server.hpp"
-#include "fly_camera.hpp"
-#include "vr_editor.hpp"
-#include "text_mesh.hpp"
 #include <atomic>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
-// Host (desktop) application spine: node registry, live graph editable over
-// HTTP (POST /graph), fly camera settable over HTTP (POST /camera), and a
-// frame-synchronized screenshot endpoint (POST /screenshot) for agents.
-// Virtual controllers: same inputs the Quest feeds the editor, injectable
-// over HTTP (POST /controller) so agents and remote humans drive the editor
-// through the identical path.
-struct VirtualControls {
-    XrPosef left  {{0,0,0,1}, {-0.25f, 1.2f, -0.4f}};
-    XrPosef right {{0,0,0,1}, { 0.25f, 1.2f, -0.4f}};
-    bool  trigger_left = false, trigger_right = false, grip_right = false;
-    float thumb_x = 0.f, thumb_y = 0.f;
-};
-
+// Host (desktop) platform shell. Nearly everything lives in the graph:
+// camera (fly_camera node), hands (hand nodes), the editor (editor node).
+// The shell only owns the registry, the HTTP surface, the frame pump, and
+// the three seams the graph cannot self-host: param injection, editor
+// context, and reading camera.pv to drive the final draw.
 struct HostApp {
     void init(int http_port);
 
-    // Run one frame: swap pending graph, tick, draw, fulfil screenshots.
-    // A GL context must be current; renders to the bound framebuffer.
+    // Run one frame: swap+migrate pending graph, apply queued params, tick,
+    // collect editor edits, draw, fulfil screenshots. GL context current.
     void frame(int width, int height, double time_s);
 
-    FlyCamera camera();
-    void      set_camera(const FlyCamera&);
-    bool      quit_requested() const { return quit_.load(); }
+    // Thread-safe: queue {"port":value,...} params for node `id`, applied on
+    // the render thread before the next tick. The HTTP /param route and the
+    // windowed input pump both funnel through here.
+    void queue_param(std::string node_id, std::string params_json);
+
+    // Thread-safe read of a "node.port" value from the last tick.
+    std::optional<PortValue> probe(const std::string& key);
+
+    bool quit_requested() const { return quit_.load(); }
 
 private:
     void install_routes();
@@ -46,15 +44,8 @@ private:
     std::unique_ptr<Graph> active_;
     std::unique_ptr<Graph> pending_;
 
-    std::mutex cam_mutex_;
-    FlyCamera  cam_;
-
-    std::mutex      ctrl_mutex_;
-    VirtualControls ctrl_;
-    VrEditor        vr_editor_;
-    TextMesh        text_mesh_;
-    bool            editor_ready_ = false;
-    double          prev_time_s_  = 0.0;
+    std::mutex                                       param_mutex_;
+    std::vector<std::pair<std::string, std::string>> param_queue_;
 
     std::mutex                                 values_mutex_;
     std::unordered_map<std::string, PortValue> values_snapshot_;  // copied each tick

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <cctype>
 
 Graph::~Graph() {
     for (auto& n : nodes) {
@@ -70,7 +71,31 @@ static bool split_dot(std::string_view s, std::string& node, std::string& port) 
     return true;
 }
 
-std::unique_ptr<Graph> parse_graph(const std::string& json, const ComponentRegistry& registry) {
+// Strips whitespace outside string literals so standard JSON emitters
+// (python json.dumps, pretty-printers) parse identically to compact JSON —
+// the needle matchers below assume "key":value with no gaps.
+static std::string compact_json(const std::string& in) {
+    std::string out;
+    out.reserve(in.size());
+    bool in_str = false, esc = false;
+    for (char ch : in) {
+        if (in_str) {
+            out += ch;
+            if (esc) esc = false;
+            else if (ch == '\\') esc = true;
+            else if (ch == '"') in_str = false;
+        } else if (ch == '"') {
+            out += ch;
+            in_str = true;
+        } else if (!std::isspace(static_cast<unsigned char>(ch))) {
+            out += ch;
+        }
+    }
+    return out;
+}
+
+std::unique_ptr<Graph> parse_graph(const std::string& raw_json, const ComponentRegistry& registry) {
+    const std::string json = compact_json(raw_json);
     auto nodes_key = std::string_view(json).find("\"nodes\"");
     if (nodes_key == std::string_view::npos) return nullptr;
 

@@ -1,0 +1,18 @@
+{
+  "inlets":  [{"name":"speed","node":"spd","port":"a"},
+              {"name":"radius","node":"rad","port":"a"}],
+  "outlets": [{"name":"x","node":"lx","port":"out"},
+              {"name":"z","node":"lz","port":"out"}],
+  "nodes":[
+    {"id":"spd","type":"add","params":{"b":0}},
+    {"id":"rad","type":"add","params":{"b":0}},
+    {"id":"lx","type":"lfo","params":{"phase":0.25}},
+    {"id":"lz","type":"lfo","params":{}}
+  ],
+  "edges":[
+    {"from":"spd.out","to":"lx.freq"},
+    {"from":"spd.out","to":"lz.freq"},
+    {"from":"rad.out","to":"lx.amp"},
+    {"from":"rad.out","to":"lz.amp"}
+  ]
+}

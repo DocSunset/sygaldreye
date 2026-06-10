@@ -9,8 +9,8 @@ if(NOT CMAKE_CROSSCOMPILING)
         PRIVATE ${STB_INCLUDE_DIR} $ENV{GLFW_INCLUDE_DIR})
     target_link_libraries(host_app
         PUBLIC component_registry signal_graph subgraph_node http_server fly_camera
-               vr_editor text_mesh
-        PRIVATE water_surface sky_dome sun_light cube_node lissajous aurora
+        PRIVATE fly_camera_node hand_node editor_node math_nodes net_nodes
+                water_surface sky_dome sun_light cube_node lissajous aurora
                 chladni terrain_generator particle_system reaction_diffusion
                 trigger_edge eyeballs_node_abi
                 -L$ENV{GLFW_LIB_DIR} glfw GLESv2)
