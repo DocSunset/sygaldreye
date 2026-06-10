@@ -17,13 +17,12 @@ public:
         slider<"pos_y", "", float, fp(-50.f), fp(50.f), fp(1.5f)>  pos_y;
         slider<"pos_z", "", float, fp(-50.f), fp(50.f), fp(-2.f)>  pos_z;
         slider<"scale", "", float, fp(0.01f), fp(5.f),  fp(0.3f)>  scale;
+        ::text<"text">                                              label;
     } inputs;
 
     struct outputs {
         port<"render", DrawFn> render;
     } outputs;
-
-    std::string text = "label";
 
     void operator()(double time_s);
 
@@ -32,6 +31,3 @@ private:
     bool     initialized_ = false;
 };
 
-// Custom serialize/deserialize so 'text' round-trips through JSON.
-std::string to_json(const TextLabelNode& n);
-void        from_json(TextLabelNode& n, std::string_view json);

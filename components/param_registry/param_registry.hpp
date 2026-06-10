@@ -26,6 +26,13 @@ concept ToggleField = requires(F f) {
     requires !SliderField<F>;
 };
 
+template<typename F>
+concept TextField = requires(F f) {
+    { F::name() } -> std::convertible_to<std::string_view>;
+    { f.value   } -> std::convertible_to<std::string>;
+    requires !SliderField<F>;
+};
+
 namespace detail {
 
 template<typename T>
@@ -70,13 +77,22 @@ std::string to_json(const T& node) {
             using F = std::remove_cvref_t<decltype(field)>;
             // Only value-bearing fields serialize; emitting a key with no
             // value (e.g. vector ports) produces invalid JSON.
-            if constexpr (SliderField<F> || ToggleField<F>) {
+            if constexpr (SliderField<F> || ToggleField<F> || TextField<F>) {
                 if (!first) out += ',';
                 first = false;
                 out += '"';
                 out += key;
                 out += "\":";
-                out += detail::value_to_json(field.value);
+                if constexpr (TextField<F>) {
+                    out += '"';
+                    for (char c : field.value) {  // minimal escape
+                        if (c == '"' || c == '\\') out += '\\';
+                        out += c;
+                    }
+                    out += '"';
+                } else {
+                    out += detail::value_to_json(field.value);
+                }
             }
         });
     out += '}';
@@ -121,7 +137,9 @@ void from_json(T& node, std::string_view json) {
                 constexpr auto fname = boost::pfr::get_name<I, typename std::remove_cvref_t<decltype(node.inputs)>>();
                 if (std::string_view(fname) == key) {
                     using F = std::remove_cvref_t<decltype(field)>;
-                    if constexpr (SliderField<F> || ToggleField<F>) {
+                    if constexpr (TextField<F>) {
+                        field.value = std::string(val);
+                    } else if constexpr (SliderField<F> || ToggleField<F>) {
                         detail::set_from_sv(field.value, val);
                     }
                 }

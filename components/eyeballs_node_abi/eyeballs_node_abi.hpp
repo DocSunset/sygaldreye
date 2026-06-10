@@ -114,6 +114,7 @@ constexpr std::string_view port_kind() {
     else if constexpr (ScalarPortField<F>) return "scalar";
     else if constexpr (SliderField<F>)     return "scalar";
     else if constexpr (ToggleField<F>)     return "bool";
+    else if constexpr (TextField<F>)       return "text";
     else                                   return "unknown";
 }
 

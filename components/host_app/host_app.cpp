@@ -5,6 +5,7 @@
 #include "fly_camera_node.hpp"
 #include "hand_node.hpp"
 #include "editor_node.hpp"
+#include "spawner_node.hpp"
 #include "math_nodes.hpp"
 #include "net_nodes.hpp"
 #include "ui_nodes.hpp"
@@ -22,6 +23,7 @@
 #include "rd_gpu.hpp"
 #include "rd_renderer.hpp"
 #include "trigger_edge.hpp"
+#include "text_label.hpp"
 #include <GLES3/gl3.h>
 #include <dirent.h>
 #include <string_view>
@@ -57,6 +59,7 @@ void HostApp::init(int http_port) {
     registry_.register_builtin(make_descriptor<FlyCameraNode>());
     registry_.register_builtin(make_descriptor<HandNode>());
     registry_.register_builtin(make_descriptor<EditorNode>());
+    registry_.register_builtin(make_descriptor<SpawnerNode>());
     registry_.register_builtin(make_descriptor<LfoNode>());
     registry_.register_builtin(make_descriptor<ScaleNode>());
     registry_.register_builtin(make_descriptor<AddNode>());
@@ -85,6 +88,7 @@ void HostApp::init(int http_port) {
     registry_.register_builtin(make_descriptor<RdGpu>());
     registry_.register_builtin(make_descriptor<RDRenderer>());
     registry_.register_builtin(make_descriptor<TriggerEdge>());
+    registry_.register_builtin(make_descriptor<TextLabelNode>());
 
     // Subgraph plugins: every assets/graphs/*.json becomes a node type.
     if (DIR* d = opendir("assets/graphs")) {
@@ -133,6 +137,8 @@ void HostApp::frame(int width, int height, double time_s) {
         std::string_view type{n.desc->type_name};
         if (type == "editor")
             static_cast<EditorNode*>(n.data)->set_context(active_.get(), &registry_);
+        else if (type == "spawner")
+            static_cast<SpawnerNode*>(n.data)->set_context(active_.get(), &registry_);
         else if (type == "fly_camera")
             static_cast<FlyCameraNode*>(n.data)->inputs.aspect.value = aspect;
     }
@@ -151,12 +157,14 @@ void HostApp::frame(int width, int height, double time_s) {
     // Editor edits become the next pending graph (swapped next frame, with
     // state migration — including the editor node itself).
     for (auto& n : active_->nodes) {
-        if (std::string_view{n.desc->type_name} != "editor") continue;
-        if (auto edit = static_cast<EditorNode*>(n.data)->take_edit()) {
-            if (auto g = parse_graph(*edit, registry_)) {
-                std::lock_guard<std::mutex> lock(graph_mutex_);
-                pending_ = std::move(g);
-            }
+        std::string_view type{n.desc->type_name};
+        std::optional<std::string> edit;
+        if (type == "editor")       edit = static_cast<EditorNode*>(n.data)->take_edit();
+        else if (type == "spawner") edit = static_cast<SpawnerNode*>(n.data)->take_edit();
+        if (!edit) continue;
+        if (auto g = parse_graph(*edit, registry_)) {
+            std::lock_guard<std::mutex> lock(graph_mutex_);
+            pending_ = std::move(g);
         }
     }
 

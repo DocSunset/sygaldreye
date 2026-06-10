@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <bit>
 #include <cstdint>
+#include <string>
 #include <functional>
 #include <string_view>
 #include <Eigen/Core>
@@ -43,6 +44,14 @@ template<fixed_string Name>
 struct bang {
     static consteval std::string_view name() { return Name; }
     bool triggered = false;
+};
+
+// Free-text parameter (label text, hostnames, type names). Params only —
+// not propagated through edges.
+template<fixed_string Name>
+struct text {
+    static consteval std::string_view name() { return Name; }
+    std::string value;
 };
 
 // Generic typed port — carries any value type; no slider metadata.
