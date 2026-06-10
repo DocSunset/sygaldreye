@@ -40,6 +40,13 @@
 #include "ptt_gate.hpp"
 #include "mic_input.hpp"
 #include "text_label.hpp"
+#include "math_nodes.hpp"
+#include "net_nodes.hpp"
+#include "ui_nodes.hpp"
+#include "hand_node.hpp"
+#include "fly_camera_node.hpp"
+#include "spawner_node.hpp"
+#include "aurora_curtain.hpp"
 #include <GLES3/gl3.h>
 #include <cstdio>
 #include <ctime>
@@ -181,6 +188,26 @@ void android_main(struct android_app* app) {
     state.registry_.register_builtin(make_descriptor<CubeNode>());
     state.registry_.register_builtin(make_descriptor<TextLabelNode>());
     state.registry_.register_builtin(make_descriptor<SpeechToTextNode>());
+    state.registry_.register_builtin(make_descriptor<LfoNode>());
+    state.registry_.register_builtin(make_descriptor<ScaleNode>());
+    state.registry_.register_builtin(make_descriptor<AddNode>());
+    state.registry_.register_builtin(make_descriptor<MulNode>());
+    state.registry_.register_builtin(make_descriptor<ConstNode>());
+    state.registry_.register_builtin(make_descriptor<SubNode>());
+    state.registry_.register_builtin(make_descriptor<DivNode>());
+    state.registry_.register_builtin(make_descriptor<PhasorNode>());
+    state.registry_.register_builtin(make_descriptor<SmoothNode>());
+    state.registry_.register_builtin(make_descriptor<Split3Node>());
+    state.registry_.register_builtin(make_descriptor<Join3Node>());
+    state.registry_.register_builtin(make_descriptor<UdpSendNode>());
+    state.registry_.register_builtin(make_descriptor<UdpRecvNode>());
+    state.registry_.register_builtin(make_descriptor<UiSliderNode>());
+    state.registry_.register_builtin(make_descriptor<UiButtonNode>());
+    state.registry_.register_builtin(make_descriptor<UiPaneNode>());
+    state.registry_.register_builtin(make_descriptor<HandNode>());
+    state.registry_.register_builtin(make_descriptor<FlyCameraNode>());
+    state.registry_.register_builtin(make_descriptor<SpawnerNode>());
+    state.registry_.register_builtin(make_descriptor<AuroraCurtainNode>());
 
     constexpr const char* kDefaultGraph = R"({
         "nodes":[
@@ -306,6 +333,7 @@ void android_main(struct android_app* app) {
                 {
                     std::lock_guard<std::mutex> lock(state.graph_mutex_);
                     if (state.pending_graph_) {
+                        migrate_graph(*state.pending_graph_, *state.active_graph_);
                         state.active_graph_ = std::move(state.pending_graph_);
                         state.vr_editor_.on_graph_changed(state.active_graph_.get());
                     }
