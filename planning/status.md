@@ -141,9 +141,23 @@ UI-as-nodes, graph-edits-as-node-output. What remains is either:
 Category 2 is the edge/executor design doc (slice 3) — Travis ratifies.
 Decomposing further without it would bake in seams we'd have to unwind.
 
+## 2026-06-10 (cont. 6) — mechanical splits done (Travis green-lit)
+
+- aurora → aurora_curtain node (color/motion/placement patchable) +
+  aurora.json. 'aurora' type comes from JSON on host; C++ monolith stays
+  Android-only until APKs ship assets (kanban-worthy cleanup).
+- particle_system: emit pos/velocity/gravity/color as ports. Fixed:
+  graph-spawned particles were invisible (zero-init EmitterParams).
+  split3/join3 vec3 plumbing primitives added.
+- water: spectrum (wavelength/choppiness/amplitude) as inputs w/ dirty
+  rebuild. Calm→storm live. (True mesh/shader node split intentionally
+  skipped: waves are computed in the vertex stage — splitting would force
+  a heightfield-texture redesign; deferred to edge/executor era.)
+- Demos: lfo-breathing aurora; orbit_cam.json reused to orbit a spark
+  fountain; sea-state flips via /param.
+
 Next session: edge/executor design doc draft + network bridge walkthrough
-(see memory: followup-network-bridge-design); or mechanical splits if
-Travis prefers momentum.
+(see memory: followup-network-bridge-design).
 - string PortValue/params (UDP host addressing, labels, JSON events)
 - editor deep bug hunt: wire-drag (grip), sliders, dwell-delete, undo
 - Android app.cpp: adopt migrate_graph + hand/editor nodes (currently still
