@@ -55,7 +55,6 @@ int main(int argc, char** argv) {
     TerrainRenderer terrain = TerrainRenderer::create(tp);
 
     SkyParams sp;
-    sp.star_count = 1500;
     SkyDome sky = SkyDome::create(sp);
 
     constexpr int W = 1280, H = 720;

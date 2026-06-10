@@ -30,7 +30,6 @@ int main(int argc, char** argv) {
     if (!ctx) { std::fprintf(stderr, "Failed to create GL context\n"); return 1; }
 
     SkyParams sp;
-    sp.star_count        = 2000;
     sp.body_angular_radius = 0.012f; // slightly larger sun disc
     SkyDome sky = SkyDome::create(sp);
 

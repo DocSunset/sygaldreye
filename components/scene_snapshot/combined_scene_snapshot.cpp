@@ -106,7 +106,6 @@ int main(int argc, char** argv) {
     // --- Sky ---
     SkyParams sky_p;
     sky_p.radius      = 800.0f;
-    sky_p.star_count  = 2000;
     SkyDome sky = SkyDome::create(sky_p);
 
     // --- Trees ---
