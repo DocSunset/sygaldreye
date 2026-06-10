@@ -71,9 +71,20 @@ Architecture now (host):
   fan-out inside subgraphs uses this trick; a dedicated const node would
   read better.
 
+## 2026-06-10 (cont. 2) — first node decomposition shipped
+
+- sky_dome → sky_dome (gradient+sun) + star_field node; assets/graphs/sky.json
+  recomposes them. Duplicate-name inlets fan out one external port to several
+  inner ports (no passthrough node needed).
+- Bugs: ABI setters matched only display names (spaces) while params match
+  field names — edges using field names silently no-oped (now both accepted;
+  kanban: canonicalize). star_field xyww depth==1.0 failed GL_LESS — stars
+  were likely never visible on Quest either; drawn depth-off now.
+- Night-sky screenshot proves the whole chain: subgraph type from disk,
+  edge-driven inlet fan-out, stars from the split-out node.
+
 Next:
-- decompose coarse visual nodes (sky_dome → gradient + star_field + sun
-  disc; water; rd) as node splits + .json subgraphs
+- decompose more coarse visual nodes (water; rd → sim+renderer)
 - string PortValue/params (UDP host addressing, labels, JSON events)
 - editor deep bug hunt: wire-drag (grip), sliders, dwell-delete, undo
 - Android app.cpp: adopt migrate_graph + hand/editor nodes (currently still
