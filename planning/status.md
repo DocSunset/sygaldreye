@@ -214,3 +214,38 @@ params); brace counters skip string literals; text params escape \n.
 Next candidates: feedback-loop textures (effect self-input), mesh
 generators (sphere/tube), render_target auto-sizing, palette buttons for
 the new node families, Quest session for the whole GL arc on device.
+
+
+## 2026-06-10 (third autonomous run — feedback, primitives, Quest prep)
+
+- Texture feedback WORKS by design: topo_sort appends cycle members, the
+  values map persists across ticks → back-edges deliver one-tick-delayed
+  values. Locked with a self-edge integrator test. glsl_effect ping-pongs
+  its targets (self-sampling is undefined GL) and gained uTex2 for
+  feedback mixing. Demo: lissajous light-trails via fb.texture→fb.texture.
+- Math primitives now cover all mathematical port types:
+  scalar (lfo scale add mul const sub div phasor smooth hsv_color time),
+  vec3 (split3 join3 vadd vscale vlerp vdot vcross vlen+normalized),
+  quat (quat_euler quat_mul quat_rotate quat_slerp),
+  mat4 (trs mat_mul; fly_camera emits view/proj/pv).
+- Geometry: generators mesh_grid/sphere/box/cylinder; deformers
+  mesh_ripple/twist/transform + texture-driven mesh_displace; mesh_render.
+- CONFESSION + fix: Android 'green' checks since the repo rename were
+  false — stale build/android cache failed configure instantly and my
+  lowercase grep missed 'CMake Error'. Clean rebuild surfaced exactly one
+  real error (app_snapshot star_count). Lesson recorded: trust exit codes,
+  never grep for failure.
+
+### Quest session checklist (Travis incoming)
+1. APK packaged at build/apk/eyeballs.apk (74 MB, all new node types
+   registered, migration on swap). `sh/run.sh` = install + launch + logcat.
+2. Travis dons headset BEFORE launch verification (frame loop needs HMD).
+3. Verify in order: default scene renders → /graph GET over WiFi (mdns
+   'eyeballs' or device IP :8080) → POST a small patch (lfo→cube.scale) →
+   palette shows new families → GL arc on Adreno: render_target,
+   glsl_effect chain, mesh_displace readback (watch for driver quirks —
+   this is the highest-risk area) → udp bridge desktop⇄Quest using the
+   new host param (desktop IP).
+4. Known not-yet-on-device: hand/editor-node rig (C++ editor still wired);
+   assets/graphs/*.json not packaged into APK (no orbit_cam/sky/aurora
+   types on device yet — flag if wanted for the session).
