@@ -28,6 +28,7 @@ private:
     GLuint tex_[2]  = {0, 0};
     GLuint prog_    = 0;
     GLuint quad_vbo_ = 0;
+    GLuint vao_      = 0;
     int    ping_    = 0;
     int    width_   = 256;
     int    height_  = 256;

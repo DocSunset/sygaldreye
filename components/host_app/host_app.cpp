@@ -19,6 +19,8 @@
 #include "terrain_generator.hpp"
 #include "particle_system.hpp"
 #include "reaction_diffusion.hpp"
+#include "rd_gpu.hpp"
+#include "rd_renderer.hpp"
 #include "trigger_edge.hpp"
 #include <GLES3/gl3.h>
 #include <dirent.h>
@@ -80,6 +82,8 @@ void HostApp::init(int http_port) {
     registry_.register_builtin(make_descriptor<TerrainRenderer>());
     registry_.register_builtin(make_descriptor<ParticleSystem>());
     registry_.register_builtin(make_descriptor<ReactionDiffusion>());
+    registry_.register_builtin(make_descriptor<RdGpu>());
+    registry_.register_builtin(make_descriptor<RDRenderer>());
     registry_.register_builtin(make_descriptor<TriggerEdge>());
 
     // Subgraph plugins: every assets/graphs/*.json becomes a node type.

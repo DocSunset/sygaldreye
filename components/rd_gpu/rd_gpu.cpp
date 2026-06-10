@@ -1,11 +1,11 @@
 // Copyright 2025 Travis West
 #include "rd_gpu.hpp"
 #include <GLES3/gl3.h>
-#include <android/log.h>
+#include "log.hpp"
 #include <cstdio>
 #include <vector>
 
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
+#define LOGE(...) LOG_E("rd_gpu", __VA_ARGS__)
 
 static const char* kVertSrc = R"(#version 300 es
 in vec2 pos;
@@ -70,13 +70,17 @@ void RdGpu::seed_textures() {
 }
 
 void RdGpu::init(int w, int h) {
+    // Runs lazily mid-tick: leave every piece of GL state as we found it.
+    GLint prev_fbo = 0; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
     width_ = w; height_ = h;
     compile_shader();
     glGenTextures(2, tex_);
     for (int i = 0; i < 2; ++i) {
         glBindTexture(GL_TEXTURE_2D, tex_[i]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // float32 textures are not filterable in core GLES3 (Adreno's
+        // OES_texture_float_linear hid this); ping-pong wants exact texels.
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     }
@@ -90,19 +94,25 @@ void RdGpu::init(int w, int h) {
     glGenBuffers(1, &quad_vbo_);
     glBindBuffer(GL_ARRAY_BUFFER, quad_vbo_);
     glBufferData(GL_ARRAY_BUFFER, sizeof(kQuad), kQuad, GL_STATIC_DRAW);
+    glGenVertexArrays(1, &vao_);
+    glBindVertexArray(vao_);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+    glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(prev_fbo));
     ready_ = true;
 }
 
 void RdGpu::operator()(double /*time_s*/) {
+    if (!ready_) init(width_, height_);  // lazy: graph nodes get no init() call
     if (!ready_) return;
-    GLint prev_fbo = 0; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
+    GLint prev_fbo = 0;  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
+    GLint prev_vao = 0;  glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
+    GLint prev_vp[4];    glGetIntegerv(GL_VIEWPORT, prev_vp);
     glUseProgram(prog_);
     glUniform1i(glGetUniformLocation(prog_, "uState"), 0);
-    glBindBuffer(GL_ARRAY_BUFFER, quad_vbo_);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+    glBindVertexArray(vao_);
     int steps = static_cast<int>(inputs.steps_per_frame.value);
     for (int s = 0; s < steps; ++s) {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_[ping_]);
@@ -114,8 +124,8 @@ void RdGpu::operator()(double /*time_s*/) {
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         ping_ = 1 - ping_;
     }
-    glDisableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
-    outputs.concentration.value = {tex_[ping_], width_, height_, GL_RG32F, GL_LINEAR};
+    glBindVertexArray(static_cast<GLuint>(prev_vao));
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(prev_fbo));
+    glViewport(prev_vp[0], prev_vp[1], prev_vp[2], prev_vp[3]);
+    outputs.concentration.value = {tex_[ping_], width_, height_, GL_RG32F, GL_NEAREST};
 }

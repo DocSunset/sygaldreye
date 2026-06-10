@@ -92,6 +92,11 @@ RDRenderer& RDRenderer::operator=(RDRenderer&& o) noexcept {
 }
 
 void RDRenderer::operator()(double) {
+    if (!prog_) {  // graph nodes are default-constructed; create() never ran
+        auto saved = inputs;
+        *this = create();
+        inputs = saved;
+    }
     texture_ = inputs.texture.value;
     color_a_ = {inputs.r_a.value, inputs.g_a.value, inputs.b_a.value};
     color_b_ = {inputs.r_b.value, inputs.g_b.value, inputs.b_b.value};
