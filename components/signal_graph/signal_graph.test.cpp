@@ -1,6 +1,7 @@
 // Copyright 2025 Travis West
 #include "signal_graph.hpp"
 #include "component_registry.hpp"
+#include "subgraph_node.hpp"
 #include "eyeballs_node_abi.h"
 #include "eyeballs_node_abi.hpp"
 #include "sygaldry_endpoints.hpp"

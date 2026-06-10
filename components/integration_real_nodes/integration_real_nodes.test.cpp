@@ -3,6 +3,7 @@
 #include "host_gl_context.hpp"
 #include "signal_graph.hpp"
 #include "component_registry.hpp"
+#include "subgraph_node.hpp"
 #include "eyeballs_node_abi.hpp"
 #include "eyeballs_node_abi.h"
 #include "port_schema_reader.hpp"

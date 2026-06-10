@@ -1,7 +1,6 @@
 // Copyright 2025 Travis West
 #pragma once
 #include "eyeballs_node_abi.hpp"
-#include "component_registry.hpp"
 #include "gpu_texture.hpp"
 #include "sygaldry_endpoints.hpp"
 #include <Eigen/Core>
@@ -37,10 +36,10 @@ struct Edge {
 struct InletDecl  { std::string name, node, port; };
 struct OutletDecl { std::string name, node, port; };
 
-// Forward declaration — defined in subgraph_node. Inline subgraphs transfer
-// descriptor ownership to the containing Graph. signal_graph.hpp must not
-// include subgraph_node.hpp (which includes this header).
+// Forward declarations — subgraph_node and component_registry both include
+// this header; including either back would be circular.
 struct SubgraphDescriptor;
+struct ComponentRegistry;
 
 struct Graph {
     std::vector<NodeInstance>                    nodes;

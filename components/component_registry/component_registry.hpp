@@ -1,11 +1,12 @@
 // Copyright 2025 Travis West
 #pragma once
 #include "eyeballs_node_abi.h"
-#include "subgraph_node.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+struct SubgraphDescriptor;
 
 struct RegistryEntry {
     const EyeballsNodeDescriptor* desc;

@@ -1,5 +1,6 @@
 // Copyright 2025 Travis West
 #include "component_registry.hpp"
+#include "subgraph_node.hpp"
 #include "eyeballs_node_abi.hpp"
 #include "sygaldry_endpoints.hpp"
 #include <gtest/gtest.h>

@@ -1,8 +1,8 @@
 add_library(component_registry STATIC component_registry.cpp)
-target_include_directories(component_registry PUBLIC .
-    # Include paths only — no link dep to avoid cycles with signal_graph/subgraph_node.
-    ../signal_graph ../subgraph_node $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(component_registry PUBLIC eyeballs_node_abi PRIVATE dl)
+target_include_directories(component_registry PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
+# signal_graph/subgraph_node form a genuine static-lib cycle with this target;
+# CMake resolves declared cycles by repeating archives at link time.
+target_link_libraries(component_registry PUBLIC eyeballs_node_abi signal_graph subgraph_node PRIVATE dl)
 target_compile_options(component_registry PRIVATE -Wall -Wextra)
 if(ANDROID)
     target_link_libraries(component_registry PRIVATE log)

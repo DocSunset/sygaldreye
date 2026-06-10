@@ -1,6 +1,7 @@
 // Copyright 2025 Travis West
 #include "component_registry.hpp"
 #include "signal_graph.hpp"
+#include "subgraph_node.hpp"
 #include <cstdio>
 #include <dlfcn.h>
 
