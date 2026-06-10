@@ -512,3 +512,18 @@ TEST(SubgraphInlets, NestedTwoLevelsForwards) {
     ASSERT_NE(it, g->values.end());
     EXPECT_GE(std::get<double>(it->second), 7.0);  // step=7 reached two levels deep
 }
+
+TEST(FeedbackEdges, SelfEdgeIntegratesWithOneTickDelay) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+    // counter.count → counter.step: each tick steps by last tick's count.
+    // count: 1, 2, 4, 8 ... (doubles once feedback kicks in)
+    auto g = parse_graph(R"({"nodes":[{"id":"c","type":"counter","params":{"step":1}}],
+        "edges":[{"from":"c.count","to":"c.step"}]})", reg);
+    ASSERT_TRUE(g);
+    tick_graph(*g, 0.0);  // 0+1 = 1 (no feedback value yet)
+    tick_graph(*g, 0.0);  // 1+1 = 2
+    tick_graph(*g, 0.0);  // 2+2 = 4
+    tick_graph(*g, 0.0);  // 4+4 = 8
+    EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g->nodes[0].data)->count_, 8.f);
+}

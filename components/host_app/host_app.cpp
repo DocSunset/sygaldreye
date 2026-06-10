@@ -100,6 +100,24 @@ void HostApp::init(int http_port) {
     registry_.register_builtin(make_descriptor<MeshGridNode>());
     registry_.register_builtin(make_descriptor<MeshDisplaceNode>());
     registry_.register_builtin(make_descriptor<MeshRenderNode>());
+    registry_.register_builtin(make_descriptor<MeshSphereNode>());
+    registry_.register_builtin(make_descriptor<MeshBoxNode>());
+    registry_.register_builtin(make_descriptor<MeshCylinderNode>());
+    registry_.register_builtin(make_descriptor<MeshRippleNode>());
+    registry_.register_builtin(make_descriptor<MeshTwistNode>());
+    registry_.register_builtin(make_descriptor<MeshTransformNode>());
+    registry_.register_builtin(make_descriptor<Vec3AddNode>());
+    registry_.register_builtin(make_descriptor<Vec3ScaleNode>());
+    registry_.register_builtin(make_descriptor<Vec3LerpNode>());
+    registry_.register_builtin(make_descriptor<Vec3DotNode>());
+    registry_.register_builtin(make_descriptor<Vec3CrossNode>());
+    registry_.register_builtin(make_descriptor<Vec3LengthNode>());
+    registry_.register_builtin(make_descriptor<QuatEulerNode>());
+    registry_.register_builtin(make_descriptor<QuatMulNode>());
+    registry_.register_builtin(make_descriptor<QuatRotateNode>());
+    registry_.register_builtin(make_descriptor<QuatSlerpNode>());
+    registry_.register_builtin(make_descriptor<TrsNode>());
+    registry_.register_builtin(make_descriptor<MatMulNode>());
     registry_.register_builtin(make_descriptor<TriggerEdge>());
     registry_.register_builtin(make_descriptor<TextLabelNode>());
 

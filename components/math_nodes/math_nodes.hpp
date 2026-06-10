@@ -216,3 +216,142 @@ private:
     double prev_ = -1.0;
     float  scaled_ = 0.f;
 };
+
+#include <Eigen/Geometry>
+
+// ── vec3 algebra ────────────────────────────────────────────────────────────
+struct Vec3AddNode {
+    static consteval std::string_view name() { return "vadd"; }
+    struct inputs  { port<"a", Eigen::Vector3f> a; port<"b", Eigen::Vector3f> b; } inputs;
+    struct outputs { port<"out", Eigen::Vector3f> out; } outputs;
+    void operator()(double) { outputs.out.value = inputs.a.value + inputs.b.value; }
+};
+
+struct Vec3ScaleNode {
+    static consteval std::string_view name() { return "vscale"; }
+    struct inputs {
+        port<"in", Eigen::Vector3f> in;
+        slider<"k", "", float, fp(-100.f), fp(100.f), fp(1.f)> k;
+    } inputs;
+    struct outputs { port<"out", Eigen::Vector3f> out; } outputs;
+    void operator()(double) { outputs.out.value = inputs.in.value * inputs.k.value; }
+};
+
+struct Vec3LerpNode {
+    static consteval std::string_view name() { return "vlerp"; }
+    struct inputs {
+        port<"a", Eigen::Vector3f> a; port<"b", Eigen::Vector3f> b;
+        slider<"t", "", float, fp(0.f), fp(1.f), fp(0.5f)> t;
+    } inputs;
+    struct outputs { port<"out", Eigen::Vector3f> out; } outputs;
+    void operator()(double) {
+        outputs.out.value = inputs.a.value +
+            inputs.t.value * (inputs.b.value - inputs.a.value);
+    }
+};
+
+struct Vec3DotNode {
+    static consteval std::string_view name() { return "vdot"; }
+    struct inputs  { port<"a", Eigen::Vector3f> a; port<"b", Eigen::Vector3f> b; } inputs;
+    struct outputs { port<"out", float> out; } outputs;
+    void operator()(double) { outputs.out.value = inputs.a.value.dot(inputs.b.value); }
+};
+
+struct Vec3CrossNode {
+    static consteval std::string_view name() { return "vcross"; }
+    struct inputs  { port<"a", Eigen::Vector3f> a; port<"b", Eigen::Vector3f> b; } inputs;
+    struct outputs { port<"out", Eigen::Vector3f> out; } outputs;
+    void operator()(double) { outputs.out.value = inputs.a.value.cross(inputs.b.value); }
+};
+
+struct Vec3LengthNode {
+    static consteval std::string_view name() { return "vlen"; }
+    struct inputs  { port<"in", Eigen::Vector3f> in; } inputs;
+    struct outputs { port<"out", float> out; port<"normalized", Eigen::Vector3f> normalized; } outputs;
+    void operator()(double) {
+        float n = inputs.in.value.norm();
+        outputs.out.value = n;
+        outputs.normalized.value = (n > 1e-9f) ? Eigen::Vector3f(inputs.in.value / n)
+                                               : Eigen::Vector3f::Zero();
+    }
+};
+
+// ── quaternions ─────────────────────────────────────────────────────────────
+struct QuatEulerNode {
+    static consteval std::string_view name() { return "quat_euler"; }
+    struct inputs {
+        slider<"yaw",   "", float, fp(-6.2832f), fp(6.2832f), fp(0.f)> yaw;
+        slider<"pitch", "", float, fp(-6.2832f), fp(6.2832f), fp(0.f)> pitch;
+        slider<"roll",  "", float, fp(-6.2832f), fp(6.2832f), fp(0.f)> roll;
+    } inputs;
+    struct outputs { port<"out", Eigen::Quaternionf> out; } outputs;
+    void operator()(double) {
+        outputs.out.value =
+            Eigen::AngleAxisf(inputs.yaw.value,   Eigen::Vector3f::UnitY()) *
+            Eigen::AngleAxisf(inputs.pitch.value, Eigen::Vector3f::UnitX()) *
+            Eigen::AngleAxisf(inputs.roll.value,  Eigen::Vector3f::UnitZ());
+    }
+};
+
+struct QuatMulNode {
+    static consteval std::string_view name() { return "quat_mul"; }
+    struct inputs  { port<"a", Eigen::Quaternionf> a; port<"b", Eigen::Quaternionf> b; } inputs;
+    struct outputs { port<"out", Eigen::Quaternionf> out; } outputs;
+    QuatMulNode() { inputs.a.value.setIdentity(); inputs.b.value.setIdentity(); }
+    void operator()(double) {
+        outputs.out.value = (inputs.a.value * inputs.b.value).normalized();
+    }
+};
+
+struct QuatRotateNode {
+    static consteval std::string_view name() { return "quat_rotate"; }
+    struct inputs  { port<"q", Eigen::Quaternionf> q; port<"v", Eigen::Vector3f> v; } inputs;
+    struct outputs { port<"out", Eigen::Vector3f> out; } outputs;
+    QuatRotateNode() { inputs.q.value.setIdentity(); }
+    void operator()(double) {
+        Eigen::Quaternionf q = inputs.q.value;
+        if (q.norm() < 1e-9f) q.setIdentity();
+        outputs.out.value = q.normalized() * inputs.v.value;
+    }
+};
+
+struct QuatSlerpNode {
+    static consteval std::string_view name() { return "quat_slerp"; }
+    struct inputs {
+        port<"a", Eigen::Quaternionf> a; port<"b", Eigen::Quaternionf> b;
+        slider<"t", "", float, fp(0.f), fp(1.f), fp(0.5f)> t;
+    } inputs;
+    struct outputs { port<"out", Eigen::Quaternionf> out; } outputs;
+    QuatSlerpNode() { inputs.a.value.setIdentity(); inputs.b.value.setIdentity(); }
+    void operator()(double) {
+        outputs.out.value = inputs.a.value.slerp(inputs.t.value, inputs.b.value);
+    }
+};
+
+// ── transforms ──────────────────────────────────────────────────────────────
+struct TrsNode {
+    static consteval std::string_view name() { return "trs"; }
+    struct inputs {
+        port<"pos",   Eigen::Vector3f>    pos;
+        port<"rot",   Eigen::Quaternionf> rot;
+        slider<"scale", "", float, fp(0.001f), fp(100.f), fp(1.f)> scale;
+    } inputs;
+    struct outputs { port<"out", Eigen::Matrix4f> out; } outputs;
+    TrsNode() { inputs.rot.value.setIdentity(); }
+    void operator()(double) {
+        Eigen::Quaternionf q = inputs.rot.value;
+        if (q.norm() < 1e-9f) q.setIdentity();
+        Eigen::Affine3f t = Eigen::Translation3f(inputs.pos.value) *
+                            q.normalized() *
+                            Eigen::Scaling(inputs.scale.value);
+        outputs.out.value = t.matrix();
+    }
+};
+
+struct MatMulNode {
+    static consteval std::string_view name() { return "mat_mul"; }
+    struct inputs  { port<"a", Eigen::Matrix4f> a; port<"b", Eigen::Matrix4f> b; } inputs;
+    struct outputs { port<"out", Eigen::Matrix4f> out; } outputs;
+    MatMulNode() { inputs.a.value.setIdentity(); inputs.b.value.setIdentity(); }
+    void operator()(double) { outputs.out.value = inputs.a.value * inputs.b.value; }
+};

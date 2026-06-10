@@ -19,7 +19,8 @@ struct GlslEffectNode {
     static consteval std::string_view source_header() { return "components/glsl_effect/glsl_effect.hpp"; }
 
     struct inputs {
-        port<"texture", GpuTexture> texture;
+        port<"texture",  GpuTexture> texture;
+        port<"texture2", GpuTexture> texture2;  // uTex2: mix/composite input
         ::text<"code"> code;  // body of effect(); empty = passthrough
         slider<"a", "", float, fp(-10.f), fp(10.f), fp(0.f)> a;
         slider<"b", "", float, fp(-10.f), fp(10.f), fp(0.f)> b;
@@ -43,6 +44,9 @@ private:
     std::unique_ptr<GlProgram> prog_;
     std::string compiled_code_;
     bool        compile_failed_ = false;
-    GLuint fbo_ = 0, color_ = 0, vao_ = 0;
-    int    w_ = 0, h_ = 0;
+    // Ping-pong: writing while sampling our own previous output (feedback
+    // self-edges) is undefined GL; alternate targets each tick instead.
+    GLuint fbo_[2] = {0, 0}, color_[2] = {0, 0};
+    GLuint vao_ = 0;
+    int    ping_ = 0, w_ = 0, h_ = 0;
 };

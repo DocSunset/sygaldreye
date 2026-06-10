@@ -65,3 +65,82 @@ private:
     const TriMeshData* uploaded_ = nullptr;
     MeshPtr held_;
 };
+
+// ── generators ──────────────────────────────────────────────────────────────
+struct MeshSphereNode {
+    static consteval std::string_view name() { return "mesh_sphere"; }
+    struct inputs {
+        slider<"radius",   "", float, fp(0.05f), fp(50.f),  fp(1.f)>  radius;
+        slider<"segments", "", float, fp(4.f),   fp(128.f), fp(32.f)> segments;
+    } inputs;
+    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    void operator()(double);
+private:
+    float radius_ = -1.f; int segs_ = -1;
+    MeshPtr cached_;
+};
+
+struct MeshBoxNode {
+    static consteval std::string_view name() { return "mesh_box"; }
+    struct inputs {
+        slider<"sx", "", float, fp(0.05f), fp(50.f), fp(1.f)> sx;
+        slider<"sy", "", float, fp(0.05f), fp(50.f), fp(1.f)> sy;
+        slider<"sz", "", float, fp(0.05f), fp(50.f), fp(1.f)> sz;
+    } inputs;
+    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    void operator()(double);
+private:
+    Eigen::Vector3f size_{-1.f, -1.f, -1.f};
+    MeshPtr cached_;
+};
+
+struct MeshCylinderNode {
+    static consteval std::string_view name() { return "mesh_cylinder"; }
+    struct inputs {
+        slider<"radius",   "", float, fp(0.05f), fp(50.f),  fp(0.5f)> radius;
+        slider<"height",   "", float, fp(0.05f), fp(50.f),  fp(2.f)>  height;
+        slider<"segments", "", float, fp(3.f),   fp(128.f), fp(24.f)> segments;
+    } inputs;
+    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    void operator()(double);
+private:
+    float radius_ = -1.f, height_ = -1.f; int segs_ = -1;
+    MeshPtr cached_;
+};
+
+// ── deformers ───────────────────────────────────────────────────────────────
+// Sine ripple along vertex normals; phase travels with time.
+struct MeshRippleNode {
+    static consteval std::string_view name() { return "mesh_ripple"; }
+    struct inputs {
+        port<"mesh", MeshPtr> mesh;
+        slider<"amplitude", "", float, fp(-5.f), fp(5.f),  fp(0.2f)> amplitude;
+        slider<"freq",      "", float, fp(0.1f), fp(20.f), fp(3.f)>  freq;
+        slider<"speed",     "", float, fp(-10.f),fp(10.f), fp(1.f)>  speed;
+    } inputs;
+    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    void operator()(double);
+};
+
+// Twist around Y proportional to height.
+struct MeshTwistNode {
+    static consteval std::string_view name() { return "mesh_twist"; }
+    struct inputs {
+        port<"mesh", MeshPtr> mesh;
+        slider<"angle", "rad/m", float, fp(-6.2832f), fp(6.2832f), fp(1.f)> angle;
+    } inputs;
+    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    void operator()(double);
+};
+
+// Bake a mat4 into the vertices (positions + rotated normals).
+struct MeshTransformNode {
+    static consteval std::string_view name() { return "mesh_transform"; }
+    struct inputs {
+        port<"mesh",   MeshPtr>         mesh;
+        port<"matrix", Eigen::Matrix4f> matrix;
+    } inputs;
+    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    MeshTransformNode() { inputs.matrix.value.setIdentity(); }
+    void operator()(double);
+};

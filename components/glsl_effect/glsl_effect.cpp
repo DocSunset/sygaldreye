@@ -17,6 +17,7 @@ constexpr const char* kFragHeader = R"(#version 300 es
 precision mediump float;
 in vec2 vUV;
 uniform sampler2D uTex;
+uniform sampler2D uTex2;
 uniform float uTime, uA, uB, uC, uD;
 out vec4 fragColor;
 vec4 effect(vec2 uv) {
@@ -50,18 +51,23 @@ bool GlslEffectNode::ensure_program() {
 }
 
 bool GlslEffectNode::ensure_target(int w, int h) {
-    if (fbo_ && w == w_ && h == h_) return true;
-    if (fbo_) { glDeleteFramebuffers(1, &fbo_); glDeleteTextures(1, &color_); }
+    if (fbo_[0] && w == w_ && h == h_) return true;
+    if (fbo_[0]) { glDeleteFramebuffers(2, fbo_); glDeleteTextures(2, color_); }
     GLint prev = 0; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev);
-    glGenFramebuffers(1, &fbo_);
-    glGenTextures(1, &color_);
-    glBindTexture(GL_TEXTURE_2D, color_);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_, 0);
-    bool ok = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    glGenFramebuffers(2, fbo_);
+    glGenTextures(2, color_);
+    bool ok = true;
+    for (int i = 0; i < 2; ++i) {
+        glBindTexture(GL_TEXTURE_2D, color_[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo_[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_[i], 0);
+        ok &= glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    }
     if (!ok) std::fprintf(stderr, "glsl_effect: fbo incomplete\n");
     glBindFramebuffer(GL_FRAMEBUFFER, GLuint(prev));
     w_ = w; h_ = h;
@@ -78,13 +84,17 @@ void GlslEffectNode::operator()(double time_s) {
     GLint prev_vp[4];    glGetIntegerv(GL_VIEWPORT, prev_vp);
 
     if (vao_ == 0) glGenVertexArrays(1, &vao_);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo_[ping_]);
     glViewport(0, 0, w_, h_);
     glDisable(GL_DEPTH_TEST);
     prog_->use();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, inputs.texture.value.id);  // 0 is fine: black
     glUniform1i(prog_->uniform_location("uTex"), 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, inputs.texture2.value.id);
+    glUniform1i(prog_->uniform_location("uTex2"), 1);
+    glActiveTexture(GL_TEXTURE0);
     glUniform1f(prog_->uniform_location("uTime"), float(time_s));
     glUniform1f(prog_->uniform_location("uA"), inputs.a.value);
     glUniform1f(prog_->uniform_location("uB"), inputs.b.value);
@@ -98,10 +108,11 @@ void GlslEffectNode::operator()(double time_s) {
     glViewport(prev_vp[0], prev_vp[1], prev_vp[2], prev_vp[3]);
     glEnable(GL_DEPTH_TEST);
 
-    outputs.texture.value = {color_, w_, h_, GL_RGBA8, GL_LINEAR};
+    outputs.texture.value = {color_[ping_], w_, h_, GL_RGBA8, GL_LINEAR};
+    ping_ = 1 - ping_;
 }
 
 GlslEffectNode::~GlslEffectNode() {
-    if (fbo_) { glDeleteFramebuffers(1, &fbo_); glDeleteTextures(1, &color_); }
+    if (fbo_[0]) { glDeleteFramebuffers(2, fbo_); glDeleteTextures(2, color_); }
     if (vao_) glDeleteVertexArrays(1, &vao_);
 }

@@ -77,8 +77,9 @@ TEST(EyeballsNodeAbi, DeserializeRoundtrip) {
     d->destroy(node);
 }
 
-TEST(EyeballsNodeAbi, AbiVersionIsV4) {
-    EXPECT_EQ(EYEBALLS_ABI_VERSION, 4);
+TEST(EyeballsNodeAbi, DescriptorCarriesCurrentAbiVersion) {
+    auto* d = make_descriptor<RichNode>();
+    EXPECT_EQ(d->version, EYEBALLS_ABI_VERSION);
 }
 
 TEST(EyeballsNodeAbi, PushOutputsNotNull) {

@@ -131,7 +131,6 @@ static Light apply_day_cycle(float t, WaterSurface& water, SkyDome& sky) {
 
     SkyParams sp;
     sp.radius              = 500.0f;
-    sp.star_count          = 2000;
     sp.sun_elevation       = elev_norm;
     sp.body_dir            = -sun_dir;
     sp.body_color          = {sun_color.x(), sun_color.y(), sun_color.z(), 1.0f};
