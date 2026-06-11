@@ -17,13 +17,14 @@ struct SpawnerNode {
 
     struct inputs {
         slider<"trigger", "", float, fp(0.f), fp(1.f), fp(0.f)> trigger;
+        bang<"spawn"> spawn;  // event-rate command (poke_button etc.)
         ::text<"type"> type;
     } inputs;
     struct outputs {} outputs;
 
     void operator()(double) {
         bool on = inputs.trigger.value > 0.5f;
-        bool fire = on && !prev_on_;
+        bool fire = (on && !prev_on_) || inputs.spawn.triggered;
         prev_on_ = on;
         if (!fire || !graph_ || !registry_ || inputs.type.value.empty()) return;
         if (!registry_->find(inputs.type.value)) return;
