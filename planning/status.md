@@ -440,3 +440,14 @@ and default startup graph."
 
 Deferred: audio region (step 5) — least verifiable with the headset dead.
 Next: browser peer skeleton (#34).
+
+## 2026-06-12 ~08:30 (overnight arc PAUSED — budget)
+
+Credit check: 84% of the monthly pool spent (CA$8.47/10, resets Jul 1).
+Browser peer (#34) is the most expensive remaining task (emscripten
+bring-up, many compile iterations) — deferred rather than risk leaving
+Travis without interactive budget for 19 days. Audio region (#31) also
+parked (needs the headset anyway). Editor recomposition (#35) untouched.
+All overnight work committed (95b57c2..93f1067). Device replays pending
+when the headset charges: painkiller verify, plugin/hot-reload on
+Adreno, headset-as-third-peer, graph voice loop end-to-end.
