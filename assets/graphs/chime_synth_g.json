@@ -6,7 +6,7 @@
  {"id":"r1","type":"mul","params":{"b":1.0}},
  {"id":"r2","type":"mul","params":{"b":2.76}},
  {"id":"r3","type":"mul","params":{"b":5.40}},
- {"id":"env","type":"adsr","params":{"attack":0.002,"decay":0.9,"sustain":0,"release":0.3}},
+ {"id":"env","type":"perc","params":{"attack":0.002,"decay":0.9,"sustain":0,"release":0.3}},
  {"id":"o1","type":"osc","params":{"amp":1}},
  {"id":"o2","type":"osc","params":{"amp":1}},
  {"id":"o3","type":"osc","params":{"amp":1}},

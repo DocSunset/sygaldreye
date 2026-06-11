@@ -140,12 +140,14 @@ void AudioRegion::render_block(float* out, int frames) {
         auto* a = std::get_if<AudioBuffer>(&it->second);
         if (!a) continue;
         r->sample_rate = a->sample_rate;
+        int ch = std::max(1, a->channels);
+        r->channels.store(ch, std::memory_order_relaxed);
         size_t head = r->head.load(std::memory_order_relaxed);
         size_t tail = r->tail.load(std::memory_order_acquire);
-        int stride = std::max(1, a->channels);
-        for (int i = 0; i < a->frames; ++i) {
+        std::size_t samples = std::size_t(a->frames) * std::size_t(ch);
+        for (std::size_t i = 0; i < samples; ++i) {
             if (head - tail >= kRingCap) break;  // full: drop newest
-            r->buf[head % kRingCap] = a->data[std::size_t(i) * std::size_t(stride)];
+            r->buf[head % kRingCap] = a->data[i];
             ++head;
         }
         r->head.store(head, std::memory_order_release);
@@ -171,8 +173,10 @@ void AudioRegion::publish(Graph& g) {
             ++tail;
         }
         r->tail.store(tail, std::memory_order_release);
-        g.values[r->from_key] = AudioBuffer{r->drained.data(),
-                                            int(r->drained.size()), 1,
+        int ch = std::max(1, r->channels.load(std::memory_order_relaxed));
+        // Trim to whole frames so consumers never see a ragged tail.
+        int frames = int(r->drained.size()) / ch;
+        g.values[r->from_key] = AudioBuffer{r->drained.data(), frames, ch,
                                             r->sample_rate};
     }
     for (auto& s : snaps_)

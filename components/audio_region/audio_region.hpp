@@ -50,9 +50,10 @@ private:
     };
     struct Ring {                        // block → frame audio
         std::string         from_key;
-        std::vector<float>  buf;         // SPSC ring
+        std::vector<float>  buf;         // SPSC ring (interleaved samples)
         std::atomic<size_t> head{0}, tail{0};
         std::vector<float>  drained;     // frame-side view storage
+        std::atomic<int>    channels{1};
         int                 sample_rate = 48000;
     };
     struct Snap {                        // block → frame scalar

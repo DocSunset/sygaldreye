@@ -1,3 +1,10 @@
 add_library(ugens INTERFACE)
 target_include_directories(ugens INTERFACE .)
 target_link_libraries(ugens INTERFACE sygaldry_endpoints synth_core biquad_filter)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(ugens_test ugens.test.cpp)
+    target_link_libraries(ugens_test PRIVATE ugens osc_node subgraph_node signal_graph GTest::gtest_main)
+    target_compile_options(ugens_test PRIVATE -Wall -Wextra)
+endif()

@@ -152,6 +152,9 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<SlewNode>());
     reg.register_builtin(make_descriptor<GrainCloudNode>());
     reg.register_builtin(make_descriptor<MetroNode>());
+    reg.register_builtin(make_descriptor<PercNode>());
+    reg.register_builtin(make_descriptor<McPackNode>());
+    reg.register_builtin(make_descriptor<McUnpackNode>());
     reg.register_builtin(make_descriptor<SpatializeNode>());
     reg.register_builtin(make_descriptor<SamplePlayerNode>());
     reg.register_builtin(make_descriptor<TtsNode>());

@@ -5,7 +5,7 @@
  {"id":"vibrato","type":"lfo","params":{"freq":6.5,"amp":35,"offset":0}},
  {"id":"base","type":"add","params":{"a":0,"b":520}},
  {"id":"chirp","type":"osc","params":{"amp":0.9,"wave":3}},
- {"id":"env","type":"adsr","params":{"attack":0.05,"decay":0.35,"sustain":0,"release":0.2}},
+ {"id":"env","type":"perc","params":{"attack":0.05,"decay":0.35,"sustain":0,"release":0.2}},
  {"id":"out_vca","type":"vca","params":{"gain":0.7}}
 ],
 "edges":[
