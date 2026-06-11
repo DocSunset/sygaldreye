@@ -122,6 +122,19 @@ std::optional<VrEditor::GraphEdit> VrEditor::update_drag(
             drag_from_pos_    = best->world_pos;
             return std::nullopt;
         }
+        // No handle under the tip: grab the card body to move it.
+        for (std::size_t ci = 0; ci < node_cards_.size(); ++ci) {
+            const auto& c = node_cards_[ci];
+            Eigen::Vector3f d = controller_tip_ - c.position;
+            if (std::abs(d.x()) < c.width * 0.5f &&
+                std::abs(d.y()) < c.height * 0.5f &&
+                std::abs(d.z()) < 0.08f) {
+                drag_state_       = DragState::MovingCard;
+                moving_card_      = int(ci);
+                move_grab_offset_ = c.position - controller_tip_;
+                return std::nullopt;
+            }
+        }
     }
 
     if (drag_state_ == DragState::Dragging && grip_edge_up) {

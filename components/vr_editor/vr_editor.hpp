@@ -9,6 +9,7 @@
 #include <openxr/openxr.h>
 #include <Eigen/Core>
 #include <optional>
+#include <unordered_map>
 #include <string>
 #include <vector>
 
@@ -78,11 +79,26 @@ struct VrEditor {
     std::vector<Edge> current_edges_;
     std::string undo_json_;
 
-    enum class DragState { Idle, Dragging } drag_state_ = DragState::Idle;
+    enum class DragState { Idle, Dragging, MovingCard } drag_state_ = DragState::Idle;
     std::string drag_from_node_, drag_from_port_, drag_from_kind_;
     Eigen::Vector3f drag_from_pos_{};
     bool prev_grip_right_ = false;
     Eigen::Vector3f controller_tip_{};
+
+    // presence + hover feedback (drawn every frame)
+    Eigen::Vector3f left_tip_{0, -10, 0}, right_tip_{0, -10, 0};
+    Eigen::Vector3f ray_origin_{}, ray_dir_{0, 0, -1};
+    bool show_left_ = false, show_right_ = false;
+    bool trig_l_ = false, trig_r_ = false, grip_r_ = false;
+    std::string     hover_label_;
+    Eigen::Vector3f hover_pos_{};
+
+    // movable cards: per-node position overrides (in-memory; persistence
+    // arrives with instanced_by metadata — see kanban)
+    std::unordered_map<std::string, Eigen::Vector3f> card_pos_ovr_;
+    int             moving_card_ = -1;
+    Eigen::Vector3f move_grab_offset_{};
+    void rebuild_card(std::size_t idx, const ComponentRegistry* reg = nullptr);
 
     float dwell_s_        = 0.f;
     int   dwell_card_idx_ = -1;

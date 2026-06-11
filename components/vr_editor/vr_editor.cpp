@@ -65,6 +65,10 @@ void VrEditor::on_graph_changed(const Graph* graph) {
         node_cards_.push_back(card);
         card_ids_.push_back(n.id);
 
+        auto ov = card_pos_ovr_.find(n.id);
+        if (ov != card_pos_ovr_.end()) card.position = ov->second;
+        node_cards_.back() = card;
+
         auto [in_h, out_h, sl] = build_port_handles_for_card(card, n.id, schema);
         input_handles_.push_back(std::move(in_h));
         output_handles_.push_back(std::move(out_h));
@@ -72,10 +76,33 @@ void VrEditor::on_graph_changed(const Graph* graph) {
     }
 }
 
+// Re-derive one card's handle/slider layout after it moves.
+void VrEditor::rebuild_card(std::size_t idx, const ComponentRegistry*) {
+    if (idx >= node_cards_.size()) return;
+    // Preserve live slider values across the rebuild.
+    std::unordered_map<std::string, float> vals;
+    for (const auto& sl : sliders_[idx]) vals[sl.port_name] = sl.value;
+    PortSchema schema;  // rebuild from the same ports the card was built with
+    for (const auto& h : input_handles_[idx])
+        schema.inputs.push_back({h.port_name, h.port_kind, 0.f, 1.f});
+    for (const auto& sl : sliders_[idx]) {
+        for (auto& pi : schema.inputs)
+            if (pi.name == sl.port_name) { pi.min = sl.min_val; pi.max = sl.max_val; }
+    }
+    for (const auto& h : output_handles_[idx])
+        schema.outputs.push_back({h.port_name, h.port_kind, 0.f, 1.f});
+    auto [in_h, out_h, sl] = build_port_handles_for_card(
+        node_cards_[idx], card_ids_[idx], schema);
+    for (auto& w : sl) { auto it = vals.find(w.port_name); if (it != vals.end()) w.value = it->second; }
+    input_handles_[idx]  = std::move(in_h);
+    output_handles_[idx] = std::move(out_h);
+    sliders_[idx]        = std::move(sl);
+}
+
 std::optional<VrEditor::GraphEdit> VrEditor::update(
-        const XrPosef* /*left_pose*/,
+        const XrPosef* left_pose,
         const XrPosef* right_pose,
-        bool /*trigger_left*/,
+        bool trigger_left,
         bool trigger_right,
         bool grip_right,
         const Eigen::Vector2f& thumbstick_left,
@@ -83,6 +110,12 @@ std::optional<VrEditor::GraphEdit> VrEditor::update(
         const Graph* current_graph,
         const ComponentRegistry& registry) {
 
+    show_left_ = left_pose != nullptr;
+    show_right_ = right_pose != nullptr;
+    trig_l_ = trigger_left; trig_r_ = trigger_right; grip_r_ = grip_right;
+    if (left_pose)
+        left_tip_ = Eigen::Vector3f{left_pose->position.x, left_pose->position.y,
+                                    left_pose->position.z};
     if (right_pose) {
         const auto& q = right_pose->orientation;
         Eigen::Quaternionf eq(q.w, q.x, q.y, q.z);
@@ -90,6 +123,47 @@ std::optional<VrEditor::GraphEdit> VrEditor::update(
         controller_tip_ = {right_pose->position.x + fwd.x() * 0.05f,
                            right_pose->position.y + fwd.y() * 0.05f,
                            right_pose->position.z + fwd.z() * 0.05f};
+        right_tip_  = controller_tip_;
+        ray_origin_ = controller_tip_;
+        ray_dir_    = fwd;
+    }
+
+    // Hover: nearest port handle to the tip, or an actively-near slider.
+    hover_label_.clear();
+    float best_hover = 0.05f;
+    for (std::size_t ci = 0; ci < node_cards_.size(); ++ci) {
+        for (const auto& h : input_handles_[ci]) {
+            float d = (controller_tip_ - h.world_pos).norm();
+            if (d < best_hover) { best_hover = d; hover_label_ = h.port_name + " ◂"; hover_pos_ = h.world_pos; }
+        }
+        for (const auto& h : output_handles_[ci]) {
+            float d = (controller_tip_ - h.world_pos).norm();
+            if (d < best_hover) { best_hover = d; hover_label_ = "▸ " + h.port_name; hover_pos_ = h.world_pos; }
+        }
+        for (const auto& sl : sliders_[ci]) {
+            Eigen::Vector3f delta = controller_tip_ - sl.world_pos;
+            if (std::abs(delta.x()) < sl.width * 0.5f &&
+                std::abs(delta.y()) < 0.03f && std::abs(delta.z()) < 0.06f) {
+                char buf[96];
+                std::snprintf(buf, sizeof(buf), "%s = %.3g", sl.port_name.c_str(), double(sl.value));
+                hover_label_ = buf;
+                hover_pos_   = sl.world_pos;
+            }
+        }
+    }
+
+    // Card move: grip on a card body (not near an output handle).
+    if (drag_state_ == DragState::MovingCard) {
+        if (!grip_right) {
+            drag_state_  = DragState::Idle;
+            moving_card_ = -1;
+        } else if (moving_card_ >= 0) {
+            auto idx = std::size_t(moving_card_);
+            node_cards_[idx].position = controller_tip_ + move_grab_offset_;
+            card_pos_ovr_[card_ids_[idx]] = node_cards_[idx].position;
+            rebuild_card(idx);
+            return std::nullopt;  // suppress other interactions while moving
+        }
     }
 
     bool fire = trigger_right && !prev_trigger_right_;

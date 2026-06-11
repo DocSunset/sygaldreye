@@ -83,16 +83,19 @@ void VrEditor::draw(const Eigen::Matrix4f& vp, const TextMesh& text) const {
 
         // Sliders
         for (const auto& sl : sliders_[si]) {
-            // Track (dark grey)
             draw_quad(sl.world_pos, sl.width*0.5f, sl.height*0.5f,
                       {0.2f, 0.2f, 0.2f, 1.0f}, vp, shader_);
-            // Thumb (bright)
             float norm = (sl.max_val > sl.min_val)
                 ? (sl.value - sl.min_val) / (sl.max_val - sl.min_val) : 0.5f;
             float thumb_x = sl.world_pos.x() - sl.width*0.5f + norm * sl.width;
-            draw_quad({thumb_x, sl.world_pos.y(), sl.world_pos.z()},
-                      0.004f, sl.height*0.6f,
-                      {0.7f, 0.8f, 1.0f, 1.0f}, vp, shader_);
+            // Hover feedback + a z offset so the thumb never z-fights the track.
+            Eigen::Vector3f delta = controller_tip_ - sl.world_pos;
+            bool hov = std::abs(delta.x()) < sl.width * 0.5f &&
+                       std::abs(delta.y()) < 0.03f && std::abs(delta.z()) < 0.06f;
+            draw_quad({thumb_x, sl.world_pos.y(), sl.world_pos.z() + 0.004f},
+                      hov ? 0.006f : 0.004f, sl.height * (hov ? 0.85f : 0.6f),
+                      hov ? Eigen::Vector4f{1.0f, 0.85f, 0.3f, 1.0f}
+                          : Eigen::Vector4f{0.7f, 0.8f, 1.0f, 1.0f}, vp, shader_);
         }
     }
 
@@ -128,4 +131,30 @@ void VrEditor::draw(const Eigen::Matrix4f& vp, const TextMesh& text) const {
     if (drag_state_ == DragState::Dragging)
         draw_wire(drag_from_pos_, controller_tip_,
                   port_kind_color(drag_from_kind_), vp, shader_);
+
+    // ── presence: pointer ray + controller markers ─────────────────────────
+    if (show_right_) {
+        Eigen::Vector4f ray_col = grip_r_ ? Eigen::Vector4f{0.4f, 1.0f, 0.5f, 0.8f}
+                       : trig_r_ ? Eigen::Vector4f{1.0f, 0.8f, 0.3f, 0.8f}
+                                 : Eigen::Vector4f{0.6f, 0.7f, 1.0f, 0.5f};
+        draw_wire(ray_origin_, ray_origin_ + ray_dir_ * 2.0f, ray_col, vp, shader_);
+        draw_quad(right_tip_, 0.008f, 0.008f, ray_col, vp, shader_);
+    }
+    if (show_left_)
+        draw_quad(left_tip_, 0.008f, 0.008f,
+                  trig_l_ ? Eigen::Vector4f{1.0f, 0.8f, 0.3f, 0.9f}
+                          : Eigen::Vector4f{0.5f, 0.9f, 0.9f, 0.6f}, vp, shader_);
+
+    // ── hover label: legible name beside whatever the tip is near ──────────
+    if (!hover_label_.empty()) {
+        Eigen::Matrix4f m = Eigen::Matrix4f::Identity();
+        m(0,0) = m(1,1) = 0.014f;
+        m(0,3) = hover_pos_.x() + 0.018f;
+        m(1,3) = hover_pos_.y() + 0.016f;
+        m(2,3) = hover_pos_.z() + 0.012f;
+        // backdrop so it reads against any scene
+        draw_quad({hover_pos_.x() + 0.06f, hover_pos_.y() + 0.02f, hover_pos_.z() + 0.010f},
+                  0.06f, 0.014f, {0.02f, 0.02f, 0.05f, 0.92f}, vp, shader_);
+        text.draw(hover_label_, vp * m);
+    }
 }
