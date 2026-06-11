@@ -1,11 +1,15 @@
 #include "mic_capture.hpp"
 #include <aaudio/AAudio.h>
 #include <android/log.h>
+#include <cstdint>
+#include <vector>
 #define MLOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 
 struct MicCapture::Impl {
     AAudioStream* stream   = nullptr;
     MicCallback   callback;
+    bool          is_i16   = false;   // AAudio format is a REQUEST; device may
+    std::vector<float> conv;          // deliver I16 regardless — convert here
 };
 
 static aaudio_data_callback_result_t data_callback(
@@ -14,7 +18,14 @@ static aaudio_data_callback_result_t data_callback(
     static int logged = 0;
     if (logged < 3) { MLOG("mic_capture: callback delivering %d frames", frames); ++logged; }
     auto* impl = static_cast<MicCapture::Impl*>(user);
-    impl->callback(static_cast<const float*>(audio_data), frames);
+    if (impl->is_i16) {
+        impl->conv.resize(size_t(frames));
+        const int16_t* in = static_cast<const int16_t*>(audio_data);
+        for (int i = 0; i < frames; ++i) impl->conv[size_t(i)] = float(in[i]) / 32768.f;
+        impl->callback(impl->conv.data(), frames);
+    } else {
+        impl->callback(static_cast<const float*>(audio_data), frames);
+    }
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
 }
 
@@ -43,7 +54,11 @@ std::optional<MicCapture> MicCapture::create(MicCallback cb, int sample_rate)
         delete impl;
         return {};
     }
-    MLOG("mic_capture: input stream open at %d Hz", sample_rate);
+    aaudio_format_t fmt = AAudioStream_getFormat(impl->stream);
+    impl->is_i16 = (fmt == AAUDIO_FORMAT_PCM_I16);
+    MLOG("mic_capture: input stream open at %d Hz, format %s (requested float)",
+         AAudioStream_getSampleRate(impl->stream),
+         impl->is_i16 ? "I16 → converting" : "FLOAT");
     return MicCapture{impl};
 }
 

@@ -45,9 +45,10 @@ void ClaudeTmuxNode::deliver(const std::string& msg) {
     // load-buffer + paste-buffer sidesteps shell/tmux quoting of the message
     std::string tmp = "/tmp/claude_tmux_msg.txt";
     { std::ofstream f(tmp); f << msg; }
+    // The TUI swallows an Enter that lands mid-paste-processing; breathe.
     int rc = std::system(("tmux load-buffer -b cvr " + tmp +
                           " && tmux paste-buffer -d -b cvr -t " + q(ses) +
-                          " && tmux send-keys -t " + q(ses) + " Enter").c_str());
+                          " && sleep 0.4 && tmux send-keys -t " + q(ses) + " Enter").c_str());
     if (rc != 0) { std::fprintf(stderr, "claude_tmux: deliver failed\n"); return; }
     outputs.sent.value = 1.f;
 }
