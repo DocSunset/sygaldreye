@@ -3,7 +3,9 @@
 #include "ray_selector.hpp"
 #include <Eigen/Geometry>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
+#include <string_view>
 #include <tuple>
 
 static constexpr float kCardSpacing = 0.45f;
@@ -70,6 +72,20 @@ void VrEditor::on_graph_changed(const Graph* graph) {
         node_cards_.back() = card;
 
         auto [in_h, out_h, sl] = build_port_handles_for_card(card, n.id, schema);
+        // Seed slider displays from the node's live params — widgets default
+        // to 0 otherwise, so every rebuild snapped displays back.
+        if (n.desc && n.desc->serialize && n.data) {
+            if (const char* s = n.desc->serialize(n.data)) {
+                std::string_view js{s};
+                for (auto& w : sl) {
+                    std::string needle = "\"" + w.port_name + "\":";
+                    auto p = js.find(needle);
+                    if (p != std::string_view::npos)
+                        w.value = std::strtof(js.data() + p + needle.size(), nullptr);
+                }
+                if (n.desc->free_str) n.desc->free_str(s);
+            }
+        }
         input_handles_.push_back(std::move(in_h));
         output_handles_.push_back(std::move(out_h));
         sliders_.push_back(std::move(sl));

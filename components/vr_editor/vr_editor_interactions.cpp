@@ -183,37 +183,38 @@ std::optional<VrEditor::GraphEdit> VrEditor::update_sliders(
         const XrPosef* right_pose, bool trigger_right, const Graph* current_graph) {
     if (!right_pose || !current_graph) return std::nullopt;
 
-    Eigen::Vector3f rpos{right_pose->position.x,
-                         right_pose->position.y,
-                         right_pose->position.z};
-
-    bool any_changed = false;
+    // One slider at a time: rows are 0.018 m apart, so a wide y-tolerance
+    // swept neighbours during vertical drags. Pick the single nearest track
+    // to the controller tip.
+    SliderWidget* best = nullptr;
+    float best_dy = 0.009f;  // half a port row
     for (size_t ci = 0; ci < sliders_.size(); ++ci) {
         for (auto& sl : sliders_[ci]) {
-            // Project controller onto slider plane (z = slider z)
-            // Check if controller is near the slider track
-            Eigen::Vector3f delta = rpos - sl.world_pos;
-            bool near = (std::abs(delta.x()) < sl.width*0.5f &&
-                         std::abs(delta.y()) < 0.03f &&
-                         std::abs(delta.z()) < 0.05f);
-            if (near && trigger_right) {
-                sl.active = true;
-                float norm = (delta.x() + sl.width*0.5f) / sl.width;
-                norm = std::max(0.f, std::min(1.f, norm));
-                float new_val = sl.min_val + norm * (sl.max_val - sl.min_val);
-                sl.value = new_val;
-
-                // Apply to node
-                for (const auto& n : current_graph->nodes) {
-                    if (n.id == sl.node_id && n.desc && n.desc->set_scalar_in)
-                        n.desc->set_scalar_in(n.data, sl.port_name.c_str(),
-                                              static_cast<double>(new_val));
-                }
-                any_changed = true;
-            } else {
-                sl.active = false;
+            sl.active = false;
+            Eigen::Vector3f delta = controller_tip_ - sl.world_pos;
+            if (std::abs(delta.x()) < sl.width * 0.5f &&
+                std::abs(delta.z()) < 0.05f &&
+                std::abs(delta.y()) < best_dy) {
+                best_dy = std::abs(delta.y());
+                best = &sl;
             }
         }
+    }
+
+    bool any_changed = false;
+    if (best && trigger_right) {
+        auto& sl = *best;
+        sl.active = true;
+        float dx = controller_tip_.x() - sl.world_pos.x();
+        float norm = (dx + sl.width * 0.5f) / sl.width;
+        norm = std::max(0.f, std::min(1.f, norm));
+        sl.value = sl.min_val + norm * (sl.max_val - sl.min_val);
+        for (const auto& n : current_graph->nodes) {
+            if (n.id == sl.node_id && n.desc && n.desc->set_scalar_in)
+                n.desc->set_scalar_in(n.data, sl.port_name.c_str(),
+                                      static_cast<double>(sl.value));
+        }
+        any_changed = true;
     }
 
     if (any_changed) {

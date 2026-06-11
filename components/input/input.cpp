@@ -110,8 +110,8 @@ bool Input::create(XrInstance instance, XrSession session) {
     xrStringToPath(instance, "/interaction_profiles/oculus/touch_controller", &profile);
 
     XrPath paths[12];
-    xrStringToPath(instance, "/user/hand/left/input/grip/pose",         &paths[0]);
-    xrStringToPath(instance, "/user/hand/right/input/grip/pose",        &paths[1]);
+    xrStringToPath(instance, "/user/hand/left/input/aim/pose",          &paths[0]);
+    xrStringToPath(instance, "/user/hand/right/input/aim/pose",         &paths[1]);
     xrStringToPath(instance, "/user/hand/left/input/trigger/value",     &paths[2]);
     xrStringToPath(instance, "/user/hand/right/input/trigger/value",    &paths[3]);
     xrStringToPath(instance, "/user/hand/left/input/squeeze/value",     &paths[4]);

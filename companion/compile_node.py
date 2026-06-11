@@ -1,35 +1,58 @@
 #!/usr/bin/env python3
-"""compile_node.py — cross-compile a node .cpp to .so and upload to headset"""
+"""compile_node.py — compile a node .cpp to .so and upload to a running peer.
+
+--target android cross-compiles with the NDK for the headset;
+--target host compiles with the local clang++ for the desktop app.
+"""
 import argparse
 import os
 import subprocess
 import sys
 
 
-def compile_node(src_path: str, ndk_root: str, headset_url: str) -> bool:
-    cc = (
-        f"{ndk_root}/toolchains/llvm/prebuilt/linux-x86_64/bin/"
-        "aarch64-linux-android33-clang++"
-    )
-    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    includes = [
-        "-I", os.path.join(repo_root, "components/sygaldry_endpoints"),
-        "-I", os.path.join(repo_root, "components/param_registry"),
-        "-I", os.path.join(repo_root, "components/eyeballs_node_abi"),
+def include_flags(repo_root: str, src_path: str) -> list[str]:
+    dirs = [
+        "components/sygaldry_endpoints",
+        "components/param_registry",
+        "components/eyeballs_node_abi",
+        "components/gpu_texture",
+        "components/tri_mesh",
     ]
-    boost_inc = os.environ.get("BOOST_INCLUDE_DIR", "")
-    if boost_inc:
-        includes += ["-I", boost_inc]
+    flags = []
+    for d in dirs:
+        flags += ["-I", os.path.join(repo_root, d)]
+    flags += ["-I", os.path.dirname(os.path.abspath(src_path))]
+    for var in ("BOOST_INCLUDE_DIR", "EIGEN_INCLUDE_DIR"):
+        if os.environ.get(var):
+            flags += ["-I", os.environ[var]]
+    return flags
 
-    out = src_path.replace(".cpp", ".so")
-    result = subprocess.run(
-        [cc, "-shared", "-fPIC", "-std=c++20"] + includes + [src_path, "-o", out],
-        capture_output=True,
-        text=True,
-    )
+
+def compile_node(src_path: str, target: str, ndk_root: str, peer_url: str) -> bool:
+    if target == "android":
+        cc = (
+            f"{ndk_root}/toolchains/llvm/prebuilt/linux-x86_64/bin/"
+            "aarch64-linux-android33-clang++"
+        )
+        libs = ["-lGLESv3"]
+    else:
+        cc = os.environ.get("CXX", "clang++")
+        libs = ["-lGLESv2"]
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    out = src_path.replace(".cpp", f".{target}.so")
+    # -fno-gnu-unique: otherwise the descriptor's local static is bound
+    # process-wide and hot-reloading a type silently keeps the OLD version.
+    cmd = ([cc, "-shared", "-fPIC", "-std=c++20", "-O2", "-DSYGALDREYE_PLUGIN",
+            "-fno-gnu-unique"]
+           + include_flags(repo_root, src_path) + [src_path, "-o", out] + libs)
+    result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         print("Compile error:", result.stderr, file=sys.stderr)
         return False
+    print("Compiled:", out)
+    if not peer_url:
+        return True
 
     try:
         import requests  # type: ignore[import]
@@ -38,7 +61,7 @@ def compile_node(src_path: str, ndk_root: str, headset_url: str) -> bool:
         return False
 
     with open(out, "rb") as f:
-        r = requests.post(f"{headset_url}/plugins", data=f.read(), timeout=30)
+        r = requests.post(f"{peer_url}/plugins", data=f.read(), timeout=30)
     print("Upload:", r.text)
     return r.status_code == 200
 
@@ -46,11 +69,13 @@ def compile_node(src_path: str, ndk_root: str, headset_url: str) -> bool:
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("src", help="Path to the .cpp file to compile and upload")
+    p.add_argument("--target", choices=["android", "host"], default="android")
     p.add_argument("--ndk", default=os.environ.get("ANDROID_NDK_ROOT", ""),
-                   help="ANDROID_NDK_ROOT path")
-    p.add_argument("--headset", default="http://192.168.1.1:8080",
-                   help="Headset HTTP base URL")
+                   help="ANDROID_NDK_ROOT path (android target)")
+    p.add_argument("--peer", default="",
+                   help="Peer base URL to upload to (e.g. http://127.0.0.1:8930); "
+                        "empty = compile only")
     args = p.parse_args()
-    if not args.ndk:
-        p.error("--ndk required (or set ANDROID_NDK_ROOT)")
-    sys.exit(0 if compile_node(args.src, args.ndk, args.headset) else 1)
+    if args.target == "android" and not args.ndk:
+        p.error("--ndk required for android target (or set ANDROID_NDK_ROOT)")
+    sys.exit(0 if compile_node(args.src, args.target, args.ndk, args.peer) else 1)
