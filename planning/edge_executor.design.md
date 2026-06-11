@@ -160,3 +160,39 @@ library component until reifying it as a node buys something.)
   revisit if a 4th rate earns its keep.
 - text payload rate: currently param-only; becomes event payload when
   string events land (graph edits want this).
+
+## Inlets and defaults (ratified, Travis + Claude 2026-06-12)
+
+"Param" is not a category; it is two derived QUALITIES of an inlet:
+
+- **Persistence**: an inlet whose payload has value semantics (scalar,
+  bool, text, vec2/3/4, quat) carries a persisted DEFAULT — the value it
+  holds when unconnected. The graph JSON `"params"` object is exactly
+  the map of these defaults (format unchanged, meaning sharpened).
+- **Affordance**: the editor derives a widget from the payload + metadata
+  — scalar+range → slider, bool → toggle, text → field, vec3 → triple/
+  gizmo, bang → momentary fire button (an affordance with NO persistence,
+  bangs have no state). Stream/GPU payloads (audio, texture, draw_call,
+  mesh) get a wire handle only.
+
+Semantics:
+- An edge into an inlet OVERRIDES its default while connected (not VCV's
+  sum — in a graph language, summing is an `add` node, explicitly).
+- Editing a connected inlet updates the fallback default; the wire keeps
+  ownership of the live value. The editor shows connected inlets as
+  METERS (live value), unconnected ones as editable widgets.
+- serialize_graph captures DEFAULTS, never edge-driven live values
+  (fixes: saving mid-modulation used to persist whatever sample the LFO
+  was at).
+- Migration re-applies defaults — same machinery, better-stated reason.
+- Subgraph inlets are inlets: they take defaults from the node entry's
+  params (Pd-abstraction creation args via the existing mechanism) and
+  inherit widget metadata from the inner port they forward to.
+- Structural creation arguments (port counts, FFT sizes, voice counts)
+  are deliberately REJECTED: polyphony is a channel count, variable
+  fan-in is wiring, size variants are sibling node types. Dynamic port
+  layouts would fight the declarative PFR model at its root.
+- text inlets join the wirable world when text-payload edges land (see
+  open questions); until then they are persistence-only.
+
+Implementation ladder: kanban/backlog/inlet_defaults.md.
