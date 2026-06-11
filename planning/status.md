@@ -493,3 +493,21 @@ Adreno (compile_node.py --target android; NDK flags unverified).
 host/browser scenes remotely).  4. Voice loop through the graph nodes
 (warm-process fix first or replies will lag).  5. Poke stick + button
 in actual VR.
+
+## 2026-06-12 (audio: ears + the block region — executor COMPLETE on host)
+
+11. SPECTROGRAM (the agent's ears): components/spectrogram — rolling
+    STFT (radix-2, Hann, log mag) into an R8 ring texture; osc test
+    source. Chain: audio edge → spectrogram → texture_view →
+    /screenshot. Proven: lfo-swept tone draws its trajectory.
+12. AUDIO REGION (executor step 5 ✅ → ALL SIX STEPS NOW LANDED):
+    audio_region schedules dac-upstream nodes in the audio callback;
+    SDL2 audio_output for host AND web (Web Audio in the browser; AAudio
+    untouched on device); latch/snapshot/ring boundaries reified;
+    offline pump for headless. Live host demo: sweep audible AND visible
+    (lfo→latch→osc→dac + osc→ring→spectrogram). Web: real Web Audio
+    stream opened headlessly, ring-fed spectrogram columns drawn.
+    Device got the region through peer_core for free; osc/dac/
+    spectrogram registered all three targets. kanban:
+    audio_region_followups (RT purity, autoplay gesture, synth
+    migration, mixer).
