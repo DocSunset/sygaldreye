@@ -1,0 +1,6 @@
+if(NOT CMAKE_CROSSCOMPILING)
+    add_library(tts_node STATIC tts_node.cpp)
+    target_include_directories(tts_node PUBLIC .)
+    target_link_libraries(tts_node PUBLIC sygaldry_endpoints worker)
+    target_compile_options(tts_node PRIVATE -Wall -Wextra)
+endif()

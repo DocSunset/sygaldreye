@@ -360,3 +360,83 @@ movable cards) shipped but not yet toured.
   prompt injection (kept that instinct!), Travis vouched, it looked
   through his eyes and described his view aloud. Permissions for its
   senses pre-authorized in voice_hooks.json.
+
+
+## 2026-06-11/12 (overnight autonomous arc — guiding star ratified)
+
+Travis ratified the GUIDING STAR (vision.md): any restart needed to land
+a change is a failed test revealing a bug; restart-failures get logged in
+kanban/backlog/live_update_gap.md with their "what would have needed to
+change" answer. Headset dead + Travis asleep → ~20 h autonomous window.
+Agreed arc: plugin proof → painkillers → executor 2-3 → CORE UNIFICATION
+(host+android = two thin shells over one portable core) → hot-reload →
+worker → audio+dac → net mappings (WebSocket transport) + two-peer demo →
+companion-as-subgraph (+MeloTTS) → BROWSER PEER skeleton → editor
+recomposition (stretch).
+
+Done so far tonight:
+1. LIVE PLUGIN LOOP PROVEN (host): poke_stick (components/poke_stick,
+   self-contained GL, SYGALDREYE_PLUGIN export guard) compiled via
+   companion/compile_node.py --target host, POSTed to /plugins on the
+   RUNNING spectator, dlopen'd, wired to hand_r by live graph edit;
+   renders, tip_pos flows, gold on trigger. Restart-failures found:
+   compile_node.py include drift (gpu_texture/tri_mesh missing — list
+   must come from the build system), host_app had NO /plugins route
+   (added; unification fuel).
+2. Painkillers: input.cpp ray uses /input/aim/pose (was grip); vr_editor
+   seeds SliderWidget.value from node params on rebuild (display snap-back
+   fixed, verified by screenshot); slider hit test picks single nearest
+   track (±0.009 m) — no more multi-slider sweeps. Device verify pending.
+3. Executor step 2: signal_graph_plan — TickPlan built lazily per graph;
+   true edges = cached PortValue* (zero per-tick lookups); DFS back edges
+   reified as z⁻¹ DelayMappings (optional<PortValue>, empty until first
+   capture = certified tick-1 semantics preserved; self-edge test still
+   green). serialize_graph emits derived "mappings" array (z1 entries),
+   parse ignores it. 25 signal_graph tests pass.
+4. Executor step 3: BangField ABI (kind "bang", event rate, 0/1 copy +
+   producer-resets discipline, end-to-end test); event_queue component =
+   THE queue mapping (MPSC never-drop, gtest incl. 4-thread race);
+   take_edit() RETIRED (editor/spawner set_context now takes
+   EventQueue<std::string>*; host shell drains; param queue unified on
+   EventQueue). seq-bump retirement deferred: blocked on text events
+   (design open question). All 25 host test binaries green; Android
+   builds clean.
+
+Next: core unification (task #28). Both shells duplicate: HTTP routes
+(host now has /plugins too, app.cpp has /meta-graph host lacks, etc.),
+param queue (android still hand-rolled), default graph, registry
+population, screenshot capture, edit pumps. Travis: "two build targets
+for the same exact application, at most differing in available-node list
+and default startup graph."
+
+
+## 2026-06-12 (overnight, continued — bridge + companion-as-subgraph)
+
+5. HOT RELOAD (live_update_gap #3 ✅ host): re-register retires old entry
+   (handle never dlclosed while registry lives); POST /plugins auto
+   re-parses the running graph (params carry, untouched types migrate).
+   Demo: poke_stick recolored grey→red on the RUNNING app by POSTing a
+   recompiled .so. GOTCHA: plugins need -fno-gnu-unique or glibc unifies
+   descriptor statics process-wide and reload silently no-ops (real
+   2-version .so tests in component_registry).
+6. WORKER REGION (executor step 4 ✅): components/worker; claude_tmux's
+   system()/sleeps off the render thread; shared_ptr atomic results.
+7. NET MAPPINGS v1 (executor step 6 ✅ value-rate): /ws WebSocket upgrade
+   in http_server + ws_link client; POST /peer fetches a provider's
+   advertised types → proxy descriptors "type@host:port" (remote_node,
+   slot trampolines). Spawning a proxy spawns the REAL node in the
+   provider's live graph; inputs coalesce forward, outputs mirror back
+   per frame. DEMO: consumer cube driven by provider lfo across two
+   processes; params forwarded live (freq 0.2→3 obeyed).
+8. COMPANION AS SUBGRAPH (✅ host-proven): whisper_stt + tts nodes
+   (worker region) + POST /transcribe core ingress (symmetric with
+   /play→"speaker"; targets node id "stt"). MeloTTS branch merged,
+   3.0G venv moved to companion/.venv-melotts, tts_cli.py/transcribe_cli.py
+   wrap them. Proven: wav → /transcribe → whisper → claude_tmux tmux
+   paste; message → tts → MeloTTS wav → /play. speak_last.sh speaks via
+   the graph now (companion.py = fallback); quest_voice_graph points at
+   PC:8930/transcribe; host default graph carries stt/claude/speak.
+   Kanban: tts_warm_process (cold loads slow).
+
+Deferred: audio region (step 5) — least verifiable with the headset dead.
+Next: browser peer skeleton (#34).

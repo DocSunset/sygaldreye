@@ -4,7 +4,7 @@
     {"id":"lc","type":"left_controller","params":{}},
     {"id":"rc","type":"right_controller","params":{}},
     {"id":"mic","type":"mic_input","params":{}},
-    {"id":"stt","type":"speech_to_text","params":{"url":"http://PC_IP:9090/transcribe"}},
+    {"id":"stt","type":"speech_to_text","params":{"url":"http://PC_IP:8930/transcribe"}},
     {"id":"speaker","type":"wav_player","params":{}},
     {"id":"sky","type":"sky_dome","params":{}},
     {"id":"water","type":"water_surface","params":{}},

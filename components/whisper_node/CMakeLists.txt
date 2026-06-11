@@ -1,0 +1,6 @@
+if(NOT CMAKE_CROSSCOMPILING)
+    add_library(whisper_node STATIC whisper_node.cpp)
+    target_include_directories(whisper_node PUBLIC .)
+    target_link_libraries(whisper_node PUBLIC sygaldry_endpoints worker)
+    target_compile_options(whisper_node PRIVATE -Wall -Wextra)
+endif()

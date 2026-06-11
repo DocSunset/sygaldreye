@@ -19,6 +19,26 @@ over the network invisibly. Remote nodes "just work".
 nodes in C++, cross-compile them for other instances, and ship them over
 the network for live loading — no restart.
 
+## Guiding star (Travis, 2026-06-11)
+
+**Any time we must restart the app to change or extend it — new feature,
+bugfix, anything — we are failing a crucial test and revealing a bug.**
+Always ask: *"what would need to have been changed before, so that this
+change could land without restarting?"* and fix that.
+
+Long term, the graph execution model consumes everything, **including
+itself**: everything we want to do is expressible as a subgraph over a
+finely curated set of fundamental node types, and anything else drops into
+the running app as a plugin. The companion and spectator apps are *just
+more subgraphs* — expressed through, and hackable via, the same graph
+execution model. "Everything we want to express should be possible to
+express as a subgraph."
+
+Measuring stick for new fundamental node types: minimize duplication;
+require modularity and separation of concerns; the usual reusable,
+maintainable, flexible, changeable design virtues. Prefer composition of
+existing nodes over a new primitive.
+
 ## Guiding principles
 
 - **Express almost everything through the graph engine.** Core
