@@ -21,6 +21,7 @@ struct SpectrogramNode {
         port<"audio", AudioBuffer> audio;
         slider<"gain",    "", float, fp(0.1f), fp(100.f), fp(8.f)>   gain;
         slider<"columns", "", float, fp(64.f), fp(1024.f), fp(256.f)> columns;
+        slider<"channel", "", float, fp(0.f),  fp(7.f),    fp(0.f)>   channel;
     } inputs;
 
     struct outputs {

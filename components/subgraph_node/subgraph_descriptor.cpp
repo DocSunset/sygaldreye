@@ -1,6 +1,8 @@
 // Copyright 2025 Travis West
 #include "subgraph_node.hpp"
+#include "port_schema_reader.hpp"
 #include <array>
+#include <cstdio>
 #include <utility>
 
 // C function pointers cannot capture, and create() takes no argument. To give
@@ -40,20 +42,44 @@ int claim_slot(SubgraphDescriptor* d) {
 
 } // namespace
 
+// Inlet/outlet kinds derive from the inner port they forward to/from —
+// a subgraph's type is the composition of its parts' types. Region
+// inference, edge legality, and editor wire colors all read this, so an
+// audio-outlet subgraph joins the block region like any synth node.
+static std::string port_entry(const Graph& g, const std::string& node,
+                              const std::string& port, bool output) {
+    for (const auto& n : g.nodes) {
+        if (n.id != node || !n.desc) continue;
+        PortSchema schema = parse_port_schema(n.desc->port_schema);
+        for (const auto& p : output ? schema.outputs : schema.inputs)
+            if (p.name == port) {
+                char buf[64];
+                std::string s = "\"kind\":\"" + p.kind + "\"";
+                if (p.kind == "scalar") {
+                    std::snprintf(buf, sizeof(buf), ",\"min\":%g,\"max\":%g",
+                                  double(p.min), double(p.max));
+                    s += buf;
+                }
+                return s;
+            }
+    }
+    return "\"kind\":\"unknown\"";
+}
+
 static std::string build_port_schema(const Graph& g) {
     std::string s = "{\"inputs\":[";
     bool first = true;
     for (const auto& d : g.inlets) {
         if (!first) s += ',';
         first = false;
-        s += "{\"name\":\""; s += d.name; s += "\",\"kind\":\"unknown\"}";
+        s += "{\"name\":\"" + d.name + "\"," + port_entry(g, d.node, d.port, false) + "}";
     }
     s += "],\"outputs\":[";
     first = true;
     for (const auto& d : g.outlets) {
         if (!first) s += ',';
         first = false;
-        s += "{\"name\":\""; s += d.name; s += "\",\"kind\":\"unknown\"}";
+        s += "{\"name\":\"" + d.name + "\"," + port_entry(g, d.node, d.port, true) + "}";
     }
     s += "]}";
     return s;

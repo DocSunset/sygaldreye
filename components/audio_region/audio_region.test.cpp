@@ -23,11 +23,12 @@ struct Fixture {
     std::unique_ptr<Graph> g;
     AudioRegion region;
     double t = 0.0;
-    Fixture(const char* json) {
+    Fixture(const char* json, const char* preset_path = nullptr) {
         reg.register_builtin(make_descriptor<OscNode>());
         reg.register_builtin(make_descriptor<DacNode>());
         reg.register_builtin(make_descriptor<TapNode>());
         reg.register_builtin(make_descriptor<ConstStub>());
+        if (preset_path) reg.load_plugin(preset_path);
         g = parse_graph(json, reg);
         region.enable_device = false;
         if (g) region.rebuild(*g);
@@ -94,6 +95,31 @@ TEST(AudioRegion, SnapshotPublishesBlockScalars) {
     auto it = f.g->values.find("d.level");
     ASSERT_NE(it, f.g->values.end());
     EXPECT_GT(std::get<double>(it->second), 0.1);  // sine at amp 1 → RMS ≈ 0.7
+}
+
+TEST(AudioRegion, AudioOutletSubgraphJoinsBlockRegion) {
+    // A synth preset is a subgraph; its audio outlet (kind derived from
+    // the inner osc) must pull it into the block region like any node.
+    const char* preset = R"({"inlets":[{"name":"freq","node":"o","port":"freq"}],
+        "outlets":[{"name":"audio","node":"o","port":"audio"}],
+        "nodes":[{"id":"o","type":"osc","params":{"freq":700,"amp":1}}],"edges":[]})";
+    FILE* f = fopen("/tmp/minisynth.json", "w");
+    fwrite(preset, 1, strlen(preset), f);
+    fclose(f);
+
+    Fixture fx(R"({"nodes":[
+        {"id":"s","type":"minisynth","params":{}},
+        {"id":"d","type":"dac","params":{"gain":1}},
+        {"id":"k","type":"kconst","params":{}}],
+        "edges":[{"from":"s.audio","to":"d.audio"},
+                 {"from":"d.level","to":"k.value"}]})",
+               "/tmp/minisynth.json");
+    ASSERT_TRUE(fx.g);
+    EXPECT_EQ(fx.g->plan->block_order.size(), 2u);  // minisynth + dac
+    for (int i = 0; i < 5; ++i) fx.frame();
+    auto it = fx.g->values.find("d.level");
+    ASSERT_NE(it, fx.g->values.end());
+    EXPECT_GT(std::get<double>(it->second), 0.1);   // inner osc audible at the dac
 }
 
 TEST(AudioRegion, LatchForwardsFrameControlIntoBlock) {

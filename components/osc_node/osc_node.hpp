@@ -1,6 +1,7 @@
 // Copyright 2026 Travis West
 #pragma once
 #include "sygaldry_endpoints.hpp"
+#include "synth_core.hpp"
 #include <cmath>
 #include <string_view>
 #include <vector>
@@ -16,6 +17,7 @@ struct OscNode {
     struct inputs {
         slider<"freq", "Hz", float, fp(20.f), fp(20000.f), fp(440.f)> freq;
         slider<"amp",  "",   float, fp(0.f),  fp(1.f),     fp(0.5f)>  amp;
+        slider<"wave", "",   float, fp(0.f),  fp(3.f),     fp(0.f)>   wave;  // sine saw square tri
     } inputs;
 
     struct outputs {
@@ -28,8 +30,13 @@ struct OscNode {
         int frames = std::clamp(int(dt * 48000.0), 0, 4800);
         buf_.resize(std::size_t(frames));
         float w = 6.2831853f * inputs.freq.value / 48000.f;
+        int wave = int(inputs.wave.value + 0.5f);
         for (int i = 0; i < frames; ++i) {
-            buf_[std::size_t(i)] = inputs.amp.value * std::sin(phase_);
+            float s = wave == 1 ? synth::sawtooth(phase_)
+                    : wave == 2 ? synth::square(phase_)
+                    : wave == 3 ? synth::triangle(phase_)
+                                : std::sin(phase_);
+            buf_[std::size_t(i)] = inputs.amp.value * s;
             phase_ += w;
         }
         phase_ = std::fmod(phase_, 6.2831853f);

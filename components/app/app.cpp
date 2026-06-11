@@ -47,6 +47,7 @@
 #include "wav_player.hpp"
 #include "osc_node.hpp"
 #include "dac_node.hpp"
+#include "ugens.hpp"
 #include "spectrogram.hpp"
 #include <GLES3/gl3.h>
 #include <memory>
@@ -162,6 +163,17 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<WavPlayerNode>());
     reg.register_builtin(make_descriptor<OscNode>());
     reg.register_builtin(make_descriptor<DacNode>());
+    reg.register_builtin(make_descriptor<NoiseNode>());
+    reg.register_builtin(make_descriptor<AdsrNode>());
+    reg.register_builtin(make_descriptor<VcaNode>());
+    reg.register_builtin(make_descriptor<MixNode>());
+    reg.register_builtin(make_descriptor<BiquadNode>());
+    reg.register_builtin(make_descriptor<DelayNode>());
+    reg.register_builtin(make_descriptor<ShaperNode>());
+    reg.register_builtin(make_descriptor<SampleHoldNode>());
+    reg.register_builtin(make_descriptor<SlewNode>());
+    reg.register_builtin(make_descriptor<GrainCloudNode>());
+    reg.register_builtin(make_descriptor<MetroNode>());
     reg.register_builtin(make_descriptor<SpectrogramNode>());
 }
 
@@ -234,7 +246,8 @@ void android_main(struct android_app* app) {
             {"from":"sky.sun_elevation_out","to":"water.sun_intensity"}
         ]
     })";
-    cfg.data_dir = app->activity->internalDataPath;
+    cfg.data_dir   = app->activity->internalDataPath;
+    cfg.graphs_dir = std::string(app->activity->internalDataPath) + "/graphs";
     state.core_.on_graph_swapped = [&state](const Graph* g) {
         state.vr_editor_.on_graph_changed(g);
     };

@@ -2,6 +2,7 @@
 #include "audio_region.hpp"
 #include <algorithm>
 #include <cstring>
+#include <optional>
 
 namespace {
 constexpr int    kRate    = 48000;
@@ -13,6 +14,7 @@ void AudioRegion::rebuild(Graph& g) {
     latches_.clear();
     rings_.clear();
     snaps_.clear();
+    queues_.clear();
     store_.clear();
     dac_out_key_.clear();
 
@@ -50,8 +52,18 @@ void AudioRegion::rebuild(Graph& g) {
             s->from_key = c.edge->from_node + "." + c.edge->from_port;
             snaps_.push_back(std::move(s));
         }
-        // "queue" (event) crossings: not yet instantiated here — events
-        // into/out of the block region land with block-rate event work.
+        else if (c.mapping == "queue") {
+            auto q = std::make_unique<EvQueue>();
+            q->edge       = c.edge;
+            q->from_key   = c.edge->from_node + "." + c.edge->from_port;
+            q->into_block = c.to_region == port_types::Rate::Block;
+            if (q->into_block) {
+                auto t = by_id.find(c.edge->to_node);
+                if (t == by_id.end()) continue;
+                q->to = *t->second;
+            }
+            queues_.push_back(std::move(q));
+        }
     }
 
     if (!stream_ && enable_device) {
@@ -69,10 +81,25 @@ void AudioRegion::render_block(float* out, int frames) {
     if (!lock.owns_lock() || !plan_ || plan_->block_order.empty()) return;
 
     t_ += double(frames) / kRate;
-    for (auto& l : latches_)
-        if (l->set.load(std::memory_order_relaxed) && l->to.desc->set_scalar_in)
-            l->to.desc->set_scalar_in(l->to.data, l->edge->to_port.c_str(),
-                                      l->value.load(std::memory_order_relaxed));
+    for (auto& l : latches_) {
+        std::optional<PortValue> v;
+        if (l->m.try_lock()) {
+            if (l->set) v = l->value;
+            l->m.unlock();
+        }
+        if (v) apply_value(l->to, l->edge->to_port.c_str(), *v);
+    }
+    for (auto& q : queues_) {
+        if (!q->into_block || !q->to.desc->set_scalar_in) continue;
+        if (q->pending.load(std::memory_order_acquire) > 0) {
+            q->pending.fetch_sub(1, std::memory_order_acq_rel);
+            q->to.desc->set_scalar_in(q->to.data, q->edge->to_port.c_str(), 1.0);
+            q->applied_high = true;
+        } else if (q->applied_high) {
+            q->to.desc->set_scalar_in(q->to.data, q->edge->to_port.c_str(), 0.0);
+            q->applied_high = false;
+        }
+    }
 
     for (std::size_t idx : plan_->block_order) {
         auto& n = graph_->nodes[idx];
@@ -93,12 +120,17 @@ void AudioRegion::render_block(float* out, int frames) {
             if (const PortValue* src = resolve_applier(d.applier, store_))
                 d.prev = *src;
 
-    // Deliver the dac's gained output to the device (mono → stereo).
+    // Deliver the dac's gained output to the device (mono duplicates to
+    // both ears; stereo passes through interleaved).
     if (auto it = store_.find(dac_out_key_); it != store_.end())
         if (auto* a = std::get_if<AudioBuffer>(&it->second)) {
             int n = std::min(frames, a->frames);
-            for (int i = 0; i < n; ++i)
-                out[i * 2] = out[i * 2 + 1] = a->data[i];
+            if (a->channels >= 2) {
+                std::memcpy(out, a->data, std::size_t(n) * 2 * sizeof(float));
+            } else {
+                for (int i = 0; i < n; ++i)
+                    out[i * 2] = out[i * 2 + 1] = a->data[i];
+            }
         }
 
     // Crossing mappings: ring pushes + scalar snapshots.
@@ -122,6 +154,11 @@ void AudioRegion::render_block(float* out, int frames) {
         if (auto it = store_.find(s->from_key); it != store_.end())
             if (auto* v = std::get_if<double>(&it->second))
                 s->value.store(*v, std::memory_order_relaxed);
+    for (auto& q : queues_)
+        if (!q->into_block)
+            if (auto it = store_.find(q->from_key); it != store_.end())
+                if (auto* v = std::get_if<double>(&it->second); v && *v > 0.5)
+                    q->pending.fetch_add(1, std::memory_order_acq_rel);
 }
 
 void AudioRegion::publish(Graph& g) {
@@ -140,15 +177,31 @@ void AudioRegion::publish(Graph& g) {
     }
     for (auto& s : snaps_)
         g.values[s->from_key] = s->value.load(std::memory_order_relaxed);
+    for (auto& q : queues_) {
+        if (q->into_block) continue;
+        if (q->pending.load(std::memory_order_acquire) > 0) {
+            q->pending.fetch_sub(1, std::memory_order_acq_rel);
+            g.values[q->from_key] = 1.0;
+        } else {
+            g.values[q->from_key] = 0.0;
+        }
+    }
 }
 
 void AudioRegion::capture_latches(const Graph& g) {
+    for (auto& q : queues_) {
+        if (!q->into_block) continue;
+        auto it = g.values.find(q->from_key);
+        if (it == g.values.end()) continue;
+        if (auto* v = std::get_if<double>(&it->second); v && *v > 0.5)
+            q->pending.fetch_add(1, std::memory_order_acq_rel);
+    }
     for (auto& l : latches_) {
         auto it = g.values.find(l->edge->from_node + "." + l->edge->from_port);
-        if (it == g.values.end() || !std::holds_alternative<double>(it->second))
-            continue;
-        l->value.store(std::get<double>(it->second), std::memory_order_relaxed);
-        l->set.store(true, std::memory_order_relaxed);
+        if (it == g.values.end()) continue;
+        std::lock_guard<std::mutex> lock(l->m);
+        l->value = it->second;
+        l->set   = true;
     }
 }
 

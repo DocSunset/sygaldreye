@@ -32,7 +32,8 @@ foreach(c
     sphere_geometry sphere_mesh cube_geometry light material lit_shader
     cube_mesh cube_node sky_dome star_field water_surface sun_light
     math_nodes hand_node fly_camera fly_camera_node
-    osc_node dac_node audio_output audio_region spectrogram render_nodes glsl_effect)
+    osc_node dac_node audio_output audio_region spectrogram render_nodes glsl_effect
+    synth_core biquad_filter ugens)
     add_subdirectory(${COMPONENTS_DIR}/${c} ${CMAKE_BINARY_DIR}/components/${c})
 endforeach()
 
@@ -41,7 +42,7 @@ target_link_libraries(web_app PRIVATE
     component_registry signal_graph subgraph_node remote_node ws_link
     fly_camera fly_camera_node hand_node math_nodes
     cube_node sky_dome star_field water_surface sun_light
-    osc_node dac_node audio_region spectrogram render_nodes)
+    osc_node dac_node audio_region spectrogram render_nodes ugens)
 target_link_options(web_app PRIVATE
     -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3
     -sALLOW_MEMORY_GROWTH -lwebsocket.js

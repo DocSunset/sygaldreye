@@ -19,6 +19,7 @@
 #include "sun_light.hpp"
 #include "osc_node.hpp"
 #include "dac_node.hpp"
+#include "ugens.hpp"
 #include "spectrogram.hpp"
 #include "render_nodes.hpp"
 #include "audio_region.hpp"
@@ -246,6 +247,17 @@ int main() {
     reg.register_builtin(make_descriptor<SunLight>());
     reg.register_builtin(make_descriptor<OscNode>());
     reg.register_builtin(make_descriptor<DacNode>());
+    reg.register_builtin(make_descriptor<NoiseNode>());
+    reg.register_builtin(make_descriptor<AdsrNode>());
+    reg.register_builtin(make_descriptor<VcaNode>());
+    reg.register_builtin(make_descriptor<MixNode>());
+    reg.register_builtin(make_descriptor<BiquadNode>());
+    reg.register_builtin(make_descriptor<DelayNode>());
+    reg.register_builtin(make_descriptor<ShaperNode>());
+    reg.register_builtin(make_descriptor<SampleHoldNode>());
+    reg.register_builtin(make_descriptor<SlewNode>());
+    reg.register_builtin(make_descriptor<GrainCloudNode>());
+    reg.register_builtin(make_descriptor<MetroNode>());
     reg.register_builtin(make_descriptor<SpectrogramNode>());
     reg.register_builtin(make_descriptor<TextureViewNode>());
 

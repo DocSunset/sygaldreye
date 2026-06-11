@@ -29,11 +29,13 @@ BiquadCoeffs high_pass(float freq, float q, float sample_rate) {
 }
 
 BiquadCoeffs band_pass(float freq, float q, float sample_rate) {
+    // Unity peak gain (RBJ "constant 0 dB" form). The constant-skirt form
+    // peaked at Q — this test only started running when the lib went
+    // cross-target, and caught it.
     float w0    = 2*kPi*freq/sample_rate;
     float alpha = sinf(w0)/(2*q);
     float cosw0 = cosf(w0);
-    float sinw0 = sinf(w0);
-    return normalise({sinw0/2, 0, -sinw0/2,
+    return normalise({alpha, 0, -alpha,
                       1+alpha, -2*cosw0, 1-alpha});
 }
 

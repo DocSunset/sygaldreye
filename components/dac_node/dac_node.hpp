@@ -27,16 +27,19 @@ struct DacNode {
 
     void operator()(double) {
         const AudioBuffer& in = inputs.audio.value;
-        buf_.assign(in.data && in.frames > 0 ? std::size_t(in.frames) : 0, 0.f);
+        int ch = std::max(1, std::min(2, in.channels));
+        std::size_t samples = in.data && in.frames > 0
+            ? std::size_t(in.frames) * std::size_t(ch) : 0;
+        buf_.assign(samples, 0.f);
         float sq = 0.f;
-        for (std::size_t i = 0; i < buf_.size(); ++i) {
+        for (std::size_t i = 0; i < samples; ++i) {
             buf_[i] = in.data[i] * inputs.gain.value;
             sq += buf_[i] * buf_[i];
         }
-        outputs.out.value   = AudioBuffer{buf_.data(), int(buf_.size()), 1,
-                                          in.sample_rate};
-        outputs.level.value = buf_.empty() ? 0.f
-            : std::sqrt(sq / float(buf_.size()));
+        outputs.out.value   = AudioBuffer{buf_.data(),
+                                          int(samples) / ch, ch, in.sample_rate};
+        outputs.level.value = samples == 0 ? 0.f
+            : std::sqrt(sq / float(samples));
     }
 
 private:

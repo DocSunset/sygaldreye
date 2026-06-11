@@ -41,11 +41,12 @@ public:
 private:
     void render_block(float* out, int frames);  // audio thread
 
-    struct Latch {                       // frame → block scalar
-        const Edge*         edge;
-        NodeInstance        to;          // block node (copy)
-        std::atomic<double> value{0.0};
-        std::atomic<bool>   set{false};
+    struct Latch {                       // frame → block, any payload
+        const Edge*  edge;
+        NodeInstance to;                 // block node (copy)
+        std::mutex   m;                  // audio side try_locks; a miss
+        PortValue    value;              // keeps last block's value
+        bool         set = false;
     };
     struct Ring {                        // block → frame audio
         std::string         from_key;
@@ -58,13 +59,22 @@ private:
         std::string         from_key;
         std::atomic<double> value{0.0};
     };
+    struct EvQueue {                     // events across the boundary:
+        const Edge*      edge;           // counted, never dropped, each
+        NodeInstance     to;             // delivered for exactly one
+        std::string      from_key;       // tick/block on the far side
+        std::atomic<int> pending{0};
+        bool             applied_high = false;  // consumer side only
+        bool             into_block   = false;
+    };
 
     std::mutex  plan_mutex_;   // callback try_locks; rebuild holds
     Graph*      graph_ = nullptr;
     TickPlan*   plan_  = nullptr;
-    std::vector<std::unique_ptr<Latch>> latches_;
-    std::vector<std::unique_ptr<Ring>>  rings_;
-    std::vector<std::unique_ptr<Snap>>  snaps_;
+    std::vector<std::unique_ptr<Latch>>   latches_;
+    std::vector<std::unique_ptr<Ring>>    rings_;
+    std::vector<std::unique_ptr<Snap>>    snaps_;
+    std::vector<std::unique_ptr<EvQueue>> queues_;
     std::string dac_out_key_;
     std::unordered_map<std::string, PortValue> store_;  // block-region values
     double                     t_ = 0.0;

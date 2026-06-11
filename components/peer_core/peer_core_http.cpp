@@ -119,9 +119,29 @@ void PeerCore::install_routes() {
         return out + "]";
     });
     http_.add_route("POST", "/plugins", [this](std::string_view body) -> std::string {
+        // Native code or a subgraph preset — sniff, since the loader picks
+        // its path by extension. JSON name comes from a "type" field when
+        // present (the registry derives the type name from the file stem).
         char path[512];
-        std::snprintf(path, sizeof(path), "%s/plugin_%ld.so", cfg_.data_dir.c_str(),
-                      static_cast<long>(std::time(nullptr)));
+        bool json = !body.empty() && (body.front() == '{' || body.front() == '[');
+        if (json) {
+            // Optional top-level "name" (before "nodes") names the type;
+            // parse_graph ignores the key.
+            std::string stem = "preset_" + std::to_string(std::time(nullptr));
+            auto needle = body.find("\"name\":\"");
+            if (needle != std::string_view::npos && needle < body.find("\"nodes\"")) {
+                auto s = needle + 8;
+                auto e = body.find('"', s);
+                if (e != std::string_view::npos && e - s < 64)
+                    stem = std::string(body.substr(s, e - s));
+            }
+            std::snprintf(path, sizeof(path), "%s/%s.json",
+                          cfg_.data_dir.c_str(), stem.c_str());
+        } else {
+            std::snprintf(path, sizeof(path), "%s/plugin_%ld.so",
+                          cfg_.data_dir.c_str(),
+                          static_cast<long>(std::time(nullptr)));
+        }
         FILE* f = std::fopen(path, "wb");
         if (!f) return R"({"ok":false,"error":"fopen failed"})";
         std::fwrite(body.data(), 1, body.size(), f);

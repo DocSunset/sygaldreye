@@ -66,8 +66,10 @@ void SpectrogramNode::operator()(double) {
     const AudioBuffer& in = inputs.audio.value;
     if (in.data && in.frames > 0) {
         int stride = std::max(1, in.channels);
+        int ch     = std::clamp(int(inputs.channel.value), 0, stride - 1);
         for (int i = 0; i < in.frames; ++i)
-            accum_.push_back(in.data[std::size_t(i) * std::size_t(stride)]);
+            accum_.push_back(in.data[std::size_t(i) * std::size_t(stride) +
+                                     std::size_t(ch)]);
     }
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);

@@ -35,6 +35,7 @@
 #include "spectrogram.hpp"
 #include "osc_node.hpp"
 #include "dac_node.hpp"
+#include "ugens.hpp"
 #include "tts_node.hpp"
 #include "whisper_node.hpp"
 #include <GLES3/gl3.h>
@@ -138,6 +139,17 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<SpectrogramNode>());
     reg.register_builtin(make_descriptor<OscNode>());
     reg.register_builtin(make_descriptor<DacNode>());
+    reg.register_builtin(make_descriptor<NoiseNode>());
+    reg.register_builtin(make_descriptor<AdsrNode>());
+    reg.register_builtin(make_descriptor<VcaNode>());
+    reg.register_builtin(make_descriptor<MixNode>());
+    reg.register_builtin(make_descriptor<BiquadNode>());
+    reg.register_builtin(make_descriptor<DelayNode>());
+    reg.register_builtin(make_descriptor<ShaperNode>());
+    reg.register_builtin(make_descriptor<SampleHoldNode>());
+    reg.register_builtin(make_descriptor<SlewNode>());
+    reg.register_builtin(make_descriptor<GrainCloudNode>());
+    reg.register_builtin(make_descriptor<MetroNode>());
     reg.register_builtin(make_descriptor<TtsNode>());
     reg.register_builtin(make_descriptor<WhisperNode>());
 
