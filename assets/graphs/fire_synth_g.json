@@ -1,0 +1,15 @@
+{"inlets":[{"name":"intensity","node":"crackle","port":"rate"},{"name":"amp","node":"out_vca","port":"gain"}],
+"outlets":[{"name":"audio","node":"out_vca","port":"audio"}],
+"nodes":[
+ {"id":"crackle","type":"grain_cloud","params":{"rate":35,"freq":2800,"spread":0.9,"decay":0.006,"texture":1,"amp":0.9}},
+ {"id":"rumble","type":"noise","params":{"amp":0.7,"color":1}},
+ {"id":"lp","type":"biquad","params":{"mode":0,"freq":350,"q":0.9}},
+ {"id":"blend","type":"mix","params":{"g1":1,"g2":0.8}},
+ {"id":"out_vca","type":"vca","params":{"gain":0.8}}
+],
+"edges":[
+ {"from":"rumble.audio","to":"lp.audio"},
+ {"from":"crackle.audio","to":"blend.in1"},
+ {"from":"lp.audio","to":"blend.in2"},
+ {"from":"blend.audio","to":"out_vca.audio"}
+]}

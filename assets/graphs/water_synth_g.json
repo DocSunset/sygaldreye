@@ -1,0 +1,18 @@
+{"inlets":[{"name":"flow","node":"warble","port":"freq"},{"name":"amp","node":"out_vca","port":"gain"}],
+"outlets":[{"name":"audio","node":"out_vca","port":"audio"}],
+"nodes":[
+ {"id":"stream","type":"noise","params":{"amp":0.9,"color":0.4}},
+ {"id":"warble","type":"lfo","params":{"freq":1.7,"amp":180,"offset":650}},
+ {"id":"bp1","type":"biquad","params":{"mode":2,"q":3.5}},
+ {"id":"bp2","type":"biquad","params":{"mode":2,"freq":1300,"q":4}},
+ {"id":"blend","type":"mix","params":{"g1":1,"g2":0.6}},
+ {"id":"out_vca","type":"vca","params":{"gain":0.8}}
+],
+"edges":[
+ {"from":"warble.out","to":"bp1.freq"},
+ {"from":"stream.audio","to":"bp1.audio"},
+ {"from":"stream.audio","to":"bp2.audio"},
+ {"from":"bp1.audio","to":"blend.in1"},
+ {"from":"bp2.audio","to":"blend.in2"},
+ {"from":"blend.audio","to":"out_vca.audio"}
+]}

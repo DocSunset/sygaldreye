@@ -1,0 +1,11 @@
+{"inlets":[{"name":"rate","node":"drops","port":"rate"},{"name":"amp","node":"out_vca","port":"gain"}],
+"outlets":[{"name":"audio","node":"out_vca","port":"audio"}],
+"nodes":[
+ {"id":"drops","type":"grain_cloud","params":{"rate":220,"freq":4200,"spread":0.6,"decay":0.012,"texture":1,"amp":0.8}},
+ {"id":"hp","type":"biquad","params":{"mode":1,"freq":1500,"q":0.8}},
+ {"id":"out_vca","type":"vca","params":{"gain":0.8}}
+],
+"edges":[
+ {"from":"drops.audio","to":"hp.audio"},
+ {"from":"hp.audio","to":"out_vca.audio"}
+]}

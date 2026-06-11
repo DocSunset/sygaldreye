@@ -1,0 +1,22 @@
+{"inlets":[{"name":"rpm","node":"fan","port":"a"},{"name":"amp","node":"out_vca","port":"gain"}],
+"outlets":[{"name":"audio","node":"out_vca","port":"audio"}],
+"nodes":[
+ {"id":"fan","type":"add","params":{"a":55,"b":0}},
+ {"id":"half","type":"mul","params":{"b":0.5}},
+ {"id":"o1","type":"osc","params":{"amp":0.7,"wave":1}},
+ {"id":"o2","type":"osc","params":{"amp":0.7,"wave":1}},
+ {"id":"blend","type":"mix","params":{"g1":1,"g2":0.7}},
+ {"id":"growl","type":"shaper","params":{"drive":7}},
+ {"id":"lp","type":"biquad","params":{"mode":0,"freq":1800,"q":0.8}},
+ {"id":"out_vca","type":"vca","params":{"gain":0.7}}
+],
+"edges":[
+ {"from":"fan.out","to":"o1.freq"},
+ {"from":"fan.out","to":"half.a"},
+ {"from":"half.out","to":"o2.freq"},
+ {"from":"o1.audio","to":"blend.in1"},
+ {"from":"o2.audio","to":"blend.in2"},
+ {"from":"blend.audio","to":"growl.audio"},
+ {"from":"growl.audio","to":"lp.audio"},
+ {"from":"lp.audio","to":"out_vca.audio"}
+]}
