@@ -41,4 +41,17 @@ boundary_mapping(std::string_view from, std::string_view to) {
     return "queue";  // event boundaries (placeholder until step 3)
 }
 
+// Which canonical mapping mediates an edge once node REGIONS are known
+// (regions can differ even when payload kinds match: audio→audio between
+// schedulers is a stream crossing). "" → true edge, same region.
+constexpr std::string_view
+crossing_mapping(std::string_view payload_kind, Rate from_region, Rate to_region) {
+    if (from_region == to_region) return "";
+    if (payload_kind == "audio") return "ring";        // stream across threads
+    if (rate_of(payload_kind) == Rate::Event) return "queue";
+    if (from_region == Rate::Frame && to_region == Rate::Block) return "latch";
+    if (from_region == Rate::Block && to_region == Rate::Frame) return "snapshot";
+    return "queue";
+}
+
 } // namespace port_types

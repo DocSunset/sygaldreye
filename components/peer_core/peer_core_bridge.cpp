@@ -6,7 +6,9 @@
 // proxy descriptors. The evaluator can't tell a proxy from a local node.
 #include "peer_core.hpp"
 #include "port_schema_reader.hpp"
+#include "signal_graph_plan.hpp"
 #include <array>
+#include <optional>
 #include <cstdio>
 #include <cstdlib>
 
@@ -152,8 +154,8 @@ std::string PeerCore::handle_ws(unsigned long conn_id, std::string_view msg) {
 }
 
 // Render thread (from begin_frame): apply forwarded inputs to hosted nodes.
-// deserialize covers scalar/text params; arrays go through typed setters
-// chosen by the node's own schema.
+// deserialize covers scalar/text params; arrays become PortValues applied
+// through the shared executor dispatch, typed by the node's own schema.
 void PeerCore::apply_remote_sets() {
     for (auto& [uid, params] : remote_sets_.drain()) {
         for (auto& n : active_->nodes) {
@@ -167,14 +169,12 @@ void PeerCore::apply_remote_sets() {
                 int cnt = 0;
                 auto f = parse_floats(
                     std::string_view(params).substr(pos + needle.size() - 1), &cnt);
-                if (p.kind == "vec2" && n.desc->set_vec2_in)
-                    n.desc->set_vec2_in(n.data, p.name.c_str(), f[0], f[1]);
-                else if (p.kind == "vec3" && n.desc->set_vec3_in)
-                    n.desc->set_vec3_in(n.data, p.name.c_str(), f[0], f[1], f[2]);
-                else if (p.kind == "vec4" && n.desc->set_vec4_in)
-                    n.desc->set_vec4_in(n.data, p.name.c_str(), f[0], f[1], f[2], f[3]);
-                else if (p.kind == "quat" && n.desc->set_quat_in)
-                    n.desc->set_quat_in(n.data, p.name.c_str(), f[0], f[1], f[2], f[3]);
+                std::optional<PortValue> v;
+                if (p.kind == "vec2")      v = Eigen::Vector2f{f[0], f[1]};
+                else if (p.kind == "vec3") v = Eigen::Vector3f{f[0], f[1], f[2]};
+                else if (p.kind == "vec4") v = Eigen::Vector4f{f[0], f[1], f[2], f[3]};
+                else if (p.kind == "quat") v = Eigen::Quaternionf{f[3], f[0], f[1], f[2]};
+                if (v) apply_value(n, p.name.c_str(), *v);
             }
             break;
         }

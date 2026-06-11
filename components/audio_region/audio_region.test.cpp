@@ -1,5 +1,6 @@
 // Copyright 2026 Travis West
 #include "audio_region.hpp"
+#include "signal_graph_plan.hpp"
 #include "component_registry.hpp"
 #include "eyeballs_node_abi.hpp"
 #include "osc_node.hpp"
@@ -55,7 +56,8 @@ TEST(AudioRegion, BlockNodesLeaveRenderRegion) {
         "edges":[{"from":"o.audio","to":"d.audio"}]})");
     ASSERT_TRUE(f.g);
     EXPECT_TRUE(f.region.active());
-    EXPECT_EQ(f.g->offrender.size(), 2u);   // osc + dac
+    ASSERT_TRUE(f.g->plan);
+    EXPECT_EQ(f.g->plan->block_order.size(), 2u);   // osc + dac
     f.frame();
     // Render plan excluded them: no osc/dac values from the render tick…
     // …but the snapshot mapping isn't wired (no crossing edges), so the
@@ -73,7 +75,7 @@ TEST(AudioRegion, RingCrossingDeliversAudioToFrameConsumer) {
         "edges":[{"from":"o.audio","to":"d.audio"},
                  {"from":"o.audio","to":"t.audio"}]})");
     ASSERT_TRUE(f.g);
-    EXPECT_EQ(f.g->offrender.size(), 2u);   // tap stays frame-side
+    EXPECT_EQ(f.g->plan->block_order.size(), 2u);   // tap stays frame-side
     for (int i = 0; i < 10; ++i) f.frame();
     auto* tap = static_cast<TapNode*>(f.g->nodes[2].data);
     // ~9 frames of audio delivered through the ring (first frame empty).
@@ -102,7 +104,7 @@ TEST(AudioRegion, LatchForwardsFrameControlIntoBlock) {
         "edges":[{"from":"k.out","to":"o.freq"},
                  {"from":"o.audio","to":"d.audio"}]})");
     ASSERT_TRUE(f.g);
-    EXPECT_EQ(f.g->offrender.size(), 2u);  // kconst stays frame-side
+    EXPECT_EQ(f.g->plan->block_order.size(), 2u);  // kconst stays frame-side
     for (int i = 0; i < 5; ++i) f.frame();
     auto* osc = static_cast<OscNode*>(f.g->nodes[1].data);
     EXPECT_FLOAT_EQ(osc->inputs.freq.value, 2000.f);  // latched through

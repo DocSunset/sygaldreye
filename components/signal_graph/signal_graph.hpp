@@ -52,14 +52,12 @@ struct Graph {
     std::unordered_map<std::string, PortValue>   values;      // "node_id.port_name" → typed value
     std::vector<DrawFn>                          draw_calls;  // cleared each tick
     std::vector<SubgraphDescriptorPtr>           owned_descriptors;
-    // Resolved edge references + z⁻¹ delay mappings; built lazily on first
-    // tick. Topology never mutates in place (edits swap whole graphs), so
-    // the plan lives as long as the graph.
+    // Resolved edge references, z⁻¹ delay mappings, region split, and
+    // boundary crossings; built lazily on first tick (or by the audio
+    // scheduler's rebuild, whichever comes first). Topology never mutates
+    // in place (edits swap whole graphs), so the plan lives as long as
+    // the graph.
     std::unique_ptr<TickPlan>                    plan;
-    // Node ids ticked by another region's scheduler (audio_region marks
-    // the block subgraph here before the first tick); the render plan
-    // excludes them.
-    std::unordered_set<std::string>              offrender;
 
     ~Graph();
 };
