@@ -107,7 +107,8 @@ void HostApp::install_routes() {
     });
     // Generic param injection: {"node":"<id>","params":{...}} — works on any
     // node's inputs. /camera and /controller are sugar over this.
-    http_.add_route("POST", "/param", [this](std::string_view body) -> std::string {
+    http_.add_route("POST", "/param", [this](std::string_view raw) -> std::string {
+        std::string body = compact_json(std::string(raw));
         auto node = find_string(body, "node");
         auto params = find_object(body, "params");
         if (node.empty() || params.empty())

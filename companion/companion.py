@@ -20,6 +20,32 @@ from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
 app = Flask(__name__)
 
+_claude_param_url = None   # e.g. http://127.0.0.1:8930/param — voice → claude node
+_claude_seq = 0
+_play_url = None           # e.g. http://<headset>:8080/play — spoken replies
+
+
+@app.route("/tts", methods=["POST"])
+def tts():
+    """Speak text: synthesize with espeak-ng, save, and push to the player."""
+    body = flask_request.get_json(force=True, silent=True) or {}
+    text = (body.get("text") or "").strip()
+    if not text:
+        return json.dumps({"ok": False, "error": "no text"}), 400
+    wav_path = "/tmp/tts_last.wav"
+    subprocess.run(["espeak-ng", "-v", "en-us", "-s", "165", "-w", wav_path, text],
+                   check=True)
+    pushed = False
+    if _play_url:
+        try:
+            with open(wav_path, "rb") as f:
+                requests.post(_play_url, data=f.read(), timeout=5)
+            pushed = True
+        except Exception as e:  # noqa: BLE001
+            print(f"tts push failed: {e}")
+    print(f"tts: {len(text)} chars → {wav_path} (pushed={pushed})")
+    return json.dumps({"ok": True, "pushed": pushed}), 200
+
 # Shared state set by discovery thread
 _headset_url: str | None = None
 _whisper: WhisperModel | None = None
@@ -104,6 +130,19 @@ def transcribe():
     segments, _ = model.transcribe(tmp_path, language="en")
     text = " ".join(s.text.strip() for s in segments).strip()
     print(f"transcript: {text!r}")
+
+    # Voice→Claude: deliver the transcript to the claude_tmux node as a
+    # param edit. seq bumps so the node fires once per utterance.
+    if text and _claude_param_url:
+        global _claude_seq
+        _claude_seq += 1
+        try:
+            requests.post(_claude_param_url, timeout=3, data=json.dumps(
+                {"node": "claude", "params": {"message": text, "seq": _claude_seq}}))
+            print(f"→ claude node (seq {_claude_seq})")
+        except Exception as e:  # noqa: BLE001
+            print(f"claude forward failed: {e}")
+        return json.dumps({"text": text}), 200, {"Content-Type": "application/json"}
 
     # Parse "set <word> <word> to <number>"
     m = re.fullmatch(r"set\s+(\w+)\s+(\w+)\s+to\s+([\d.+-]+)", text, re.IGNORECASE)
@@ -235,9 +274,16 @@ def main():
     parser.add_argument("--host", help="Headset IP (skip mDNS discovery)")
     parser.add_argument("--port", type=int, default=8080, help="HTTP port (default 8080)")
     parser.add_argument("--flask-port", type=int, default=9090, help="Flask listen port (default 9090)")
+    parser.add_argument("--claude-param-url", default="http://127.0.0.1:8930/param",
+                        help="host_app /param URL for voice→claude forwarding ('' disables)")
+    parser.add_argument("--play-url", default="",
+                        help="player /play URL for spoken replies (e.g. http://headset:8080/play)")
     parser.add_argument("--freeze", action="store_true",
                         help="Freeze current graph, compile, and upload to headset, then exit")
     args = parser.parse_args()
+    global _claude_param_url, _play_url
+    _claude_param_url = args.claude_param_url or None
+    _play_url = args.play_url or None
 
     if args.freeze:
         host = args.host or "127.0.0.1"

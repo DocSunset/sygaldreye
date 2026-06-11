@@ -76,3 +76,7 @@ void migrate_graph(Graph& fresh, Graph& old);
 
 // Runs one evaluation step on all nodes in insertion order.
 void tick_graph(Graph& g, double time_s);
+
+// Strips whitespace outside string literals (standard JSON → the compact
+// form the mini-parsers expect).
+std::string compact_json(const std::string& in);

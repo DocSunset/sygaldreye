@@ -25,6 +25,7 @@
 #include "render_nodes.hpp"
 #include "glsl_effect.hpp"
 #include "mesh_nodes.hpp"
+#include "claude_tmux.hpp"
 #include "trigger_edge.hpp"
 #include "text_label.hpp"
 #include <GLES3/gl3.h>
@@ -76,6 +77,7 @@ void HostApp::init(int http_port) {
     registry_.register_builtin(make_descriptor<Join3Node>());
     registry_.register_builtin(make_descriptor<HsvColorNode>());
     registry_.register_builtin(make_descriptor<TimeNode>());
+    registry_.register_builtin(make_descriptor<ClaudeTmuxNode>());
     registry_.register_builtin(make_descriptor<UiSliderNode>());
     registry_.register_builtin(make_descriptor<UiButtonNode>());
     registry_.register_builtin(make_descriptor<UiPaneNode>());

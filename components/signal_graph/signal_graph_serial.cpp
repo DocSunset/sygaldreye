@@ -86,7 +86,7 @@ static bool split_dot(std::string_view s, std::string& node, std::string& port) 
 // Strips whitespace outside string literals so standard JSON emitters
 // (python json.dumps, pretty-printers) parse identically to compact JSON —
 // the needle matchers below assume "key":value with no gaps.
-static std::string compact_json(const std::string& in) {
+std::string compact_json(const std::string& in) {
     std::string out;
     out.reserve(in.size());
     bool in_str = false, esc = false;
