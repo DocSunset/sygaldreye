@@ -451,3 +451,26 @@ parked (needs the headset anyway). Editor recomposition (#35) untouched.
 All overnight work committed (95b57c2..93f1067). Device replays pending
 when the headset charges: painkiller verify, plugin/hot-reload on
 Adreno, headset-as-third-peer, graph voice loop end-to-end.
+
+## 2026-06-12 (session reset — browser peer LANDED, #34)
+
+9. BROWSER PEER (✅ skeleton): app/web compiles the graph core to WASM
+   (emcmake standalone project; -sFULL_ES3/WebGL2; pass
+   -DSYGALDREYE_EIGEN_DIR/-DSYGALDREYE_BOOST_DIR). Renders the default
+   scene in a canvas (verified headless chromium + swiftshader);
+   mouse-look + WASD; ?peer=ws://host:port/ws auto-connects (ws_link
+   gained an Emscripten transport; RemotePeer gained non-blocking
+   request_types/types_ready), ?graph= applies once remote types exist.
+   PROVEN: browser registered the native peer's 69 types and spawned a
+   real lfo into the RUNNING native graph (r1_lfo visible in /graph).
+   Gotchas burned in: headless browsers throttle rAF → network pump
+   runs on emscripten_set_interval; ninja re-runs cmake WITHOUT caller
+   env → include dirs persist as cache vars; NDK-gtest blocks and
+   GLESv2/v3 link lines needed EMSCRIPTEN/EXISTS guards (committed).
+   Run it: python3 -m http.server in build/web, open web_app.html
+   (?peer=… for the bridge). Touch controls + value-mirroring polish
+   still open.
+
+Remaining from the arc: audio region (#31, needs headset), editor
+recomposition (#35, stretch). Commits through 61bba5b; 25 suites green;
+Android clean.
