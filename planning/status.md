@@ -249,3 +249,35 @@ the new node families, Quest session for the whole GL arc on device.
 4. Known not-yet-on-device: hand/editor-node rig (C++ editor still wired);
    assets/graphs/*.json not packaged into APK (no orbit_cam/sky/aurora
    types on device yet — flag if wanted for the session).
+
+
+## 2026-06-10 (voice loop — PC half COMPLETE)
+
+speech → whisper → graph → Claude → speech, certified hands-off:
+espeak wav → companion /transcribe (faster-whisper, venv) → /param
+{"node":"claude","params":{message,seq}} → claude_tmux node → tmux session
+(claude --settings voice_hooks.json, cwd companion/claude_vr) → reply →
+Stop hook speak_last.sh → /tts (espeak-ng) → /tmp/tts_last.wav.
+
+Run order: sh/agent/launch.sh → post graph w/ claude_tmux node →
+companion/.venv/bin/python -u companion.py --host 127.0.0.1 --port 8930
+(pidfile /tmp/companion.pid; kill via pidfile — pkill patterns self-match
+our own shells!).
+
+Gotchas burned into code/docs:
+- Hooks in project .claude/settings.json await interactive trust; pass a
+  NON-project file via --settings to fire immediately.
+- Stop hook payload includes last_assistant_message — no transcript
+  parsing needed.
+- TUI eats keys ~4 s after spawn (node defers first delivery).
+- /param (and any new route) must compact_json its body.
+
+### Remaining for the Quest session (device half)
+- Existing on device: mic_capture, push_to_talk, speech_to_text node
+  (already POSTs wav to companion /transcribe!) — record+send may nearly
+  work already; multi-take append + erase + 'bip' feedback need a
+  ptt_recorder evolution.
+- Missing: A/B/X/Y button bindings in input.cpp (+ controller node button
+  outputs + app pump); wav_player node (own AAudio stream) + /play route
+  so replies sound IN the headset (companion --play-url points there).
+- Travis's flow: hold X = record (bip), repeat takes; Y = send; A = erase.
