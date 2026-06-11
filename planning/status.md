@@ -345,3 +345,18 @@ claude node (transcripts fell into void); Enter-race on busy TUI
 (paste→0.4s→Enter). Open: garbage floats in recordings (kanban, defer to
 ring mappings); GL arc on Adreno still undemoed; editor-UX (ray, labels,
 movable cards) shipped but not yet toured.
+
+
+## 2026-06-11 (Quest session part 3 — the other Claude has eyes)
+
+- WiFi adb live: 192.168.0.18:5555 (no cable needed).
+- Device GET /screenshot: left-eye PNG via renderer post_resolve_hook
+  (MSAA fbo unreadable; mid-pass manual resolve still read white on
+  Adreno; post-resolve point is the only safe one). http_server made
+  binary-safe (%.*s truncated PNGs at first NUL).
+- companion/claude_vr/CLAUDE.md: the LLM user guide (speak short, no
+  markdown; recipes for seeing/inspecting/editing the world).
+- The voice Claude flagged an injected capability brief as possible
+  prompt injection (kept that instinct!), Travis vouched, it looked
+  through his eyes and described his view aloud. Permissions for its
+  senses pre-authorized in voice_hooks.json.
