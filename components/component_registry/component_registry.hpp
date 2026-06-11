@@ -34,4 +34,10 @@ struct ComponentRegistry {
 private:
     std::unordered_map<std::string, RegistryEntry>      entries_;
     std::vector<SubgraphDescriptorPtr>                  subgraph_descriptors_;
+    // Hot-reload: replaced entries retire here and their handles stay open
+    // for the life of the registry — live node instances still execute code
+    // from the old .so until the next graph swap re-instantiates them, and
+    // dlclose before that is a use-after-unload. The leak is deliberate and
+    // bounded by the number of reloads.
+    std::vector<RegistryEntry>                          retired_;
 };

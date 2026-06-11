@@ -1,13 +1,10 @@
 // Copyright 2026 Travis West
-#include "host_app.hpp"
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
-#include <GLES3/gl3.h>
-#include <algorithm>
+// The HTTP control surface — identical on every peer.
+#include "peer_core.hpp"
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <vector>
+#include <ctime>
 
 namespace {
 
@@ -63,8 +60,10 @@ std::string value_json(const PortValue& val) {
             std::snprintf(buf, sizeof(buf), R"("drawfn")");
         } else if constexpr (std::is_same_v<T, MeshPtr>) {
             std::snprintf(buf, sizeof(buf), R"("mesh:%zuv")", v ? v->vertices.size() : 0);
+        } else if constexpr (std::is_same_v<T, AudioBuffer>) {
+            std::snprintf(buf, sizeof(buf), R"("audio[%d]")", v.frames);
         } else {
-            std::snprintf(buf, sizeof(buf), R"("audio")");
+            std::snprintf(buf, sizeof(buf), R"("value")");
         }
         return buf;
     }, val);
@@ -72,24 +71,28 @@ std::string value_json(const PortValue& val) {
 
 } // namespace
 
-void HostApp::install_routes() {
+void PeerCore::install_routes() {
     http_.add_route("GET", "/graph", [this](std::string_view) -> std::string {
         std::lock_guard<std::mutex> lock(graph_mutex_);
         if (active_) return serialize_graph(*active_);
         return R"({"nodes":[],"edges":[]})";
     });
     http_.add_route("POST", "/graph", [this](std::string_view body) -> std::string {
-        auto g = parse_graph(std::string(body), registry_);
+        auto g = parse_graph(std::string(body), registry);
         if (!g) return R"({"ok":false,"error":"parse_graph failed"})";
-        std::lock_guard<std::mutex> lock(graph_mutex_);
-        pending_ = std::move(g);
+        auto graph_json = serialize_graph(*g);
+        {
+            std::lock_guard<std::mutex> lock(graph_mutex_);
+            pending_ = std::move(g);
+        }
+        http_.broadcast_event("graph", graph_json);
         return R"({"ok":true})";
     });
     http_.add_route("GET", "/palette", [this](std::string_view) -> std::string {
         std::string out = "[";
         bool first = true;
-        for (const auto& type_name : registry_.type_names()) {
-            const auto* desc = registry_.find(type_name);
+        for (const auto& type_name : registry.type_names()) {
+            const auto* desc = registry.find(type_name);
             if (!desc) continue;
             if (!first) out += ',';
             first = false;
@@ -105,8 +108,38 @@ void HostApp::install_routes() {
         }
         return out + "]";
     });
+    http_.add_route("GET", "/plugins", [this](std::string_view) -> std::string {
+        std::string out = "[";
+        bool first = true;
+        for (const auto& n : registry.type_names()) {
+            if (!first) out += ',';
+            first = false;
+            out += '"'; out += n; out += '"';
+        }
+        return out + "]";
+    });
+    http_.add_route("POST", "/plugins", [this](std::string_view body) -> std::string {
+        char path[512];
+        std::snprintf(path, sizeof(path), "%s/plugin_%ld.so", cfg_.data_dir.c_str(),
+                      static_cast<long>(std::time(nullptr)));
+        FILE* f = std::fopen(path, "wb");
+        if (!f) return R"({"ok":false,"error":"fopen failed"})";
+        std::fwrite(body.data(), 1, body.size(), f);
+        std::fclose(f);
+        if (!registry.load_plugin(path))
+            return R"({"ok":false,"error":"load_plugin failed"})";
+        // Hot reload: re-instantiate the running graph through the (possibly
+        // replaced) registry. Untouched types adopt their live state via
+        // migration; a reloaded type gets fresh instances of the new code
+        // with its current params carried through the serialization.
+        {
+            std::lock_guard<std::mutex> lock(graph_mutex_);
+            if (active_) queue_edit(serialize_graph(*active_));
+        }
+        return R"({"ok":true})";
+    });
     // Generic param injection: {"node":"<id>","params":{...}} — works on any
-    // node's inputs. /camera and /controller are sugar over this.
+    // node's inputs. /camera, /controller and /play are sugar over this.
     http_.add_route("POST", "/param", [this](std::string_view raw) -> std::string {
         std::string body = compact_json(std::string(raw));
         auto node = find_string(body, "node");
@@ -157,36 +190,86 @@ void HostApp::install_routes() {
         queue_param(right ? "hand_r" : "hand_l", params);
         return R"({"ok":true})";
     });
+    http_.add_route("POST", "/play", [this](std::string_view body) -> std::string {
+        char path[512];
+        std::snprintf(path, sizeof(path), "%s/play.wav", cfg_.data_dir.c_str());
+        FILE* f = std::fopen(path, "wb");
+        if (!f) return R"({"ok":false,"error":"fopen"})";
+        std::fwrite(body.data(), 1, body.size(), f);
+        std::fclose(f);
+        char params[576];
+        std::snprintf(params, sizeof(params),
+                      R"({"file":"%s","seq":%ld})", path, ++play_seq_);
+        queue_param("speaker", params);
+        return R"({"ok":true})";
+    });
+    // Speech ingress: WAV body → file + param event on the "stt" node
+    // (file+seq), symmetric with /play → "speaker". A whisper_stt node
+    // with id "stt" picks it up on the worker region.
+    http_.add_route("POST", "/transcribe", [this](std::string_view body) -> std::string {
+        char path[512];
+        std::snprintf(path, sizeof(path), "%s/transcribe.wav", cfg_.data_dir.c_str());
+        FILE* f = std::fopen(path, "wb");
+        if (!f) return R"({"ok":false,"error":"fopen"})";
+        std::fwrite(body.data(), 1, body.size(), f);
+        std::fclose(f);
+        char params[576];
+        std::snprintf(params, sizeof(params),
+                      R"({"file":"%s","seq":%ld})", path, ++play_seq_);
+        queue_param("stt", params);
+        return R"({"ok":true})";
+    });
     // Blocks until the render thread captures the next frame (2 s timeout).
-    http_.add_route("POST", "/screenshot", [this](std::string_view body) -> std::string {
-        std::string path = "/tmp/sygaldreye_shot.png";
-        if (auto p = find_string(body, "path"); !p.empty()) path = std::string(p);
+    auto request_shot = [this](const std::string& path) -> bool {
         std::unique_lock<std::mutex> lock(shot_mutex_);
         shot_path_ = path;
         shot_done_ = false;
         bool ok = shot_cv_.wait_for(lock, std::chrono::seconds(2),
                                     [this] { return shot_done_; }) && shot_ok_;
         shot_path_.clear();
-        if (!ok) return R"({"ok":false,"error":"capture timed out or failed"})";
+        return ok;
+    };
+    http_.add_route("POST", "/screenshot", [this, request_shot](std::string_view body) -> std::string {
+        std::string path = cfg_.data_dir + "/shot.png";
+        if (auto p = find_string(body, "path"); !p.empty()) path = std::string(p);
+        if (!request_shot(path))
+            return R"({"ok":false,"error":"capture timed out or failed"})";
         return std::string(R"({"ok":true,"path":")") + path + "\"}";
+    });
+    http_.add_route("GET", "/screenshot", [this, request_shot](std::string_view) -> std::string {
+        std::string path = cfg_.data_dir + "/eye.png";
+        if (!request_shot(path)) return R"({"ok":false,"error":"capture timed out"})";
+        std::string png;
+        if (FILE* f = std::fopen(path.c_str(), "rb")) {
+            char buf[4096];
+            size_t n;
+            while ((n = std::fread(buf, 1, sizeof(buf), f)) > 0) png.append(buf, n);
+            std::fclose(f);
+        }
+        return png.empty() ? R"({"ok":false,"error":"read failed"})" : png;
+    });
+    http_.add_route("GET", "/meta-graph", [this](std::string_view) -> std::string {
+        std::lock_guard<std::mutex> lock(meta_mutex_);
+        return meta_graph_json_.empty() ? "{}" : meta_graph_json_;
+    });
+    http_.add_route("POST", "/meta-graph", [this](std::string_view body) -> std::string {
+        std::lock_guard<std::mutex> lock(meta_mutex_);
+        meta_graph_json_ = std::string(body);
+        return R"({"ok":true})";
+    });
+    // Net mapping, consumer side: {"url":"ws://host:port/ws"} → register
+    // that peer's advertised node types as local proxies.
+    http_.add_route("POST", "/peer", [this](std::string_view body) -> std::string {
+        auto url = find_string(body, "url");
+        if (url.empty()) return R"({"ok":false,"error":"need url"})";
+        int n = connect_peer(std::string(url));
+        if (n == 0) return R"({"ok":false,"error":"no types fetched"})";
+        char out[64];
+        std::snprintf(out, sizeof(out), R"({"ok":true,"types":%d})", n);
+        return out;
     });
     http_.add_route("POST", "/quit", [this](std::string_view) -> std::string {
         quit_.store(true);
         return R"({"ok":true})";
     });
-}
-
-void HostApp::fulfil_screenshot(int width, int height) {
-    std::lock_guard<std::mutex> lock(shot_mutex_);
-    if (shot_path_.empty() || shot_done_) return;
-    std::vector<unsigned char> pixels(size_t(width) * height * 4);
-    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-    std::vector<unsigned char> flipped(pixels.size());
-    for (int row = 0; row < height; ++row)
-        std::copy_n(&pixels[size_t(height - 1 - row) * width * 4],
-                    size_t(width) * 4, &flipped[size_t(row) * width * 4]);
-    shot_ok_   = stbi_write_png(shot_path_.c_str(), width, height, 4,
-                                flipped.data(), width * 4) != 0;
-    shot_done_ = true;
-    shot_cv_.notify_all();
 }

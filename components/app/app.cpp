@@ -6,15 +6,12 @@
 #include "frame_loop.hpp"
 #include "scene.hpp"
 #include "input.hpp"
+#include "peer_core.hpp"
 #include "cube_node.hpp"
 #include "text_mesh.hpp"
-#include "http_server.hpp"
 #include "mdns_advertiser.hpp"
-#include "param_registry.hpp"
 #include "eyeballs_node_abi.hpp"
 #include "speech_to_text.hpp"
-#include "component_registry.hpp"
-#include "signal_graph.hpp"
 #include "vr_editor.hpp"
 #include "rd_gpu.hpp"
 #include "xr_sources.hpp"
@@ -49,15 +46,8 @@
 #include "aurora_curtain.hpp"
 #include "wav_player.hpp"
 #include <GLES3/gl3.h>
-#include <cstdio>
-#include <ctime>
 #include <memory>
-#include <condition_variable>
-#include <mutex>
 #include <optional>
-#include <chrono>
-#include <string>
-#include <vector>
 #include <string_view>
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
@@ -67,35 +57,21 @@
 XrInstance xr_create_instance(struct android_app*);
 XrSystemId xr_get_system(XrInstance);
 
-extern "C" int stbi_write_png(const char*, int, int, int, const void*, int);
-
 struct AppState {
     bool hasWindow = false;
     bool hasFocus  = false;
     bool renderable() const { return hasWindow && hasFocus; }
-    XrInstance xrInstance = XR_NULL_HANDLE;
-    XrSystemId xrSystemId = XR_NULL_SYSTEM_ID;
-    Renderer renderer{};
+    XrInstance   xrInstance = XR_NULL_HANDLE;
+    XrSystemId   xrSystemId = XR_NULL_SYSTEM_ID;
+    Renderer     renderer{};
     XrSessionObj xrSession{};
     FrameLoop    frame_loop_{};
-    Scene scene_{};
-    Input input_{};
-    TextMesh text_mesh_{};
-    ComponentRegistry            registry_{};
-    VrEditor                     vr_editor_{};
-    std::mutex                   graph_mutex_{};
-    std::mutex                   param_mutex_{};
-    std::vector<std::pair<std::string, std::string>> param_queue_{};
-    long                         play_seq_ = 0;
-    std::mutex                   shot_mutex_{};
-    std::condition_variable      shot_cv_{};
-    std::string                  shot_path_{};
-    bool                         shot_done_ = false;
-    int                          eye_index_ = 0;
-    std::unique_ptr<Graph>       pending_graph_{};
-    std::unique_ptr<Graph>       active_graph_{};
-    std::string                  meta_graph_json_{};
-    double                       prev_frame_time_s_ = 0.0;
+    Scene        scene_{};
+    Input        input_{};
+    TextMesh     text_mesh_{};
+    PeerCore     core_{};
+    VrEditor     vr_editor_{};
+    double       prev_frame_time_s_ = 0.0;
 };
 
 static void onAppCmd(struct android_app* app, int32_t cmd) {
@@ -131,9 +107,62 @@ static void acquire_multicast_lock(struct android_app* app) {
     app->activity->vm->DetachCurrentThread();
 }
 
+static void register_device_nodes(ComponentRegistry& reg) {
+    reg.register_builtin(make_descriptor<WaterSurface>());
+    reg.register_builtin(make_descriptor<SkyDome>());
+    reg.register_builtin(make_descriptor<StarField>());
+    reg.register_builtin(make_descriptor<RdGpu>());
+    reg.register_builtin(make_descriptor<HeadPoseNode>());
+    reg.register_builtin(make_descriptor<LeftControllerNode>());
+    reg.register_builtin(make_descriptor<RightControllerNode>());
+    reg.register_builtin(make_descriptor<AtmosSynth>());
+    reg.register_builtin(make_descriptor<RainSynth>());
+    reg.register_builtin(make_descriptor<FireSynth>());
+    reg.register_builtin(make_descriptor<EngineSynth>());
+    reg.register_builtin(make_descriptor<WaterSynth>());
+    reg.register_builtin(make_descriptor<CreatureSynth>());
+    reg.register_builtin(make_descriptor<ChimeSynth>());
+    reg.register_builtin(make_descriptor<Lissajous>());
+    reg.register_builtin(make_descriptor<Aurora>());
+    reg.register_builtin(make_descriptor<Chladni>());
+    reg.register_builtin(make_descriptor<TerrainRenderer>());
+    reg.register_builtin(make_descriptor<ParticleSystem>());
+    reg.register_builtin(make_descriptor<ReactionDiffusion>());
+    reg.register_builtin(make_descriptor<RendererNode>());
+    reg.register_builtin(make_descriptor<SunLight>());
+    reg.register_builtin(make_descriptor<TriggerEdge>());
+    reg.register_builtin(make_descriptor<PttGate>());
+    reg.register_builtin(make_descriptor<MicInputNode>());
+    reg.register_builtin(make_descriptor<CubeNode>());
+    reg.register_builtin(make_descriptor<TextLabelNode>());
+    reg.register_builtin(make_descriptor<SpeechToTextNode>());
+    reg.register_builtin(make_descriptor<LfoNode>());
+    reg.register_builtin(make_descriptor<ScaleNode>());
+    reg.register_builtin(make_descriptor<AddNode>());
+    reg.register_builtin(make_descriptor<MulNode>());
+    reg.register_builtin(make_descriptor<ConstNode>());
+    reg.register_builtin(make_descriptor<SubNode>());
+    reg.register_builtin(make_descriptor<DivNode>());
+    reg.register_builtin(make_descriptor<PhasorNode>());
+    reg.register_builtin(make_descriptor<SmoothNode>());
+    reg.register_builtin(make_descriptor<Split3Node>());
+    reg.register_builtin(make_descriptor<Join3Node>());
+    reg.register_builtin(make_descriptor<UdpSendNode>());
+    reg.register_builtin(make_descriptor<UdpRecvNode>());
+    reg.register_builtin(make_descriptor<UiSliderNode>());
+    reg.register_builtin(make_descriptor<UiButtonNode>());
+    reg.register_builtin(make_descriptor<UiPaneNode>());
+    reg.register_builtin(make_descriptor<HandNode>());
+    reg.register_builtin(make_descriptor<FlyCameraNode>());
+    reg.register_builtin(make_descriptor<SpawnerNode>());
+    reg.register_builtin(make_descriptor<AuroraCurtainNode>());
+    reg.register_builtin(make_descriptor<WavPlayerNode>());
+}
+
 // Pump XR source nodes with current frame's live pose/input data.
 static void pump_xr_sources(AppState& state, double /*time_sec*/) {
-    if (!state.active_graph_) return;
+    Graph* g = state.core_.graph();
+    if (!g) return;
     auto lh = state.input_.hand_pose(Hand::LEFT);
     auto rh = state.input_.hand_pose(Hand::RIGHT);
     bool trigger_left  = state.input_.trigger_pressed(Hand::LEFT);
@@ -143,7 +172,7 @@ static void pump_xr_sources(AppState& state, double /*time_sec*/) {
     Eigen::Vector2f th_l = state.input_.thumbstick(Hand::LEFT);
     Eigen::Vector2f th_r = state.input_.thumbstick(Hand::RIGHT);
 
-    for (auto& n : state.active_graph_->nodes) {
+    for (auto& n : g->nodes) {
         std::string_view type{n.desc->type_name};
         if (type == "head_pose") {
             // HMD pose is available per-eye during render; use a zero pose here as proxy.
@@ -182,57 +211,11 @@ void android_main(struct android_app* app) {
     state.text_mesh_.init();
     state.input_.create(state.xrInstance, state.xrSession.get());
 
-    state.registry_.register_builtin(make_descriptor<WaterSurface>());
-    state.registry_.register_builtin(make_descriptor<SkyDome>());
-    state.registry_.register_builtin(make_descriptor<StarField>());
-    state.registry_.register_builtin(make_descriptor<RdGpu>());
-    state.registry_.register_builtin(make_descriptor<HeadPoseNode>());
-    state.registry_.register_builtin(make_descriptor<LeftControllerNode>());
-    state.registry_.register_builtin(make_descriptor<RightControllerNode>());
-    state.registry_.register_builtin(make_descriptor<AtmosSynth>());
-    state.registry_.register_builtin(make_descriptor<RainSynth>());
-    state.registry_.register_builtin(make_descriptor<FireSynth>());
-    state.registry_.register_builtin(make_descriptor<EngineSynth>());
-    state.registry_.register_builtin(make_descriptor<WaterSynth>());
-    state.registry_.register_builtin(make_descriptor<CreatureSynth>());
-    state.registry_.register_builtin(make_descriptor<ChimeSynth>());
-    state.registry_.register_builtin(make_descriptor<Lissajous>());
-    state.registry_.register_builtin(make_descriptor<Aurora>());
-    state.registry_.register_builtin(make_descriptor<Chladni>());
-    state.registry_.register_builtin(make_descriptor<TerrainRenderer>());
-    state.registry_.register_builtin(make_descriptor<ParticleSystem>());
-    state.registry_.register_builtin(make_descriptor<ReactionDiffusion>());
-    state.registry_.register_builtin(make_descriptor<RendererNode>());
-    state.registry_.register_builtin(make_descriptor<SunLight>());
-    state.registry_.register_builtin(make_descriptor<TriggerEdge>());
-    state.registry_.register_builtin(make_descriptor<PttGate>());
-    state.registry_.register_builtin(make_descriptor<MicInputNode>());
-    state.registry_.register_builtin(make_descriptor<CubeNode>());
-    state.registry_.register_builtin(make_descriptor<TextLabelNode>());
-    state.registry_.register_builtin(make_descriptor<SpeechToTextNode>());
-    state.registry_.register_builtin(make_descriptor<LfoNode>());
-    state.registry_.register_builtin(make_descriptor<ScaleNode>());
-    state.registry_.register_builtin(make_descriptor<AddNode>());
-    state.registry_.register_builtin(make_descriptor<MulNode>());
-    state.registry_.register_builtin(make_descriptor<ConstNode>());
-    state.registry_.register_builtin(make_descriptor<SubNode>());
-    state.registry_.register_builtin(make_descriptor<DivNode>());
-    state.registry_.register_builtin(make_descriptor<PhasorNode>());
-    state.registry_.register_builtin(make_descriptor<SmoothNode>());
-    state.registry_.register_builtin(make_descriptor<Split3Node>());
-    state.registry_.register_builtin(make_descriptor<Join3Node>());
-    state.registry_.register_builtin(make_descriptor<UdpSendNode>());
-    state.registry_.register_builtin(make_descriptor<UdpRecvNode>());
-    state.registry_.register_builtin(make_descriptor<UiSliderNode>());
-    state.registry_.register_builtin(make_descriptor<UiButtonNode>());
-    state.registry_.register_builtin(make_descriptor<UiPaneNode>());
-    state.registry_.register_builtin(make_descriptor<HandNode>());
-    state.registry_.register_builtin(make_descriptor<FlyCameraNode>());
-    state.registry_.register_builtin(make_descriptor<SpawnerNode>());
-    state.registry_.register_builtin(make_descriptor<AuroraCurtainNode>());
-    state.registry_.register_builtin(make_descriptor<WavPlayerNode>());
+    register_device_nodes(state.core_.registry);
 
-    constexpr const char* kDefaultGraph = R"({
+    PeerCore::Config cfg;
+    cfg.http_port = 8080;
+    cfg.default_graph_json = R"({
         "nodes":[
             {"id":"sky","type":"sky_dome","params":{}},
             {"id":"water","type":"water_surface","params":{}},
@@ -245,197 +228,21 @@ void android_main(struct android_app* app) {
             {"from":"sky.sun_elevation_out","to":"water.sun_intensity"}
         ]
     })";
-    if (auto g = parse_graph(kDefaultGraph, state.registry_))
-        state.active_graph_ = std::move(g);
+    cfg.data_dir = app->activity->internalDataPath;
+    state.core_.on_graph_swapped = [&state](const Graph* g) {
+        state.vr_editor_.on_graph_changed(g);
+    };
+    state.core_.init(cfg);
 
-    state.vr_editor_.init(state.registry_, state.active_graph_.get());
+    state.vr_editor_.init(state.core_.registry, state.core_.graph());
 
-    const char* data_path = app->activity->internalDataPath;
-    HttpServer http_server;
-    http_server.add_route("GET", "/plugins",
-        [&state](std::string_view) -> std::string {
-            std::string out = "[";
-            bool first = true;
-            for (const auto& n : state.registry_.type_names()) {
-                if (!first) out += ',';
-                first = false;
-                out += '"'; out += n; out += '"';
-            }
-            out += ']';
-            return out;
-        });
-    http_server.add_route("POST", "/plugins",
-        [&state, data_path](std::string_view body) -> std::string {
-            char path[256];
-            std::snprintf(path, sizeof(path), "%s/%ld.so", data_path,
-                          static_cast<long>(std::time(nullptr)));
-            FILE* f = std::fopen(path, "wb");
-            if (!f) return R"({"ok":false,"error":"fopen failed"})";
-            std::fwrite(body.data(), 1, body.size(), f);
-            std::fclose(f);
-            if (!state.registry_.load_plugin(path))
-                return R"({"ok":false,"error":"load_plugin failed"})";
-            return R"({"ok":true})";
-        });
-    http_server.add_route("GET", "/graph",
-        [&state](std::string_view) -> std::string {
-            std::lock_guard<std::mutex> lock(state.graph_mutex_);
-            if (state.active_graph_) return serialize_graph(*state.active_graph_);
-            return "{\"nodes\":[],\"edges\":[]}";
-        });
-    http_server.add_route("POST", "/graph",
-        [&state, &http_server](std::string_view body) -> std::string {
-            auto g = parse_graph(std::string(body), state.registry_);
-            if (!g) return R"({"ok":false,"error":"parse_graph failed"})";
-            auto graph_json = serialize_graph(*g);
-            {
-                std::lock_guard<std::mutex> lock(state.graph_mutex_);
-                state.pending_graph_ = std::move(g);
-            }
-            // Notify SSE clients of the new graph
-            http_server.broadcast_event("graph", graph_json);
-            return R"({"ok":true})";
-        });
-    http_server.add_route("GET", "/palette",
-        [&state](std::string_view) -> std::string {
-            std::string out = "[";
-            bool first = true;
-            for (const auto& type_name : state.registry_.type_names()) {
-                const auto* desc = state.registry_.find(type_name);
-                if (!desc) continue;
-                if (!first) out += ',';
-                first = false;
-                out += "{\"type\":\""; out += type_name; out += "\"";
-                if (desc->create && desc->serialize) {
-                    void* tmp = desc->create();
-                    const char* s = desc->serialize(tmp);
-                    out += ",\"defaults\":"; out += s;
-                    if (desc->free_str) desc->free_str(s);
-                    desc->destroy(tmp);
-                }
-                out += '}';
-            }
-            out += ']';
-            return out;
-        });
-    http_server.add_route("GET", "/values",
-        [&state](std::string_view) -> std::string {
-            std::lock_guard<std::mutex> lock(state.graph_mutex_);
-            if (!state.active_graph_) return "{}";
-            std::string out = "{";
-            bool first = true;
-            for (const auto& [key, val] : state.active_graph_->values) {
-                if (!first) out += ',';
-                first = false;
-                out += '"'; out += key; out += "\":";
-                if (std::holds_alternative<double>(val)) {
-                    char buf[40];
-                    std::snprintf(buf, sizeof(buf), "%g", std::get<double>(val));
-                    out += buf;
-                } else if (std::holds_alternative<AudioBuffer>(val)) {
-                    char buf[48];
-                    std::snprintf(buf, sizeof(buf), "\"audio[%d]\"",
-                                  std::get<AudioBuffer>(val).frames);
-                    out += buf;
-                } else {
-                    out += "\"value\"";
-                }
-            }
-            return out + "}";
-        });
-    http_server.add_route("POST", "/param",
-        [&state](std::string_view raw) -> std::string {
-            std::string body = compact_json(std::string(raw));
-            auto find_str = [&](const char* key) -> std::string {
-                std::string needle = std::string("\"") + key + "\":\"";
-                auto p = body.find(needle);
-                if (p == std::string::npos) return {};
-                p += needle.size();
-                return body.substr(p, body.find('"', p) - p);
-            };
-            auto op = body.find("\"params\":{");
-            if (op == std::string::npos) return R"({"ok":false})";
-            op += 9;
-            int depth = 0; size_t end = op;
-            for (size_t i = op; i < body.size(); ++i) {
-                if (body[i] == '{') ++depth;
-                else if (body[i] == '}' && --depth == 0) { end = i + 1; break; }
-            }
-            std::string node = find_str("node");
-            if (node.empty()) return R"({"ok":false})";
-            std::lock_guard<std::mutex> lock(state.param_mutex_);
-            state.param_queue_.emplace_back(node, body.substr(op, end - op));
-            return R"({"ok":true})";
-        });
-    // Returns a PNG of the LEFT eye's current view — remote eyes for
-    // agents and humans alike.
-    http_server.add_route("GET", "/screenshot",
-        [&state, data_path](std::string_view) -> std::string {
-            char path[256];
-            std::snprintf(path, sizeof(path), "%s/eye.png", data_path);
-            std::unique_lock<std::mutex> lock(state.shot_mutex_);
-            state.shot_path_ = path;
-            state.shot_done_ = false;
-            bool ok = state.shot_cv_.wait_for(lock, std::chrono::seconds(2),
-                                              [&] { return state.shot_done_; });
-            state.shot_path_.clear();
-            if (!ok) return R"({"ok":false,"error":"capture timed out"})";
-            std::string png;
-            if (FILE* f = std::fopen(path, "rb")) {
-                char buf[4096];
-                size_t n;
-                while ((n = std::fread(buf, 1, sizeof(buf), f)) > 0)
-                    png.append(buf, n);
-                std::fclose(f);
-            }
-            return png.empty() ? R"({"ok":false,"error":"read failed"})" : png;
-        });
-    http_server.add_route("POST", "/play",
-        [&state, data_path](std::string_view body) -> std::string {
-            char path[256];
-            std::snprintf(path, sizeof(path), "%s/play.wav", data_path);
-            FILE* f = std::fopen(path, "wb");
-            if (!f) return R"({"ok":false,"error":"fopen"})";
-            std::fwrite(body.data(), 1, body.size(), f);
-            std::fclose(f);
-            char params[320];
-            std::snprintf(params, sizeof(params),
-                          R"({"file":"%s","seq":%ld})", path, ++state.play_seq_);
-            std::lock_guard<std::mutex> lock(state.param_mutex_);
-            state.param_queue_.emplace_back("speaker", params);
-            return R"({"ok":true})";
-        });
-    http_server.add_route("GET", "/meta-graph",
-        [&state](std::string_view) -> std::string {
-            return state.meta_graph_json_.empty() ? "{}" : state.meta_graph_json_;
-        });
-    http_server.add_route("POST", "/meta-graph",
-        [&state](std::string_view body) -> std::string {
-            state.meta_graph_json_ = std::string(body);
-            return R"({"ok":true})";
-        });
-    http_server.start(8080,
-        [](std::string_view) -> std::string { return "{}"; },
-        [](std::string_view) -> std::string { return "{}"; });
     MdnsAdvertiser mdns_advertiser;
     mdns_advertiser.start("eyeballs", 8080);
 
     // GET /screenshot capture: runs at the renderer's post-resolve point,
     // where the eye image is guaranteed readable.
     state.renderer.post_resolve_hook = [&state](int w, int h) {
-        std::lock_guard<std::mutex> sl(state.shot_mutex_);
-        if (state.shot_path_.empty() || state.shot_done_) return;
-        std::vector<unsigned char> px(size_t(w) * h * 4);
-        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
-        { GLenum e_ = glGetError();
-          if (e_ != GL_NO_ERROR) LOGE("screenshot readpixels error: 0x%x", (unsigned)e_); }
-        std::vector<unsigned char> flip(px.size());
-        for (int r = 0; r < h; ++r)
-            std::copy_n(&px[size_t(h - 1 - r) * w * 4], size_t(w) * 4,
-                        &flip[size_t(r) * w * 4]);
-        stbi_write_png(state.shot_path_.c_str(), w, h, 4, flip.data(), w * 4);
-        state.shot_done_ = true;
-        state.shot_cv_.notify_all();
+        state.core_.fulfil_screenshot(w, h);
     };
 
     app->userData  = &state;
@@ -457,28 +264,8 @@ void android_main(struct android_app* app) {
             state.frame_loop_.run_frame(state.xrSession.get(), [&](XrTime t) -> FrameLayers {
                 double time_sec = static_cast<double>(t) * 1e-9;
 
-                // Atomic swap of pending graph at frame boundary
-                {
-                    std::lock_guard<std::mutex> lock(state.graph_mutex_);
-                    if (state.pending_graph_) {
-                        migrate_graph(*state.pending_graph_, *state.active_graph_);
-                        state.active_graph_ = std::move(state.pending_graph_);
-                        state.vr_editor_.on_graph_changed(state.active_graph_.get());
-                    }
-                }
-
-                {
-                    std::lock_guard<std::mutex> lock(state.param_mutex_);
-                    for (auto& [id, params] : state.param_queue_) {
-                        if (!state.active_graph_) break;
-                        for (auto& n : state.active_graph_->nodes)
-                            if (n.id == id && n.desc->deserialize) {
-                                n.desc->deserialize(n.data, params.c_str());
-                                break;
-                            }
-                    }
-                    state.param_queue_.clear();
-                }
+                state.core_.begin_frame();   // swap+migrate, apply params
+                state.core_.pump_contexts(1.f);
 
                 if (!state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t,
                                        state.xrSession.should_render())) {
@@ -488,15 +275,11 @@ void android_main(struct android_app* app) {
                 auto lh = state.input_.hand_pose(Hand::LEFT);
                 auto rh = state.input_.hand_pose(Hand::RIGHT);
 
-                // Pump XR source nodes with live pose/input data
                 pump_xr_sources(state, time_sec);
+                state.core_.tick(time_sec);
 
-                // Tick the graph: topo-sort, propagate values, collect draw calls
-                if (state.active_graph_) tick_graph(*state.active_graph_, time_sec);
-
-                // VR editor: palette, node cards, drag-to-connect, sliders, delete/undo
-                // grip_right → wire drag; thumbstick_left → undo; delta_time_s → dwell
-                // GraphEdit → parse and atomic-swap to pending_graph_
+                // VR editor: palette, node cards, drag-to-connect, sliders,
+                // delete/undo. Edits flow through the core's queue mapping.
                 {
                     const XrPosef* lp = lh ? &lh->pose : nullptr;
                     const XrPosef* rp = rh ? &rh->pose : nullptr;
@@ -509,15 +292,10 @@ void android_main(struct android_app* app) {
                         : 0.016f;
                     auto edit = state.vr_editor_.update(
                         lp, rp, tl, tr, gr, ts, dt,
-                        state.active_graph_.get(), state.registry_);
-                    if (edit) {
-                        auto g = parse_graph(edit->new_graph_json, state.registry_);
-                        if (g) {
-                            std::lock_guard<std::mutex> lock(state.graph_mutex_);
-                            state.pending_graph_ = std::move(g);
-                        }
-                    }
+                        state.core_.graph(), state.core_.registry);
+                    if (edit) state.core_.queue_edit(std::move(edit->new_graph_json));
                 }
+                state.core_.collect_edits();
                 state.prev_frame_time_s_ = time_sec;
 
                 state.scene_.update(time_sec);
@@ -530,15 +308,9 @@ void android_main(struct android_app* app) {
                     state.xrSession.worldSpace_(), t,
                     [&](const Eigen::Matrix4f& proj, const Eigen::Matrix4f& view) {
                         const Eigen::Matrix4f pv = proj * view;
-
-                        // Draw all graph nodes' render outputs
-                        if (state.active_graph_) {
-                            for (auto& call : state.active_graph_->draw_calls)
-                                call(pv);
-                        }
-
+                        if (Graph* g = state.core_.graph())
+                            for (auto& call : g->draw_calls) call(pv);
                         state.vr_editor_.draw(pv, state.text_mesh_);
-
                     });
                 if (!ok) { return {}; }
                 FrameLayers result;

@@ -1,5 +1,7 @@
 // Copyright 2026 Travis West
 #include "host_app.hpp"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 #include "eyeballs_node_abi.hpp"
 #include "fly_camera.hpp"
 #include "fly_camera_node.hpp"
@@ -28,9 +30,10 @@
 #include "claude_tmux.hpp"
 #include "trigger_edge.hpp"
 #include "text_label.hpp"
+#include "poke_stick.hpp"
+#include "tts_node.hpp"
+#include "whisper_node.hpp"
 #include <GLES3/gl3.h>
-#include <dirent.h>
-#include <string_view>
 
 namespace {
 // The platform graph: interaction rig wired by edges + a starter scene.
@@ -43,7 +46,10 @@ constexpr const char* kDefaultGraph = R"({
         {"id":"sky","type":"sky_dome","params":{}},
         {"id":"water","type":"water_surface","params":{}},
         {"id":"sun","type":"sun_light","params":{}},
-        {"id":"cube","type":"cube","params":{}}
+        {"id":"cube","type":"cube","params":{}},
+        {"id":"stt","type":"whisper_stt","params":{"target_node":"claude"}},
+        {"id":"claude","type":"claude_tmux","params":{}},
+        {"id":"speak","type":"tts","params":{"play_url":"http://192.168.0.18:8080/play"}}
     ],
     "edges":[
         {"from":"hand_l.pos","to":"editor.left_pos"},
@@ -60,169 +66,107 @@ constexpr const char* kDefaultGraph = R"({
 } // namespace
 
 void HostApp::init(int http_port) {
-    registry_.register_builtin(make_descriptor<FlyCameraNode>());
-    registry_.register_builtin(make_descriptor<HandNode>());
-    registry_.register_builtin(make_descriptor<EditorNode>());
-    registry_.register_builtin(make_descriptor<SpawnerNode>());
-    registry_.register_builtin(make_descriptor<LfoNode>());
-    registry_.register_builtin(make_descriptor<ScaleNode>());
-    registry_.register_builtin(make_descriptor<AddNode>());
-    registry_.register_builtin(make_descriptor<MulNode>());
-    registry_.register_builtin(make_descriptor<ConstNode>());
-    registry_.register_builtin(make_descriptor<SubNode>());
-    registry_.register_builtin(make_descriptor<DivNode>());
-    registry_.register_builtin(make_descriptor<PhasorNode>());
-    registry_.register_builtin(make_descriptor<SmoothNode>());
-    registry_.register_builtin(make_descriptor<Split3Node>());
-    registry_.register_builtin(make_descriptor<Join3Node>());
-    registry_.register_builtin(make_descriptor<HsvColorNode>());
-    registry_.register_builtin(make_descriptor<TimeNode>());
-    registry_.register_builtin(make_descriptor<ClaudeTmuxNode>());
-    registry_.register_builtin(make_descriptor<UiSliderNode>());
-    registry_.register_builtin(make_descriptor<UiButtonNode>());
-    registry_.register_builtin(make_descriptor<UiPaneNode>());
-    registry_.register_builtin(make_descriptor<UdpSendNode>());
-    registry_.register_builtin(make_descriptor<UdpRecvNode>());
-    registry_.register_builtin(make_descriptor<WaterSurface>());
-    registry_.register_builtin(make_descriptor<SkyDome>());
-    registry_.register_builtin(make_descriptor<StarField>());
-    registry_.register_builtin(make_descriptor<SunLight>());
-    registry_.register_builtin(make_descriptor<CubeNode>());
-    registry_.register_builtin(make_descriptor<Lissajous>());
-    registry_.register_builtin(make_descriptor<AuroraCurtainNode>());
-    registry_.register_builtin(make_descriptor<Chladni>());
-    registry_.register_builtin(make_descriptor<TerrainRenderer>());
-    registry_.register_builtin(make_descriptor<ParticleSystem>());
-    registry_.register_builtin(make_descriptor<ReactionDiffusion>());
-    registry_.register_builtin(make_descriptor<RdGpu>());
-    registry_.register_builtin(make_descriptor<RDRenderer>());
-    registry_.register_builtin(make_descriptor<RenderTargetNode>());
-    registry_.register_builtin(make_descriptor<TextureViewNode>());
-    registry_.register_builtin(make_descriptor<GlslEffectNode>());
-    registry_.register_builtin(make_descriptor<MeshGridNode>());
-    registry_.register_builtin(make_descriptor<MeshDisplaceNode>());
-    registry_.register_builtin(make_descriptor<MeshRenderNode>());
-    registry_.register_builtin(make_descriptor<MeshSphereNode>());
-    registry_.register_builtin(make_descriptor<MeshBoxNode>());
-    registry_.register_builtin(make_descriptor<MeshCylinderNode>());
-    registry_.register_builtin(make_descriptor<MeshRippleNode>());
-    registry_.register_builtin(make_descriptor<MeshTwistNode>());
-    registry_.register_builtin(make_descriptor<MeshTransformNode>());
-    registry_.register_builtin(make_descriptor<Vec3AddNode>());
-    registry_.register_builtin(make_descriptor<Vec3ScaleNode>());
-    registry_.register_builtin(make_descriptor<Vec3LerpNode>());
-    registry_.register_builtin(make_descriptor<Vec3DotNode>());
-    registry_.register_builtin(make_descriptor<Vec3CrossNode>());
-    registry_.register_builtin(make_descriptor<Vec3LengthNode>());
-    registry_.register_builtin(make_descriptor<QuatEulerNode>());
-    registry_.register_builtin(make_descriptor<QuatMulNode>());
-    registry_.register_builtin(make_descriptor<QuatRotateNode>());
-    registry_.register_builtin(make_descriptor<QuatSlerpNode>());
-    registry_.register_builtin(make_descriptor<TrsNode>());
-    registry_.register_builtin(make_descriptor<MatMulNode>());
-    registry_.register_builtin(make_descriptor<TriggerEdge>());
-    registry_.register_builtin(make_descriptor<TextLabelNode>());
+    auto& reg = core_.registry;
+    reg.register_builtin(make_descriptor<FlyCameraNode>());
+    reg.register_builtin(make_descriptor<HandNode>());
+    reg.register_builtin(make_descriptor<EditorNode>());
+    reg.register_builtin(make_descriptor<SpawnerNode>());
+    reg.register_builtin(make_descriptor<LfoNode>());
+    reg.register_builtin(make_descriptor<ScaleNode>());
+    reg.register_builtin(make_descriptor<AddNode>());
+    reg.register_builtin(make_descriptor<MulNode>());
+    reg.register_builtin(make_descriptor<ConstNode>());
+    reg.register_builtin(make_descriptor<SubNode>());
+    reg.register_builtin(make_descriptor<DivNode>());
+    reg.register_builtin(make_descriptor<PhasorNode>());
+    reg.register_builtin(make_descriptor<SmoothNode>());
+    reg.register_builtin(make_descriptor<Split3Node>());
+    reg.register_builtin(make_descriptor<Join3Node>());
+    reg.register_builtin(make_descriptor<HsvColorNode>());
+    reg.register_builtin(make_descriptor<TimeNode>());
+    reg.register_builtin(make_descriptor<ClaudeTmuxNode>());
+    reg.register_builtin(make_descriptor<UiSliderNode>());
+    reg.register_builtin(make_descriptor<UiButtonNode>());
+    reg.register_builtin(make_descriptor<UiPaneNode>());
+    reg.register_builtin(make_descriptor<UdpSendNode>());
+    reg.register_builtin(make_descriptor<UdpRecvNode>());
+    reg.register_builtin(make_descriptor<WaterSurface>());
+    reg.register_builtin(make_descriptor<SkyDome>());
+    reg.register_builtin(make_descriptor<StarField>());
+    reg.register_builtin(make_descriptor<SunLight>());
+    reg.register_builtin(make_descriptor<CubeNode>());
+    reg.register_builtin(make_descriptor<Lissajous>());
+    reg.register_builtin(make_descriptor<AuroraCurtainNode>());
+    reg.register_builtin(make_descriptor<Chladni>());
+    reg.register_builtin(make_descriptor<TerrainRenderer>());
+    reg.register_builtin(make_descriptor<ParticleSystem>());
+    reg.register_builtin(make_descriptor<ReactionDiffusion>());
+    reg.register_builtin(make_descriptor<RdGpu>());
+    reg.register_builtin(make_descriptor<RDRenderer>());
+    reg.register_builtin(make_descriptor<RenderTargetNode>());
+    reg.register_builtin(make_descriptor<TextureViewNode>());
+    reg.register_builtin(make_descriptor<GlslEffectNode>());
+    reg.register_builtin(make_descriptor<MeshGridNode>());
+    reg.register_builtin(make_descriptor<MeshDisplaceNode>());
+    reg.register_builtin(make_descriptor<MeshRenderNode>());
+    reg.register_builtin(make_descriptor<MeshSphereNode>());
+    reg.register_builtin(make_descriptor<MeshBoxNode>());
+    reg.register_builtin(make_descriptor<MeshCylinderNode>());
+    reg.register_builtin(make_descriptor<MeshRippleNode>());
+    reg.register_builtin(make_descriptor<MeshTwistNode>());
+    reg.register_builtin(make_descriptor<MeshTransformNode>());
+    reg.register_builtin(make_descriptor<Vec3AddNode>());
+    reg.register_builtin(make_descriptor<Vec3ScaleNode>());
+    reg.register_builtin(make_descriptor<Vec3LerpNode>());
+    reg.register_builtin(make_descriptor<Vec3DotNode>());
+    reg.register_builtin(make_descriptor<Vec3CrossNode>());
+    reg.register_builtin(make_descriptor<Vec3LengthNode>());
+    reg.register_builtin(make_descriptor<QuatEulerNode>());
+    reg.register_builtin(make_descriptor<QuatMulNode>());
+    reg.register_builtin(make_descriptor<QuatRotateNode>());
+    reg.register_builtin(make_descriptor<QuatSlerpNode>());
+    reg.register_builtin(make_descriptor<TrsNode>());
+    reg.register_builtin(make_descriptor<MatMulNode>());
+    reg.register_builtin(make_descriptor<TriggerEdge>());
+    reg.register_builtin(make_descriptor<TextLabelNode>());
+    reg.register_builtin(make_descriptor<PokeStickNode>());
+    reg.register_builtin(make_descriptor<TtsNode>());
+    reg.register_builtin(make_descriptor<WhisperNode>());
 
-    // Subgraph plugins: every assets/graphs/*.json becomes a node type.
-    if (DIR* d = opendir("assets/graphs")) {
-        while (dirent* e = readdir(d)) {
-            std::string_view n{e->d_name};
-            if (n.size() > 5 && n.substr(n.size() - 5) == ".json")
-                registry_.load_plugin("assets/graphs/" + std::string(n));
-        }
-        closedir(d);
-    }
-
-    active_ = parse_graph(kDefaultGraph, registry_);
-
-    install_routes();
-    http_.start(http_port,
-        [](std::string_view) -> std::string { return "{}"; },
-        [](std::string_view) -> std::string { return "{}"; });
+    PeerCore::Config cfg;
+    cfg.http_port          = http_port;
+    cfg.default_graph_json = kDefaultGraph;
+    cfg.data_dir           = "/tmp";
+    cfg.graphs_dir         = "assets/graphs";
+    core_.init(cfg);
 }
 
 void HostApp::frame(int width, int height, double time_s) {
-    {
-        std::lock_guard<std::mutex> lock(graph_mutex_);
-        if (pending_) {
-            migrate_graph(*pending_, *active_);
-            active_ = std::move(pending_);
-        }
-    }
-    if (!active_) return;
-
-    // Apply queued param edits (HTTP /param, windowed input pump).
-    {
-        std::lock_guard<std::mutex> lock(param_mutex_);
-        for (auto& [id, params] : param_queue_) {
-            for (auto& n : active_->nodes)
-                if (n.id == id && n.desc->deserialize) {
-                    n.desc->deserialize(n.data, params.c_str());
-                    break;
-                }
-        }
-        param_queue_.clear();
-    }
-
-    // Platform pumps: editor context, camera aspect.
+    core_.begin_frame();
     float aspect = (height > 0) ? float(width) / float(height) : 1.f;
-    for (auto& n : active_->nodes) {
-        std::string_view type{n.desc->type_name};
-        if (type == "editor")
-            static_cast<EditorNode*>(n.data)->set_context(active_.get(), &registry_);
-        else if (type == "spawner")
-            static_cast<SpawnerNode*>(n.data)->set_context(active_.get(), &registry_);
-        else if (type == "fly_camera")
-            static_cast<FlyCameraNode*>(n.data)->inputs.aspect.value = aspect;
-    }
+    core_.pump_contexts(aspect);
 
     glViewport(0, 0, width, height);
     glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
-    tick_graph(*active_, time_s);
-    {
-        std::lock_guard<std::mutex> lock(values_mutex_);
-        values_snapshot_ = active_->values;
-    }
+    core_.tick(time_s);
+    core_.collect_edits();
 
-    // Editor edits become the next pending graph (swapped next frame, with
-    // state migration — including the editor node itself).
-    for (auto& n : active_->nodes) {
-        std::string_view type{n.desc->type_name};
-        std::optional<std::string> edit;
-        if (type == "editor")       edit = static_cast<EditorNode*>(n.data)->take_edit();
-        else if (type == "spawner") edit = static_cast<SpawnerNode*>(n.data)->take_edit();
-        if (!edit) continue;
-        if (auto g = parse_graph(*edit, registry_)) {
-            std::lock_guard<std::mutex> lock(graph_mutex_);
-            pending_ = std::move(g);
-        }
-    }
+    Graph* g = core_.graph();
+    if (!g) return;
 
     // The graph decides the view: camera.pv, if a camera node exists.
     Eigen::Matrix4f pv;
-    auto it = active_->values.find("camera.pv");
-    if (it != active_->values.end() && std::holds_alternative<Eigen::Matrix4f>(it->second)) {
+    auto it = g->values.find("camera.pv");
+    if (it != g->values.end() && std::holds_alternative<Eigen::Matrix4f>(it->second)) {
         pv = std::get<Eigen::Matrix4f>(it->second);
     } else {
         FlyCamera fallback{};
         pv = fallback.proj(aspect) * fallback.view();
     }
-    for (auto& call : active_->draw_calls) call(pv);
+    for (auto& call : g->draw_calls) call(pv);
 
-    fulfil_screenshot(width, height);
-}
-
-void HostApp::queue_param(std::string node_id, std::string params_json) {
-    std::lock_guard<std::mutex> lock(param_mutex_);
-    param_queue_.emplace_back(std::move(node_id), std::move(params_json));
-}
-
-std::optional<PortValue> HostApp::probe(const std::string& key) {
-    std::lock_guard<std::mutex> lock(values_mutex_);
-    auto it = values_snapshot_.find(key);
-    if (it == values_snapshot_.end()) return std::nullopt;
-    return it->second;
+    core_.fulfil_screenshot(width, height);
 }

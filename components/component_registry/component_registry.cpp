@@ -73,6 +73,12 @@ bool ComponentRegistry::load_plugin(const std::string& path) {
         dlclose(handle);
         return false;
     }
+    if (auto it = entries_.find(desc->type_name); it != entries_.end()) {
+        // Hot reload: retire the old entry (handle stays open — live
+        // instances still run its code until the next graph swap).
+        retired_.push_back(it->second);
+        LOG("component_registry: hot-reloading '%s'", desc->type_name);
+    }
     entries_[desc->type_name] = RegistryEntry{desc, handle};
     LOG("component_registry: loaded plugin '%s' from %s", desc->type_name, path.c_str());
     return true;
@@ -92,6 +98,9 @@ std::vector<std::string> ComponentRegistry::type_names() const {
 
 ComponentRegistry::~ComponentRegistry() {
     for (auto& [name, entry] : entries_) {
+        if (entry.handle) dlclose(entry.handle);
+    }
+    for (auto& entry : retired_) {
         if (entry.handle) dlclose(entry.handle);
     }
 }
