@@ -329,3 +329,19 @@ OPEN when Travis returns (headset on head!):
 Lesson burned in: check VR FOCUS before debugging device sensors — the
 OS silently denies mic/trackers when the headset isn't worn
 (MemoryBroker app-ops lines in unfiltered logcat are the tell).
+
+
+## 2026-06-11 (Quest session part 2 — THE LOOP IS CLOSED)
+
+Travis, in-headset, conversing by voice with a Claude Code session:
+hold X (bip) → speak → release (bip) → Y sends → whisper → claude_tmux →
+Stop hook → espeak → his ears. His first self-driven exchange:
+'This is a test. Do you copy, Claude?' → replies flowing.
+
+Found/fixed live: headset must be WORN (OS denies mic unworn — the
+phantom); X/Y/A/B buttons worked all along (he couldn't see my prompts —
+hence the TTS-comms memory); UX screenshot testing had evicted the PC
+claude node (transcripts fell into void); Enter-race on busy TUI
+(paste→0.4s→Enter). Open: garbage floats in recordings (kanban, defer to
+ring mappings); GL arc on Adreno still undemoed; editor-UX (ray, labels,
+movable cards) shipped but not yet toured.
