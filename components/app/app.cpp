@@ -48,6 +48,8 @@
 #include "osc_node.hpp"
 #include "dac_node.hpp"
 #include "ugens.hpp"
+#include "spatialize_node.hpp"
+#include "sample_player.hpp"
 #include "spectrogram.hpp"
 #include <GLES3/gl3.h>
 #include <memory>
@@ -174,6 +176,8 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<SlewNode>());
     reg.register_builtin(make_descriptor<GrainCloudNode>());
     reg.register_builtin(make_descriptor<MetroNode>());
+    reg.register_builtin(make_descriptor<SpatializeNode>());
+    reg.register_builtin(make_descriptor<SamplePlayerNode>());
     reg.register_builtin(make_descriptor<SpectrogramNode>());
 }
 

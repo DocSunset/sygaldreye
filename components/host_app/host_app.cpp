@@ -36,6 +36,8 @@
 #include "osc_node.hpp"
 #include "dac_node.hpp"
 #include "ugens.hpp"
+#include "spatialize_node.hpp"
+#include "sample_player.hpp"
 #include "tts_node.hpp"
 #include "whisper_node.hpp"
 #include <GLES3/gl3.h>
@@ -150,6 +152,8 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<SlewNode>());
     reg.register_builtin(make_descriptor<GrainCloudNode>());
     reg.register_builtin(make_descriptor<MetroNode>());
+    reg.register_builtin(make_descriptor<SpatializeNode>());
+    reg.register_builtin(make_descriptor<SamplePlayerNode>());
     reg.register_builtin(make_descriptor<TtsNode>());
     reg.register_builtin(make_descriptor<WhisperNode>());
 

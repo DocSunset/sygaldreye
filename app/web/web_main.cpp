@@ -20,6 +20,8 @@
 #include "osc_node.hpp"
 #include "dac_node.hpp"
 #include "ugens.hpp"
+#include "spatialize_node.hpp"
+#include "sample_player.hpp"
 #include "spectrogram.hpp"
 #include "render_nodes.hpp"
 #include "audio_region.hpp"
@@ -258,6 +260,8 @@ int main() {
     reg.register_builtin(make_descriptor<SlewNode>());
     reg.register_builtin(make_descriptor<GrainCloudNode>());
     reg.register_builtin(make_descriptor<MetroNode>());
+    reg.register_builtin(make_descriptor<SpatializeNode>());
+    reg.register_builtin(make_descriptor<SamplePlayerNode>());
     reg.register_builtin(make_descriptor<SpectrogramNode>());
     reg.register_builtin(make_descriptor<TextureViewNode>());
 
