@@ -17,6 +17,11 @@
 #include "star_field.hpp"
 #include "water_surface.hpp"
 #include "sun_light.hpp"
+#include "osc_node.hpp"
+#include "dac_node.hpp"
+#include "spectrogram.hpp"
+#include "render_nodes.hpp"
+#include "audio_region.hpp"
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #include <GLES3/gl3.h>
@@ -33,6 +38,7 @@ struct WebPeer {
     std::vector<std::unique_ptr<RemotePeer>>       peers;
     std::vector<RemotePeer*>                       awaiting_types;
     std::vector<std::unique_ptr<RemoteDescriptor>> remote_types;
+    AudioRegion audio;
     // input
     bool  dragging = false;
     float yaw = 0.f, pitch = 0.f;
@@ -123,6 +129,8 @@ void frame() {
         g.active = std::move(g.pending);
     }
     if (!g.active) return;
+    if (!g.active->plan) g.audio.rebuild(*g.active);
+    g.audio.publish(*g.active);
 
     int w = 0, h = 0;
     emscripten_get_canvas_element_size("#canvas", &w, &h);
@@ -137,6 +145,8 @@ void frame() {
     glEnable(GL_DEPTH_TEST);
 
     tick_graph(*g.active, t);
+    g.audio.capture_latches(*g.active);
+    g.audio.pump_offline(dt);
 
     Eigen::Matrix4f pv;
     auto it = g.active->values.find("camera.pv");
@@ -234,6 +244,10 @@ int main() {
     reg.register_builtin(make_descriptor<StarField>());
     reg.register_builtin(make_descriptor<WaterSurface>());
     reg.register_builtin(make_descriptor<SunLight>());
+    reg.register_builtin(make_descriptor<OscNode>());
+    reg.register_builtin(make_descriptor<DacNode>());
+    reg.register_builtin(make_descriptor<SpectrogramNode>());
+    reg.register_builtin(make_descriptor<TextureViewNode>());
 
     g.active = parse_graph(kDefaultGraph, g.registry);
 

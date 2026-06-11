@@ -73,7 +73,16 @@ void PeerCore::pump_contexts(float aspect) {
 
 void PeerCore::tick(double time_s) {
     if (!active_) return;
+    // New graph object → (re)derive the block region before its first
+    // render plan is built, so block nodes never tick render-side.
+    if (!active_->plan) audio_.rebuild(*active_);
+    double dt = (prev_tick_t_ > 0.0) ? time_s - prev_tick_t_ : 1.0 / 60.0;
+    prev_tick_t_ = time_s;
+
+    audio_.publish(*active_);          // rings + snapshots → values
     tick_graph(*active_, time_s);
+    audio_.capture_latches(*active_);  // frame control → block
+    audio_.pump_offline(dt);           // no device? blocks run here
     {
         std::lock_guard<std::mutex> lock(values_mutex_);
         values_snapshot_ = active_->values;

@@ -1,0 +1,11 @@
+add_library(audio_region STATIC audio_region.cpp)
+target_include_directories(audio_region PUBLIC .)
+target_link_libraries(audio_region PUBLIC signal_graph audio_output port_schema_reader)
+target_compile_options(audio_region PRIVATE -Wall -Wextra)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(audio_region_test audio_region.test.cpp)
+    target_link_libraries(audio_region_test PRIVATE audio_region subgraph_node osc_node dac_node GTest::gtest_main)
+    target_compile_options(audio_region_test PRIVATE -Wall -Wextra)
+endif()

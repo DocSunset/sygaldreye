@@ -123,9 +123,21 @@ library component until reifying it as a node buys something.)
    (graph swaps can't dangle queued jobs). The old 240-tick warmup
    hack became a plain 4 s sleep on the worker. Verified live: message
    delivered into a tmux session while the app kept serving frames.
-5. Audio region: block scheduler + `dac` + latch/snapshot; device
-   synths join the graph properly; wav_player's hand-rolled atomics
-   retire into ring mappings.
+5. ✅ 2026-06-12: components/audio_region — the BLOCK region. Membership
+   = dacs + upstream closure through audio edges (a node with audio IN
+   but no audio OUT, e.g. spectrogram, stays frame-side by design);
+   marked in Graph::offrender so the render plan excludes it. The dac
+   node owns the device stream (audio_output: AAudio on Android, SDL2 on
+   host AND web — browser plays through Web Audio). Boundaries reified:
+   frame→block scalar = LATCH (atomics, applied at block start);
+   block→frame scalar = SNAPSHOT; block→frame audio = RING (SPSC,
+   republished into Graph::values each render frame so ordinary
+   appliers deliver). No device → pump_offline drives blocks from the
+   render thread (headless peers keep computing). 4 gtests cover split/
+   ring/snapshot/latch; live host demo: lfo→(latch)→osc→(true edge)→dac
+   audible, osc→(ring)→spectrogram visible. Device synth migration to
+   dac graphs still pending a headset session (kanban
+   audio_region_followups).
 6. ✅ 2026-06-12 (v1, value-rate): WebSocket transport (http_server /ws
    upgrade + ws_link client + reconnect); peers advertise their node
    types (= capability = permission = placement); POST /peer registers

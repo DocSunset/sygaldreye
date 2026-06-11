@@ -5,6 +5,7 @@
 #include "http_server.hpp"
 #include "event_queue.hpp"
 #include "remote_node.hpp"
+#include "audio_region.hpp"
 #include <atomic>
 #include <map>
 #include <condition_variable>
@@ -93,6 +94,8 @@ private:
     // consumers (uid → ws connection to mirror outputs to) + typed input
     // sets queued for the render thread. Consumer side: peer links and the
     // proxy descriptors registered from their advertisements.
+    AudioRegion                                      audio_;
+    double                                           prev_tick_t_ = 0.0;
     std::mutex                                       hosted_mutex_;
     std::map<std::string, unsigned long>             hosted_;
     EventQueue<std::pair<std::string, std::string>>  remote_sets_;

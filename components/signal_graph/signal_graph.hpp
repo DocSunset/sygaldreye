@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -55,6 +56,10 @@ struct Graph {
     // tick. Topology never mutates in place (edits swap whole graphs), so
     // the plan lives as long as the graph.
     std::unique_ptr<TickPlan>                    plan;
+    // Node ids ticked by another region's scheduler (audio_region marks
+    // the block subgraph here before the first tick); the render plan
+    // excludes them.
+    std::unordered_set<std::string>              offrender;
 
     ~Graph();
 };

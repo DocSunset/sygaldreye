@@ -65,6 +65,11 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
         }
     }
     plan->order = topo_sort(g.nodes, dag_edges);
+    // Nodes owned by another region's scheduler don't tick here.
+    if (!g.offrender.empty())
+        std::erase_if(plan->order, [&](std::size_t i) {
+            return g.offrender.count(g.nodes[i].id) != 0;
+        });
     return plan;
 }
 

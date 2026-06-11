@@ -45,6 +45,9 @@
 #include "spawner_node.hpp"
 #include "aurora_curtain.hpp"
 #include "wav_player.hpp"
+#include "osc_node.hpp"
+#include "dac_node.hpp"
+#include "spectrogram.hpp"
 #include <GLES3/gl3.h>
 #include <memory>
 #include <optional>
@@ -157,6 +160,9 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<SpawnerNode>());
     reg.register_builtin(make_descriptor<AuroraCurtainNode>());
     reg.register_builtin(make_descriptor<WavPlayerNode>());
+    reg.register_builtin(make_descriptor<OscNode>());
+    reg.register_builtin(make_descriptor<DacNode>());
+    reg.register_builtin(make_descriptor<SpectrogramNode>());
 }
 
 // Pump XR source nodes with current frame's live pose/input data.
