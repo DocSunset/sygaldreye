@@ -281,3 +281,28 @@ Gotchas burned into code/docs:
   outputs + app pump); wav_player node (own AAudio stream) + /play route
   so replies sound IN the headset (companion --play-url points there).
 - Travis's flow: hold X = record (bip), repeat takes; Y = send; A = erase.
+
+
+## 2026-06-10 (voice loop — device half build-ready)
+
+Travis's flow → implementation:
+- hold X (bip!) speak, release (bip), hold X again, yap, release —
+  lc.btn1 → stt.record; takes ACCUMULATE in PushToTalk's buffer;
+  stt.bip → speaker.bip (1100 Hz start / 700 Hz stop).
+- Y = send → lc.btn2 → stt.send → POST wav to companion /transcribe →
+  whisper → /param to PC claude_tmux node → tmux Claude session.
+- A = erase → rc.btn1 → stt.erase.
+- Replies: Stop hook → companion /tts (espeak) → POST headset /play →
+  param-inject into 'speaker' wav_player node → AAudio in-ear.
+
+Quest session steps:
+1. Start PC: sh/agent/launch.sh; post graph w/ claude_tmux node;
+   companion ... --play-url http://HEADSET_IP:8080/play
+2. adb install APK (packaged ✓); Travis dons headset; sh/run.sh.
+3. POST companion/quest_voice_graph.json (PC_IP swapped in) to headset.
+4. Speak. Verify bips, transcripts in companion log, replies in ears.
+Risks: X/Y/A/B bindings unverified on device; AAudio capture+playback
+concurrency; mic permission prompt on first run (RECORD_AUDIO).
+
+Upgrade path noted: piper TTS (espeak is robotic), streaming STT,
+hook filtering (skip tool-use-heavy replies).
