@@ -52,9 +52,12 @@
 #include <cstdio>
 #include <ctime>
 #include <memory>
+#include <condition_variable>
 #include <mutex>
 #include <optional>
+#include <chrono>
 #include <string>
+#include <vector>
 #include <string_view>
 
 #define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
@@ -63,6 +66,8 @@
 
 XrInstance xr_create_instance(struct android_app*);
 XrSystemId xr_get_system(XrInstance);
+
+extern "C" int stbi_write_png(const char*, int, int, int, const void*, int);
 
 struct AppState {
     bool hasWindow = false;
@@ -82,6 +87,11 @@ struct AppState {
     std::mutex                   param_mutex_{};
     std::vector<std::pair<std::string, std::string>> param_queue_{};
     long                         play_seq_ = 0;
+    std::mutex                   shot_mutex_{};
+    std::condition_variable      shot_cv_{};
+    std::string                  shot_path_{};
+    bool                         shot_done_ = false;
+    int                          eye_index_ = 0;
     std::unique_ptr<Graph>       pending_graph_{};
     std::unique_ptr<Graph>       active_graph_{};
     std::string                  meta_graph_json_{};
@@ -357,6 +367,29 @@ void android_main(struct android_app* app) {
             state.param_queue_.emplace_back(node, body.substr(op, end - op));
             return R"({"ok":true})";
         });
+    // Returns a PNG of the LEFT eye's current view — remote eyes for
+    // agents and humans alike.
+    http_server.add_route("GET", "/screenshot",
+        [&state, data_path](std::string_view) -> std::string {
+            char path[256];
+            std::snprintf(path, sizeof(path), "%s/eye.png", data_path);
+            std::unique_lock<std::mutex> lock(state.shot_mutex_);
+            state.shot_path_ = path;
+            state.shot_done_ = false;
+            bool ok = state.shot_cv_.wait_for(lock, std::chrono::seconds(2),
+                                              [&] { return state.shot_done_; });
+            state.shot_path_.clear();
+            if (!ok) return R"({"ok":false,"error":"capture timed out"})";
+            std::string png;
+            if (FILE* f = std::fopen(path, "rb")) {
+                char buf[4096];
+                size_t n;
+                while ((n = std::fread(buf, 1, sizeof(buf), f)) > 0)
+                    png.append(buf, n);
+                std::fclose(f);
+            }
+            return png.empty() ? R"({"ok":false,"error":"read failed"})" : png;
+        });
     http_server.add_route("POST", "/play",
         [&state, data_path](std::string_view body) -> std::string {
             char path[256];
@@ -474,6 +507,7 @@ void android_main(struct android_app* app) {
                     lh ? std::optional<XrPosef>{lh->pose} : std::nullopt,
                     rh ? std::optional<XrPosef>{rh->pose} : std::nullopt);
 
+                state.eye_index_ = 0;
                 bool ok = state.renderer.render_eyes(
                     state.xrInstance, state.xrSession.get(),
                     state.xrSession.worldSpace_(), t,
@@ -487,6 +521,28 @@ void android_main(struct android_app* app) {
                         }
 
                         state.vr_editor_.draw(pv, state.text_mesh_);
+
+                        // Left-eye capture for GET /screenshot.
+                        if (state.eye_index_++ == 0) {
+                            std::lock_guard<std::mutex> sl(state.shot_mutex_);
+                            if (!state.shot_path_.empty() && !state.shot_done_) {
+                                GLint vp[4];
+                                glGetIntegerv(GL_VIEWPORT, vp);
+                                int w = vp[2], h = vp[3];
+                                std::vector<unsigned char> px(size_t(w) * h * 4);
+                                glReadPixels(vp[0], vp[1], w, h,
+                                             GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+                                std::vector<unsigned char> flip(px.size());
+                                for (int r = 0; r < h; ++r)
+                                    std::copy_n(&px[size_t(h - 1 - r) * w * 4],
+                                                size_t(w) * 4,
+                                                &flip[size_t(r) * w * 4]);
+                                stbi_write_png(state.shot_path_.c_str(), w, h,
+                                               4, flip.data(), w * 4);
+                                state.shot_done_ = true;
+                                state.shot_cv_.notify_all();
+                            }
+                        }
                     });
                 if (!ok) { return {}; }
                 FrameLayers result;

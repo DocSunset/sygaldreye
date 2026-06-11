@@ -43,8 +43,12 @@ static void ev_handler(struct mg_connection* c, int ev, void* ev_data) {
     }
     std::string body(hm->body.buf, hm->body.len);
     std::string response = it->second(body);
-    mg_http_reply(c, 200, "Content-Type: application/json\r\n",
-                  "%.*s", static_cast<int>(response.size()), response.c_str());
+    // Binary-safe: %.*s would truncate at the first NUL (PNG bodies).
+    mg_printf(c,
+              "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n"
+              "Content-Length: %d\r\nConnection: close\r\n\r\n",
+              static_cast<int>(response.size()));
+    mg_send(c, response.data(), response.size());
 }
 
 void HttpServer::add_route(std::string method, std::string path, HttpHandler handler) {
