@@ -1,7 +1,22 @@
 {
   "hooks": {
     "Stop": [
-      { "matcher": "", "hooks": [ { "type": "command", "command": "./speak_last.sh" } ] }
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./speak_last.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(curl *)",
+      "Read(/tmp/**)",
+      "Read(//tmp/**)"
     ]
   }
 }
