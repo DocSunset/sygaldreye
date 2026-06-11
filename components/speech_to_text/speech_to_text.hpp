@@ -13,20 +13,22 @@ public:
 
     struct inputs {
         port<"audio_in",  AudioBuffer> audio_in;
-        port<"begin",     float>       begin;
-        port<"finalize",  float>       finalize;
+        slider<"record", "", float, fp(0.f), fp(1.f), fp(0.f)> record; // hold
+        slider<"send",   "", float, fp(0.f), fp(1.f), fp(0.f)> send;   // edge
+        slider<"erase",  "", float, fp(0.f), fp(1.f), fp(0.f)> erase;  // edge
+        ::text<"url"> url;  // empty → http://192.168.1.1:9090/transcribe
     } inputs;
 
-    struct outputs {} outputs;
-
-    std::string companion_url = "http://192.168.1.1:9090";
+    struct outputs {
+        port<"bip",       float> bip;        // 1 on take start, 0.5 on stop
+        port<"recording", float> recording;
+    } outputs;
 
     void operator()(double time_s);
 
 private:
     PushToTalk ptt_;
-    bool       recording_ = false;
+    bool recording_  = false;
+    bool prev_send_  = false;
+    bool prev_erase_ = false;
 };
-
-std::string to_json(const SpeechToTextNode& node);
-void from_json(SpeechToTextNode& node, std::string_view json);

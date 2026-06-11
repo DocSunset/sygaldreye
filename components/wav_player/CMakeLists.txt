@@ -1,0 +1,6 @@
+if(CMAKE_CROSSCOMPILING)
+    add_library(wav_player STATIC wav_player.cpp)
+    target_include_directories(wav_player PUBLIC .)
+    target_link_libraries(wav_player PUBLIC audio_output sygaldry_endpoints)
+    target_compile_options(wav_player PRIVATE -Wall -Wextra)
+endif()

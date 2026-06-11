@@ -47,6 +47,7 @@
 #include "fly_camera_node.hpp"
 #include "spawner_node.hpp"
 #include "aurora_curtain.hpp"
+#include "wav_player.hpp"
 #include <GLES3/gl3.h>
 #include <cstdio>
 #include <ctime>
@@ -78,6 +79,9 @@ struct AppState {
     ComponentRegistry            registry_{};
     VrEditor                     vr_editor_{};
     std::mutex                   graph_mutex_{};
+    std::mutex                   param_mutex_{};
+    std::vector<std::pair<std::string, std::string>> param_queue_{};
+    long                         play_seq_ = 0;
     std::unique_ptr<Graph>       pending_graph_{};
     std::unique_ptr<Graph>       active_graph_{};
     std::string                  meta_graph_json_{};
@@ -124,6 +128,10 @@ static void pump_xr_sources(AppState& state, double /*time_sec*/) {
     auto rh = state.input_.hand_pose(Hand::RIGHT);
     bool trigger_left  = state.input_.trigger_pressed(Hand::LEFT);
     bool trigger_right = state.input_.trigger_pressed(Hand::RIGHT);
+    float grip_l = state.input_.grip_pressed(Hand::LEFT)  ? 1.f : 0.f;
+    float grip_r = state.input_.grip_pressed(Hand::RIGHT) ? 1.f : 0.f;
+    Eigen::Vector2f th_l = state.input_.thumbstick(Hand::LEFT);
+    Eigen::Vector2f th_r = state.input_.thumbstick(Hand::RIGHT);
 
     for (auto& n : state.active_graph_->nodes) {
         std::string_view type{n.desc->type_name};
@@ -137,11 +145,15 @@ static void pump_xr_sources(AppState& state, double /*time_sec*/) {
         } else if (type == "left_controller") {
             XrPosef p = lh ? lh->pose : XrPosef{{0,0,0,1},{0,0,0}};
             static_cast<LeftControllerNode*>(n.data)->set_state(
-                p, trigger_left);
+                p, trigger_left, grip_l, th_l.x(), th_l.y(),
+                state.input_.button1_pressed(Hand::LEFT),
+                state.input_.button2_pressed(Hand::LEFT));
         } else if (type == "right_controller") {
             XrPosef p = rh ? rh->pose : XrPosef{{0,0,0,1},{0,0,0}};
             static_cast<RightControllerNode*>(n.data)->set_state(
-                p, trigger_right);
+                p, trigger_right, grip_r, th_r.x(), th_r.y(),
+                state.input_.button1_pressed(Hand::RIGHT),
+                state.input_.button2_pressed(Hand::RIGHT));
         }
     }
 }
@@ -208,6 +220,7 @@ void android_main(struct android_app* app) {
     state.registry_.register_builtin(make_descriptor<FlyCameraNode>());
     state.registry_.register_builtin(make_descriptor<SpawnerNode>());
     state.registry_.register_builtin(make_descriptor<AuroraCurtainNode>());
+    state.registry_.register_builtin(make_descriptor<WavPlayerNode>());
 
     constexpr const char* kDefaultGraph = R"({
         "nodes":[
@@ -295,6 +308,45 @@ void android_main(struct android_app* app) {
             out += ']';
             return out;
         });
+    http_server.add_route("POST", "/param",
+        [&state](std::string_view raw) -> std::string {
+            std::string body = compact_json(std::string(raw));
+            auto find_str = [&](const char* key) -> std::string {
+                std::string needle = std::string("\"") + key + "\":\"";
+                auto p = body.find(needle);
+                if (p == std::string::npos) return {};
+                p += needle.size();
+                return body.substr(p, body.find('"', p) - p);
+            };
+            auto op = body.find("\"params\":{");
+            if (op == std::string::npos) return R"({"ok":false})";
+            op += 9;
+            int depth = 0; size_t end = op;
+            for (size_t i = op; i < body.size(); ++i) {
+                if (body[i] == '{') ++depth;
+                else if (body[i] == '}' && --depth == 0) { end = i + 1; break; }
+            }
+            std::string node = find_str("node");
+            if (node.empty()) return R"({"ok":false})";
+            std::lock_guard<std::mutex> lock(state.param_mutex_);
+            state.param_queue_.emplace_back(node, body.substr(op, end - op));
+            return R"({"ok":true})";
+        });
+    http_server.add_route("POST", "/play",
+        [&state, data_path](std::string_view body) -> std::string {
+            char path[256];
+            std::snprintf(path, sizeof(path), "%s/play.wav", data_path);
+            FILE* f = std::fopen(path, "wb");
+            if (!f) return R"({"ok":false,"error":"fopen"})";
+            std::fwrite(body.data(), 1, body.size(), f);
+            std::fclose(f);
+            char params[320];
+            std::snprintf(params, sizeof(params),
+                          R"({"file":"%s","seq":%ld})", path, ++state.play_seq_);
+            std::lock_guard<std::mutex> lock(state.param_mutex_);
+            state.param_queue_.emplace_back("speaker", params);
+            return R"({"ok":true})";
+        });
     http_server.add_route("GET", "/meta-graph",
         [&state](std::string_view) -> std::string {
             return state.meta_graph_json_.empty() ? "{}" : state.meta_graph_json_;
@@ -337,6 +389,19 @@ void android_main(struct android_app* app) {
                         state.active_graph_ = std::move(state.pending_graph_);
                         state.vr_editor_.on_graph_changed(state.active_graph_.get());
                     }
+                }
+
+                {
+                    std::lock_guard<std::mutex> lock(state.param_mutex_);
+                    for (auto& [id, params] : state.param_queue_) {
+                        if (!state.active_graph_) break;
+                        for (auto& n : state.active_graph_->nodes)
+                            if (n.id == id && n.desc->deserialize) {
+                                n.desc->deserialize(n.data, params.c_str());
+                                break;
+                            }
+                    }
+                    state.param_queue_.clear();
                 }
 
                 if (!state.input_.sync(state.xrSession.get(), state.xrSession.worldSpace_(), t,

@@ -1,0 +1,21 @@
+{
+  "nodes":[
+    {"id":"head","type":"head_pose","params":{}},
+    {"id":"lc","type":"left_controller","params":{}},
+    {"id":"rc","type":"right_controller","params":{}},
+    {"id":"mic","type":"mic_input","params":{}},
+    {"id":"stt","type":"speech_to_text","params":{"url":"http://PC_IP:9090/transcribe"}},
+    {"id":"speaker","type":"wav_player","params":{}},
+    {"id":"sky","type":"sky_dome","params":{}},
+    {"id":"water","type":"water_surface","params":{}},
+    {"id":"sun","type":"sun_light","params":{}},
+    {"id":"cube","type":"cube","params":{}}
+  ],
+  "edges":[
+    {"from":"mic.audio_out","to":"stt.audio_in"},
+    {"from":"lc.btn1","to":"stt.record"},
+    {"from":"lc.btn2","to":"stt.send"},
+    {"from":"rc.btn1","to":"stt.erase"},
+    {"from":"stt.bip","to":"speaker.bip"}
+  ]
+}

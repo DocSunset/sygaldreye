@@ -30,6 +30,9 @@ struct Input {
     [[nodiscard]] bool trigger_pressed(Hand hand) const;
     [[nodiscard]] bool grip_pressed(Hand hand) const;
     [[nodiscard]] Eigen::Vector2f thumbstick(Hand hand) const;
+    /// btn1 = X (left) / A (right); btn2 = Y (left) / B (right).
+    [[nodiscard]] bool button1_pressed(Hand hand) const;
+    [[nodiscard]] bool button2_pressed(Hand hand) const;
 
 private:
     XrActionSet actionSet_       = XR_NULL_HANDLE;
@@ -42,6 +45,10 @@ private:
     std::array<std::optional<HandPose>, 2> poses_{};
     std::array<bool, 2>                 trigger_pressed_{};
     std::array<bool, 2>                 grip_pressed_{};
+    std::array<bool, 2>                 btn1_pressed_{};
+    std::array<bool, 2>                 btn2_pressed_{};
+    XrAction    xAction_ = XR_NULL_HANDLE, yAction_ = XR_NULL_HANDLE;
+    XrAction    aAction_ = XR_NULL_HANDLE, bAction_ = XR_NULL_HANDLE;
     std::array<Eigen::Vector2f, 2>      thumbstick_{};
     bool        pose_logged_ = false;
 };

@@ -12,9 +12,14 @@ struct PushToTalk {
     // Call from audio thread (real-time safe when not recording; push_back when recording).
     void feed(const float* samples, int frames);
 
-    // Call from main thread.
+    // Call from main thread. Takes accumulate: begin appends to the held
+    // buffer, pause stops appending, send posts everything and clears,
+    // erase discards.
     void begin_recording();
-    void end_recording(TranscriptCallback on_result);  // starts async POST
+    void pause_recording();
+    void erase();
+    void end_recording(TranscriptCallback on_result);  // pause + send
+    bool has_audio() const { return !buffer_.empty(); }
 
 private:
     std::string companion_url_;

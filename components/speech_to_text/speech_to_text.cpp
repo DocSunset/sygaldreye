@@ -4,36 +4,41 @@
 #include <string_view>
 
 void SpeechToTextNode::operator()(double /*time_s*/) {
-    ptt_.set_companion_url(companion_url);
+    ptt_.set_companion_url(inputs.url.value.empty()
+        ? "http://192.168.1.1:9090/transcribe" : inputs.url.value);
 
-    if (inputs.begin.value > 0.5f && !recording_) {
+    outputs.bip.value = 0.f;
+    bool held = inputs.record.value > 0.5f;
+    if (held && !recording_) {
         ptt_.begin_recording();
         recording_ = true;
+        outputs.bip.value = 1.f;    // take started
+    } else if (!held && recording_) {
+        ptt_.pause_recording();      // take ends; audio kept for more takes
+        recording_ = false;
+        outputs.bip.value = 0.5f;   // take stopped
     }
     if (recording_ && inputs.audio_in.value.data && inputs.audio_in.value.frames > 0)
         ptt_.feed(inputs.audio_in.value.data, inputs.audio_in.value.frames);
-    if (inputs.finalize.value > 0.5f && recording_) {
+
+    bool send_now = inputs.send.value > 0.5f;
+    if (send_now && !prev_send_ && ptt_.has_audio()) {
         ptt_.end_recording([](std::string_view t) {
             __android_log_print(ANDROID_LOG_INFO, "eyeballs",
                                 "transcript: %.*s", static_cast<int>(t.size()), t.data());
         });
         recording_ = false;
+        outputs.bip.value = 1.f;
     }
-}
+    prev_send_ = send_now;
 
-std::string to_json(const SpeechToTextNode& node) {
-    std::string out = "{\"companion_url\":\"";
-    out += node.companion_url;
-    out += "\"}";
-    return out;
-}
+    bool erase_now = inputs.erase.value > 0.5f;
+    if (erase_now && !prev_erase_) {
+        ptt_.erase();
+        recording_ = false;
+        outputs.bip.value = 0.5f;
+    }
+    prev_erase_ = erase_now;
 
-void from_json(SpeechToTextNode& node, std::string_view json) {
-    constexpr std::string_view key = "\"companion_url\":\"";
-    auto pos = json.find(key);
-    if (pos == std::string_view::npos) return;
-    pos += key.size();
-    auto end = json.find('"', pos);
-    if (end == std::string_view::npos) return;
-    node.companion_url = std::string(json.substr(pos, end - pos));
+    outputs.recording.value = recording_ ? 1.f : 0.f;
 }

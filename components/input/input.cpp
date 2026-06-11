@@ -99,12 +99,17 @@ bool Input::create(XrInstance instance, XrSession session) {
                           handPaths_.data(), 2, &gripAction_)) return false;
     if (!make_vec2_action(actionSet_, "thumbstick", "Thumbstick",
                           handPaths_.data(), 2, &thumbstickAction_)) return false;
+    // Face buttons are hand-specific paths; no subactions needed.
+    if (!make_bool_action(actionSet_, "btn_x", "X", nullptr, 0, &xAction_)) return false;
+    if (!make_bool_action(actionSet_, "btn_y", "Y", nullptr, 0, &yAction_)) return false;
+    if (!make_bool_action(actionSet_, "btn_a", "A", nullptr, 0, &aAction_)) return false;
+    if (!make_bool_action(actionSet_, "btn_b", "B", nullptr, 0, &bAction_)) return false;
 
     // Suggest bindings for Oculus Touch
     XrPath profile = XR_NULL_PATH;
     xrStringToPath(instance, "/interaction_profiles/oculus/touch_controller", &profile);
 
-    XrPath paths[10];
+    XrPath paths[12];
     xrStringToPath(instance, "/user/hand/left/input/grip/pose",         &paths[0]);
     xrStringToPath(instance, "/user/hand/right/input/grip/pose",        &paths[1]);
     xrStringToPath(instance, "/user/hand/left/input/trigger/value",     &paths[2]);
@@ -113,18 +118,24 @@ bool Input::create(XrInstance instance, XrSession session) {
     xrStringToPath(instance, "/user/hand/right/input/squeeze/value",    &paths[5]);
     xrStringToPath(instance, "/user/hand/left/input/thumbstick",        &paths[6]);
     xrStringToPath(instance, "/user/hand/right/input/thumbstick",       &paths[7]);
+    xrStringToPath(instance, "/user/hand/left/input/x/click",           &paths[8]);
+    xrStringToPath(instance, "/user/hand/left/input/y/click",           &paths[9]);
+    xrStringToPath(instance, "/user/hand/right/input/a/click",          &paths[10]);
+    xrStringToPath(instance, "/user/hand/right/input/b/click",          &paths[11]);
 
-    XrActionSuggestedBinding bindings[8] = {
+    XrActionSuggestedBinding bindings[12] = {
         {poseAction_,       paths[0]}, {poseAction_,        paths[1]},
         {triggerAction_,    paths[2]}, {triggerAction_,     paths[3]},
         {gripAction_,       paths[4]}, {gripAction_,        paths[5]},
         {thumbstickAction_, paths[6]}, {thumbstickAction_,  paths[7]},
+        {xAction_,          paths[8]}, {yAction_,           paths[9]},
+        {aAction_,          paths[10]}, {bAction_,          paths[11]},
     };
     XrInteractionProfileSuggestedBinding suggested{};
     suggested.type                   = XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING;
     suggested.interactionProfile     = profile;
     suggested.suggestedBindings      = bindings;
-    suggested.countSuggestedBindings = 8;
+    suggested.countSuggestedBindings = 12;
     if (!xr_ok(xrSuggestInteractionProfileBindings(instance, &suggested),
                "xrSuggestInteractionProfileBindings")) return false;
 
@@ -182,6 +193,19 @@ bool Input::sync(XrSession session, XrSpace worldSpace, XrTime time, bool focuse
         xrGetActionStateBoolean(session, &gi, &gb);
         grip_pressed_[si] = (gb.isActive && gb.currentState);
 
+        // Face buttons (hand-specific; query without subaction)
+        XrActionStateGetInfo bi{};
+        bi.type = XR_TYPE_ACTION_STATE_GET_INFO;
+        XrActionStateBoolean bb{};
+        bb.type = XR_TYPE_ACTION_STATE_BOOLEAN;
+        bi.action = (i == 0) ? xAction_ : aAction_;
+        xrGetActionStateBoolean(session, &bi, &bb);
+        btn1_pressed_[si] = (bb.isActive && bb.currentState);
+        bb = {}; bb.type = XR_TYPE_ACTION_STATE_BOOLEAN;
+        bi.action = (i == 0) ? yAction_ : bAction_;
+        xrGetActionStateBoolean(session, &bi, &bb);
+        btn2_pressed_[si] = (bb.isActive && bb.currentState);
+
         // Thumbstick
         XrActionStateVector2f vb{};
         vb.type = XR_TYPE_ACTION_STATE_VECTOR2F;
@@ -223,3 +247,6 @@ bool Input::grip_pressed(Hand hand) const {
 Eigen::Vector2f Input::thumbstick(Hand hand) const {
     return thumbstick_[static_cast<size_t>(hand)];
 }
+
+bool Input::button1_pressed(Hand hand) const { return btn1_pressed_[static_cast<size_t>(hand)]; }
+bool Input::button2_pressed(Hand hand) const { return btn2_pressed_[static_cast<size_t>(hand)]; }

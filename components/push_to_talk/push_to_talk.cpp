@@ -98,8 +98,14 @@ void PushToTalk::feed(const float* samples, int frames) {
 }
 
 void PushToTalk::begin_recording() {
+    recording_ = true;  // append-to-held-buffer: takes accumulate until send/erase
+}
+
+void PushToTalk::pause_recording() { recording_ = false; }
+
+void PushToTalk::erase() {
+    recording_ = false;
     buffer_.clear();
-    recording_ = true;
 }
 
 void PushToTalk::end_recording(TranscriptCallback on_result) {

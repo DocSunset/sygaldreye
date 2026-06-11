@@ -1,6 +1,8 @@
 // Copyright 2025 Travis West
 #pragma once
 #include <openxr/openxr.h>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <string_view>
 #include "sygaldry_endpoints.hpp"
 
@@ -59,11 +61,16 @@ struct ControllerNode {
         port<"grip",         float> grip;
         port<"thumbstick_x", float> thumbstick_x;
         port<"thumbstick_y", float> thumbstick_y;
+        port<"btn1",         float> btn1;  // X (left) / A (right)
+        port<"btn2",         float> btn2;  // Y (left) / B (right)
+        port<"pos",          Eigen::Vector3f>    pos;  // parity with host 'hand'
+        port<"rot",          Eigen::Quaternionf> rot;
     } outputs;
 
     void set_state(const XrPosef& p, bool trigger_pressed,
                    float grip = 0.f,
-                   float thumb_x = 0.f, float thumb_y = 0.f) {
+                   float thumb_x = 0.f, float thumb_y = 0.f,
+                   bool btn1 = false, bool btn2 = false) {
         pose_    = p;
         trigger_ = trigger_pressed;
         outputs.pos_x.value        = p.position.x;
@@ -77,6 +84,11 @@ struct ControllerNode {
         outputs.grip.value         = grip;
         outputs.thumbstick_x.value = thumb_x;
         outputs.thumbstick_y.value = thumb_y;
+        outputs.btn1.value         = btn1 ? 1.f : 0.f;
+        outputs.btn2.value         = btn2 ? 1.f : 0.f;
+        outputs.pos.value          = {p.position.x, p.position.y, p.position.z};
+        outputs.rot.value          = Eigen::Quaternionf{p.orientation.w, p.orientation.x,
+                                                        p.orientation.y, p.orientation.z};
     }
 
     XrPosef pose() const { return pose_; }
