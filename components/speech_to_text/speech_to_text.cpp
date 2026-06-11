@@ -17,9 +17,13 @@ void SpeechToTextNode::operator()(double /*time_s*/) {
         ptt_.pause_recording();      // take ends; audio kept for more takes
         recording_ = false;
         outputs.bip.value = 0.5f;   // take stopped
+        __android_log_print(ANDROID_LOG_INFO, "eyeballs",
+                            "stt: take ended, has_audio=%d", int(ptt_.has_audio()));
     }
-    if (recording_ && inputs.audio_in.value.data && inputs.audio_in.value.frames > 0)
+    if (recording_ && inputs.audio_in.value.data && inputs.audio_in.value.frames > 0) {
+        ptt_.set_sample_rate(inputs.audio_in.value.sample_rate);
         ptt_.feed(inputs.audio_in.value.data, inputs.audio_in.value.frames);
+    }
 
     bool send_now = inputs.send.value > 0.5f;
     if (send_now && !prev_send_ && ptt_.has_audio()) {

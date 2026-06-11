@@ -308,6 +308,31 @@ void android_main(struct android_app* app) {
             out += ']';
             return out;
         });
+    http_server.add_route("GET", "/values",
+        [&state](std::string_view) -> std::string {
+            std::lock_guard<std::mutex> lock(state.graph_mutex_);
+            if (!state.active_graph_) return "{}";
+            std::string out = "{";
+            bool first = true;
+            for (const auto& [key, val] : state.active_graph_->values) {
+                if (!first) out += ',';
+                first = false;
+                out += '"'; out += key; out += "\":";
+                if (std::holds_alternative<double>(val)) {
+                    char buf[40];
+                    std::snprintf(buf, sizeof(buf), "%g", std::get<double>(val));
+                    out += buf;
+                } else if (std::holds_alternative<AudioBuffer>(val)) {
+                    char buf[48];
+                    std::snprintf(buf, sizeof(buf), "\"audio[%d]\"",
+                                  std::get<AudioBuffer>(val).frames);
+                    out += buf;
+                } else {
+                    out += "\"value\"";
+                }
+            }
+            return out + "}";
+        });
     http_server.add_route("POST", "/param",
         [&state](std::string_view raw) -> std::string {
             std::string body = compact_json(std::string(raw));

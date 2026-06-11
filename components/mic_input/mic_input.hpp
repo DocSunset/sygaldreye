@@ -28,6 +28,9 @@ public:
 
 private:
     std::optional<MicCapture> mic_;
+    bool                       mic_failed_ = false;
+    int                        starved_ticks_ = 0;
+    int                        reopen_attempts_ = 0;
     std::mutex                mutex_;
     std::vector<float>        accum_;
     std::vector<float>        tick_buf_;

@@ -36,6 +36,7 @@ def tts():
     subprocess.run(["espeak-ng", "-v", "en-us", "-s", "165", "-w", wav_path, text],
                    check=True)
     pushed = False
+    print(f"tts handler sees play_url={_play_url!r}")
     if _play_url:
         try:
             with open(wav_path, "rb") as f:
@@ -284,6 +285,7 @@ def main():
     global _claude_param_url, _play_url
     _claude_param_url = args.claude_param_url or None
     _play_url = args.play_url or None
+    print(f"voice: claude_param_url={_claude_param_url} play_url={_play_url}")
 
     if args.freeze:
         host = args.host or "127.0.0.1"

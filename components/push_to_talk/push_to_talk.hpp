@@ -8,6 +8,7 @@ using TranscriptCallback = std::function<void(std::string_view text)>;
 
 struct PushToTalk {
     void set_companion_url(std::string url);
+    void set_sample_rate(int sr) { sample_rate_ = sr; }
 
     // Call from audio thread (real-time safe when not recording; push_back when recording).
     void feed(const float* samples, int frames);
