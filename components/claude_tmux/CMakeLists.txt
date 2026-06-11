@@ -1,6 +1,6 @@
 if(NOT CMAKE_CROSSCOMPILING)
     add_library(claude_tmux STATIC claude_tmux.cpp)
     target_include_directories(claude_tmux PUBLIC .)
-    target_link_libraries(claude_tmux PUBLIC sygaldry_endpoints)
+    target_link_libraries(claude_tmux PUBLIC sygaldry_endpoints worker)
     target_compile_options(claude_tmux PRIVATE -Wall -Wextra)
 endif()

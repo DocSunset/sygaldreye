@@ -13,6 +13,11 @@
 // Callback: receives request body (empty for GET), returns response body (JSON)
 using HttpHandler = std::function<std::string(std::string_view body)>;
 
+// Callback for WebSocket text messages on /ws: (connection id, message) →
+// reply text ("" = no reply). Runs on the server's poll thread.
+using WsHandler = std::function<std::string(unsigned long conn_id,
+                                            std::string_view msg)>;
+
 struct RouteKey {
     std::string method;  // uppercase: "GET", "POST", etc.
     std::string path;
@@ -38,6 +43,15 @@ struct HttpServer {
     // Thread-safe: may be called from any thread after start().
     void broadcast_event(std::string_view event_type, std::string_view data);
 
+    // WebSocket: GET /ws upgrades; ws_handler (set before start()) receives
+    // each text message. ws_send queues a text frame to one connection —
+    // thread-safe, delivered from the poll thread.
+    WsHandler ws_handler;
+    void ws_send(unsigned long conn_id, std::string msg);
+
+    // Internal: poll-thread drain of queued outbound WS frames.
+    std::vector<std::pair<unsigned long, std::string>> take_ws_outbox();
+
     void stop();
     ~HttpServer() { stop(); }
 
@@ -58,4 +72,7 @@ private:
     std::mutex                        sse_mutex_;
     std::unordered_set<unsigned long> sse_conns_;    // active SSE connection ids
     std::vector<std::string>          pending_events_; // queued for broadcast
+
+    std::mutex                                         ws_mutex_;
+    std::vector<std::pair<unsigned long, std::string>> ws_outbox_;
 };

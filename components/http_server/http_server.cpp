@@ -2,6 +2,7 @@
 #include "http_server.hpp"
 #include "mongoose.h"
 #include <cstdio>
+#include <utility>
 
 using RouteMap = std::unordered_map<RouteKey, HttpHandler, RouteKeyHash>;
 
@@ -18,6 +19,16 @@ static void ev_handler(struct mg_connection* c, int ev, void* ev_data) {
         ctx->server->remove_sse_conn(c->id);
         return;
     }
+    if (ev == MG_EV_WS_MSG) {
+        auto* wm = static_cast<struct mg_ws_message*>(ev_data);
+        if (ctx->server->ws_handler) {
+            std::string reply = ctx->server->ws_handler(
+                c->id, std::string_view(wm->data.buf, wm->data.len));
+            if (!reply.empty())
+                mg_ws_send(c, reply.data(), reply.size(), WEBSOCKET_OP_TEXT);
+        }
+        return;
+    }
     if (ev != MG_EV_HTTP_MSG) return;
 
     auto* hm = static_cast<struct mg_http_message*>(ev_data);
@@ -25,6 +36,10 @@ static void ev_handler(struct mg_connection* c, int ev, void* ev_data) {
     std::string uri(hm->uri.buf, hm->uri.len);
     for (char& ch : method) ch = static_cast<char>(ch & ~0x20);
 
+    if (method == "GET" && uri == "/ws") {
+        mg_ws_upgrade(c, hm, nullptr);
+        return;
+    }
     if (method == "GET" && uri == "/events") {
         mg_printf(c,
             "HTTP/1.1 200 OK\r\n"
@@ -73,6 +88,16 @@ std::string HttpServer::pop_pending_event() {
     return msg;
 }
 
+void HttpServer::ws_send(unsigned long conn_id, std::string msg) {
+    std::lock_guard<std::mutex> lk(ws_mutex_);
+    ws_outbox_.emplace_back(conn_id, std::move(msg));
+}
+
+std::vector<std::pair<unsigned long, std::string>> HttpServer::take_ws_outbox() {
+    std::lock_guard<std::mutex> lk(ws_mutex_);
+    return std::exchange(ws_outbox_, {});
+}
+
 void HttpServer::broadcast_event(std::string_view event_type, std::string_view data) {
     std::string frame = "event: ";
     frame += event_type;
@@ -98,7 +123,7 @@ void HttpServer::start(int port, HttpHandler get_handler, HttpHandler post_handl
         mg_http_listen(&mgr, url, ev_handler, &ctx);
 
         while (running_.load()) {
-            mg_mgr_poll(&mgr, 100);
+            mg_mgr_poll(&mgr, 10);
             // Drain pending SSE events and send to all marked SSE clients.
             for (;;) {
                 std::string msg = pop_pending_event();
@@ -106,6 +131,15 @@ void HttpServer::start(int port, HttpHandler get_handler, HttpHandler post_handl
                 for (struct mg_connection* nc = mgr.conns; nc; nc = nc->next) {
                     if (nc->fn_data == &ctx && nc->pfn_data)
                         mg_printf(nc, "%.*s", static_cast<int>(msg.size()), msg.c_str());
+                }
+            }
+            // Drain queued outbound WebSocket frames.
+            for (auto& [id, msg] : take_ws_outbox()) {
+                for (struct mg_connection* nc = mgr.conns; nc; nc = nc->next) {
+                    if (nc->id == id && nc->is_websocket) {
+                        mg_ws_send(nc, msg.data(), msg.size(), WEBSOCKET_OP_TEXT);
+                        break;
+                    }
                 }
             }
         }
