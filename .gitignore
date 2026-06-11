@@ -2,3 +2,4 @@ build
 worktree
 kanban
 .claude/worktrees/
+.venv-melotts
