@@ -2,6 +2,8 @@
 #include "signal_graph.hpp"
 #include "subgraph_node.hpp"
 #include "component_registry.hpp"
+#include "port_schema_reader.hpp"
+#include "port_types.hpp"
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -150,6 +152,18 @@ std::unique_ptr<Graph> parse_graph(const std::string& raw_json, const ComponentR
         g->nodes.push_back({desc, data, std::string(id)});
     }
 
+    auto kind_of = [&](const std::string& node_id, const std::string& port,
+                       bool output) -> std::string {
+        for (const auto& n : g->nodes) {
+            if (n.id != node_id) continue;
+            auto schema = parse_port_schema(n.desc ? n.desc->port_schema : nullptr);
+            for (const auto& pi : output ? schema.outputs : schema.inputs)
+                if (pi.name == port) return pi.kind;
+            return "unknown";  // unlisted port: let the setter decide
+        }
+        return "unknown";
+    };
+
     auto edges_key = std::string_view(json).find("\"edges\"");
     if (edges_key != std::string_view::npos) {
         auto ea_start = json.find('[', edges_key);
@@ -161,6 +175,17 @@ std::unique_ptr<Graph> parse_graph(const std::string& raw_json, const ComponentR
                 Edge e;
                 if (!split_dot(from_val, e.from_node, e.from_port)) continue;
                 if (!split_dot(to_val,   e.to_node,   e.to_port))   continue;
+                // Shared legality (same rules the editor enforces at wire
+                // time): a type-illegal edge rejects the whole graph, loudly.
+                std::string fk = kind_of(e.from_node, e.from_port, true);
+                std::string tk = kind_of(e.to_node,   e.to_port,   false);
+                if (!port_types::connection_legal(fk, tk)) {
+                    std::fprintf(stderr,
+                        "parse_graph: illegal edge %s.%s (%s) -> %s.%s (%s)\n",
+                        e.from_node.c_str(), e.from_port.c_str(), fk.c_str(),
+                        e.to_node.c_str(), e.to_port.c_str(), tk.c_str());
+                    return nullptr;
+                }
                 g->edges.push_back(std::move(e));
             }
         }

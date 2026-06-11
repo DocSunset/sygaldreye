@@ -1,0 +1,1302 @@
+copyright Travis West 2025
+
+Originally authored during my comps
+
+I forget if this made it into my thesis or not...
+
+\documentclass[main.tex]{subfiles}
+
+\begin{document}    
+	
+	\newpage{}
+	%\setcounter{page}{0}
+	\pagenumbering{gobble}% Remove page numbers (and reset to 1)
+	
+	\begin{singlespace}
+        \chapter{Integrating Datasets in the Dataflow Paradigm}\label{chapter:setflow}
+
+        Several mapping tools have been proposed to facilitate the prototyping of DMIs. These mostly fit into two main categories: datasets (interpolations) and data flow (parameter mapping). Each has its own strengths and weaknesses, their choice likely impacting the final mappings done. [20 – 25 pages]
+
+        a.Describe in detail 2 examples of tools in each category and elaborate on the possible impacts of each tool in the mappings obtained with them;
+
+        b.Discuss how a hypothetical solution could combine both approaches and present a pseudo-code that could implement such a tool for one specific NIME context (programming environment, interface, synthesis method);
+
+        c.Comment on whether these types of hybrid tools could be generalized to multiple music interaction contexts.
+
+	\end{singlespace}
+	
+	\newpage{}
+	\pagenumbering{arabic}
+	
+\section{Mapping Design Goals are Perception Design Goals}
+
+Much of the existing literature is occupied with details of implementation,
+comparing mappings in terms of whether they are explicitly or implicitly
+defined \cite{Hunt2000, Arfib2002}, in terms of their functional mathematical
+properties \cite{nort2004nime_geometric-properties}, or terms of their structure \cite{Momeni2006}.
+While important contributions, these prior works offer relatively little
+insight into how mappings are actually made, and provide no guidance on how to
+make mapping design choices to achieve certain aims.  At best, they provide
+vocabulary for discussing, comparing, and understanding mapping designs, but
+these analytic tools are only a first step towards recognizing the properties
+of mappings, not determining which properties are useful and in which
+circumstances.
+
+Van Nort and colleagues \cite{Nort2010, nort2014cmj} in addition to considering
+the structural and functional properties of mappings, also emphasized the
+importance of the perceptual qualities of mappings. In prior research by my
+colleagues and I \cite{making-mappings-design-process,
+making-mappings-design-criteria}, our preliminary observations suggest that the
+perceptual view of mappings is most relevant to mapping designers. This
+emphasis on perceptual considerations is also seen in prior studies observing
+mapping designers: composers working with the Wekinator in a participatory
+study by Rebecca Fiebrink reported that they appreciated the way the tool
+allowed them to focus on gesture and sound \cite{Fiebrink2011}; and in a study
+by Dom Brown and colleagues, most participants described their mappings in
+terms of spatial and musical metaphor \cite{brown2018moco}.
+
+Based on these results and my own practical experience designing mappings, it
+is my view that shaping the perceptual influence of the mapping is the final
+goal of mapping design. Consideration of algorithms, structure, and topology
+are only practical insofar as they help us to understand the perceptual
+influence of our mapping design choices. The ideal mapping design tool would
+allow users to directly specify the desired perceptual results of the mapping,
+and would reliably and faultlessly achieve their specification. This ideal is
+unfortunately not achievable today, and realistically never will be. This is
+mainly because "the desired perceptual results of the mapping" may not be known
+in advance. Indeed, surprise may be an essential goal of the design, in which
+case a priori specification of the behavior of the mapping would be especially
+challenging. Nevertheless, the end goals of any mapping design necessarily
+consider the perceptual effects of the mapping; everything else is instrumental
+(in the sense of "instrumental goals").
+
+\section{A Review of Mapping Authoring Tools}
+
+Since the perceptual effects of the mapping cannot be directly specified or
+manipulated, the mapping must be designed in terms of more immediate practical
+objects. I conducted a systematic review of mapping design tools presented at
+NIME and related venues, considering the ways in which mappings are designed,
+as manifested in these design tools. Based on my review, mappings are most
+often designed in terms of dataflow and/or datasets; that is to say, the
+perceptual behavior of the mapping is influence indirectly by manipulating the
+flow of data and/or the curation of datasets. Design tools can be characterized
+in terms of their affinity for dataflow and datasets, among other features.
+Based on these considerations, there are clear directions in which mapping
+design tools may be improved, and ways in which new tools may build upon
+previous work to better empower mapping designers.
+
+\section{Method}
+
+An inital pool of literature was formed starting with the special issues on
+mapping from the journals Organised Sound (year 2002, issue 2, volume 7) and
+Computer Music Journal (year 2014, issue 3, volume 38) as well as the
+bibliography of the ISIDM \cite{isidm-bibliography}. The ISIDM bibliography
+does not include any papers after 2011, so I additionally included all papers
+published at the NIME conference from 2012 to 2022 (excluding papers
+I wrote) as a representative body of research since 2011. In addition, a few
+papers were included for analysis from my personal bibliography based on my
+prior familiarity with the literature.
+
+% numer of tools: $ readings list | xargs rg --no-heading -NI '@@mapping@@design@@(sub-)?tool:' | sort | uniq | wc -l
+% number of papers: $ rsa '@@mapping@@design@@(sub-)?tool:' | wc -l
+
+The initial pool was scoured for papers presenting mapping design tools using a
+combination of keyword search and manual skimming.  62 mapping tools were
+identified based on 84 papers, including 49 papers presenting a design tool.  I
+read each of these papers and annotated them considering the following
+questions:
+
+\begin{itemize}
+    \item What are the objects that users are concerned with and manipulate?
+    \item How do users interact with these objects of interest?
+\end{itemize}
+
+\section{Dataflow Mapping Design Tools}
+
+% number of tools   $ rsa @@mapping@@design@@tool: | rs @@orientation@@dataflow | readings col-tags | rg @@tool: | sort | uniq | wc -l
+
+
+It is no surprise that dataflow-oriented design tools feature prominently in my
+review, including 23 of 49 tools surveyed. As described in an earlier chapter,
+the earliest digital music systems borrowed the flow of signals as a guiding
+principle and conceptual framework from their predecessors in analog modular
+synthesizers and tape music studios. Modular approaches to the design of music
+software absolutely dominate commercial music production software, and most
+music programming environments like Max/MSP, Pure Data, Supercollider, and
+Chuck, all support this conceptual framework.
+
+% number of libraries   $ readings list | xargs rg @@.*library
+
+Precisely what to call the objects of interest in a dataflow mapping design
+model differs from author to author. I will adopt the terminology that I
+previously suggested in my MA thesis \cite{West2020thesis}.
+
+In a dataflow model, \emph{devices} are the owners of \emph{endpoints}.  An
+endpoint may be the \emph{source} of a \emph{signal}, or it may be the
+\emph{destination} where a signal is sent to influence a \emph{parameter} of
+the device.  When a signal is routed from a source to a destination, this
+constitutes a \emph{connection} or an \emph{association} between the two
+endpoints.
+
+As well as endpoints, devices, and connections, dataflow mapping designers are
+often also interested in controlling the \emph{range} of an endpoint or
+connection, i.e. the minimum and maximum value of an endpoint. Designers often
+design associations from the range of one endpoint to the range of another;
+this linear transformation is often viewed as a part of the connection, as in
+Webmapper \cite{Wang2019} for example. More generally, the designer may be
+interested in the overall transfer function implemented by a connection. This
+view of connections as providing necessary transformations to allow one endpoint
+to be compatible with another is common.
+
+\section{Objects of Interest in Dataset Mapping Design Tools}
+
+Machine learning tools have been used in the design of mappings even before the
+importance of the design of mappings began to receive emphasis in the
+literature.  An early example is Lee and colleagues' addition of artificial
+neural networks to an early version of Max (before MSP was added), presented in
+1991 \cite{lee1991ann}.  Since then, numerous different models and algorithms
+have been gainfully employed in the design of mappings, including 19 of the 49
+tools surveyed.
+
+In these tools, users main interactions with the mapping are achieved by
+creating or deriving data that implicitly encode the specification of the
+mapping. The data may take the form of point-wise demonstrations, common in
+preset interpolators, recordings labelled with classification, often generated
+by hand, and other multi-modal data recordings, such as those generated by
+miming gesture along with sound sequences playing in real time. Several
+projects have also proposed ways of generating datasets in real time without
+user intervention, leading to systems that partially or fully automatically
+learn the mapping without supervision \cite{smith2011self-supervising,
+scurto2017online-clustering, delaspozas2020nime,
+murray-browne2021nime_latent-mappings}.
+
+The datasets, however they are derived, are used to train adaptive systems that
+model the relationships illustrated by the dataset.  Running the models then
+allows output data in one domain to be generated by inputting data from a
+different domain, e.g. sound synthesis parameters can be determined from sensor
+signals.
+
+At a fundamental level, the objects of interest when using these tools are
+points of data, streams of recorded or generated data, and associations linking
+data (points or streams) from different domains to form multi-modal datasets.
+The models themselves may be manually edited to some extent, but this is done
+so that the model will more accurately learn the relationships reflected in the
+dataset.
+
+\section{Higher-order Mapping Design and Mixed Data-flow/-set Approaches}
+
+If a first-order mapping associates gesture signals to sound parameters, then a
+mapping which controls a first-order mapping may be considered a higher-order
+mapping. This kind of structure is usually called a \emph{convergent} mapping,
+although this term has also been interpreted to be synonymous with a
+\emph{many-to-one} or \emph{many-to-many} structure, which is not necessarily
+higher-order in the sense described \cite{West2020thesis}. When dataflow- and
+dataset-oriented approaches are combined, this may also lead to higher-order
+mappings.
+
+In many cases, the mappings achieved with dataflow tools are affine mappings,
+and can be represented by an augmented transformation matrix.  In such cases,
+the mapping matrix itself can be treated as a device whose coefficients are
+parameter endpoints that can be modified in real time; a higher-order dataflow
+technique.  This approach is suggested by de Campo \cite{decampo2014icmc_metacontrol}
+in the form of applying random offsets to matrix coefficients.
+
+On the other hand multiple matrices can be pre-set and interpolated between to
+dynamically alter the mapping.  In this approach, the mappings themselves are
+treated as data.  They can be associated with data points in a different
+domain, such as 2D spatial coordinates, and an algorithm such as a preset
+interpolator can be used to navigate the space of mappings by moving through
+the space of 2D coordinates.  This kind of approach was found in 3 of the tools
+surveyed \cite{bevilacqua2005nime_mnm, Brandtsegg2011, decampo2014icmc_metacontrol}.  Alternatively,
+mappings themselves can be subjected to evolutionary techniques and subjective
+breeding, as demonstrated by Mandelis and Husbands in 2004
+\cite{mandelis2004grow-it}.
+
+Matrices are also interesting as there are efficient algorithms for learning a
+matrix transformation based on a dataset, but the matrix itself is also
+possible to understand for designers.  As such, matrices are perhaps unique in
+their ability to be directly tweaked and specified by the designer or trained
+from data.  Matrices are also conceptually simple and relatively easy to
+implement, which makes them particularly attractive as mapping primitives.
+This approach was found in 1 of the tools surveyed \cite{bevilacqua2005nime_mnm}.
+
+Dataset-oriented interactions can be integrated into a dataflow framework by
+allowing trained models to exist as devices in the dataflow graph.  This
+approach was identified in 3 of the tools surveyed \cite{bevilacqua2005nime_mnm,
+gillian2011sec, Bullock2015}, but arguably can be found in more than those
+three, since many dataset-oriented tools have been implemented as modules for
+dataflow-oriented languages, notably Max/MSP and Pure Data, e.g.
+\cite{francoise2014nime_xmm, kiefer2014esn}.  This potential for integration is
+promising, but there may be significant room for usability improvements, to be
+discussed below.
+
+Many algorithms used in dataset mapping design have free parameters, especially
+in preset interpolation algorithms.  In a dataflow-oriented approach, these
+parameters could be treated as endpoints and signals could be connected to
+influence them in real time.  In some cases, it may be practical to run a
+dataset-oriented model in real-time without training it in advance.  In such
+cases, the dataset itself can be treated as a collection of endpoint
+parameters.  Depending on the size of the dataset, it might be practical to
+individually route signals to each point in the dataset, controlling them in
+real time.  This approach was not emphasized in any of the tools surveyed.
+
+It is likely that any given dataset may be too large to treat in a
+dataflow-oriented approach.  However, datasets may be treated as parameter
+vectors in a higher-order dataset-oriented approach. For example, in their 2017
+NIME paper, Visi and colleagues \cite{visi2017nime} derive a topological
+representation of datasets recorded from multiple participants and use a common
+preset interpolation technique to interpolate between datasets, generating new
+intermediary datasets that are then used to train an adaptive model to follow
+gestures.
+
+\section{Wherein Lies the Design?}\label{section:endpoints-and-connections}
+
+In dataflow-oriented mappings, knowledge about the behavior and affordances of
+devices is encoded in their endpoint representations.  The user specifies the
+mapping by making connections between endpoints.  The design is encoded in the
+connections, and the knowledge implicit in the endpoints.  When the endpoints
+encode a significant amount of knowledge, the connections may be relatively
+simple; for example, there is no need for a complicated mapping between a
+breath pressure sensor signal and a physical model of a flute with an air
+pressure parameter.  In case the endpoints encode very little information, the
+mapping may need more complexity, such as multiple processing layers, in order
+to extract, condition, and combine signals so that a meaningful set of
+endpoints is derived.  The knowledge embedded in a dataflow-oriented mapping
+design is therefore strongly associated with the endpoints in the mapping.
+This is reflected by the way that endpoints can often be named and described
+in a dataflow network. That's the filter cutoff control, that's the shake gesture,
+and so on.
+
+Dataset mapping design tools can be viewed as being at least somewhat
+dataflow-oriented, as once the dataset is used to train a model, the model is
+naturally treated as a device through which the user will route signals. But
+unlike typical devices in a dataflow approach, a mapping model trained on data
+does not have its own set of meaningful endpoints. Its parameters are a
+reflection of the input domain, and its signals are a reflection of the output
+domain. As such, the endpoints of a model trained on data do not encode any
+knowledge on their own. The trained model could even be viewed as having no
+endpoints; it is more akin to a single complex connection between the (often
+high-dimensional) domain and range represented by the signals coming into the
+model and the parameters it influences. Instead, \emph{the dataset used to
+train the model} contains knowledge about the design. Presets, gesture
+recordings, and sound parameter automations have inherent meaning, especially
+when they are carefully designed by the user. Linking them together to form
+multi-modal datasets is analogous to making a connection between endpoints in a
+dataflow model. The data in a dataset-oriented model can thus be viewed as
+implicit representations of meaningful connections and endpoints that the
+learning models in these tools are tasked with implementing through their
+internal machinations.
+
+If this is the case, we should expect that the datasets in dataset-oriented
+techniques would be associated with meaningful concepts, which is indeed what
+we observe.  In all of the dataset-oriented tools surveyed, the datasets of
+interest were related to gestures and/or sound parameters that were known to be
+of interest in advance. The fact that datasets and endpoints encode specific
+meanings is also shown by their naming conventions. Like endpoints in a dataflow
+network, datasets can often be labelled in terms of what they are meant
+to represent, such as the names of presets or gesture demonstrations.
+
+In preset interpolators, the fact that the dataset is used to derive more
+meaningful endpoints from raw signals is explicit in the structure of the
+algorithm. The presets in control space represent meaningful states of the
+control space signals. These algorithms employ various geometric models of
+closeness to these control points to generate a vector of weight signals that
+are then used to mix between the presets in destination space. The vector of
+weights is literally the realization of a model of meaningful endpoints
+represented by the control space presets.
+
+An exception to rule that dataset-oriented models hide their
+meaningful endpoints internally is found with uni-modal tools such as gaussian
+mixture models \cite{francoise2014nime_xmm}. In these tools, the model is trained to
+derive a set of meaningful parameters, such as gesture descriptors, from a set or raw inputs,
+and so is another case where the learning model is explicitly trained to represent
+meaningful endpoints.
+
+Therefore, in both dataflow- and dataset-oriented mapping design approaches,
+endpoints (i.e. signals and parameters) may be considered as primary vessels of
+knowledge and intent in the mapping design, whether they are empirically
+represented or implicitly encoded in datasets and represented only in the
+internals of a learning model.  Connections between endpoints,
+whether explicit connections or multi-modal associations between datasets, are also an
+essential component of the mapping design, since they specify how the potential
+behaviors and affordances encoded in the endpoints should be related.  
+
+However, higher-order mapping approaches blur the lines between endpoints and
+connections.  For example, a transformation matrix may be thought of as a connection from
+$N$ signals to $M$ parameters. It may also be viewed as a collection of
+data modelling something that can be learned by a training model, i.e.
+as an implicit representation of endpoints and their connections.  The same
+matrix could also be viewed as an endpoint unto itself, a single $N*M$ dimensional
+point to be modulated by some other process. The ambiguity here arises due
+to the fact that mappings themselves can be viewed as having endpoints,
+or as being defined by datasets that implicitly model those endpoints.
+
+From these considerations, it appears that if datasets are viewed as implicit
+models of endpoints and connections, then endpoints and connections are
+conceptually sufficient objects of interest that can fully model mapping
+designs. Notably, devices seem to play a similar role to datasets; both devices
+and datasets group together endpoints, and implement hidden layers of
+processing to derive a set of outputs from their inputs. Devices, like
+datasets, hide internal connections that associate inputs to outputs. Unlike
+datasets, the endpoints of devices are generally semantically meaningful unto
+themselves, whereas datasets tend to hide some or all of their meaningful
+endpoints internally, and connect directly to externally meaningful endpoints.
+Datasets and devices can thus be viewed as conceptually related, or even
+instances of the same conceptual object. They group together endpoints, and
+implicitly connect them. They are black boxes whose internal processes are
+inscrutable, or at a lower level of detail than is called for by the designer.
+
+\section{Models and Cross-Domain Mappings}
+
+Returning to the importance of the perceptual view of mappings, and considering
+the conceptualization of a mapping as a network of endpoints and connections,
+whether explicitly grouped together by devices or implicitly by datasets,
+I would like to emphasize that there are two broadly different kinds of reasons
+for mapping design, regardless of the tools used to implement the design.  These
+two motivations can be used to broadly segregate the mappings in a DMI into
+two groups.
+
+Before addressing these reasons for mapping, consider the mappings that appear
+in and around a DMI. The concept of a mapping is generic and flexible. It is
+not unreasonable to broadly imagine the concept, and consider the mappings e.g.
+from the performer's intention to their physical movement, from the physical
+movement to the actuation of sensors, from the actuation of sensors to the
+transduction of electrical signals, from the electrical signals to digital, and
+so on until digital signals are converted back to electrical, electrical to
+acoustic, acoustic to neurological, and from neurological signals another
+mapping to meaning in the mind of the listener. The connections also extend
+back from the audience to the performer, via visible light and other signals,
+which are mapped in the performer's brain to an interpretation of the
+audience's affective states, which may in turn influence the performer's
+intention. However, all of these mappings just described are largely outside of
+the purview and influence of the mapping designer. We could term them inherent
+mappings or external mappings. They are largely outside the scope of the
+designer's considerations, or at least outside the scope of their practical
+implementations.
+
+Within the designer's scope, there are also numerous mappings, in the broadest
+sense. Signals from the sensors must be conditioned, calibrated, fused, and
+analysed, perhaps producing gestural signals that can be further conditioned,
+calibrated, fused, and analysed to produce other signals of interest. Rather
+than being mapped directly to synthesis parameters, there might be on the
+synthesizer's side further layers of conditioning, calibration, fusion, and
+analysis used to produce higher-level sound parameters. In the middle, a
+simpler layer of mappings might bridge the gap from high-level gesture signals
+to high-level synthesis parameters, crossing from the domain of movement to
+that of sound. This is the layered structure of mappings described by Hunt et
+al \cite{Hunt2002a}, proposed as a way of simplifying the design process, and
+potentially providing for portable mappings that could generalise to many
+instruments.
+
+The mappings giving rise to intermediate layers, in Hunt et al's discussion, are notably
+different in character from the innermost layer of mappings. Let us term the latter as
+\emph{cross-domain mappings}, and the layers of conditioning, calibration, fusion, analysis, etc.
+not as mappings at all, but as \emph{models} of specific meaningful signals and behaviors.
+In the conceptual framework of meaningful endpoints with connection between them,
+models are characterized by giving rise to new meaningful endpoints, whereas cross-domain
+mappings merely associate existing endpoints.
+
+Revisiting the discussion of evaluation, ecologies, proliferation, comparison, and developing design
+knowledge, it is also apparent that models exhibit better generality, relating only to the
+specificities of their inputs or outputs, whereas cross-domain mappings relate to both.
+Models are thus more likely to be useful in the context of multiple musician+instrument
+ecologies. For example, gesture models that derive new signals from MIMU data may be useful
+to any instrument with a MIMU, whereas cross-domain mappings from those gestures to synthesis
+parameters are only potentially useful if an instrument uses a MIMU \emph{and} the same synthesizer,
+or one exposing comparable high-level synthesis parameters.
+
+On the other hand, recognizing the diversity and complexity of the environment, I do not advocate
+that high-level signals produced by models should \emph{replace} or otherwise reduce access to
+the least-conditioned raw data, nor do I wish to imply that the goals previous assumed should
+be universally adopted and reflected in the design of mappings.
+
+As described by Thorn and Sha \cite{thorn2019moco_instruments-of-articulation},
+"signal processing affords continuous revision of instrument 
+morphology without requiring termination in a conceptual schema 
+demanded under the scientific desideratum of universal validity." They describe their approach
+to the design and construction of "instruments of articulation" emphasizing a closed loop
+of sensorimotor engagement with a system leading to changes in the code that influence
+sensorimotor experience, a nomadic science where the development of the system responds to the
+conditions the system creates, through pure signal processing that doesn't necessarily
+encode a priori categories or semantic interpretations, but rather responds interactively to
+events, conditions those events, and produces results from which meaning emerges rather than
+enforcing assumed meaning through its design. Thorn and Sha's discussion constrasts
+vividly with my own emphasis and aspirations toward generality, universal usefulness, and
+interpretable networks marked with semantically laden endpoints. Let it be understood that
+these approaches are not mutually exclusive. In particular, so long as the inner mechanisms
+of an instrument system are exposed and accessible, Thorn and Sha's process of canalization
+remains possible, and within the conceptual framework I have constructed, there is no
+reason why the meaning inherent in an endpoint must necessarily submit itself to ready
+interpretation, categorization, or universal fixed understanding. Endpoints can also
+be semantically shallow, in the sense described by Thorn and Sha.
+
+\begin{displayquote}
+Through trial and 
+error, salient features are designated within a code that constructs 
+those features. Choices are made about what needs to be detected, 
+this band of energy or that type of attack. The media itself is 
+constructed by the actual mathematical choices in the analysis of 
+the feature vectors. ... In building instruments that are radically open 
+for players to rupture pre-conceived semantics through their 
+improvised, alinguistic and articulating actions, we are advocating 
+a view of intentionality that is semantically shallow and not based 
+on the notion of intentional being connected to a goal known in 
+advance.
+\end{displayquote}
+
+\section{Deep Dive: Dataflow}
+
+This section describes the basic resources of mapping design, which tend to
+emphasize the flow of data through the system. These are essentially the
+techniques of computer programming. They can be leveraged to model semantically
+meaningful qualities of the signals in an instrument, or to merely condition
+the connection from one endpoint to another in a cross-modal mapping.
+
+\subsection{The Modulation Matrix}
+
+A mapping viewed as a network of connected endpoints naturally lends itself to a mathematical treatment
+as a directed graph, where the endpoints correspond to vertices and the connections to edges. This can be
+represented with an adjacency matrix. This representation is sufficient for encoding simple connections
+between endpoints with scalar values. Multidimensional values can be accomodated by breaking them into
+scalar components. Treating the network as a weighted graph gives rise to a matrix
+with scalar coefficients, allowing the influence of each connection to be adjusted.  This is one way
+of viewing a modulation matrix.
+
+If there are $N$ sources and $M$ destinations, then the matrix will have dimension $N*M$. The current values
+of all the sources can be treated as a column vector $s$, and the value of the signals input to all
+destinations, a column vector $d$ is given as $d = As$, where $A$ is the matrix representation of the graph.
+Each non-zero element $A_{nm}$ in the matrix represents a connection from the $n$th source to the $m$th destination.
+The $n$th row in the matrix can be viewed as showing the influence of the $n$th signal on every one of the parameters.
+The $m$th column gives the influence of every signal on the $m$th parameter.
+
+Augmenting the graph with a constant signal with a value of 1 allows signals to be offset as well as
+adjusted in magnitude. An $N+1$th row is added to $A$ which gives the offset for each parameter.
+This matrix is equivalent to an affine transformation from the source space to the destination space.
+
+A modulation matrix of this sort is sufficiently powerful to represent many practical dataflow mapping designs.
+The natural interpretation of the matrix as routing influence of the sources to the destinations also lends itself to
+higher-order extensions. De Campo \cite{decampo2014icmc_metacontrol} suggests applying random perturbations
+to the matrix coefficients, crossfading or blending between pre-defined matrices, and modifying the coefficients
+by other means. Brandtsegg et al \cite{Brandtsegg2011} also highlight the usefulness of blending between
+matrices, and Bevilacqua et al \cite{bevilacqua2005nime_mnm} also suggest its utility.
+
+Bevilacqua et al \cite{bevilacqua2005nime_mnm} further highlight the possibility to derive matrices of this sort
+through linear regression of a dataset, using singular value decomposition. This illustrates modulation matrices
+as a particularly unique and powerful mapping tool, because they can be readily composed by hand with a
+dataflow-oriented approach, and they can also be easily derived from a dataset. Their flexibility toward
+high-order approaches makes them an especially promising candidate for facilitating integrated
+flow/set agnostic approaches to mapping design.
+
+\subsection{Other Dataflow Resources}
+
+Since dataflow is rather the default assumption in mapping design, and to some extent in computer
+music and music technology more broadly, the basic resources of dataflow mappings are not in general
+emphasized in the literature as notable techniques, per-se. Rather, they are taken for granted as
+basic ingredients. The modulation matrix, for example, is essentially a particular way of structuring
+multiplication by a constant, addition of a constant offset, and mixing together of signals from multiple sources,
+which may reasonably be viewed as such basic operations as to be beneath notice or discussion.
+
+Other tools that can be taken for granted include basic nonlinear functions such as absolute value, exponentiation, and
+logarithms, sigmoid curves such as the hyperbolic tangent, piecewise linear breakpoint envelopes, splines,
+and other (sometimes piecewise) polynomial functions.
+
+Some of these can naturally be integrated into the modulation matrix paradigm. For example, the multiplication
+by a constant at each cell in the matrix can be replaced by a breakpoint envelope or other non-linear curve.
+This kind of approach is found in commercial plugins such as Roli's Equator synth\footnote{\url{https://roli.com/products/software/equator2}} and mntra instruments' MNDALA engine \footnote{\url{https://www.mntra.io/mndala/}}. In principle, powers and products
+of signals could be added as additional inputs into the modulation matrix, allowing it to model convergent
+polynomial-type relationships. Similarly, non-linear functions could be applied to signals at the input, or
+to the outputs of the matrix, integrating these into the matrix as additional endpoints on its edges.
+
+Alternatively, and more commonly, these operations might be considered as primitive devices unto themselves.
+This readily gives way to a general boxes-and-lines programming environment, with all of its attendant
+capability and complexity.
+
+\subsubsection{The Effects of Dataflow}
+
+while highly useful, modulation matrices are also limited in their expressive power.
+affine transformations cannot implement non-linear mappings, and while smaller
+matrices may be developed by hand, reasoning about very large modulation matrices
+can become challenging, and their design by hand cumbersome. Integrating non-linear
+processes in the matrix paradigm can overcome the first issue, and the expense of
+increasing the second.
+
+More generally, dataflow oriented techniques are only as useful as the
+designer's ability to understand and implement flows that result in the desired
+behaviors. When design goals or desired behaviors are not clearly specified,
+dataflow based design approaches offer the designer little help. Furthermore,
+the requirement for the designer to largely specify all operations in the
+mapping makes it challenging to implement mappings that exhibit surprising or
+unexpected behavior. These limitations serve as strong motivation for the
+development of dataflow-oriented design techniques.
+
+\section{Deep Dive: Datasets}
+
+This section introduces a handful of tools which generate mappings from data. In particular,
+I will describe several preset interpolation algorithms, since these are a common kind of
+dataset-oriented mapping technique that are widely used, easy to implement, and provide
+interesting results.
+
+The basic principle of preset interpolation is to mix between
+$N$ presets $p_n$, which are simply vectors in the space of destination parameters,
+producing an output vector $y$ in destination
+space via a weighted sum with weights given by $w$:
+
+\begin{displaymath}
+y(w) = \sum_{n = 0}^{N - 1} w_n * p_n
+\end{displaymath}
+
+Notice that this application of the weights can also be viewed as a matrix
+multiplication, where the matrix is given by concatenating the presets (viewed as columns),
+e.g. $y = Pw$.
+
+The role of the preset interpolator is simply producing and
+applying a list of weights, usually as a function of a query or cursor vector
+$q$ in the source space, and list $D$ of $N$ demonstrations, where each demonstration $d$
+is simply a pair of vectors ${s_n, p_n}$ with $s_n$ in the source space and $p_n$ in the
+destination space.
+
+\begin{displaymath}
+w(q, D) = [w_0, w_1, w_2, ..., w_{n}]^T 
+\end{displaymath}
+
+\begin{displaymath}
+D = \{s_0, p_0\}, \{s_1, p_1\}, \{s_2, p_2\}, ..., \{s_n, p_n\}
+\end{displaymath}
+
+The complexity of the algorithm lies in the way in which the weight vector is produced.
+This usually employs a geometric interpretation of the source vectors, where
+some notion of "closeness" from the query vector to the source vectors is used
+to derive a weight for each source vector, which is then applied to the associated
+preset vector.
+
+While numerous preset interpolation schemes have been proposed for musical applications,
+I will cover two in detail which happen to be my favorites based on informal testing.
+They are both reasonably simple to implement, amendable to higher-order mapping structures,
+and between the two of them provide a reasonable sense of some of the concerns involved
+in the selection of a preset interpolation algorithm, such as locality and smoothness.
+
+\subsection{Inverse Weighted Distance}
+
+Likely the simplest preset interpolation algorithm,
+well described by Todoroff et al \cite{todoroff2009icmc_interpolation-tools},
+follows a simple inverse distance rule to determine the weights.
+The most basic version of the algorithm is a simplified gravitational model.
+The weight $w_n$ for demonstration $n$ with source point $s_n$ is simply
+the inverse of the squared distance from the query $q$ to $s_n$:
+
+\begin{displaymath}
+w_n = \frac{r}{||q - s_n||^2}
+\end{displaymath}
+
+Where $r$ accounts for the relative mass of the demonstration. A useful
+extension is to allow an arbitrary positive exponent $p$:
+
+\begin{displaymath}
+w_n = \frac{r}{||q - s_n||^p}
+\end{displaymath}
+
+Todoroff and colleagues also introduce a global $d_{min}$ parameter that serves
+to prevent numerical instability, and $r_{min}$ parameter that allows a region
+around the demonstration to be dedicated to that demonstration.
+
+\begin{displaymath}
+w_n = \frac{r}{max(d_{min}, (||q - s_n|| - r_{min})^p)}
+\end{displaymath}
+
+In principle, the mass $r$, minimum distance $d_{min}$, exponent $p$ and distance offset $r_{min}$
+can be varied on a per-demonstration basis.
+
+Various extensions to this already quite flexible model are possible. A background
+value can be added with a low constant weight to take over when the query vector
+is distant from all control points \cite{todoroff2009icmc_interpolation-tools}.
+With such a background vector, another useful extension is to ignore control
+points that are further away than a certain minimum threshold distance, improving
+the locality of the model \cite{gibson2019smc}.
+
+Considering the functional characteristics of the algorithm \cite{nort2014cmj,
+nort2004nime_geometric-properties}, the basic inverse weighted distance
+interpolation is smooth (i.e. continuously differentiable), continuous, allows
+demonstrations to be scattered (i.e. they needn't be aligned to a grid), and
+N-to-M dimensional (i.e. maps from an arbitrary number of source dimensions to
+an arbitrary number of destination dimensions), as well as very simple to
+implement, with $O(n)$ complexity in the number of demonstrations, even if the
+demonstrations are changed dynamically in a higher-order mapping structure. The
+minimum distance and radius extensions described above introduce
+discontinuities in the first derivative, but otherwise maintain the good
+functional characteristics of the model. The main drawbacks of this algorithm
+are that it exhibits some non-local behaviour; adjusting the location or other
+parameters of one preset can influence the resulting output far from the
+location of that preset, because the weight of distant presets is generally
+never exactly 0. Gibson's minimum threshold extension \cite{gibson2019smc}
+improves this situation somewhat. It could also be argued that the large number
+of tuneable parameters may be a nuisance, in case the user does not wish to
+have to carefully tune the response of the algorithm.
+
+\subsection{Marier Spheres}
+
+Martin Marier introduced the so called "intersecting n-spheres interpolation"
+algorithm \cite{marier2012nime_nspheres} as part of his work with The Sponge
+\cite{marier2010nime_the-sponge}, a deformable digital musical instrument which
+Marier has been developing for over a decade. This algorithm produces an
+interpolated output that is smooth, continuous, N-to-M, exactly passes through
+the demonstrated destination points, and locally depends only on nearby
+demonstrations. The algorithm also imposes no constraints on the placement of
+source and destination presets, and with an efficient implementation the
+algorithm allows for the position of presets to be dynamically varied in
+real-time, allowing the possibility for higher-level mappings.
+
+Intersecting n-spheres interpolation produces weights for a weighted sum
+according to the following procedure. In summary, for each demonstration two
+circles are drawn: one centered on the source vector of the demonstration (the
+source circle), and one centered on the query vector (the query circle). The
+radius of the query circle is given by the distance from the query point to its
+nearest neighbour in source space. The radius of the source circle is also
+given by the distance to its nearest neighbour, which may be either the query
+point or a different source vector in a different demonstration. The weight for
+each demonstration is given by the ratio of 1) the area of the source circle
+for that demonstration, and 2) the area of the intersection of the source
+circle with the query circle. In a practical implementation, the procedure in
+full proceeds as follows.
+
+Given a query point $q$, and a list of demonstrations consisting of $N$ points
+in source space $s_n$ paired with the same number of points in destination
+space $p_n$:
+
+1. Determine the distance $d_n$ from each demonstrated source point $s_n$ to
+the cursor point $q$. At the same time, search for the nearest neighbour of $q$
+and record its distance from $q$ as $r_q$.
+
+2. For every demonstrated point in source space $s_n$, calculate and
+record the distance $r_n$ from that point to its nearest neighbour in source
+space (not including $q$).
+
+3. The weight $w_n$ associated with the destination vector $p_n$ of the $n$th
+demonstration is given by $A_x(r_q, r_{min}, d_n) / A(r_{min})$ where $r_{min} = min(r_n, d_n)$, $A(r_{min})$ is
+the area of the source circle, and $A_x$ is
+the area of the intersection of the source and query circles.
+Note that $A_x$ depends only on the radii of the two circles $r_q$ and $r_n$,
+and the distance $d_n$ between them.
+
+4. Calculate the interpolated output $p$ in destination space as the weighted
+sum of demonstrated outputs $p_n$.
+
+5. Normalize the weights (or equivalently the weighted sum) so that their sum
+is equal to one by dividing each weight $w_n$ by the mean of all the weights
+$\mu = \frac{1}{N}\sum_{n = 0}^{N - 1} w_n$
+
+$A_x$ is given by the following function:
+
+\[
+\begin{aligned}
+A_x(R, r, d) &= r^2 cos^{-1} ( \frac{d^2 + r^2 - R^2}{2dr} ) \\
+             &+ R^2 cos^{-1} ( \frac{d^2 + R^2 - r^2}{2dR} ) \\
+             &- \frac{\sqrt{(-d + r + R)(d + r - R)(d - r + R)(d + r + R)}}{2}
+\end{aligned}
+\]
+
+And $A$ is given by the usual equation for the area of a circle:
+
+\[
+A(r) = \pi r^2
+\]
+
+Step 2 above is an instance of the "all nearest neighbours" problem. We are
+given a set of points (the demonstrated points in the source space plus the
+cursor point) and for each point $p$ we need to determine the nearest other
+point in the space, which will be used to determine the
+radius of the circle associated with $p$.
+
+Based on a cursory and incomplete search, efficient
+algorithms appear to exist which solve the all nearest neighbours problem in
+$O(n\log n)$ time, or even in $O(n)$ time if certain constraints are met.
+Unfortunately, comprehending (let alone implementing) the linear time
+algorithms for this problem is non-trivial, so we opt to use a simpler
+algorithm until such time as it becomes clear that optimization is necessary.
+
+If we assume that the demonstrations may change at any time, then updating any
+of the points in source space including the cursor point always requires the
+all nearest neighbour problem to be solved anew, because the nearest neighbour of
+the updated point and any point that it was previously the nearest neighbour of
+all have to be updated. Because the position of the cursor point is assumed
+to change whenever the interpolator is queried, this means that the nearest
+neighbour problem must be solved for every query. A trivial implementation
+such as in Marier's original Supercollider implementation of the
+algorithm solves this problem with $O(n^2)$ time using plain old
+brute force; the distance from every point to every other point is calculated,
+and the nearest neighbour is found as the point with the least calculated
+distance value. In Marier's practice this $O(n^2)$ time complexity hasn't been
+reported as an issue, presumably because the number of data points has always
+been reasonably low.
+
+However, if we assume that the demonstrations have not changed since the last
+query, then it should be unnecessary to solve the all nearest neighbours
+problem.  Instead, the weights can be generated in linear time, since only the
+distance from the query point to each demonstration needs to be calculated.
+
+The algorithm, despite its name, actually doesn't involve any n-spheres.
+Intead, 2D circles are used, simplifying the algorithm while producing results
+that "are predictable and feel natural to the user" according to Marier. The
+advantage of Marier's algorithm is that the influence of each demonstration is
+constrained to its local neighbourhood. In my informal experiments with the
+algorithm, the sense I have is that each demonstration has a certain opacity,
+so that the query vector is not able to see past nearby demonstrations, so that
+far away demonstrations have no influence on the output. This also has the
+effect that when the query vector is far from any point, usually only the
+nearest point has any influence. In comparison, inverse weighted distance
+algorithm produces a muddy mix of all presets when the query vector is far from
+everything. An unusual quirk of Marier's spheres occurs when two demonstrations
+are very close in source space. This causes their source circles to be
+excessively small in size, producing interesting artefacts and strongly local
+behavior near those demonstrations. It is unclear whether this should be
+considered a drawback or a useful feature.
+
+\subsubsection{The Influence of Datasets}
+
+The main advantage of dataset-oriented tools is that they allow the designer to
+provide data that is known to encode something interesting, and the algorithm
+then provides an implicit representation of that behavior. This enables
+mappings to be designed despite poor a priori specification or understanding,
+and also gives rise to interesting behaviors being assigned to swathes of
+intermediate inputs whose corresponding outputs are not explicitly defined by
+the designer. In user studies (e.g. \cite{Fiebrink2011}) this has been found to
+permit designers to focus more readily on the perceptual outcomes of the
+mapping processes and to produce more surprising and explorable mappings ,
+whereas dataflow oriented approaches in contrast may require designers to focus
+largely on low level details of implementation.
+
+\section{Integrated Design of Mappings by Dataflows and Datasets}
+
+Although there is relatively little empirical information on how the design process
+is influenced by differently oriented mapping design tools, it can reasonably be
+presumed that dataflow and dataset type approaches offer different efficiencies
+and influence the design process is observably distinct directions. For this reason,
+it may be advantageous to provide mapping design environments in which these
+techniques are equally accessible for use in the design process. However, a number of
+challenges arise when considering how to achieve this kind of integration.
+
+In a dataflow-oriented approach, endpoints are generally considered as scalar values.
+Even when naturally vectorial endpoints are involved, such as the acceleration of an
+object as measured by an accelerometer or the color of a pixel, it is common to treat the elements of the
+vector as individual endpoints, and to seperately process and utilize them. In general,
+endpoints are practically asynchronous, due to the performance characteristics of the
+transmission media used to communicate signal data from the embedded environment where
+they are acquired to other processing nodes in the system. For example,
+a button's signal may only be transmitted when the state of the button changes.
+Where signals are actually acquired in a synchronous manner, it is common for information
+about the exact sampling rate to be discarded, if it is ever known, and it cannot
+in general be assumed that synchronous signals from different sources will share
+any common timebase allowing them to be synchronized with each other.
+
+In contrast, dataset-oriented approaches unanimously treat endpoints as regularly-sampled
+points in (usually Euclidean) vector spaces. All, or a subset, of signals generated by
+an input device are lumped together as "the source space", and similarly the parameters
+of a device are treated as a vector in "the destination space". This is difficult efficiently to
+reconcile with the more fine-grained view adopted in dataflow approaches, as well
+as the typically asynchronous and event-driven nature of most implementations.
+Naive approaches raise concerns about costly re-computation of values, similar to those
+that arise in functional reactive programming systems; if a single element of a vector
+in a dataset is updated, this may trigger recomputation of a complex data structure
+internal to a dataset-driven system, such as the costly all nearest neighbours search in
+the Marier Spheres algorithm. If elements arrive asynchronously, out of sync, as distinct and seperate
+events, this recomputation could be needlessly re-triggered numerous times in a short
+period. The solution requires some kind of synchronization mechanism to be employed
+so that the recomputation is only triggered once. In patcher languages like Max and Pure Data,
+this is typically achieved using a "pack" object, which only triggers its output when the
+left-most input is received. While more sophisticated synchronisation methods could
+certainly be imagined, this kind of naive scheduling by hand is typical, and
+while frequently annoying and error-prone, sufficient.
+
+Another challenge that arises is that dataset-oriented approaches introduce the need for
+offline treatment of data in the form of dataset recording mechanisms, as well as ideally
+tools for editing, curating, annotating, combining, and post-processing datasets.
+Many dataset-oriented techniques are provided to users as add-ons
+for dataflow programming environments, especially Max/MSP and Pure Data.  In
+these cases, facilities for recording data are often noticeably bare.  The user
+may have to write code or add objects in order to control recording, training,
+and running the model, as well as sharing datasets between models, or
+performing any further analysis or processing on recorded datasets
+\cite{bevilacqua2005nime_mnm, gillian2011sec, francoise2014nime_xmm, kiefer2014esn,
+Bullock2015}.  This code may need to be instantiated multiple times if multiple
+models are used.  There may or may not be simple unified facilities for
+exchanging data between models.  Furthermore, processes used to manipulate
+signals should be available for the
+manipulation of data points and datasets, as well as allowing dataset tools
+to sit in the dataflow network.  This would further
+enhance the integration between dataflow and dataset approaches, and make for a
+remarkably versatile and flexible mapping design environment, but is unfortunately
+not an affordance that is made readily usable in any environment surveyed.
+
+Far from providing highly usable integration of datasets into data flow environments,
+most existing tools are tools are
+deliberately incomplete.  At least one tool surveyed actually requires
+datasets to be recorded and models trained in MATLAB before exporting the model
+in a format where it can be imported and run in Pure Data
+\cite{cont2004pd-ann}.  This affords users with maximum flexibility, but
+provides relatively low usability, especially for users that are not already
+confident in the programming environment.  This effectively makes these
+distributions completely inaccessible to potential users who lack a high level
+of technical skill and confidence.
+
+There is a significant gap in the papers surveyed for a tool that provides good
+usability for non-technical users and an unified workspace providing for both
+dataflow- and dataset-oriented mapping design approaches.  Particularly in
+light of the unifying conceptual model proposed in
+\cref{section:endpoints-and-connections}, dataset-oriented approaches may be
+best utilized to enhance dataflow-oriented design tools.  In addition, dataflow-oriented
+approaches could be gainfully employed to post-process datasets, providing bidirectional
+enhancement to these two approaches. Future tools may
+improve on existing efforts by providing readily usable tools for recording, processing, analysing,
+manipulating, curating, and otherwise handling training datasets, including
+processing them with the available dataflow operations, as well as allowing
+dataset-oriented algorithms to exist as devices or complex connections in the dataflow graph.
+
+Furthermore, higher-order mapping techniques have been explored in relatively
+few tools to date.  Although some such approaches are relatively easy to
+achieve in most dataflow design tools, others may be more involved due to
+incompatibilities in the way data is represented in different approaches.
+Ideally, any dataset, model, and whole mappings should have the ability to be
+represented as a data point, a dataset, or a group of endpoints.  Adding such
+affordances would open up the possibility to more easily explore a wide variety
+of higher-order mapping approaches.
+
+\section{Thought Experiments}
+
+This section considers some hypothetical mapping designs to illustrate the usefulness
+of an integrated design approach incorporating both dataflow- and dataset-oriented
+mapping design tools, and particularly of higher-order mapping structures.
+The thought experiments consist of proposed mappings
+for real and imagined DMIs.
+
+\subsection{A Higher-Order Mapping for T-Stick}
+
+The T-Stick is a digital musical instrument invented by Joseph Malloch
+\cite{Malloch2008} that consists of a PVC pipe shell on which is placed a
+force-sensitive resistor (FSR) that measures squeezing pressure applied by the
+player, an array of capacitive touch sensors that sense where the player's hand
+contacts the pipe, and a magnetic-inertial measurement unit from which the
+orientation, angular velocity, and linear acceleration of the instrument can be
+estimated. In addition, one tactile push button is found on one end of the
+pipe. In typical compositions for the T-Stick, a sequence of different dataflow mappings
+are employed over the course of the piece, activated by a timer or push of the
+button. This is convenient insofar as it allows the performer to avoid
+accidentally activating unintended sounds at the wrong moment, since the
+excitatory affordances of the instrument are limited to those of the current
+mapping mode. This is a common approach for many DMIs, which is appropriate for
+a composed piece that should generally be performed in more-or-less the same
+way with similar results at each performance.
+
+An alternative approach, more appropriate for e.g. improvisation, would be to
+allow all mapping modes of the instrument to be quickly accessed from one main
+mapping. The simplest way to achieve this might be to allow each mapping mode
+to be accessed as a preset, e.g. by pushing the button to move to the next
+preset. This implementation unfortunately doesn't provide the player with much
+fluidity to move between interaction modes.
+
+By integrating dataset-oriented tools with the various dataflow modes of the
+instrument in a higher-order structure, a more flexible design can be achieved.
+Suppose that the player has a few mapping modes in mind: a rain-stick mode,
+where the instrument is gripped by both hands, one on either side, and a
+granular noise is synthesized depending on the change in tilt and acceleration
+of the instrument; a metal bar mode, where the instrument is gripped with one
+hand on the end of the pipe, and sudden impulsive accelerations from jabbing or
+tapping the instrument and brushing gestures on the touch sensor are used to
+excite a synthesized model of a metal bar; a light-saber mode, where the
+instrument is held with both hands on one end, and squeeze pressure,
+orientation, and rotation influence whirring electronic synthesized sounds; and
+an abstract granulator, where the instrument is held with one hand in the
+middle of the pipe, and the location of a touch by the other hand selects
+from a sample buffer to be granulated, while orientation and acceleration
+modulate filtering and reverberant effects.
+
+Notice that by construction, each mode can be differentiated based on the position
+of the player's hands. Supposing that the output from the touch sensors for each
+of these positions is recorded as a sequence of demonstration data for the
+geometric model of a preset-interpolation algorthm, or similar uni-modal
+learning model, then a vector of weights, one for each mapping mode, can be
+computed and used to drive a higher-order mapping that integrates all four modes.
+
+\subsection{1-Bit Whistle}
+
+The previous example considers the T-Stick, an input device with numerous
+sensors and a rich established gestural vocabulary, controlling a synthesis
+engine which is presumed to be comparably rich and flexible. To motivate for
+the general utility of combining dataset and dataflow tools, consider the
+following example that considers an imagined instrument, the 1-Bit Whistle,
+which consists of a breath pressure sensor, a handful of buttons arranged to
+support a particular pitch fingering system (e.g. \cite{west2022nime_pfs}), and
+a 1-Bit synthesizer \cite{troise2020thesis, troise2020_1-bit}. Even with such a deliberately constrained
+design, both dataflow and dataset-oriented techniques prove useful.
+
+Dataflow approaches naturally lend themselves to implementing models of derived
+endpoints in multiple layers of processing when there is a clear or well known
+way to derive interesting signals from those available. Breath pressure sensors
+typically produce a non-zero voltage at ambient atmospheric pressure, which can
+be reduced by inhaling through the sensor, allowing both blowing and inhaling
+pressure to be measured. By high-pass filtering the breath pressure signal,
+rapid changes associated with strong or sudden articulations of the airstream
+can be derived. Breath pressure sensors often capture frequency data up to as
+high as 10 kHz \cite{scavone2005nime_breath-pressure-frequency}; thus spectral analysis
+can be employed to recognize when the player is vocalizing into the whistle,
+with what amplitude, and at what pitch. A datasets-oriented tool such as a
+Gaussian mixture model could be used to estimate the player's vocal formants
+(caused by the posture of the oral cavity) when vocalizing into the pressure
+sensor. Thus, using a combination of dataflow and datasets oriented techniques,
+a variety of information can be extracted from the breath pressure signal that
+isn't obviously available at first glance, including transient articulations,
+growl amplitude, pitch, and format, as well as the basic pressure signals for
+exhalation and inhalation.
+
+A 1-bit synthesizer \cite{troise2020thesis, troise2020_1-bit} naturally lends
+itself to producing pulse waves with pulse-width-modulation (PWM). Numerous
+pitch-based effects are possible, such as vibrato, glissando and portamento,
+trills, and grace notes. In addition, using pitch modulations faster than a
+human can typically perform, a transient can be emphasized by very briefly
+modulating the frequency at the beginning of a note e.g. starting up one octave
+and dropping down after 5-20 milliseconds, and chords can be approximated by
+rapidly arpeggiating their tones. Given only 1-bit, amplitude control appears
+impossible. However, thinner pulse-widths also result in a lower perceived
+amplitude. This can be exploited to provide some amplitude control. Automating
+this effect, a feedback-delay-like echo effect can be simulated by repeating
+note onsets at lower pulse-widths. Thus, with an appropriate dataflow network
+implementing a higher-level semantic model, even a characteristically 1-bit
+synthesizer could be considered as having controls for pitch, transients, super
+fast arpeggiation, echo, and pulse width modulation.
+
+Breath pressure could be mapped to pulse width to provide a basic amplitude
+control, with sudden variations in pressure (as detected by a high-pass filter)
+causing pitch variations, including octave-up transients on strong
+articulations, or causing vibrato with slower pressure variations. Convergent
+mappings may also prove useful. For instance, the current octave could be used
+to adjust the base mappings just described, so that each octave has a unique
+characteristic pulse-width when the breath pressure exceeds a base threshold.
+Alternatively, the breath pressure to pulse width mapping could be implemented
+using a breakpoint envelope, so that the control points of the envelope could
+be adjusted continuously depending on the octave. The transient-emphasizing
+modulation could be similarly adjusted to give each octave its own character,
+e.g. by adjusting the times in a modulation table.
+
+There are a few possibilities for the vocalization signals that spring to mind. On
+a basic level, the presence or absence of vocalization could be used to enable
+a super-fast arpeggio, with the speed and/or number of notes depending on the
+amplitude, pitch, and/or formant of the vocalization. Alternatively, depending
+on the formant, various different effects could be activated, such as portamento
+or pulse-width-based echo.
+
+\subsection{Thought Experiments Summary}
+
+The mappings described are purely hypothetical, and at a necessarily high level.
+Actual implementation of these designs would almost certainly reveal issues
+that are obvious when interacting with the system but imperceptible at the
+level of this conceptual discussion. Nevertheless, the examples illustrate
+some of the advantages that arise from integrating dataflow- and dataset-oriented
+approaches to mapping design. In particular, recognizing where dataflow mappings
+can be viewed as being determined by datasets, such as in breakpoint envelopes
+and modulation matrices, and then modulating those datasets in higher-order
+mapping structures, is a highly versatile approach that is in general not well
+supported by existing dataflow environments without extensive manual implementation.
+
+\section{An Imaginary Mapping Tool}
+
+Let us imagine a deeply integrated mapping authoring tool,
+called the Workbench, drawing on the framework and tools described thus far. Such
+a tool should facilitate seamlessly working with dataflow and dataset oriented approaches
+together, including the design of higher-order mapping structures that blur the lines
+between these approaches.
+
+The Workbench supports two complementary workflows: authoring mapping networks,
+and recording and editing datasets. Under the umbrella of these two modes of interaction,
+numerous different levels of abstraction and alternative perspectives are supported.
+The integration of these two modes of interaction runs sufficiently deep so that
+operations in one mode seamlessly blend into equivalent actions in the other\footnote{a
+likely application for bidirectional transformations..?!}.
+
+\subsection{Throughpoints}
+
+Unfortunately, while the conceptual model of endpoints and connections seems
+adequate for thinking about the semantic encoding of a mapping design, it is
+somewhat at odds with the practicalities of an implementation. Dataflow is the
+overriding conceptual model of implementation, where endpoints are sources or
+destinations for signals. Dataset-trained models are naturally treated as
+devices with endpoints, but this is at odds with the realization that the true
+endpoints of a trained model are implicitly encoded in the dataset it learns
+from. A simple extension of the model is to introduce a distinct kind of
+endpoint that reflects the semantically neutral character of the inputs and
+outputs of a trained model. Unlike the conceptual endpoints desribed above,
+which have particular meaning and practical interpretation in the context of
+the network, the inputs and outputs of a trained model at runtime are mere
+reflections of the incoming signals and influenced parameters connected to the
+model. These inputs and outputs are further distinguished from typical
+endpoints in that they are agnostic about the shape and structure of the
+signals flowing through them. As long as the sources and destinations conform
+to the specifications given by the dataset (or vica versa, as long as the
+dataset conforms to the specification given by the input and output signals
+connected through the model), dataset-trained models can generally adapt to
+arbitrary input-output dimensionality ($N$ to $M$). Let us term
+dataset-oriented devices' inputs and outputs, and other inputs and outputs
+having these qualities, as \emph{throughpoints}, since data flows through them
+without a shift in its semantics, unlike endpoints which imply a change in the
+interpretation of the data flowing through them. So that we can refer to the
+set containing both throughpoints and endpoints, let us also introduce the term
+\emph{ports} for this set.
+
+Dataset-oriented tools are not unique in possessing throughpoints. Another
+example of a throughpoint might be a binding to a network communication
+protocol such as libmapper. When the endpoints of a device are connected to the
+libmapper network, this connection should ideally adapt to the endpoints of the
+device and reflect them unchanged onto the network. Other kinds of binding glue
+are similar, such as bindings to instantiate a device as a Pure Data external
+or DAW plugin.
+
+\subsection{Authoring Mapping Networks}
+
+In the mapping authoring mode, the mapping network is visualized in a more-or-less typical
+boxes-and-lines diagram. Endpoints are visualized with small circular icons. Connections
+are drawn as lines from one endpoint to another. Boxes are drawn intersecting endpoints
+and grouping together connections. Boxes are used to represent devices, in the sense of
+dataflow devices. Devices can have arbitrary and heterogeneous number of inputs
+and outputs.
+
+In addition to endpoints, devices may also possess throughpoints, visualized
+as rectangular boxes on the edges of devices. Whereas endpoints may only
+be connected to endpoints with compatible type (e.g. dimensionality), and only one
+signal may be connected to one endpoint, any number of arbitrary signals can be connected
+to a destination throughpoint, and it is expected to automatically adapt to accept them.
+Similarly, a source throughpoint may be connected to an arbitrary number of destinations
+of arbitrary type, and the device is expected to automatically adapt its behavior
+to support these connections appropriately. Throughpoints are mainly associated
+with devices that implement dataset-oriented approaches, as well as bindings to external
+protocols.
+
+Devices themselves can be implemented using the mapping authoring language. Such devices are
+called subnets, as they contain a part of the overall mapping network. They function as subpatches
+or abstractions, similar to in patcher languages like Max and Pure Data. The viewport
+can be dynamically zoomed into and out of such devices, or they can be expanded, allowing
+their internal implementation to be viewed simultaneously with the higher-level patch.
+In addition, the highest-level view can always be zoomed out of and treated as a subnet,
+allowing a higher level of abstraction to be introduced at any time, and facilitating the
+development of higher-order mappings.
+
+At the lowest level, primitive processing elements such as arithmetic are
+represented by devices that cannot be examined in this way. Perhaps these
+primitive devices could be visualized as black boxes, in contrast to other
+devices seen as transparent boxes. External algorithms, e.g. implemented in
+C/C++, could be shown in the same way. Some black boxes are notable because
+they autonomously produce source data or provide final destination ports that
+influence external processes such as producing sound through the
+analog-to-digital converter, or visualizing video signals on a display.
+Original source ports in particular have special significance when recording
+datasets, described later.
+
+Scalar signals that are input-to or output-from a device at the same moment in time
+can be viewed as vector-valued signals.
+The display can be optionally set to visualize them as such, grouping together these
+otherwise separate connections into thicker cables and simplifying the visual impact and
+interpretation of the display and bringing it more in line with the interpretation
+favored in a datasets-oriented approach. Similarly, vectors with the same dimension
+that simultaneously arrive or depart from a box can be viewed as columns or rows of
+a 2D matrix-valued signal. As will be elaborated momentarily, higher-dimensional matrix structures must also
+be admitted to facilitate higher order mappings,
+and also allowing for e.g. video processing networks to be represented.
+Primitive devices are provided to explicitly annotate grouping, ungrouping, and general recombination of
+multi-dimensional signals, and defining the synchronization semantics of such
+combinators.
+
+An inspector pane is provided allowing a connection, device, or port to be examined.
+This could show the metadata of the object, allow its variables to be edited,
+and visualize the signals flowing through, into, or out of the object.
+The variables of a connection or port are simply the signals flowing through them.
+An unconnected port can have its value set as a constant.
+Devices similarly present their ports' values as variables in the inspector.
+In addition, any unconnected ports inside the subnet implementing the device
+can also be viewed and their constant value modified. Such unconnected inner ports
+can also be promoted to being ports of the subnet, allowing signals and destinations of the parent
+subnet to be connected to them.
+
+Connections are inherently passive; they are not allowed to perform any computation,
+and merely represent data flowing from one device to another. As such, basic
+mapping operations such as affine transformation must be implemented using primitive
+devices, or more usefully using standard devices provided by the Workbench for the most common use-cases.
+
+For example, when a simple connection is made, by default it could create an instance of a modulation
+matrix subnet, allowing basic affine transformations to be quickly implemented,
+and providing useful representation of such basic mappings in a way that is amenable
+to the higher-order extensions to the basic modulation matrix. When additional connections
+are made, if they can be represented as part of an existing modulation matrix, they are
+automatically grouped together with it.
+
+\subsection{Representation of Datasets in the Network}
+
+There are four kinds of datasets, in line with the taxonomy given by Francoise 
+et al \cite{francoise2014nime_xmm}: snapshots (instantaneous unimodal), 
+sequences (temporal unimodal), demonstrations (instantaneous multimodal), and 
+automations (temporal multimodel). Automations can be decomposed into two 
+sequences, one made from all the source signals, and one made from all the 
+destination parameters. Similarly, demonstrations can be decomposed into two 
+snapshots. Sequences can further be decomposed into snapshots (one per time 
+sample). Inversly, snapshots or sequences can be combined cross-modally to make 
+demonstrations and automations, respectively, and snapshots or demonstrations 
+can be combined temporally to make sequences or automations, respectively.
+
+Snapshots, sequences, demonstrations, and automations (datasets, generically) 
+can be viewed as destination endpoints of dataset-oriented subnets, and they 
+can optionally be exposed as such on the edges of the subnet to facilitate 
+higher-order mappings. Such exposed datasets can be decomposed at any time, so 
+that e.g. an exposed sequence can be treated as a collection of exposed 
+snapshots, or vica versa.
+
+Consequently, datasets themselves may flow as data through the mapping network. 
+As such, snapshots and demonstrations may be viewed as vectors, and sequences 
+and automations may be viewed as matrices. More generally, sequences and 
+automations could be viewed as higher-dimensional snapshots and demonstrations 
+in higher-order structures, and sequences and automations could also be 
+composed of a time-sequence of matrices rather than vectors. Various detailed 
+facilities would be required to help the user visualize and conceptualize data 
+at these varying levels of structure and abstraction, building on the basic 
+operations of zooming into and out of subnets, and viewing groups of scalars as 
+vectors, groups of vectors as matrices, and vica versa, and so on.
+
+\subsection{Authoring Datasets}
+
+In the dataset authoring mode, subnets whose data the user is interested in
+recording and editing (marked as such from the mapping authoring mode) can be
+viewed as tracks in a digital-audio-workstation-informed editor. Subnets which
+require a dataset in order to function are automatically added as tracks to the
+recorder/editor. Each track records a subset of the signals in the network,
+with various selections possible. In the most common case, signals input to a
+subnet, and destinations influenced by it, are selected for recording. Other
+possibilities include recording the free endpoints of a subnet (both input and
+outputs, or one or the other), its incoming signals or influenced destinations
+only, or some other arbitrary combination of signals deemed to be of interest.
+
+Recordings can be freely sliced, spliced, cropped, duplicated, etc., both
+temporally, and across their multiple signal dimensions. Internally, all such
+edits are represented by automatically generated mapping subnets that processes
+the raw recorded data. The raw recorded data, in turn, solely consists of
+original source signals and final destination parameters associated with black
+boxes such as external devices. This is recorded with the temporal
+characteristics in which it originally arrived. All synchronization, grouping
+into vectors, etc., is encoded in a snapshot of the mapping network state at
+the moment of the recording. This mapping network can be arbitrarily (and
+non-destructively) edited by the user to modify the dataset, or it can be kept
+in sync with edits made to the mapping network, so that a recording needn't be
+discarded due to a later change to the mapping network. As long as the
+characteristics of the external devices remain consistent, recordings remain
+valid, no matter what edits are made. This also allows the signals of interest
+in a dataset to be arbitrarily modified at a later time, e.g. if the signals
+input to a preset interpolator are changed at some point in the design, the
+training data need not necessarily be regenerated.
+
+This also allows recordings to serve as useful prototyping and collaboration
+tools. For example, a recording could be taken when in person with a
+collaborator who has a particular input device not usually accessible to the
+mapping designer. Later, the mapping designer could replay this recording, e.g.
+using a built in playback subnet, and continue to edit the mapping network
+without the collaborator's presence or participation.
+
+Finally, recordings need to be associated with the devices that use them. This
+can be done from the multi-track editor by enabling or disabling the recordings
+on a track; the enabled recordings are automatically fed to the subnet that
+consumes them as constant values for its dataset endpoint. This is, again,
+internally represented by an automatically generated subnet that can be
+examined and edited by the user, eventually facilitating the development of
+higher-order mappings.
+
+\subsection{Summary}
+
+The Workbench is based on a unified underlying dataflow model, a graphical
+programming language where primitive black box processors are combined in
+dataflow graphs to create high level and high order programs that implement
+mappings. Signals are allowed to have arbitrary dimensionality and structure,
+so that datasets can be represented as signals in higher-order mapping
+structures. High-dimensional signals can be readily decomposed into
+lower-dimensional subcomponents, and lower-dimensional signals can be combined
+into higher-dimensional signals. In the case of datasets, time itself is just
+another dimension of the dataset-viewed-as-signal, and the dataset-signal can
+be decomposed along the time dimension or any other dimension. Such operations,
+and all other edits the user may want to make to a dataset, are
+non-destructively represented using the unified dataflow language. All recorded
+datasets are derived from original raw source signals, so that as long as the
+external signal sources remain consistent, all recordings can be repurposed and
+reinterpreted anywhere in the network. When datasets are utilized on the
+network, this too is represented by the underlying dataflow language, with the
+dataset used as a constant offset value for a multi-dimensional signal. The use
+of throughpoints allows a natural representation of the dimensionally-agnostic
+ports of dataset-oriented mapping design tools, as well as bindings to external
+environments.
+
+The hypothetical key features of the Workbench, besides being highly usable,
+attractive, efficient, performant, and so on, would be its representation of
+dataset-oriented approaches, and of dataset editions, within a pure dataflow
+paradigm, by using throughpoints and primitive devices that facilitate working
+with flows of data having arbitrary dimensionality and structure.
+These are the underlying qualities that would enable a tight integration
+of dataset-oriented approaches with dataflow-oriented techniques, as well as
+opening up many possibilities for higher-order mappings.
+
+As a final provocation, perhaps the edition of the network and its datasets
+could itself be represented by a meta-programming subnet which accepts user
+actions as its inputs and produces new states of the network and its datasets
+as outputs. A recording of the users actions would then constitute a complete
+history of the mapping design, and could be used to generate a version history,
+allow non-linear undo, forking of the time-line, and so on.
+
+\section{Executive Summary}
+
+\begin{displayquote}
+Several mapping tools have been proposed to facilitate the prototyping of DMIs.
+These mostly fit into two main categories: datasets (interpolations) and data
+flow (parameter mapping). Each has its own strengths and weaknesses, their
+choice likely impacting the final mappings done.
+\end{displayquote}
+
+I conducted a review of mapping authoring tools, and described them in terms of
+the main objects of interest as being oriented toward dataflow or datasets. I
+reflected on how these different tools could be combined using higher-order
+mappings. In considering the design of mappings with dataflow and datasets and
+the ways in which semantic associations are recorded in these mappings, and
+drawing on prior characterizations of mappings as having multiple layers, I
+proposed to distinguish between cross-domain or cross-modal mappings, which are
+mappings that associate from semantically meaningful endpoints to other
+independently semantically meaningful endpoints, and models, which are
+processes that derive new semantically meaningful endpoints from existing ones.
+
+\begin{displayquote}
+Describe in detail 2 examples of tools in each category and elaborate on the
+possible impacts of each tool in the mappings obtained with them
+\end{displayquote}
+
+I described in detail the modulation matrix, and other common techniques used
+in dataflow mappings. I described in detail inverse weighted distance and
+Marier spheres preset interpolation algorithms, as examples of dataset-oriented
+mapping design techniques. I reflected on how these tools influence the design
+process and the kinds of mappings that can be readily produced with them.
+Furthermore, I provided a broad overview of numerous other tools presented in
+the literature, and contemplated their orientation towards data and their
+possible combinations, broadly.
+
+\begin{displayquote}
+Discuss how a hypothetical solution could combine both approaches and present a
+pseudo-code that could implement such a tool for one specific NIME context
+(programming environment, interface, synthesis method). Comment on whether
+these types of hybrid tools could be generalized to multiple music interaction
+contexts.
+\end{displayquote}
+
+I described in detail two designs which could leverage a combination of both
+dataflow and datasets in their mappings, based on two deliberately very
+different interaction contexts involving different kinds of sensors, different
+number of degrees of freedom, and contrasting approaches to sound synthesis. In
+addition, I described a hypothetical integrated DMI development environment
+which would allow the seamless interoperation of dataflow and datasets by
+providing a unified underlying conceptual model that flexibly hybridises these
+dissimilar approaches. The main features of this conceptual model are the
+notion of "throughpoints", and the treatment of arbitrary datasets as just
+another signal that can flow through the processing network. I introduced the
+term "throughpoints" to characterise ports of dataset-oriented algorithms that
+adapt fluidly to the dimension and characteristics of their inputs, based on
+training data, in contrast with "endpoints" that have their own independent
+semantic associations. The treatment of datasets as data, combined with
+throughpoints, allows dataflow techniques to be applied to datasets, unifying
+the two approaches.
+
+\end{document}

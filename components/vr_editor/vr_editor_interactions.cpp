@@ -1,6 +1,7 @@
 // Copyright 2025 Travis West
 // VrEditor interaction sub-update helpers: drag, sliders, dwell, undo
 #include "vr_editor.hpp"
+#include "port_types.hpp"
 #include "ray_selector.hpp"
 #include <Eigen/Geometry>
 #include <cstring>
@@ -131,7 +132,8 @@ std::optional<VrEditor::GraphEdit> VrEditor::update_drag(
         for (size_t ci = 0; ci < node_cards_.size(); ++ci)
             for (const auto& h2 : input_handles_[ci]) {
                 float d = (controller_tip_ - h2.world_pos).norm();
-                if (d < best_d && h2.port_kind == drag_from_kind_) {
+                if (d < best_d &&
+                    port_types::connection_legal(drag_from_kind_, h2.port_kind)) {
                     best_d = d; best = &h2;
                 }
             }

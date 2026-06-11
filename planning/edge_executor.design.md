@@ -1,107 +1,127 @@
-# Edge & Executor Design (DRAFT — for Travis to ratify)
+# Edges, Mappings & Regions — ratified design (Travis + Claude, 2026-06-10)
 
-_Drafted 2026-06-10 from evidence gathered during the decomposition slice.
-Nothing here is implemented beyond what's marked EXISTS._
+Supersedes the earlier draft. The conversation that produced this is
+summarized in git history; the ontology below is the durable part.
+Terminology follows Travis's thesis (see Sygaldry docs: components have
+endpoints, throughpoints, parts, plugins).
 
-## What an edge is today (EXISTS)
+## Ontology & terminology
 
-One kind: **latest-value copy at tick time**. `tick_graph` walks nodes in
-topo order; for each node it copies every in-edge's source value from the
-`values` map into the target input port, then calls `process`. All outputs
-land in `values` after process. Single thread, one tick per video frame.
+- **Endpoint** — an input or output owned by a node. Its type (payload ×
+  rate) is declared by the node. `sygaldry_endpoints` already provides
+  these (`slider`, `port`, `text`, `toggle`, `bang`).
+- **True edge** — a perfectly transparent connection between an output
+  and an input. No behavior, no copies: pass-by-reference within a
+  region (engineering: references re-resolve on every graph swap, at the
+  same point migration runs).
+- **Mapping** — a node whose ports are **throughpoints** (sources and
+  destinations, not inputs and outputs). A throughpoint's semantic
+  domain is *derived from what it is connected to*, not declared.
+  Mappings provide behavior at a connection: delay, buffering,
+  smoothing, transport. "Mappings are just nodes with throughpoints."
+  Implementation note: `PortValue` is a variant, so a dynamic
+  throughpoint is a port of kind `any` whose concrete type resolves at
+  connect time.
+- **Region** — a maximal subgraph that executes synchronously under one
+  scheduler: same thread, same cadence, same context. Regions are NEVER
+  declared; they are inferred from port types (see rates). Computed as
+  connected components of the graph quotiented by rate, recomputed on
+  every edit.
+- **Peer** — a process or machine. A peer advertises the NODES it
+  supports; "I provide `dac` (2 audio-buffer inputs)" *is* the
+  capability claim, the permission grant, and the placement constraint.
+  There is no separate capability system. Selective advertisement is
+  the sandbox model (a browser peer simply doesn't advertise
+  shell-shaped nodes). Descriptors already carry name, port schema,
+  provenance — the bridge protocol is: exchange advertised descriptors,
+  instantiate proxies, flow data through net mappings.
 
-This is a *pull-less, push-less, frame-synchronous data flow* — a good
-match for control signals and per-frame render data, and it is what every
-demo so far runs on.
+## The type lattice
 
-## Evidence: what flowed through edges this session
+Every port type = **payload × rate**.
 
-| Payload | Where seen | Semantics actually needed |
+- Payloads (exist today as schema kinds): scalar, bool, vec2, vec3,
+  vec4, quat, mat4, texture, draw_call, audio, mesh, text, any.
+- Rates:
+  - **event** — discrete, must-not-drop, must-not-duplicate (`bang`,
+    graph edits, button presses).
+  - **frame** — once per video frame; the default for everything today.
+  - **block** — once per audio block; hard real-time.
+- Some payloads pin a region as well as a rate: texture/draw_call pin
+  render (GL context); audio pins the audio thread.
+
+Inference rules:
+- A node's region = the strictest rate among its ports
+  (block > frame > event).
+- A node declaring both audio and draw_call ports is a TYPE ERROR —
+  decompose it. (The type system enforces the decomposition ethos.)
+- Control (frame) inputs on a block node are snapshotted at block
+  boundaries — the standard Max/MSP behavior, via an implicit latch.
+
+## Canonical mappings
+
+Auto-inserted by the executor at inferred boundaries, BUT always visible
+in the editor and replaceable by the user (this is where we beat Max:
+the boundary is reified as a patchable node, not hidden):
+
+| boundary | mapping | semantics |
 |---|---|---|
-| scalars (lfo→cube.scale, slider→smooth) | everywhere | latest value; loss OK |
-| vec3/quat (hand→editor, sun→cube) | interaction rig | latest value; loss OK |
-| mat4 (camera.pv → platform draw) | spine | latest value, same frame |
-| DrawFn closures | every visual node | collected per tick, ordered |
-| GpuTexture handles (rd sim→renderer) | RD split | latest value **+ implied GPU ordering** (same thread/context makes it safe today) |
-| AudioBuffer (borrowed ptr) | Android synths | **valid only during tick** — a different lifetime contract hiding inside the same edge kind |
-| button.pressed → spawner.trigger | graph-built palette | **event**: rising edge mattered; we hand-rolled edge detection in the consumer. A dropped frame = dropped press. |
-| graph-edit JSON | editor/spawner → platform | **out-of-band** (take_edit): not an edge at all because strings can't flow |
+| cycle (any rate) | `z⁻¹` | unit delay. The certified feedback behavior (one-tick delay) IS this mapping; the old cycle-cut "edge" was never a true edge. |
+| frame → block | `latch` | value captured at block boundary |
+| block → frame | `snapshot` | last completed block's value |
+| event across threads | `queue` | MPSC, never drops (fixes palette-press loss, kills take_edit()) |
+| stream across threads | `ring` | SPSC ring buffer (wav_player hand-rolls this today) |
+| across peers | `net` | transport flavored by inferred type: value→coalescable, event→reliable-ordered, stream→sequenced+jitter |
+| anything → observer | `probe` | /values becomes a mapping |
 
-## Proposed edge taxonomy
+## Legality
 
-1. **value** (exists): latest-value copy. Default. Loss OK, frame-aligned.
-2. **event**: discrete, must-not-drop, must-not-duplicate. Carries a
-   payload (initially: float, string). Delivered as a *queue drained per
-   tick* on the consumer side. Rising-edge detection moves out of node
-   code (`trigger_edge`, spawner's `prev_on_`) into the edge itself.
-3. **stream**: ordered chunks at a producer-defined rate (audio blocks).
-   Today's AudioBuffer borrowed-pointer contract becomes explicit: a
-   stream edge owns a ring buffer between regions.
-4. **resource**: handle + ordering dependency (GpuTexture). Same as value
-   while producer/consumer share a GL context+thread; becomes a sync
-   point (fence) when regions split.
+One shared implementation (`components/port_types`) answers, for both
+parse time and editor wire time:
+- `rate_of(kind)` — payload string → rate
+- `connection_legal(from_kind, to_kind)` — equal kinds, or either side
+  `any`/`unknown` (subgraph outlets report unknown today)
+- `boundary_mapping(from, to)` — which canonical mapping mediates, or
+  "" for a true edge, or ILLEGAL (e.g. draw_call → audio)
+The editor's wire-drop rule and parse_graph's edge validation both call
+this. When a legality question gets smarter, both surfaces inherit it.
+(Travis: "everything is a node" applies aspirationally here; it's a
+library component until reifying it as a node buys something.)
 
-Recommendation: implement **event** next (it unblocks string edges, makes
-the palette robust, and is cheap); leave stream/resource as taxonomy until
-the audio region exists.
+## Execution model (target)
 
-## Execution regions
+1. Parse/edit → migrate → type-check edges → infer regions →
+   auto-insert boundary mappings (visible) → re-resolve references.
+2. Each region ticks its subset at its cadence: render per frame
+   (owns GL), audio per block (RT-safe: no alloc/locks/syscalls),
+   worker async (may block: STT, tmux, codegen), net at transport pace.
+3. True edges within a region are references; mappings carry everything
+   across boundaries.
+4. One `dac` node per peer owns the audio device stream (advertised =
+   available).
 
-A region = (thread, cadence, context). Proposed:
-- **render**: per video frame, owns GL. Today's only region.
-- **audio**: per audio block (e.g. 256 frames @ 48k), no GL, hard
-  deadline. Synth/filter/output nodes live here.
-- **net**: wall-clock/async; sockets live here so blocking I/O never
-  touches render (today udp nodes do nonblocking I/O on render — fine,
-  but a real bridge with TCP/WebSocket cannot).
+## Build order
 
-Intra-region edges stay direct (current mechanism). Cross-region edges are
-queues with kind-specific policy: value = triple-buffer/latest, event =
-MPSC queue, stream = ring buffer. Node→region assignment: by node-type
-metadata (descriptor field), overridable per instance in graph JSON.
+1. ✅ port_types component: lattice + shared legality (parser + editor).
+2. By-ref true edges within regions + auto `z⁻¹` on cycles
+   (preserves certified feedback semantics by construction).
+3. `bang`/event rate end-to-end + `queue` mapping; palette/spawner/
+   editor edits become event ports; take_edit() and the seq-bump
+   pattern retire.
+4. Worker region: claude_tmux's system() calls move behind queue
+   mappings (today they block the render thread).
+5. Audio region: block scheduler + `dac` + latch/snapshot; device
+   synths join the graph properly; wav_player's hand-rolled atomics
+   retire into ring mappings.
+6. Net mappings + advertise-supported-nodes peer exchange (the bridge,
+   capabilities-as-nodes).
 
-The graph stays ONE graph; regions are an executor concern. tick_graph
-becomes per-region: each region ticks the subset of nodes assigned to it,
-edges within the subset direct, edges crossing get queue endpoints.
+## Open questions (small, non-blocking)
 
-## Context injection (the nested-subgraph problem)
-
-editor/spawner need (graph, registry); platform pumps them by type-name
-special case, and nodes inside subgraphs never get context. Options:
-
-A. **Context struct on the descriptor**: extend ABI with optional
-   `set_context(void*, const EyeballsContext*)` where EyeballsContext is
-   a versioned struct {graph, registry, region, ...}. tick_graph calls it
-   for every node each tick (cheap null-check); SubgraphNode forwards to
-   inner ticks. Kills the host_app special cases AND fixes nesting.
-B. Context as ports (graph/registry as PortValue) — rejected: the graph
-   contains the node; circular ownership and serialization nonsense.
-C. Global/thread-local context — rejected: invisible coupling, breaks
-   multiple instances.
-
-Recommendation: **A** — it is mechanical, ABI-versioned, and SubgraphNode
-forwarding is one line.
-
-Graph edits as events: with event edges carrying strings, editor/spawner
-emit `graph_edit` events on an output port; a `graph_sink` platform node
-consumes them. take_edit() dies; edits become visible, patchable wiring.
-
-## String params vs string edges
-
-Params (EXISTS): text<> fields. Edges: only via the **event** kind above —
-strings as steady-state per-frame values invite allocation churn and
-"who owns this" questions; as events they have clear lifecycle.
-
-## Open questions for Travis
-
-1. Edge-kind syntax in JSON: `{"from":..,"to":..,"kind":"event"}` with
-   "value" default — OK?
-2. Region assignment: per node-type default + per-instance override —
-   OK? Names: render/audio/net?
-3. Event delivery order vs topo order: drain before process (same tick if
-   producer earlier in topo, else next tick) — acceptable nondeterminism,
-   or do events always defer one tick for uniformity?
-4. Context struct contents v1: {graph*, registry*} — anything else now
-   (time source? region id? rng?)
-5. Is `graph_sink` the right shape for self-edit, or should the executor
-   itself consume graph_edit events without a node?
+- Context injection (editor/spawner need graph+registry): ABI
+  `set_context` extension as previously sketched; nested-subgraph
+  forwarding included. Unchanged by this redesign.
+- Worker tier: implied by queue mappings rather than a declared rate —
+  revisit if a 4th rate earns its keep.
+- text payload rate: currently param-only; becomes event payload when
+  string events land (graph edits want this).

@@ -4,7 +4,7 @@ add_library(signal_graph STATIC
     signal_graph_sort.cpp
     signal_graph_tick.cpp)
 target_include_directories(signal_graph PUBLIC . ../subgraph_node ../component_registry $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(signal_graph PUBLIC component_registry eyeballs_node_abi gpu_texture sygaldry_endpoints)
+target_link_libraries(signal_graph PUBLIC component_registry eyeballs_node_abi gpu_texture sygaldry_endpoints port_schema_reader port_types)
 target_compile_options(signal_graph PRIVATE -Wall -Wextra)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)

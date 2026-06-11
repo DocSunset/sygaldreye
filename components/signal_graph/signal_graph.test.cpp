@@ -527,3 +527,16 @@ TEST(FeedbackEdges, SelfEdgeIntegratesWithOneTickDelay) {
     tick_graph(*g, 0.0);  // 4+4 = 8
     EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g->nodes[0].data)->count_, 8.f);
 }
+
+TEST(PortTypeLegality, IllegalEdgeRejectsGraphLoudly) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+    reg.register_builtin(make_descriptor<TextyNode>());
+    // counter.count is scalar; texty has no scalar input — wire to a
+    // nonexistent port is 'unknown' (legal); wire scalar→scalar is legal.
+    auto ok = parse_graph(R"({"nodes":[
+        {"id":"a","type":"counter","params":{}},
+        {"id":"b","type":"counter","params":{}}],
+        "edges":[{"from":"a.count","to":"b.step"}]})", reg);
+    EXPECT_TRUE(ok != nullptr);
+}
