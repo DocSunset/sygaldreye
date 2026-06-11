@@ -511,3 +511,35 @@ in actual VR.
     spectrogram registered all three targets. kanban:
     audio_region_followups (RT purity, autoplay gesture, synth
     migration, mixer).
+
+## 2026-06-11/12 (UGEN DECOMPOSITION — phases 0–3 landed in one arc)
+
+13. ENABLERS: subgraph inlet/outlet kinds derive from inner schemas
+    (audio-outlet presets join the block region — THE unlock for synth
+    subgraphs; editor wire legality tightens free); stereo through
+    edges/dac; PortValue latches (vec3/quat cross frame→block); event
+    queue crossings both directions; device presets via
+    internalDataPath/graphs + sh/push_graphs.sh; POST /plugins ships
+    JSON presets (sniffed; optional top-level "name" names the type).
+14. UGENS (components/ugens, all targets): noise(white→pink),
+    adsr(bang-triggered, envelope-as-audio), vca, mix, biquad node,
+    delay, shaper, sample_hold, slew, grain_cloud, metro; osc gains
+    wave shapes. biquad band_pass fixed to unity peak (test only began
+    running when the lib went cross-target — caught the constant-skirt
+    Q-gain form).
+15. PRESETS: all seven synths are now assets/graphs/*_synth_g.json
+    subgraphs over the ugens — chime proven note-by-note (3 partials at
+    exact ratios on the spectrogram), rain/engine/atmos/creature/fire/
+    water auditioned + screenshot-verified. Live-editable, plugin-
+    shippable, cross-target.
+16. SPATIALIZE: mono in + world pos + listener pose (latched) → stereo
+    out + per-ear RMS; verified by ear-level divergence as a chime
+    orbits. AudioScene's job is now topology. sample_player replaces
+    wav_player's machinery (worker loads, /play contract intact, speech
+    spectrum verified). Legacy synths/audio_scene/wav_player retire
+    after device A/B — kanban ugen_followups.
+
+Stale-instance trap struck TWICE more (old binary on 8930 masquerading
+as fresh → phantom 'parse failed'). pkill -9 '[s]pectator' + port-free
+check before EVERY launch; sh/agent/launch.sh for backgrounding (bare
+'&' children die with the tool shell).
