@@ -306,3 +306,26 @@ concurrency; mic permission prompt on first run (RECORD_AUDIO).
 
 Upgrade path noted: piper TTS (espeak is robotic), streaming STT,
 hook filtering (skip tool-use-heavy replies).
+
+
+## 2026-06-10 (Quest session, part 1 — live with Travis)
+
+VERIFIED ON DEVICE: app installs/launches/renders; /graph /param /play
+/values all work over WiFi; wav_player speaks TTS into the headset
+(Travis: 'I heard that! Too cool!'); mic captures at 48k when worn;
+full take→whisper chain reached 'transcript: You' before the wav-header
+and buffer-growth bugs were fixed.
+
+OPEN when Travis returns (headset on head!):
+1. Full voice loop with real sample rate + fixed buffers (expected ✓).
+2. X/Y/A/B buttons: lc.btn1 stayed 0 under hold — binding bug OR focus
+   loss. Re-test worn; if still dead, dump xrSuggestInteractionProfile
+   result and check trigger still works (whole-suggestion rejection).
+3. Re-add btn edges to stt once buttons work (params were fighting the
+   edges — see commit note).
+4. GL arc on Adreno (render_target/glsl_effect/mesh chain) untested.
+5. render-over-budget warnings (~10-12 ms) with voice graph — profile.
+
+Lesson burned in: check VR FOCUS before debugging device sensors — the
+OS silently denies mic/trackers when the headset isn't worn
+(MemoryBroker app-ops lines in unfiltered logcat are the tell).
