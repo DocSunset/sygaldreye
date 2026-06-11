@@ -103,18 +103,41 @@ library component until reifying it as a node buys something.)
 ## Build order
 
 1. ✅ port_types component: lattice + shared legality (parser + editor).
-2. By-ref true edges within regions + auto `z⁻¹` on cycles
-   (preserves certified feedback semantics by construction).
-3. `bang`/event rate end-to-end + `queue` mapping; palette/spawner/
-   editor edits become event ports; take_edit() and the seq-bump
-   pattern retire.
-4. Worker region: claude_tmux's system() calls move behind queue
-   mappings (today they block the render thread).
+2. ✅ 2026-06-11: signal_graph_plan — lazily-built TickPlan; true edges are
+   cached PortValue* references (resolved once, zero per-tick lookups);
+   DFS back edges become DelayMappings (z⁻¹, optional<PortValue> empty
+   until first capture = certified tick-1 semantics). Visible as a derived
+   "mappings" array in serialize_graph; never persisted.
+3. ✅ 2026-06-11 (partial): BangField in the ABI (schema kind "bang",
+   event rate in port_types, flows as 0/1 copy with producer-resets
+   discipline); event_queue component = the canonical queue mapping;
+   take_edit() retired (editor/spawner push into EventQueue via
+   set_context; host shell param queue unified on EventQueue too).
+   REMAINING: seq-bump retirement blocked on text-payload events (open
+   question below); existing button sliders migrate to bang
+   opportunistically.
+4. ✅ 2026-06-12: components/worker — the peer's worker region (one
+   blocking-allowed thread, FIFO, post from any tick). claude_tmux
+   rewritten on it: spawn/paste/sleeps off the render thread; results
+   return via a shared_ptr atomic block that outlives the instance
+   (graph swaps can't dangle queued jobs). The old 240-tick warmup
+   hack became a plain 4 s sleep on the worker. Verified live: message
+   delivered into a tmux session while the app kept serving frames.
 5. Audio region: block scheduler + `dac` + latch/snapshot; device
    synths join the graph properly; wav_player's hand-rolled atomics
    retire into ring mappings.
-6. Net mappings + advertise-supported-nodes peer exchange (the bridge,
-   capabilities-as-nodes).
+6. ✅ 2026-06-12 (v1, value-rate): WebSocket transport (http_server /ws
+   upgrade + ws_link client + reconnect); peers advertise their node
+   types (= capability = permission = placement); POST /peer registers
+   each remote type as a proxy descriptor "type@host:port"
+   (components/remote_node, SubgraphDescriptor-style slot trampolines).
+   Spawning a proxy spawns the real node in the PROVIDER'S live graph;
+   inputs forward as coalesced value frames (changed-only); outputs
+   mirror back every provider frame (scalar/vec/quat). Proven: two host
+   peers, consumer cube driven by provider lfo, params forwarded live.
+   REMAINING for full step 6: event-rate reliable-ordered framing,
+   stream/jitter, mdns discovery as a source node, plugin shipping over
+   the same pipe.
 
 ## Open questions (small, non-blocking)
 

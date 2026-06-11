@@ -528,6 +528,115 @@ TEST(FeedbackEdges, SelfEdgeIntegratesWithOneTickDelay) {
     EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g->nodes[0].data)->count_, 8.f);
 }
 
+TEST(FeedbackEdges, TwoNodeCycleDelaysExactlyOneEdge) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+    // a.count → b.step is a true edge (same tick); b.count → a.step closes
+    // the cycle and becomes a z⁻¹ mapping (last tick's value).
+    auto g = parse_graph(R"({"nodes":[
+        {"id":"a","type":"counter","params":{"step":1}},
+        {"id":"b","type":"counter","params":{"step":0}}],
+        "edges":[{"from":"a.count","to":"b.step"},
+                 {"from":"b.count","to":"a.step"}]})", reg);
+    ASSERT_TRUE(g);
+    auto* a = static_cast<CounterNode*>(g->nodes[0].data);
+    auto* b = static_cast<CounterNode*>(g->nodes[1].data);
+    tick_graph(*g, 0.0);  // a: 0+1=1 (no feedback yet); b: 0+1=1 (same tick)
+    EXPECT_FLOAT_EQ(a->count_, 1.f);
+    EXPECT_FLOAT_EQ(b->count_, 1.f);
+    tick_graph(*g, 0.0);  // a: 1+1(b last)=2; b: 1+2(a now)=3
+    EXPECT_FLOAT_EQ(a->count_, 2.f);
+    EXPECT_FLOAT_EQ(b->count_, 3.f);
+    tick_graph(*g, 0.0);  // a: 2+3=5; b: 3+5=8
+    EXPECT_FLOAT_EQ(a->count_, 5.f);
+    EXPECT_FLOAT_EQ(b->count_, 8.f);
+}
+
+TEST(FeedbackEdges, CycleMappingVisibleInSerialization) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+    auto g = parse_graph(R"({"nodes":[{"id":"c","type":"counter","params":{}}],
+        "edges":[{"from":"c.count","to":"c.step"}]})", reg);
+    ASSERT_TRUE(g);
+    auto json = serialize_graph(*g);
+    EXPECT_NE(json.find("\"mappings\":[{\"kind\":\"z1\",\"from\":\"c.count\",\"to\":\"c.step\"}]"),
+              std::string::npos);
+    // …and the mappings array must round-trip harmlessly through parse.
+    auto g2 = parse_graph(json, reg);
+    ASSERT_TRUE(g2);
+    EXPECT_EQ(g2->edges.size(), 1u);
+}
+
+TEST(TickPlan, AcyclicGraphHasNoDelays) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<CounterNode>());
+    auto g = parse_graph(R"({"nodes":[
+        {"id":"a","type":"counter","params":{"step":2}},
+        {"id":"b","type":"counter","params":{"step":0}}],
+        "edges":[{"from":"a.count","to":"b.step"}]})", reg);
+    ASSERT_TRUE(g);
+    tick_graph(*g, 0.0);
+    tick_graph(*g, 0.0);
+    // True edge: b sees a's count the SAME tick. a: 2,4; b: 0+2=2, 2+4=6.
+    EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g->nodes[1].data)->count_, 6.f);
+    EXPECT_EQ(serialize_graph(*g).find("\"mappings\""), std::string::npos);
+}
+
+struct BangerNode {
+    static consteval std::string_view name() { return "banger"; }
+    struct inputs  { slider<"fire", "", float, fp(0.f), fp(1.f), fp(0.f)> fire; } inputs;
+    struct outputs { bang<"out"> out; } outputs;
+    bool prev_ = false;
+    void operator()(double) {
+        bool on = inputs.fire.value > 0.5f;
+        outputs.out.triggered = on && !prev_;   // fires for exactly one tick
+        prev_ = on;
+    }
+};
+
+struct ListenerNode {
+    static consteval std::string_view name() { return "listener"; }
+    struct inputs  { bang<"in"> in; } inputs;
+    struct outputs { port<"count", float> count; } outputs;
+    void operator()(double) {
+        if (inputs.in.triggered) outputs.count.value += 1.f;
+    }
+};
+
+TEST(BangPorts, FlowEndToEndExactlyOnce) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<BangerNode>());
+    reg.register_builtin(make_descriptor<ListenerNode>());
+    auto g = parse_graph(R"({"nodes":[
+        {"id":"b","type":"banger","params":{}},
+        {"id":"l","type":"listener","params":{}}],
+        "edges":[{"from":"b.out","to":"l.in"}]})", reg);
+    ASSERT_TRUE(g);
+    auto* b = static_cast<BangerNode*>(g->nodes[0].data);
+    auto* l = static_cast<ListenerNode*>(g->nodes[1].data);
+
+    tick_graph(*g, 0.0);                       // idle: no fire
+    EXPECT_FLOAT_EQ(l->outputs.count.value, 0.f);
+    b->inputs.fire.value = 1.f;
+    tick_graph(*g, 0.0);                       // rising edge: one bang
+    tick_graph(*g, 0.0);                       // held: no re-fire
+    tick_graph(*g, 0.0);
+    EXPECT_FLOAT_EQ(l->outputs.count.value, 1.f);
+    b->inputs.fire.value = 0.f;
+    tick_graph(*g, 0.0);
+    b->inputs.fire.value = 1.f;
+    tick_graph(*g, 0.0);                       // second press: second bang
+    EXPECT_FLOAT_EQ(l->outputs.count.value, 2.f);
+}
+
+TEST(BangPorts, SchemaReportsBangKind) {
+    auto* d = make_descriptor<BangerNode>();
+    ASSERT_NE(d->port_schema, nullptr);
+    EXPECT_NE(std::string_view{d->port_schema}.find(
+                  "{\"name\":\"out\",\"kind\":\"bang\"}"),
+              std::string_view::npos);
+}
+
 TEST(PortTypeLegality, IllegalEdgeRejectsGraphLoudly) {
     ComponentRegistry reg;
     reg.register_builtin(make_descriptor<CounterNode>());

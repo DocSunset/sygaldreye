@@ -2,15 +2,15 @@
 #pragma once
 #include "signal_graph.hpp"
 #include "sygaldry_endpoints.hpp"
+#include "event_queue.hpp"
 #include <ctime>
-#include <optional>
 #include <string>
 #include <string_view>
 
 // Adds a node of `type` to the enclosing graph on each rising edge of
 // `trigger`. Wire a ui_button into it and the graph grows its own editor.
-// Same platform seams as the editor node: set_context() before tick,
-// take_edit() after.
+// Same platform seams as the editor node: set_context() before tick;
+// edits flow out through the queue mapping.
 struct SpawnerNode {
     static consteval std::string_view name() { return "spawner"; }
     static consteval std::string_view source_header() { return "components/spawner_node/spawner_node.hpp"; }
@@ -40,22 +40,17 @@ struct SpawnerNode {
         entry += "{\"id\":\""; entry += id; entry += "\",\"type\":\"";
         entry += inputs.type.value; entry += "\"}";
         json.insert(pos, entry);
-        pending_edit_ = std::move(json);
+        if (edits_) edits_->push(std::move(json));
     }
 
-    void set_context(const Graph* g, const ComponentRegistry* r) {
-        graph_ = g; registry_ = r;
-    }
-    std::optional<std::string> take_edit() {
-        if (pending_edit_.empty()) return std::nullopt;
-        std::string out = std::move(pending_edit_);
-        pending_edit_.clear();
-        return out;
+    void set_context(const Graph* g, const ComponentRegistry* r,
+                     EventQueue<std::string>* edits) {
+        graph_ = g; registry_ = r; edits_ = edits;
     }
 
 private:
     bool prev_on_ = false;
     const Graph*             graph_    = nullptr;
     const ComponentRegistry* registry_ = nullptr;
-    std::string pending_edit_;
+    EventQueue<std::string>* edits_    = nullptr;
 };

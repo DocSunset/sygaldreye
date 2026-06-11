@@ -3,9 +3,9 @@
 #include "vr_editor.hpp"
 #include "text_mesh.hpp"
 #include "sygaldry_endpoints.hpp"
+#include "event_queue.hpp"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <optional>
 #include <string>
 #include <string_view>
 
@@ -16,8 +16,9 @@
 // very edits it produces.
 //
 // Context seam: the platform must call set_context() each frame before
-// tick (the enclosing graph can't be a port — it contains this node), and
-// collect take_edit() after.
+// tick (the enclosing graph can't be a port — it contains this node).
+// Edits flow out through the queue mapping: never dropped, drained by the
+// shell at its own cadence.
 struct EditorNode {
     static consteval std::string_view name() { return "editor"; }
     static consteval std::string_view source_header() { return "components/editor_node/editor_node.hpp"; }
@@ -40,14 +41,9 @@ struct EditorNode {
 
     void operator()(double time_s);
 
-    void set_context(const Graph* g, const ComponentRegistry* r) {
-        graph_ = g; registry_ = r;
-    }
-    std::optional<std::string> take_edit() {
-        if (pending_edit_.empty()) return std::nullopt;
-        std::string out = std::move(pending_edit_);
-        pending_edit_.clear();
-        return out;
+    void set_context(const Graph* g, const ComponentRegistry* r,
+                     EventQueue<std::string>* edits) {
+        graph_ = g; registry_ = r; edits_ = edits;
     }
 
 private:
@@ -57,6 +53,6 @@ private:
     const Graph*             graph_      = nullptr;
     const Graph*             last_graph_ = nullptr;
     const ComponentRegistry* registry_   = nullptr;
-    std::string pending_edit_;
+    EventQueue<std::string>* edits_      = nullptr;
     double      prev_time_s_ = 0.0;
 };

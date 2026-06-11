@@ -33,6 +33,14 @@ concept TextField = requires(F f) {
     requires !SliderField<F>;
 };
 
+// Event-rate port: fires for exactly one tick. Not a param (transient),
+// flows through edges as a 0/1 scalar copy each tick.
+template<typename F>
+concept BangField = requires(F f) {
+    { F::name() }    -> std::convertible_to<std::string_view>;
+    { f.triggered }  -> std::convertible_to<bool>;
+};
+
 namespace detail {
 
 template<typename T>

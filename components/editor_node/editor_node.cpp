@@ -34,7 +34,7 @@ void EditorNode::operator()(double time_s) {
                                inputs.grip_right.value    > 0.5f,
                                {inputs.thumb_x.value, inputs.thumb_y.value},
                                dt, graph_, *registry_);
-    if (edit) pending_edit_ = std::move(edit->new_graph_json);
+    if (edit && edits_) edits_->push(std::move(edit->new_graph_json));
 
     outputs.render.value = [this](const Eigen::Matrix4f& vp) {
         editor_.draw(vp, text_);

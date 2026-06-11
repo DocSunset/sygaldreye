@@ -41,6 +41,7 @@ struct OutletDecl { std::string name, node, port; };
 
 // component_registry includes this header; including it back would be circular.
 struct ComponentRegistry;
+struct TickPlan;
 
 struct Graph {
     std::vector<NodeInstance>                    nodes;
@@ -50,6 +51,10 @@ struct Graph {
     std::unordered_map<std::string, PortValue>   values;      // "node_id.port_name" → typed value
     std::vector<DrawFn>                          draw_calls;  // cleared each tick
     std::vector<SubgraphDescriptorPtr>           owned_descriptors;
+    // Resolved edge references + z⁻¹ delay mappings; built lazily on first
+    // tick. Topology never mutates in place (edits swap whole graphs), so
+    // the plan lives as long as the graph.
+    std::unique_ptr<TickPlan>                    plan;
 
     ~Graph();
 };

@@ -1,5 +1,6 @@
 // Copyright 2025 Travis West
 #include "signal_graph.hpp"
+#include "signal_graph_plan.hpp"
 #include "subgraph_node.hpp"
 #include "component_registry.hpp"
 #include "port_schema_reader.hpp"
@@ -276,6 +277,21 @@ std::string serialize_graph(const Graph& g) {
         out += "\"}";
     }
     out += ']';
+    // Auto-inserted boundary mappings, visible but never persisted as
+    // topology: derived on every serialize, ignored by parse_graph.
+    if (auto z1 = cycle_mappings(g); !z1.empty()) {
+        out += ",\"mappings\":[";
+        bool first_m = true;
+        for (const Edge* e : z1) {
+            if (!first_m) out += ',';
+            first_m = false;
+            out += "{\"kind\":\"z1\",\"from\":\""; out += e->from_node;
+            out += '.'; out += e->from_port;
+            out += "\",\"to\":\""; out += e->to_node; out += '.'; out += e->to_port;
+            out += "\"}";
+        }
+        out += ']';
+    }
     if (!g.inlets.empty()) {
         out += ",\"inlets\":[";
         bool first_in = true;

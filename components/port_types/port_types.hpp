@@ -14,7 +14,7 @@ enum class Rate { Event, Frame, Block };
 // rate field (audio-region work), this becomes a fallback.
 constexpr Rate rate_of(std::string_view kind) {
     if (kind == "audio") return Rate::Block;
-    // "bang"/event payloads join here when event ports land (build step 3)
+    if (kind == "bang")  return Rate::Event;
     return Rate::Frame;
 }
 

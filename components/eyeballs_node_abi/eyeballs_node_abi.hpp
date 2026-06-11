@@ -126,6 +126,7 @@ constexpr std::string_view port_kind() {
     else if constexpr (SliderField<F>)     return "scalar";
     else if constexpr (ToggleField<F>)     return "bool";
     else if constexpr (TextField<F>)       return "text";
+    else if constexpr (BangField<F>)       return "bang";
     else                                   return "unknown";
 }
 
@@ -256,6 +257,11 @@ const EyeballsNodeDescriptor* make_descriptor() {
                         ctx->emit_audio(ctx->store, ctx->node_id, nm.data(),
                                         field.value.data, field.value.frames,
                                         field.value.channels, field.value.sample_rate);
+                    } else if constexpr (BangField<F>) {
+                        // Event rate as a 0/1 copy: true for exactly the
+                        // tick the producer fires (producer resets next tick).
+                        ctx->emit_scalar(ctx->store, ctx->node_id, nm.data(),
+                                         field.triggered ? 1.0 : 0.0);
                     }
                 });
         };
@@ -291,6 +297,9 @@ const EyeballsNodeDescriptor* make_descriptor() {
                     } else if constexpr (ToggleField<F>) {
                         if (F::name() == std::string_view(port_name))
                             field.value = (v != 0.0);
+                    } else if constexpr (BangField<F>) {
+                        if (F::name() == std::string_view(port_name))
+                            field.triggered = (v != 0.0);
                     }
                 });
         };

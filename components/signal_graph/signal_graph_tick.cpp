@@ -1,66 +1,76 @@
 // Copyright 2025 Travis West
 #include "signal_graph.hpp"
-#include "signal_graph_sort.hpp"
+#include "signal_graph_plan.hpp"
 #include <cstring>
+
+namespace {
+
+void apply_value(NodeInstance& n, const char* port, const PortValue& value) {
+    std::visit([&](const auto& val) {
+        using T = std::decay_t<decltype(val)>;
+        if constexpr (std::is_same_v<T, double>) {
+            if (n.desc->set_scalar_in)
+                n.desc->set_scalar_in(n.data, port, val);
+        } else if constexpr (std::is_same_v<T, Eigen::Vector2f>) {
+            if (n.desc->set_vec2_in)
+                n.desc->set_vec2_in(n.data, port, val.x(), val.y());
+        } else if constexpr (std::is_same_v<T, Eigen::Vector3f>) {
+            if (n.desc->set_vec3_in)
+                n.desc->set_vec3_in(n.data, port, val.x(), val.y(), val.z());
+        } else if constexpr (std::is_same_v<T, Eigen::Vector4f>) {
+            if (n.desc->set_vec4_in)
+                n.desc->set_vec4_in(n.data, port, val.x(), val.y(), val.z(), val.w());
+        } else if constexpr (std::is_same_v<T, Eigen::Matrix4f>) {
+            if (n.desc->set_mat4_in)
+                n.desc->set_mat4_in(n.data, port, val.data());
+        } else if constexpr (std::is_same_v<T, Eigen::Quaternionf>) {
+            if (n.desc->set_quat_in)
+                n.desc->set_quat_in(n.data, port, val.x(), val.y(), val.z(), val.w());
+        } else if constexpr (std::is_same_v<T, GpuTexture>) {
+            if (n.desc->set_texture_in)
+                n.desc->set_texture_in(n.data, port, val.id, val.width, val.height,
+                                       val.internal_format, val.filter);
+        } else if constexpr (std::is_same_v<T, AudioBuffer>) {
+            if (n.desc->set_audio_in)
+                n.desc->set_audio_in(n.data, port, val.data, val.frames,
+                                     val.channels, val.sample_rate);
+        } else if constexpr (std::is_same_v<T, DrawFn>) {
+            if (n.desc->set_drawfn_in)
+                n.desc->set_drawfn_in(n.data, port, static_cast<const void*>(&val));
+        } else if constexpr (std::is_same_v<T, MeshPtr>) {
+            if (n.desc->set_mesh_in)
+                n.desc->set_mesh_in(n.data, port, static_cast<const void*>(&val));
+        }
+    }, value);
+}
+
+// Lazy reference resolution: the values slot exists once the producer first
+// emits; afterwards the cached pointer is a true by-ref edge (slots are
+// stable — entries are never erased from Graph::values).
+const PortValue* resolve(EdgeApplier& a, const Graph& g) {
+    if (!a.src) {
+        auto it = g.values.find(a.edge->from_node + "." + a.edge->from_port);
+        if (it != g.values.end()) a.src = &it->second;
+    }
+    return a.src;
+}
+
+} // namespace
 
 void tick_graph(Graph& g, double time_s) {
     g.draw_calls.clear();
+    if (!g.plan) g.plan = build_plan(g);
+    TickPlan& plan = *g.plan;
 
-    auto order = topo_sort(g.nodes, g.edges);
-
-    for (std::size_t idx : order) {
+    for (std::size_t idx : plan.order) {
         auto& n = g.nodes[idx];
 
-        for (const auto& e : g.edges) {
-            if (e.to_node != n.id) continue;
-            std::string from_key = e.from_node + "." + e.from_port;
-            auto it = g.values.find(from_key);
-            if (it == g.values.end()) continue;
-
-            std::visit([&](const auto& val) {
-                using T = std::decay_t<decltype(val)>;
-                if constexpr (std::is_same_v<T, double>) {
-                    if (n.desc->set_scalar_in)
-                        n.desc->set_scalar_in(n.data, e.to_port.c_str(), val);
-                } else if constexpr (std::is_same_v<T, Eigen::Vector2f>) {
-                    if (n.desc->set_vec2_in)
-                        n.desc->set_vec2_in(n.data, e.to_port.c_str(), val.x(), val.y());
-                } else if constexpr (std::is_same_v<T, Eigen::Vector3f>) {
-                    if (n.desc->set_vec3_in)
-                        n.desc->set_vec3_in(n.data, e.to_port.c_str(),
-                                            val.x(), val.y(), val.z());
-                } else if constexpr (std::is_same_v<T, Eigen::Vector4f>) {
-                    if (n.desc->set_vec4_in)
-                        n.desc->set_vec4_in(n.data, e.to_port.c_str(),
-                                            val.x(), val.y(), val.z(), val.w());
-                } else if constexpr (std::is_same_v<T, Eigen::Matrix4f>) {
-                    if (n.desc->set_mat4_in)
-                        n.desc->set_mat4_in(n.data, e.to_port.c_str(), val.data());
-                } else if constexpr (std::is_same_v<T, Eigen::Quaternionf>) {
-                    if (n.desc->set_quat_in)
-                        n.desc->set_quat_in(n.data, e.to_port.c_str(),
-                                            val.x(), val.y(), val.z(), val.w());
-                } else if constexpr (std::is_same_v<T, GpuTexture>) {
-                    if (n.desc->set_texture_in)
-                        n.desc->set_texture_in(n.data, e.to_port.c_str(),
-                                               val.id, val.width, val.height,
-                                               val.internal_format, val.filter);
-                } else if constexpr (std::is_same_v<T, AudioBuffer>) {
-                    if (n.desc->set_audio_in)
-                        n.desc->set_audio_in(n.data, e.to_port.c_str(),
-                                             val.data, val.frames,
-                                             val.channels, val.sample_rate);
-                } else if constexpr (std::is_same_v<T, DrawFn>) {
-                    if (n.desc->set_drawfn_in)
-                        n.desc->set_drawfn_in(n.data, e.to_port.c_str(),
-                                              static_cast<const void*>(&val));
-                } else if constexpr (std::is_same_v<T, MeshPtr>) {
-                    if (n.desc->set_mesh_in)
-                        n.desc->set_mesh_in(n.data, e.to_port.c_str(),
-                                            static_cast<const void*>(&val));
-                }
-            }, it->second);
-        }
+        for (auto& a : plan.appliers[idx])
+            if (const PortValue* src = resolve(a, g))
+                apply_value(n, a.edge->to_port.c_str(), *src);
+        for (auto* d : plan.delayed[idx])
+            if (d->prev)
+                apply_value(n, d->applier.edge->to_port.c_str(), *d->prev);
 
         if (n.desc->process) n.desc->process(n.data, time_s);
 
@@ -141,4 +151,9 @@ void tick_graph(Graph& g, double time_s) {
             }
         }
     }
+
+    // z⁻¹ capture: each delay records its source's value for next tick.
+    for (auto& d : plan.delays)
+        if (const PortValue* src = resolve(d.applier, g))
+            d.prev = *src;
 }

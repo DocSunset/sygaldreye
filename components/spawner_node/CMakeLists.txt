@@ -1,3 +1,3 @@
 add_library(spawner_node INTERFACE)
 target_include_directories(spawner_node INTERFACE .)
-target_link_libraries(spawner_node INTERFACE signal_graph component_registry sygaldry_endpoints)
+target_link_libraries(spawner_node INTERFACE signal_graph component_registry sygaldry_endpoints event_queue)
