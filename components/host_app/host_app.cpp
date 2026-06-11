@@ -32,6 +32,8 @@
 #include "text_label.hpp"
 #include "poke_stick.hpp"
 #include "poke_button.hpp"
+#include "spectrogram.hpp"
+#include "osc_node.hpp"
 #include "tts_node.hpp"
 #include "whisper_node.hpp"
 #include <GLES3/gl3.h>
@@ -132,6 +134,8 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<TextLabelNode>());
     reg.register_builtin(make_descriptor<PokeStickNode>());
     reg.register_builtin(make_descriptor<PokeButtonNode>());
+    reg.register_builtin(make_descriptor<SpectrogramNode>());
+    reg.register_builtin(make_descriptor<OscNode>());
     reg.register_builtin(make_descriptor<TtsNode>());
     reg.register_builtin(make_descriptor<WhisperNode>());
 
