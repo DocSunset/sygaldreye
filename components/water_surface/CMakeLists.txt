@@ -4,10 +4,14 @@ target_include_directories(water_surface PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
 target_link_libraries(water_surface PUBLIC gl_program light material sygaldry_endpoints param_registry glsl_blinn_phong PRIVATE log_component)
 target_compile_options(water_surface PRIVATE -Wall -Wextra)
 
-if(CMAKE_CROSSCOMPILING)
+if(EMSCRIPTEN)
+    # GL comes from -sFULL_ES3 at final link.
+elseif(CMAKE_CROSSCOMPILING)
     target_link_libraries(water_surface PRIVATE GLESv3)
 
     set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)
+
+    if(EXISTS ${GTEST_ROOT})
     add_library(water_surface_gtest STATIC
         ${GTEST_ROOT}/src/gtest-all.cc
         ${GTEST_ROOT}/src/gtest_main.cc)
@@ -18,4 +22,6 @@ if(CMAKE_CROSSCOMPILING)
     target_compile_options(water_surface_test PRIVATE -Wall -Wextra -Wpedantic)
 else()
     target_link_libraries(water_surface PRIVATE GLESv2)
+
+    endif()
 endif()

@@ -21,8 +21,11 @@ class RemotePeer {
 public:
     RemotePeer(std::string ws_url, std::string alias);
 
-    // Blocks (≤ timeout) for the provider's type advertisement.
+    // Blocks (≤ timeout) for the provider's type advertisement. Native only
+    // — the browser main thread can't sleep; use the async pair instead.
     bool fetch_types(int timeout_ms = 3000);
+    void request_types() { types_received_.store(false); link_.send(R"({"op":"types"})"); }
+    bool types_ready() const { return types_received_.load(); }
     struct TypeInfo { std::string type, schema; };
     const std::vector<TypeInfo>& types() const { return types_; }
     const std::string& alias() const { return alias_; }

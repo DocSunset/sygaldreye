@@ -1,7 +1,9 @@
 add_library(log_component INTERFACE)
 target_include_directories(log_component INTERFACE .)
 
-if(CMAKE_CROSSCOMPILING)
+if(EMSCRIPTEN)
+    # printf → JS console; nothing to link.
+elseif(CMAKE_CROSSCOMPILING)
     target_link_libraries(log_component INTERFACE log)
 else()
     find_package(spdlog REQUIRED)

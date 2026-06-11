@@ -3,7 +3,9 @@ target_include_directories(cube_geometry PUBLIC .)
 target_link_libraries(cube_geometry PRIVATE log_component)
 target_compile_options(cube_geometry PRIVATE -Wall -Wextra)
 
-if(CMAKE_CROSSCOMPILING)
+if(EMSCRIPTEN)
+    # GL comes from -sFULL_ES3 at final link.
+elseif(CMAKE_CROSSCOMPILING)
     target_link_libraries(cube_geometry PRIVATE GLESv3)
 else()
     target_link_libraries(cube_geometry PRIVATE GLESv2)

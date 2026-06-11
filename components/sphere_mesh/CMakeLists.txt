@@ -4,7 +4,9 @@ target_include_directories(sphere_mesh PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
 target_link_libraries(sphere_mesh PUBLIC sphere_geometry log_component)
 target_compile_options(sphere_mesh PRIVATE -Wall -Wextra)
 
-if(CMAKE_CROSSCOMPILING)
+if(EMSCRIPTEN)
+    # GL comes from -sFULL_ES3 at final link.
+elseif(CMAKE_CROSSCOMPILING)
     target_link_libraries(sphere_mesh PUBLIC GLESv3)
 else()
     target_link_libraries(sphere_mesh PUBLIC GLESv2)

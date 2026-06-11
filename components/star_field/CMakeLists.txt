@@ -5,7 +5,9 @@ target_include_directories(star_field PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
 target_link_libraries(star_field PRIVATE log_component)
 target_compile_options(star_field PRIVATE -Wall -Wextra)
 
-if(CMAKE_CROSSCOMPILING)
+if(EMSCRIPTEN)
+    # GL comes from -sFULL_ES3 at final link.
+elseif(CMAKE_CROSSCOMPILING)
     target_link_libraries(star_field PRIVATE GLESv3)
 else()
     target_link_libraries(star_field PRIVATE GLESv2)

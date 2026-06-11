@@ -4,7 +4,9 @@ target_include_directories(sky_dome PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
 target_link_libraries(sky_dome PUBLIC sphere_geometry sphere_mesh gl_program log_component sygaldry_endpoints)
 target_compile_options(sky_dome PRIVATE -Wall -Wextra)
 
-if(CMAKE_CROSSCOMPILING)
+if(EMSCRIPTEN)
+    # GL comes from -sFULL_ES3 at final link.
+elseif(CMAKE_CROSSCOMPILING)
     target_link_libraries(sky_dome PUBLIC GLESv3)
 else()
     target_link_libraries(sky_dome PUBLIC GLESv2)

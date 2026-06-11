@@ -5,7 +5,9 @@ target_link_libraries(lit_shader PUBLIC gl_program log_component glsl_blinn_phon
 target_link_libraries(lit_shader PRIVATE light material)
 target_compile_options(lit_shader PRIVATE -Wall -Wextra)
 
-if(CMAKE_CROSSCOMPILING)
+if(EMSCRIPTEN)
+    # GL comes from -sFULL_ES3 at final link.
+elseif(CMAKE_CROSSCOMPILING)
     target_link_libraries(lit_shader PUBLIC GLESv3)
 else()
     target_link_libraries(lit_shader PUBLIC GLESv2)
