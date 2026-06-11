@@ -474,3 +474,22 @@ Adreno, headset-as-third-peer, graph voice loop end-to-end.
 Remaining from the arc: audio region (#31, needs headset), editor
 recomposition (#35, stretch). Commits through 61bba5b; 25 suites green;
 Android clean.
+
+## 2026-06-12 (arc COMPLETE except audio — #35 landed)
+
+10. POKE INTERACTION AS GRAPH (✅, first editor-recomposition slice):
+    poke_button node (AABB hit test vs probe point; idle/hover/fire
+    colors; bang output) + spawner gains bang<"spawn"> (bang→scalar is
+    type-illegal by design — events stay events). Demo: hand pose →
+    poke_stick → tip_pos → poke_button → bang → spawner: poking the
+    button spawned cube_1781181593 into the running graph. Zero editor
+    C++; both nodes plugin-shippable.
+
+Every overnight-arc task is done except the audio region (#31 — needs
+the headset). Headset replay list, in order, for the next session:
+1. Painkillers verify (aim ray, sliders).  2. Plugin + hot reload on
+Adreno (compile_node.py --target android; NDK flags unverified).
+3. Headset as third peer (POST /peer both ways; controllers driving
+host/browser scenes remotely).  4. Voice loop through the graph nodes
+(warm-process fix first or replies will lag).  5. Poke stick + button
+in actual VR.
