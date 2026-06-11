@@ -420,6 +420,24 @@ void android_main(struct android_app* app) {
     MdnsAdvertiser mdns_advertiser;
     mdns_advertiser.start("eyeballs", 8080);
 
+    // GET /screenshot capture: runs at the renderer's post-resolve point,
+    // where the eye image is guaranteed readable.
+    state.renderer.post_resolve_hook = [&state](int w, int h) {
+        std::lock_guard<std::mutex> sl(state.shot_mutex_);
+        if (state.shot_path_.empty() || state.shot_done_) return;
+        std::vector<unsigned char> px(size_t(w) * h * 4);
+        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+        { GLenum e_ = glGetError();
+          if (e_ != GL_NO_ERROR) LOGE("screenshot readpixels error: 0x%x", (unsigned)e_); }
+        std::vector<unsigned char> flip(px.size());
+        for (int r = 0; r < h; ++r)
+            std::copy_n(&px[size_t(h - 1 - r) * w * 4], size_t(w) * 4,
+                        &flip[size_t(r) * w * 4]);
+        stbi_write_png(state.shot_path_.c_str(), w, h, 4, flip.data(), w * 4);
+        state.shot_done_ = true;
+        state.shot_cv_.notify_all();
+    };
+
     app->userData  = &state;
     app->onAppCmd  = onAppCmd;
 
@@ -507,7 +525,6 @@ void android_main(struct android_app* app) {
                     lh ? std::optional<XrPosef>{lh->pose} : std::nullopt,
                     rh ? std::optional<XrPosef>{rh->pose} : std::nullopt);
 
-                state.eye_index_ = 0;
                 bool ok = state.renderer.render_eyes(
                     state.xrInstance, state.xrSession.get(),
                     state.xrSession.worldSpace_(), t,
@@ -522,27 +539,6 @@ void android_main(struct android_app* app) {
 
                         state.vr_editor_.draw(pv, state.text_mesh_);
 
-                        // Left-eye capture for GET /screenshot.
-                        if (state.eye_index_++ == 0) {
-                            std::lock_guard<std::mutex> sl(state.shot_mutex_);
-                            if (!state.shot_path_.empty() && !state.shot_done_) {
-                                GLint vp[4];
-                                glGetIntegerv(GL_VIEWPORT, vp);
-                                int w = vp[2], h = vp[3];
-                                std::vector<unsigned char> px(size_t(w) * h * 4);
-                                glReadPixels(vp[0], vp[1], w, h,
-                                             GL_RGBA, GL_UNSIGNED_BYTE, px.data());
-                                std::vector<unsigned char> flip(px.size());
-                                for (int r = 0; r < h; ++r)
-                                    std::copy_n(&px[size_t(h - 1 - r) * w * 4],
-                                                size_t(w) * 4,
-                                                &flip[size_t(r) * w * 4]);
-                                stbi_write_png(state.shot_path_.c_str(), w, h,
-                                               4, flip.data(), w * 4);
-                                state.shot_done_ = true;
-                                state.shot_cv_.notify_all();
-                            }
-                        }
                     });
                 if (!ok) { return {}; }
                 FrameLayers result;

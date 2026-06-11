@@ -105,6 +105,11 @@ bool Renderer::render_eyes(XrInstance /*instance*/, XrSession session, XrSpace r
                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
         { GLenum e_ = glGetError(); if (e_ != GL_NO_ERROR) LOGE("glBlitFramebuffer error: 0x%x", (unsigned)e_); }
 
+        if (eye == 0 && post_resolve_hook) {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, e.fbo(index));
+            post_resolve_hook((int)e.width(), (int)e.height());
+        }
+
         XR_LOG_ERR(xrReleaseSwapchainImage(e.xr_handle(), &ri));
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

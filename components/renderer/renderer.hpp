@@ -16,6 +16,10 @@ struct Renderer {
 
     [[nodiscard]] std::optional<RendererBinding> init();
     bool create_swapchains(XrInstance, XrSystemId, XrSession);
+    // Invoked once per frame for eye 0 with the RESOLVED (non-MSAA) eye
+    // framebuffer bound for reading — the only safe glReadPixels point.
+    std::function<void(int width, int height)> post_resolve_hook;
+
     bool render_eyes(XrInstance, XrSession, XrSpace refSpace, XrTime predictedDisplayTime,
                      const std::function<void(const Eigen::Matrix4f& proj,
                                               const Eigen::Matrix4f& view)>& on_draw);
