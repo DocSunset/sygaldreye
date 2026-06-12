@@ -164,13 +164,6 @@ void AudioRegion::render_block(float* out, int frames) {
 
     for (std::size_t idx : plan_->block_order) {
         auto& n = graph_->nodes[idx];
-        for (auto& sa : plan_->slot_appliers[idx])
-            if (const PortValue* src = resolve_applier(sa.applier, store_)) {
-                if (sa.audio)
-                    if (auto* ab = std::get_if<AudioBuffer>(src)) *sa.audio = *ab;
-                if (sa.mesh)
-                    if (auto* m = std::get_if<MeshPtr>(src)) *sa.mesh = *m;
-            }
         for (auto& a : plan_->appliers[idx])
             if (const PortValue* src = resolve_applier(a, store_))
                 apply_value(n, a.edge->to_port.c_str(), *src);

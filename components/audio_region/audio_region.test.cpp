@@ -11,10 +11,12 @@ namespace {
 // Frame-region consumer of a block→frame ring crossing.
 struct TapNode {
     static consteval std::string_view name() { return "tap"; }
-    struct inputs  { port<"audio", AudioBuffer> audio; } inputs;
-    struct outputs { port<"got", float> got; } outputs;
+    struct endpoints {
+        in<AudioBuffer> audio;
+        ::out<float> got;
+    } endpoints;
     void operator()(double) {
-        outputs.got.value += float(inputs.audio.value.frames);
+        endpoints.got.value += float(endpoints.audio.get().frames);
     }
 };
 
@@ -43,9 +45,11 @@ struct Fixture {
     }
     struct ConstStub {
         static consteval std::string_view name() { return "kconst"; }
-        struct inputs  { slider<"value", "", float, fp(0.f), fp(20000.f), fp(0.f)> value; } inputs;
-        struct outputs { port<"out", float> out; } outputs;
-        void operator()(double) { outputs.out.value = inputs.value.value; }
+        struct endpoints {
+            normalled_in<float, fp(0.f), fp(20000.f), fp(0.f)> value;
+            ::out<float> out;
+        } endpoints;
+        void operator()(double) { endpoints.out.value = endpoints.value.get(); }
     };
 };
 } // namespace
@@ -80,7 +84,7 @@ TEST(AudioRegion, RingCrossingDeliversAudioToFrameConsumer) {
     for (int i = 0; i < 10; ++i) f.frame();
     auto* tap = static_cast<TapNode*>(f.g->nodes[2].data);
     // ~9 frames of audio delivered through the ring (first frame empty).
-    EXPECT_GT(tap->outputs.got.value, 4000.f);
+    EXPECT_GT(tap->endpoints.got.value, 4000.f);
 }
 
 TEST(AudioRegion, SnapshotPublishesBlockScalars) {

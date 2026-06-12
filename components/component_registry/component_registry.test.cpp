@@ -9,9 +9,9 @@
 
 struct RegistryTestNode {
     static consteval std::string_view name() { return "registry_test"; }
-    struct inputs {
-        slider<"val", "", float, 0.0f, 1.0f, 0.5f> val;
-    } inputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> val;
+    } endpoints;
 };
 
 TEST(ComponentRegistry, RegisterBuiltinFind) {

@@ -8,29 +8,27 @@
 
 struct TestNode {
     static consteval std::string_view name() { return "test_node"; }
-    struct inputs {
-        slider<"gain", "", float, 0.0f, 1.0f, 0.5f> gain;
-    } inputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> gain;
+    } endpoints;
     void operator()(double) {}
 };
 
 struct NoProcessNode {
     static consteval std::string_view name() { return "no_process"; }
-    struct inputs {
-        toggle<"active"> active;
-    } inputs;
+    struct endpoints {
+        normalled_in<bool> active;
+    } endpoints;
 };
 
 struct RichNode {
     static consteval std::string_view name() { return "rich_node"; }
-    struct inputs {
-        slider<"speed", "", float, 0.0f, 10.0f, 1.0f> speed;
-        port<"dir", Eigen::Vector3f> dir;
-    } inputs;
-    struct outputs {
-        port<"pos", Eigen::Vector3f> pos;
-        port<"render", DrawFn>       render;
-    } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(10.f), fp(1.f)> speed;
+        in<Eigen::Vector3f> dir;
+        out<Eigen::Vector3f> pos;
+        out<DrawFn>          render;
+    } endpoints;
     void operator()(double) {}
 };
 
@@ -113,7 +111,7 @@ TEST(EyeballsNodeAbi, PushOutputsCallsEmitVec3) {
     void* node = d->create();
     // Set the pos output value via direct cast
     auto* rich = static_cast<RichNode*>(node);
-    rich->outputs.pos.value = Eigen::Vector3f{1.0f, 2.0f, 3.0f};
+    rich->endpoints.pos.value = Eigen::Vector3f{1.0f, 2.0f, 3.0f};
 
     EyeballsOutputCtx ctx{};
     ctx.store   = nullptr;

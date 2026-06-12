@@ -4,69 +4,83 @@
 #include <Eigen/Core>
 #include <string_view>
 
-using std::string_view;
-
-TEST(SygaldryEndpoints, SliderName) {
-    using S = slider<"wave height", "", float, 0.f, 20.f, 5.f>;
-    EXPECT_EQ(S::name(), string_view("wave height"));
+TEST(SygaldryEndpoints, InUnwiredReadsCompileTimeDefault) {
+    in<float, fp(2.5f)> i;
+    EXPECT_FLOAT_EQ(i.get(), 2.5f);
+    float v = 7.f;
+    i.src = &v;
+    EXPECT_FLOAT_EQ(i.get(), 7.f);
 }
 
-TEST(SygaldryEndpoints, SliderMinMaxInit) {
-    using S = slider<"gain", "", float, 0.f, 1.f, 0.5f>;
-    EXPECT_EQ(S::min(),  0.f);
-    EXPECT_EQ(S::max(),  1.f);
-    EXPECT_EQ(S::init(), 0.5f);
+TEST(SygaldryEndpoints, InEigenDefaultsAreInitialized) {
+    in<Eigen::Vector3f> v3;
+    EXPECT_FLOAT_EQ(v3.get().norm(), 0.f);              // Zero, not garbage
+    in<Eigen::Quaternionf> q;
+    EXPECT_FLOAT_EQ(q.get().norm(), 1.f);               // Identity
+    in<Eigen::Matrix4f> m;
+    EXPECT_TRUE(m.get().isApprox(Eigen::Matrix4f::Identity()));
 }
 
-TEST(SygaldryEndpoints, SliderValueInitializesToInit) {
-    slider<"gain", "", float, 0.f, 1.f, 0.5f> s;
-    EXPECT_EQ(s.value, 0.5f);
+TEST(SygaldryEndpoints, InStreamAbsentWhenUnwired) {
+    in<AudioBuffer> a;
+    EXPECT_EQ(a.get().data, nullptr);
+    EXPECT_EQ(a.get().frames, 0);
+    in<DrawFn> d;
+    EXPECT_FALSE(static_cast<bool>(d.get()));
 }
 
-TEST(SygaldryEndpoints, ToggleName) {
-    using T = toggle<"mute">;
-    EXPECT_EQ(T::name(), string_view("mute"));
+TEST(SygaldryEndpoints, NormalledFallbackAndOverride) {
+    normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> n;
+    EXPECT_FLOAT_EQ(n.min(), 0.f);
+    EXPECT_FLOAT_EQ(n.max(), 1.f);
+    EXPECT_FLOAT_EQ(n.get(), 0.5f);                     // init
+    n.fallback = 0.8f;
+    EXPECT_FLOAT_EQ(n.get(), 0.8f);                     // persisted param
+    float wired = 0.1f;
+    n.src = &wired;
+    EXPECT_FLOAT_EQ(n.get(), 0.1f);                     // edge overrides
+    n.src = nullptr;
+    EXPECT_FLOAT_EQ(n.get(), 0.8f);                     // normalled back
 }
 
-TEST(SygaldryEndpoints, ToggleDefaultFalse) {
-    toggle<"mute"> t;
-    EXPECT_FALSE(t.value);
+TEST(SygaldryEndpoints, NormalledString) {
+    normalled_in<std::string> t;
+    EXPECT_TRUE(t.get().empty());
+    t.fallback = "hello";
+    EXPECT_EQ(t.get(), "hello");
 }
 
-TEST(SygaldryEndpoints, BangName) {
-    using B = bang<"fire">;
-    EXPECT_EQ(B::name(), string_view("fire"));
+TEST(SygaldryEndpoints, CvInAttenuverter) {
+    cv_in<float> c;
+    EXPECT_FLOAT_EQ(c.get(), 0.f);                      // offset, unwired
+    c.offset = 1.f; c.slope = -2.f;
+    float mod = 3.f;
+    c.src = &mod;
+    EXPECT_FLOAT_EQ(c.get(), 1.f - 2.f * 3.f);
 }
 
-TEST(SygaldryEndpoints, BangDefaultFalse) {
-    bang<"fire"> b;
-    EXPECT_FALSE(b.triggered);
+TEST(SygaldryEndpoints, OutOwnsInitializedStorage) {
+    out<float> f;
+    EXPECT_FLOAT_EQ(f.value, 0.f);
+    out<Eigen::Vector3f> v;
+    EXPECT_FLOAT_EQ(v.value.norm(), 0.f);               // not Eigen garbage
+    out<Eigen::Quaternionf> q;
+    EXPECT_FLOAT_EQ(q.value.norm(), 1.f);
 }
 
-TEST(SygaldryEndpoints, PortName) {
-    using P = port<"pos", Eigen::Vector3f>;
-    EXPECT_EQ(P::name(), string_view("pos"));
+TEST(SygaldryEndpoints, EventsDefaultUntriggered) {
+    event_in i;  EXPECT_FALSE(i.triggered);
+    event_out o; EXPECT_FALSE(o.triggered);
 }
 
-TEST(SygaldryEndpoints, PortValueType) {
-    port<"pos", Eigen::Vector3f> p;
-    static_assert(std::is_same_v<decltype(p)::value_type, Eigen::Vector3f>);
-    // Eigen default-constructs without zero-initialisation; assign and verify assignment works.
-    p.value = Eigen::Vector3f{1.f, 2.f, 3.f};
-    EXPECT_FLOAT_EQ(p.value.x(), 1.f);
-}
-
-TEST(SygaldryEndpoints, PortAudioBuffer) {
-    using P = port<"audio", AudioBuffer>;
-    EXPECT_EQ(P::name(), string_view("audio"));
-    P p;
-    EXPECT_EQ(p.value.data, nullptr);
-    EXPECT_EQ(p.value.frames, 0);
-}
-
-TEST(SygaldryEndpoints, PortDrawFn) {
-    using P = port<"render", DrawFn>;
-    EXPECT_EQ(P::name(), string_view("render"));
-    P p;
-    EXPECT_FALSE(static_cast<bool>(p.value));
+TEST(SygaldryEndpoints, ShapeConceptsClassify) {
+    static_assert(V6Input<in<float>>);
+    static_assert(V6Input<normalled_in<float>>);
+    static_assert(V6Normalled<normalled_in<float>>);
+    static_assert(!V6Normalled<in<float>>);
+    static_assert(V6Cv<cv_in<float>>);
+    static_assert(V6Output<out<float>>);
+    static_assert(!V6Output<in<float>>);
+    static_assert(V6EventIn<event_in> && V6EventOut<event_out>);
+    SUCCEED();
 }

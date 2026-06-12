@@ -9,19 +9,20 @@
 // GainNode: scalar input "in", scalar output "out" = in * 2.
 struct GainNode {
     static consteval std::string_view name() { return "gain"; }
-    struct inputs  { port<"in",  float> in;  } inputs;
-    struct outputs { port<"out", float> out; } outputs;
-    void operator()(double) { outputs.out.value = inputs.in.value * 2.0f; }
+    struct endpoints {
+        normalled_in<float, fp(-1e6f), fp(1e6f), fp(0.f)> in;
+        ::out<float> out;
+    } endpoints;
+    void operator()(double) { endpoints.out.value = endpoints.in.get() * 2.0f; }
 };
 
 // DrawNode: emits a draw call.
 struct SgDrawNode {
     static consteval std::string_view name() { return "sg_draw"; }
     static bool drawn;
-    struct inputs {} inputs;
-    struct outputs { port<"render", DrawFn> render; } outputs;
+    struct endpoints { ::out<DrawFn> render; } endpoints;
     void operator()(double) {
-        outputs.render.value = [](const Eigen::Matrix4f&) { SgDrawNode::drawn = true; };
+        endpoints.render.value = [](const Eigen::Matrix4f&) { SgDrawNode::drawn = true; };
     }
 };
 bool SgDrawNode::drawn = false;
@@ -48,7 +49,7 @@ TEST(SubgraphNode, InletPropagation) {
     sn.cache_inlet("gain", PortValue{0.75});
     sn(0.0);
 
-    EXPECT_NEAR(gain_node->inputs.in.value, 0.75f, 1e-5f);
+    EXPECT_NEAR(gain_node->endpoints.in.fallback, 0.75f, 1e-5f);
 }
 
 TEST(SubgraphNode, OutletEmission) {
@@ -106,8 +107,8 @@ TEST(SubgraphNode, CloneIndependence) {
     ASSERT_NE(clone->nodes[0].data, src->nodes[0].data);  // distinct instances
 
     // Mutate the clone's node; original must be unaffected.
-    static_cast<GainNode*>(clone->nodes[0].data)->inputs.in.value = 9.0f;
-    EXPECT_NEAR(static_cast<GainNode*>(src->nodes[0].data)->inputs.in.value, 0.0f, 1e-6f);
+    static_cast<GainNode*>(clone->nodes[0].data)->endpoints.in.fallback = 9.0f;
+    EXPECT_NEAR(static_cast<GainNode*>(src->nodes[0].data)->endpoints.in.fallback, 0.0f, 1e-6f);
 
     EXPECT_EQ(clone->inlets.size(), src->inlets.size());
     EXPECT_EQ(clone->outlets.size(), src->outlets.size());

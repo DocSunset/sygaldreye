@@ -87,8 +87,8 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
     auto plan = std::make_unique<TickPlan>();
     plan->node_region = infer_regions(g, idx);
     plan->appliers.resize(g.nodes.size());
-    plan->delayed.resize(g.nodes.size());
     plan->slot_appliers.resize(g.nodes.size());
+    plan->delayed.resize(g.nodes.size());
 
     std::vector<Edge> dag_edges;
     for (std::size_t ei = 0; ei < g.edges.size(); ++ei) {
@@ -106,11 +106,28 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
             c.to_region    = rt;
             plan->crossings.push_back(std::move(c));
             // A mapping INTO the frame region terminates in a values slot
-            // (ring/snapshot publish there); the final hop from slot to
-            // consumer is an ordinary applier. Mappings into the block
-            // region (latch) apply themselves on the audio thread.
-            if (rt == Rate::Frame)
-                plan->appliers[t->second].push_back(EdgeApplier{&e});
+            // (ring/snapshot publish there). The final hop: stream payloads
+            // into a v6 consumer go through a plan-owned typed slot the
+            // consumer's src points at; everything else is an ordinary
+            // applier. Mappings into the block region (latch) apply
+            // themselves on the audio thread.
+            if (rt == Rate::Frame) {
+                std::string kind = out_kind(g.nodes[f->second], e.from_port);
+                if (g.nodes[t->second].desc->connect &&
+                    (kind == "audio" || kind == "mesh")) {
+                    TickPlan::SlotApplier sa{EdgeApplier{&e}, nullptr, nullptr};
+                    if (kind == "audio") {
+                        plan->audio_slots.emplace_back();
+                        sa.audio = &plan->audio_slots.back();
+                    } else {
+                        plan->mesh_slots.emplace_back();
+                        sa.mesh = &plan->mesh_slots.back();
+                    }
+                    plan->slot_appliers[t->second].push_back(sa);
+                } else {
+                    plan->appliers[t->second].push_back(EdgeApplier{&e});
+                }
+            }
             continue;
         }
         if (back[ei]) {
@@ -125,23 +142,6 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
             // (Bangs are DELIVERIES, not values — they keep the applier
             // path: emitted as 0/1 scalars, reset by the producer.)
             plan->wires.push_back(&e);
-            dag_edges.push_back(e);
-        } else if (g.nodes[t->second].desc->version >= 6 &&
-                   g.nodes[t->second].desc->connect &&
-                   (out_kind(g.nodes[f->second], e.from_port) == "audio" ||
-                    out_kind(g.nodes[f->second], e.from_port) == "mesh")) {
-            // Legacy producer → v6 stream consumer: v6 in<T> has no
-            // writer, so the consumer points at a plan-owned slot and a
-            // slot applier copies the producer's store value in per tick.
-            TickPlan::SlotApplier sa{EdgeApplier{&e}, nullptr, nullptr};
-            if (out_kind(g.nodes[f->second], e.from_port) == "audio") {
-                plan->audio_slots.emplace_back();
-                sa.audio = &plan->audio_slots.back();
-            } else {
-                plan->mesh_slots.emplace_back();
-                sa.mesh = &plan->mesh_slots.back();
-            }
-            plan->slot_appliers[t->second].push_back(sa);
             dag_edges.push_back(e);
         } else {
             plan->appliers[t->second].push_back(EdgeApplier{&e});
@@ -169,25 +169,13 @@ void wire_plan(Graph& g) {
         for (const auto& p : s.inputs)
             n.desc->connect(n.data, p.name.c_str(), nullptr);
     }
-    // Legacy nodes hold stale AudioBuffer VIEWS the same way: a mix node
-    // migrated across an edit kept re-summing a deleted producer's freed
-    // buffer (Travis's "drone", 2026-06-12). Silence every audio input
-    // that has no incoming edge; appliers refill the connected ones on
-    // the next block.
-    for (auto& n : g.nodes) {
-        if (n.desc->version >= 6 && n.desc->connect) continue;  // v6 handled above
-        if (!n.desc->set_audio_in) continue;
-        PortSchema s = parse_port_schema(n.desc->port_schema);
-        for (const auto& p : s.inputs) {
-            if (p.kind != "audio") continue;
-            bool wired = false;
-            for (const auto& e : g.edges)
-                if (e.to_node == n.id && e.to_port == p.name &&
-                    by_id.count(e.from_node)) { wired = true; break; }
-            if (!wired)
-                n.desc->set_audio_in(n.data, p.name.c_str(), nullptr, 0, 1, 48000);
-        }
-    }
+    // Crossing slots: point each v6 consumer at its plan-owned slot.
+    for (std::size_t i = 0; i < g.plan->slot_appliers.size(); ++i)
+        for (auto& sa : g.plan->slot_appliers[i])
+            g.nodes[i].desc->connect(
+                g.nodes[i].data, sa.applier.edge->to_port.c_str(),
+                sa.audio ? static_cast<const void*>(sa.audio)
+                         : static_cast<const void*>(sa.mesh));
     for (const Edge* e : g.plan->wires) {
         auto f = by_id.find(e->from_node), t = by_id.find(e->to_node);
         if (f == by_id.end() || t == by_id.end()) continue;
@@ -195,13 +183,6 @@ void wire_plan(Graph& g) {
                                                       e->from_port.c_str());
         if (src) t->second->desc->connect(t->second->data, e->to_port.c_str(), src);
     }
-    // Mixed edges: point each v6 consumer at its plan-owned slot.
-    for (std::size_t i = 0; i < g.plan->slot_appliers.size(); ++i)
-        for (auto& sa : g.plan->slot_appliers[i])
-            g.nodes[i].desc->connect(
-                g.nodes[i].data, sa.applier.edge->to_port.c_str(),
-                sa.audio ? static_cast<const void*>(sa.audio)
-                         : static_cast<const void*>(sa.mesh));
 }
 
 std::vector<const Edge*> cycle_mappings(const Graph& g) {

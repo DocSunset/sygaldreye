@@ -6,10 +6,10 @@
 #include <string_view>
 
 struct TestNode {
-    struct inputs {
-        slider<"gain", "", float, 0.0f, 1.0f, 0.5f> gain;
-        toggle<"mute">                               mute;
-    } inputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> gain;
+        normalled_in<bool>                              mute;
+    } endpoints;
 };
 
 TEST(ParamRegistry, ToJsonContainsGain) {
@@ -34,17 +34,17 @@ TEST(ParamRegistry, ToJsonDefaultValues) {
 TEST(ParamRegistry, FromJsonSetsGain) {
     TestNode node;
     from_json(node, R"({"gain":0.8})");
-    EXPECT_NEAR(node.inputs.gain.value, 0.8f, 1e-5f);
+    EXPECT_NEAR(node.endpoints.gain.fallback, 0.8f, 1e-5f);
 }
 
 TEST(ParamRegistry, FromJsonIgnoresUnknownKeys) {
     TestNode node;
     from_json(node, R"({"unknown":42,"gain":0.3})");
-    EXPECT_NEAR(node.inputs.gain.value, 0.3f, 1e-5f);
+    EXPECT_NEAR(node.endpoints.gain.fallback, 0.3f, 1e-5f);
 }
 
 TEST(ParamRegistry, FromJsonSetsMute) {
     TestNode node;
     from_json(node, R"({"mute":true})");
-    EXPECT_TRUE(node.inputs.mute.value);
+    EXPECT_TRUE(node.endpoints.mute.fallback);
 }

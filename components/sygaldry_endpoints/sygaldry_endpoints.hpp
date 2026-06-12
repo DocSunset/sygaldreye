@@ -27,36 +27,6 @@ struct fp {
     consteval operator float() const { return std::bit_cast<float>(bits); }
 };
 
-template<fixed_string Name, fixed_string Desc, typename T, fp Min, fp Max, fp Init>
-struct slider {
-    static consteval std::string_view name()        { return Name; }
-    static consteval std::string_view description() { return Desc; }
-    static consteval T                min()         { return static_cast<T>(static_cast<float>(Min)); }
-    static consteval T                max()         { return static_cast<T>(static_cast<float>(Max)); }
-    static consteval T                init()        { return static_cast<T>(static_cast<float>(Init)); }
-    T value = static_cast<T>(static_cast<float>(Init));
-};
-
-template<fixed_string Name>
-struct toggle {
-    static consteval std::string_view name() { return Name; }
-    bool value = false;
-};
-
-template<fixed_string Name>
-struct bang {
-    static consteval std::string_view name() { return Name; }
-    bool triggered = false;
-};
-
-// Free-text parameter (label text, hostnames, type names). Params only —
-// not propagated through edges.
-template<fixed_string Name>
-struct text {
-    static consteval std::string_view name() { return Name; }
-    std::string value;
-};
-
 // Unwired default for non-arithmetic payloads. Eigen's default ctor is
 // UNINITIALIZED — these must say Zero()/Identity() explicitly. (An
 // unwired port<vec3> holding heap garbage silenced spatializers
@@ -78,14 +48,6 @@ template<> struct endpoint_default<Eigen::Matrix4f> {
 };
 template<> struct endpoint_default<Eigen::Quaternionf> {
     static Eigen::Quaternionf value() { return Eigen::Quaternionf::Identity(); }
-};
-
-// Generic typed port — carries any value type; no slider metadata.
-template<fixed_string Name, typename T>
-struct port {
-    static consteval std::string_view name() { return Name; }
-    using value_type = T;
-    T value = endpoint_default<T>::value();
 };
 
 // Audio buffer: borrowed pointer valid only during tick_graph.
@@ -202,7 +164,6 @@ concept V6Output = requires(F f) {
     typename F::value_type;
     { f.value } -> std::convertible_to<typename F::value_type>;
     requires !V6Input<F>;
-    requires !requires { F::name(); };   // old port<Name,T> keeps its name()
 };
 template<typename F> concept V6EventIn  = std::same_as<F, event_in>;
 template<typename F> concept V6EventOut = std::same_as<F, event_out>;

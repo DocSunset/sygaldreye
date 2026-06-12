@@ -5,14 +5,12 @@
 
 struct HotTestNode {
     static consteval std::string_view name() { return "hot_test"; }
-    struct inputs {
-        slider<"gain", "", float, fp(0.f), fp(10.f), fp(1.f)> gain;
-    } inputs;
-    struct outputs {
-        port<"v", float> v;
-    } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(10.f), fp(1.f)> gain;
+        out<float> v;
+    } endpoints;
     void operator()(double) {
-        outputs.v.value = inputs.gain.value * float(HOT_TEST_VERSION);
+        endpoints.v.value = endpoints.gain.get() * float(HOT_TEST_VERSION);
     }
 };
 

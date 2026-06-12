@@ -124,16 +124,14 @@ TEST(SignalGraph, SerializeRoundTrip) {
 // ProducerNode: has a float output port, emits a constant scalar value.
 struct ProducerNode {
     static consteval std::string_view name() { return "producer"; }
-    struct inputs {} inputs;
-    struct outputs { port<"val", float> val; } outputs;
-    void operator()(double) { outputs.val.value = 42.0f; }
+    struct endpoints { out<float> val; } endpoints;
+    void operator()(double) { endpoints.val.value = 42.0f; }
 };
 
 // ConsumerNode: has a float input port, records the last value set.
 struct ConsumerNode {
     static consteval std::string_view name() { return "consumer"; }
-    struct inputs { port<"val", float> val; } inputs;
-    struct outputs {} outputs;
+    struct endpoints { in<float> val; } endpoints;
     void operator()(double) {}
 };
 
@@ -141,10 +139,9 @@ struct ConsumerNode {
 struct DrawNode {
     static consteval std::string_view name() { return "draw_node"; }
     static bool drawn;
-    struct inputs {} inputs;
-    struct outputs { port<"render", DrawFn> render; } outputs;
+    struct endpoints { out<DrawFn> render; } endpoints;
     void operator()(double) {
-        outputs.render.value = [](const Eigen::Matrix4f&) { DrawNode::drawn = true; };
+        endpoints.render.value = [](const Eigen::Matrix4f&) { DrawNode::drawn = true; };
     }
 };
 bool DrawNode::drawn = false;
@@ -183,7 +180,7 @@ TEST(SignalGraph, TickGraphPropagatesTopoOrder) {
     // Consumer node's input should have been set to 42
     auto* consumer = static_cast<ConsumerNode*>(g->nodes[0].data);
     // node b is index 0 (as parsed)
-    EXPECT_NEAR(consumer->inputs.val.value, 42.0f, 1e-5f);
+    EXPECT_NEAR(consumer->endpoints.val.get(), 42.0f, 1e-5f);
 }
 
 TEST(SignalGraph, TickGraphCollectsDrawCalls) {
@@ -368,10 +365,12 @@ TEST(SignalGraph, EdgeRoundTrip) {
 // Counter node: state survives migration, params re-apply.
 struct CounterNode {
     static consteval std::string_view name() { return "counter"; }
-    struct inputs  { slider<"step", "", float, fp(0.f), fp(10.f), fp(1.f)> step; } inputs;
-    struct outputs { port<"count", float> count; } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(10.f), fp(1.f)> step;
+        out<float> count;
+    } endpoints;
     float count_ = 0.f;
-    void operator()(double) { count_ += inputs.step.value; outputs.count.value = count_; }
+    void operator()(double) { count_ += endpoints.step.get(); endpoints.count.value = count_; }
 };
 
 TEST(MigrateGraph, StateSurvivesParamsReapply) {
@@ -390,7 +389,7 @@ TEST(MigrateGraph, StateSurvivesParamsReapply) {
 
     auto* c = static_cast<CounterNode*>(g2->nodes[0].data);
     EXPECT_FLOAT_EQ(c->count_, 5.f);            // live state adopted
-    EXPECT_FLOAT_EQ(c->inputs.step.value, 2.f); // declarative edit applied
+    EXPECT_FLOAT_EQ(c->endpoints.step.fallback, 2.f); // declarative edit applied
     tick_graph(*g2, 0.0);
     EXPECT_FLOAT_EQ(c->count_, 7.f);
 }
@@ -414,7 +413,7 @@ TEST(ParseGraph, ToleratesStandardJsonWhitespace) {
         "edges": []
     })", reg);
     ASSERT_TRUE(g);
-    EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g->nodes[0].data)->inputs.step.value, 3.f);
+    EXPECT_FLOAT_EQ(static_cast<CounterNode*>(g->nodes[0].data)->endpoints.step.fallback, 3.f);
 }
 
 TEST(SubgraphInlets, RegistryJsonInjectionFansOut) {
@@ -454,9 +453,11 @@ TEST(SubgraphInlets, RegistryJsonInjectionFansOut) {
 // ── text params, subgraph migration, nesting ───────────────────────────────
 struct TextyNode {
     static consteval std::string_view name() { return "texty"; }
-    struct inputs  { ::text<"label"> label; } inputs;
-    struct outputs { port<"out", float> out; } outputs;
-    void operator()(double) { outputs.out.value = float(inputs.label.value.size()); }
+    struct endpoints {
+        normalled_in<std::string> label;
+        ::out<float> out;
+    } endpoints;
+    void operator()(double) { endpoints.out.value = float(endpoints.label.get().size()); }
 };
 
 TEST(TextParams, RoundTripThroughGraphJson) {
@@ -464,12 +465,12 @@ TEST(TextParams, RoundTripThroughGraphJson) {
     reg.register_builtin(make_descriptor<TextyNode>());
     auto g = parse_graph(R"({"nodes":[{"id":"t","type":"texty","params":{"label":"hello world"}}],"edges":[]})", reg);
     ASSERT_TRUE(g);
-    EXPECT_EQ(static_cast<TextyNode*>(g->nodes[0].data)->inputs.label.value, "hello world");
+    EXPECT_EQ(static_cast<TextyNode*>(g->nodes[0].data)->endpoints.label.fallback, "hello world");
     auto json = serialize_graph(*g);
     EXPECT_NE(json.find("\"label\":\"hello world\""), std::string::npos);
     auto g2 = parse_graph(json, reg);
     ASSERT_TRUE(g2);
-    EXPECT_EQ(static_cast<TextyNode*>(g2->nodes[0].data)->inputs.label.value, "hello world");
+    EXPECT_EQ(static_cast<TextyNode*>(g2->nodes[0].data)->endpoints.label.fallback, "hello world");
 }
 
 TEST(MigrateGraph, RegistrySubgraphInstanceStateAdopted) {
@@ -594,22 +595,26 @@ TEST(TickPlan, AcyclicGraphHasNoDelays) {
 
 struct BangerNode {
     static consteval std::string_view name() { return "banger"; }
-    struct inputs  { slider<"fire", "", float, fp(0.f), fp(1.f), fp(0.f)> fire; } inputs;
-    struct outputs { bang<"out"> out; } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> fire;
+        event_out out;
+    } endpoints;
     bool prev_ = false;
     void operator()(double) {
-        bool on = inputs.fire.value > 0.5f;
-        outputs.out.triggered = on && !prev_;   // fires for exactly one tick
+        bool on = endpoints.fire.get() > 0.5f;
+        endpoints.out.triggered = on && !prev_;   // fires for exactly one tick
         prev_ = on;
     }
 };
 
 struct ListenerNode {
     static consteval std::string_view name() { return "listener"; }
-    struct inputs  { bang<"in"> in; } inputs;
-    struct outputs { port<"count", float> count; } outputs;
+    struct endpoints {
+        event_in in;
+        ::out<float> count;
+    } endpoints;
     void operator()(double) {
-        if (inputs.in.triggered) outputs.count.value += 1.f;
+        if (endpoints.in.triggered) endpoints.count.value += 1.f;
     }
 };
 
@@ -626,17 +631,17 @@ TEST(BangPorts, FlowEndToEndExactlyOnce) {
     auto* l = static_cast<ListenerNode*>(g->nodes[1].data);
 
     tick_graph(*g, 0.0);                       // idle: no fire
-    EXPECT_FLOAT_EQ(l->outputs.count.value, 0.f);
-    b->inputs.fire.value = 1.f;
+    EXPECT_FLOAT_EQ(l->endpoints.count.value, 0.f);
+    b->endpoints.fire.fallback = 1.f;
     tick_graph(*g, 0.0);                       // rising edge: one bang
     tick_graph(*g, 0.0);                       // held: no re-fire
     tick_graph(*g, 0.0);
-    EXPECT_FLOAT_EQ(l->outputs.count.value, 1.f);
-    b->inputs.fire.value = 0.f;
+    EXPECT_FLOAT_EQ(l->endpoints.count.value, 1.f);
+    b->endpoints.fire.fallback = 0.f;
     tick_graph(*g, 0.0);
-    b->inputs.fire.value = 1.f;
+    b->endpoints.fire.fallback = 1.f;
     tick_graph(*g, 0.0);                       // second press: second bang
-    EXPECT_FLOAT_EQ(l->outputs.count.value, 2.f);
+    EXPECT_FLOAT_EQ(l->endpoints.count.value, 2.f);
 }
 
 TEST(BangPorts, SchemaReportsBangKind) {
@@ -716,15 +721,19 @@ TEST(EndpointsV6Executor, WiresAreLiteralPointersAndResetOnSwap) {
 
 struct TextSrcNode {
     static consteval std::string_view name() { return "text_src"; }
-    struct inputs  { ::text<"seed"> seed; } inputs;
-    struct outputs { port<"text", std::string> text; } outputs;
-    void operator()(double) { outputs.text.value = inputs.seed.value + "!"; }
+    struct endpoints {
+        normalled_in<std::string> seed;
+        out<std::string> text;
+    } endpoints;
+    void operator()(double) { endpoints.text.value = endpoints.seed.get() + "!"; }
 };
 struct TextSinkNode {
     static consteval std::string_view name() { return "text_sink"; }
-    struct inputs  { ::text<"in"> in; } inputs;
-    struct outputs { port<"len", float> len; } outputs;
-    void operator()(double) { outputs.len.value = float(inputs.in.value.size()); }
+    struct endpoints {
+        normalled_in<std::string> in;
+        ::out<float> len;
+    } endpoints;
+    void operator()(double) { endpoints.len.value = float(endpoints.in.get().size()); }
 };
 
 TEST(TextEdges, TextFlowsThroughAnEdge) {
@@ -741,7 +750,7 @@ TEST(TextEdges, TextFlowsThroughAnEdge) {
     TextSinkNode* b = nullptr;
     for (auto& n : g->nodes) if (n.id == "b") b = static_cast<TextSinkNode*>(n.data);
     ASSERT_TRUE(b);
-    EXPECT_EQ(b->inputs.in.value, "hello!");
+    EXPECT_EQ(b->endpoints.in.get(), "hello!");
     auto it = g->values.find("a.text");
     ASSERT_NE(it, g->values.end());
     EXPECT_EQ(std::get<std::string>(it->second), "hello!");
@@ -749,9 +758,11 @@ TEST(TextEdges, TextFlowsThroughAnEdge) {
 
 struct GainNode {
     static consteval std::string_view name() { return "gain2"; }
-    struct inputs  { slider<"gain", "", float, fp(0.f), fp(10.f), fp(1.f)> gain; } inputs;
-    struct outputs { port<"out", float> out; } outputs;
-    void operator()(double) { outputs.out.value = inputs.gain.value * 2.f; }
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(10.f), fp(1.f)> gain;
+        ::out<float> out;
+    } endpoints;
+    void operator()(double) { endpoints.out.value = endpoints.gain.get() * 2.f; }
 };
 
 TEST(SubgraphInletParams, ParamsSetDefaultsAndRoundTrip) {
