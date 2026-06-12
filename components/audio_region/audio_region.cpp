@@ -2,6 +2,8 @@
 #include "audio_region.hpp"
 #include <algorithm>
 #include <cstring>
+#include <cstdio>
+#include <cstdlib>
 #include <optional>
 
 namespace {
@@ -76,6 +78,10 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
             [this](float* out, int frames) { render_block(out, frames); }, kRate);
         if (stream_) stream_->start();
     }
+    if (std::getenv("SYGALDREYE_BLOCK_DEBUG"))
+        std::fprintf(stderr, "[reb] block=%zu stream=%d latches=%zu snaps=%zu\n",
+                     plan_->block_order.size(), int(stream_.has_value()),
+                     latches_.size(), snaps_.size());
 }
 
 // The block scheduler: the same plan subset, the same primitives, a
@@ -83,7 +89,38 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
 void AudioRegion::render_block(float* out, int frames) {
     std::memset(out, 0, std::size_t(frames) * 2 * sizeof(float));
     std::unique_lock<std::mutex> lock(plan_mutex_, std::try_to_lock);
+    static const bool dbg_pre = std::getenv("SYGALDREYE_BLOCK_DEBUG") != nullptr;
+    static int dbg_calls = 0;
+    if (dbg_pre && (++dbg_calls % 188) == 0)
+        std::fprintf(stderr, "[blk-pre] call=%d lock=%d plan=%d block=%zu\n",
+                     dbg_calls, int(lock.owns_lock()), int(plan_ != nullptr),
+                     plan_ ? plan_->block_order.size() : std::size_t(0));
     if (!lock.owns_lock() || !plan_ || plan_->block_order.empty()) return;
+
+    // SYGALDREYE_BLOCK_DEBUG=1: one status line per ~second of audio.
+    static const bool dbg = std::getenv("SYGALDREYE_BLOCK_DEBUG") != nullptr;
+    static int dbg_count = 0;
+    bool dbg_now = dbg && (++dbg_count % 188 == 0);
+    if (dbg_now) {
+        std::fprintf(stderr, "[blk] t=%.1f frames=%d order=%zu store=%zu "
+                     "latches=%zu snaps=%zu\n",
+                     t_, frames, plan_->block_order.size(), store_.size(),
+                     latches_.size(), snaps_.size());
+        for (auto& s : snaps_)
+            std::fprintf(stderr, "[blk]   snap %s=%g\n", s->from_key.c_str(),
+                         s->value.load());
+        for (auto& l : latches_)
+            std::fprintf(stderr, "[blk]   latch ->%s.%s set=%d\n",
+                         l->to.id.c_str(), l->edge->to_port.c_str(), int(l->set));
+        for (std::size_t idx : plan_->block_order) {
+            auto& n = graph_->nodes[idx];
+            auto it = store_.find(n.id + ".audio");
+            std::fprintf(stderr, "[blk]   node %s audio=%s\n", n.id.c_str(),
+                         it == store_.end() ? "(none)" :
+                         (std::get_if<AudioBuffer>(&it->second)
+                              ? "buf" : "other"));
+        }
+    }
 
     t_ += double(frames) / kRate;
     for (auto& l : latches_) {
@@ -215,6 +252,10 @@ void AudioRegion::capture_latches(const Graph& g) {
 }
 
 void AudioRegion::pump_offline(double dt) {
+    static int dbg_pump = 0;
+    if (std::getenv("SYGALDREYE_BLOCK_DEBUG") && (++dbg_pump % 600) == 0)
+        std::fprintf(stderr, "[pump] stream=%d active=%d\n",
+                     int(stream_.has_value()), int(active()));
     if (stream_ || !active()) return;
     int frames = std::clamp(int(dt * kRate), 0, 4800);
     if (frames == 0) return;
