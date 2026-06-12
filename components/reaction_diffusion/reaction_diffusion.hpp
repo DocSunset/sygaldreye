@@ -23,18 +23,17 @@ public:
     static consteval std::string_view source_header() { return "components/reaction_diffusion/reaction_diffusion.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/reaction_diffusion/reaction_diffusion.cpp"; }
 
-    struct inputs {
-        slider<"Du",             "", float, fp(0.0f), fp(1.0f),  fp(0.16f)> Du;
-        slider<"Dv",             "", float, fp(0.0f), fp(1.0f),  fp(0.08f)> Dv;
-        slider<"F",              "", float, fp(0.0f), fp(0.1f),  fp(0.06f)> F;
-        slider<"k",              "", float, fp(0.0f), fp(0.1f),  fp(0.062f)> k;
-        slider<"dt",             "", float, fp(0.1f), fp(2.0f),  fp(1.0f)>  dt;
-        slider<"steps_per_frame","", float, fp(1.0f), fp(32.0f), fp(8.0f)>  steps_per_frame;
-    } inputs;
+    struct endpoints {
+        normalled_in<float, fp(0.0f), fp(1.0f), fp(0.16f)> Du;
+        normalled_in<float, fp(0.0f), fp(1.0f), fp(0.08f)> Dv;
+        normalled_in<float, fp(0.0f), fp(0.1f), fp(0.06f)> F;
+        normalled_in<float, fp(0.0f), fp(0.1f), fp(0.062f)> k;
+        normalled_in<float, fp(0.1f), fp(2.0f), fp(1.0f)> dt;
+        normalled_in<float, fp(1.0f), fp(32.0f), fp(8.0f)> steps_per_frame;
+    
+        ::out<DrawFn> render;
+    } endpoints;
 
-    struct outputs {
-        port<"render", DrawFn> render;
-    } outputs;
 
     ReactionDiffusion() { *this = create_default(); }
 

@@ -63,7 +63,7 @@ RDRenderer::~RDRenderer() {
 }
 
 RDRenderer::RDRenderer(RDRenderer&& o) noexcept
-    : inputs(o.inputs), outputs(o.outputs),
+    : endpoints(o.endpoints),
       prog_(std::exchange(o.prog_, 0)),
       vao_ (std::exchange(o.vao_,  0)),
       tex_loc_    (o.tex_loc_),
@@ -77,8 +77,7 @@ RDRenderer& RDRenderer::operator=(RDRenderer&& o) noexcept {
     if (this != &o) {
         if (prog_ != 0) { glDeleteProgram(prog_); }
         if (vao_  != 0) { glDeleteVertexArrays(1, &vao_); }
-        inputs  = o.inputs;
-        outputs = o.outputs;
+        endpoints = o.endpoints;
         prog_        = std::exchange(o.prog_, 0);
         vao_         = std::exchange(o.vao_,  0);
         tex_loc_     = o.tex_loc_;
@@ -93,14 +92,14 @@ RDRenderer& RDRenderer::operator=(RDRenderer&& o) noexcept {
 
 void RDRenderer::operator()(double) {
     if (!prog_) {  // graph nodes are default-constructed; create() never ran
-        auto saved = inputs;
+        auto saved = endpoints;
         *this = create();
-        inputs = saved;
+        endpoints = saved;
     }
-    texture_ = inputs.texture.value;
-    color_a_ = {inputs.r_a.value, inputs.g_a.value, inputs.b_a.value};
-    color_b_ = {inputs.r_b.value, inputs.g_b.value, inputs.b_b.value};
-    outputs.render.value = [this](const Eigen::Matrix4f&) { draw({}); };
+    texture_ = endpoints.texture.get();
+    color_a_ = {endpoints.r_a.get(), endpoints.g_a.get(), endpoints.b_a.get()};
+    color_b_ = {endpoints.r_b.get(), endpoints.g_b.get(), endpoints.b_b.get()};
+    endpoints.render.value = [this](const Eigen::Matrix4f&) { draw({}); };
 }
 
 void RDRenderer::draw(Eigen::Matrix4f const&) const {

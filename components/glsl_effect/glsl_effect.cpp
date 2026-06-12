@@ -30,7 +30,7 @@ constexpr const char* kPassthrough = "return texture(uTex, uv);";
 } // namespace
 
 bool GlslEffectNode::ensure_program() {
-    const std::string& code = inputs.code.value;
+    const std::string& code = endpoints.code.get();
     if (prog_ && code == compiled_code_) return true;
     if (compile_failed_ && code == compiled_code_) return false;
 
@@ -76,7 +76,7 @@ bool GlslEffectNode::ensure_target(int w, int h) {
 
 void GlslEffectNode::operator()(double time_s) {
     if (!ensure_program()) return;
-    int w = int(inputs.width.value), h = int(inputs.height.value);
+    int w = int(endpoints.width.get()), h = int(endpoints.height.get());
     if (!ensure_target(w, h)) return;
 
     GLint prev_fbo = 0;  glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
@@ -89,17 +89,17 @@ void GlslEffectNode::operator()(double time_s) {
     glDisable(GL_DEPTH_TEST);
     prog_->use();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, inputs.texture.value.id);  // 0 is fine: black
+    glBindTexture(GL_TEXTURE_2D, endpoints.texture.get().id);  // 0 is fine: black
     glUniform1i(prog_->uniform_location("uTex"), 0);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, inputs.texture2.value.id);
+    glBindTexture(GL_TEXTURE_2D, endpoints.texture2.get().id);
     glUniform1i(prog_->uniform_location("uTex2"), 1);
     glActiveTexture(GL_TEXTURE0);
     glUniform1f(prog_->uniform_location("uTime"), float(time_s));
-    glUniform1f(prog_->uniform_location("uA"), inputs.a.value);
-    glUniform1f(prog_->uniform_location("uB"), inputs.b.value);
-    glUniform1f(prog_->uniform_location("uC"), inputs.c.value);
-    glUniform1f(prog_->uniform_location("uD"), inputs.d.value);
+    glUniform1f(prog_->uniform_location("uA"), endpoints.a.get());
+    glUniform1f(prog_->uniform_location("uB"), endpoints.b.get());
+    glUniform1f(prog_->uniform_location("uC"), endpoints.c.get());
+    glUniform1f(prog_->uniform_location("uD"), endpoints.d.get());
     glBindVertexArray(vao_);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -108,7 +108,7 @@ void GlslEffectNode::operator()(double time_s) {
     glViewport(prev_vp[0], prev_vp[1], prev_vp[2], prev_vp[3]);
     glEnable(GL_DEPTH_TEST);
 
-    outputs.texture.value = {color_[ping_], w_, h_, GL_RGBA8, GL_LINEAR};
+    endpoints.texture_out.value = {color_[ping_], w_, h_, GL_RGBA8, GL_LINEAR};
     ping_ = 1 - ping_;
 }
 

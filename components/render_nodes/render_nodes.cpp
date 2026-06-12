@@ -6,7 +6,7 @@
 // ── render_target ───────────────────────────────────────────────────────────
 
 void RenderTargetNode::operator()(double) {
-    int w = int(inputs.width.value), h = int(inputs.height.value);
+    int w = int(endpoints.width.get()), h = int(endpoints.height.get());
     if (fbo_ == 0 || w != w_ || h != h_) {
         if (fbo_) { glDeleteFramebuffers(1, &fbo_); glDeleteTextures(1, &color_);
                     glDeleteRenderbuffers(1, &depth_); }
@@ -33,14 +33,14 @@ void RenderTargetNode::operator()(double) {
     GLint prev_vp[4]; glGetIntegerv(GL_VIEWPORT, prev_vp);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
     glViewport(0, 0, w_, h_);
-    glClearColor(inputs.bg_r.value, inputs.bg_g.value, inputs.bg_b.value, 1.f);
+    glClearColor(endpoints.bg_r.get(), endpoints.bg_g.get(), endpoints.bg_b.get(), 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
-    if (inputs.draw.value) inputs.draw.value(inputs.pv.value);
+    if (endpoints.draw.get()) endpoints.draw.get()(endpoints.pv.get());
     glBindFramebuffer(GL_FRAMEBUFFER, GLuint(prev_fbo));
     glViewport(prev_vp[0], prev_vp[1], prev_vp[2], prev_vp[3]);
 
-    outputs.texture.value = {color_, w_, h_, GL_RGBA8, GL_LINEAR};
+    endpoints.texture.value = {color_, w_, h_, GL_RGBA8, GL_LINEAR};
 }
 
 RenderTargetNode::~RenderTargetNode() {
@@ -85,8 +85,8 @@ GlProgram* TextureViewNode::prog() {
 }
 
 void TextureViewNode::operator()(double) {
-    tex_ = inputs.texture.value;
-    outputs.render.value = [this](const Eigen::Matrix4f&) {
+    tex_ = endpoints.texture.get();
+    endpoints.render.value = [this](const Eigen::Matrix4f&) {
         if (!tex_.valid()) return;
         GlProgram* pr = prog();
         if (!pr) return;
@@ -98,7 +98,7 @@ void TextureViewNode::operator()(double) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, tex_.id);
         glUniform1i(pr->uniform_location("uTex"), 0);
-        glUniform1f(pr->uniform_location("uAlpha"), inputs.alpha.value);
+        glUniform1f(pr->uniform_location("uAlpha"), endpoints.alpha.get());
         glBindVertexArray(vao_);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glBindVertexArray(GLuint(prev_vao));

@@ -32,18 +32,17 @@ public:
     static consteval std::string_view source_header() { return "components/sky_dome/sky_dome.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/sky_dome/sky_dome.cpp"; }
 
-    struct inputs {
-        slider<"sun_elevation", "", float, -1.0, 1.0, 0.5> sun_elevation;
-        slider<"radius",        "", float, 10.0, 2000.0, 500.0> radius;
-    } inputs;
+    struct endpoints {
+        normalled_in<float, fp(-1.0f), fp(1.0f), fp(0.5f)> sun_elevation;
+        normalled_in<float, fp(10.0f), fp(2000.0f), fp(500.0f)> radius;
+    
+        ::out<DrawFn> render;
+        ::out<float> sun_elevation_out;
+        ::out<float> sun_azimuth_out;
+        ::out<Eigen::Vector3f> sun_dir;
+        ::out<Eigen::Vector4f> sun_color;
+    } endpoints;
 
-    struct outputs {
-        port<"render",           DrawFn>          render;
-        port<"sun_elevation_out",float>           sun_elevation_out;
-        port<"sun_azimuth_out",  float>           sun_azimuth_out;
-        port<"sun_dir",          Eigen::Vector3f> sun_dir;
-        port<"sun_color",        Eigen::Vector4f> sun_color;
-    } outputs;
 
     void operator()(double time_s);
 

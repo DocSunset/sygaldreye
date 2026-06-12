@@ -18,21 +18,14 @@ struct GlslEffectNode {
     static consteval std::string_view name() { return "glsl_effect"; }
     static consteval std::string_view source_header() { return "components/glsl_effect/glsl_effect.hpp"; }
 
-    struct inputs {
-        port<"texture",  GpuTexture> texture;
-        port<"texture2", GpuTexture> texture2;  // uTex2: mix/composite input
-        ::text<"code"> code;  // body of effect(); empty = passthrough
-        slider<"a", "", float, fp(-10.f), fp(10.f), fp(0.f)> a;
-        slider<"b", "", float, fp(-10.f), fp(10.f), fp(0.f)> b;
-        slider<"c", "", float, fp(-10.f), fp(10.f), fp(0.f)> c;
-        slider<"d", "", float, fp(-10.f), fp(10.f), fp(0.f)> d;
-        slider<"width",  "", float, fp(64.f), fp(2048.f), fp(512.f)> width;
-        slider<"height", "", float, fp(64.f), fp(2048.f), fp(512.f)> height;
-    } inputs;
-
-    struct outputs {
-        port<"texture", GpuTexture> texture;
-    } outputs;
+    struct endpoints {
+        in<GpuTexture> texture;
+        in<GpuTexture> texture2;  // uTex2: mix/composite input
+        normalled_in<std::string> code;  // body of effect(); empty = passthrough
+        normalled_in<float, fp(-10.f), fp(10.f), fp(0.f)> a, b, c, d;
+        normalled_in<float, fp(64.f), fp(2048.f), fp(512.f)> width, height;
+        out<GpuTexture> texture_out;  // processor convention: in texture, out texture_out
+    } endpoints;
 
     void operator()(double time_s);
     ~GlslEffectNode();

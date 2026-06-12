@@ -46,18 +46,17 @@ public:
     static consteval std::string_view source_header() { return "components/water_surface/water_surface.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/water_surface/water_surface.cpp"; }
 
-    struct inputs {
-        slider<"cell_size",      "", float, 0.1, 5.0,  1.0>  cell_size;
-        slider<"foam_threshold", "", float, 0.0, 1.0,  0.55> foam_threshold;
-        slider<"sun_intensity",  "", float, 0.0, 5.0,  1.2>  sun_intensity;
-        slider<"wavelength",     "", float, 8.0,  150.0, 56.0> wavelength;
-        slider<"choppiness",     "", float, 0.0,  1.0,   0.6>  choppiness;
-        slider<"amplitude",      "", float, 0.0,  0.05,  0.016> amplitude;
-    } inputs;
+    struct endpoints {
+        normalled_in<float, fp(0.1f), fp(5.0f), fp(1.0f)> cell_size;
+        normalled_in<float, fp(0.0f), fp(1.0f), fp(0.55f)> foam_threshold;
+        normalled_in<float, fp(0.0f), fp(5.0f), fp(1.2f)> sun_intensity;
+        normalled_in<float, fp(8.0f), fp(150.0f), fp(56.0f)> wavelength;
+        normalled_in<float, fp(0.0f), fp(1.0f), fp(0.6f)> choppiness;
+        normalled_in<float, fp(0.0f), fp(0.05f), fp(0.016f)> amplitude;
+    
+        ::out<DrawFn> render;
+    } endpoints;
 
-    struct outputs {
-        port<"render", DrawFn> render;
-    } outputs;
 
     void operator()(double time_s);
 
@@ -73,9 +72,9 @@ public:
     void set_sun(Light const& l) { params_.sun = l; }
     void update(float time_s) {
         time_s_                = time_s;
-        params_.cell_size      = inputs.cell_size.value;
-        params_.foam_threshold = inputs.foam_threshold.value;
-        params_.sun.intensity  = inputs.sun_intensity.value;
+        params_.cell_size      = endpoints.cell_size.fallback;
+        params_.foam_threshold = endpoints.foam_threshold.fallback;
+        params_.sun.intensity  = endpoints.sun_intensity.fallback;
     }
     void draw(Eigen::Matrix4f const& mvp,
               Eigen::Matrix4f const& model,

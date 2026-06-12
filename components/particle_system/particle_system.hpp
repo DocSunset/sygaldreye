@@ -31,22 +31,24 @@ public:
     static consteval std::string_view source_header() { return "components/particle_system/particle_system.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/particle_system/particle_system.cpp"; }
 
-    struct inputs {
-        slider<"emit_rate",    "", float, fp(0.f),   fp(500.f),  fp(50.f)>  emit_rate;
-        slider<"lifetime_min", "", float, fp(0.1f),  fp(10.f),   fp(0.5f)>  lifetime_min;
-        slider<"lifetime_max", "", float, fp(0.1f),  fp(10.f),   fp(2.f)>   lifetime_max;
-        slider<"size_start",   "", float, fp(0.01f), fp(1.f),    fp(0.05f)> size_start;
-        slider<"size_end",     "", float, fp(0.f),   fp(1.f),    fp(0.f)>   size_end;
-        slider<"emit_x",       "", float, fp(-50.f),  fp(50.f),   fp(0.f)>   emit_x;
-        slider<"emit_y",       "", float, fp(-50.f),  fp(50.f),   fp(0.f)>   emit_y;
-        slider<"emit_z",       "", float, fp(-50.f),  fp(50.f),   fp(0.f)>   emit_z;
-        slider<"vel_up",       "", float, fp(0.f),    fp(20.f),   fp(3.f)>   vel_up;
-        slider<"vel_spread",   "", float, fp(0.f),    fp(10.f),   fp(1.f)>   vel_spread;
-        slider<"gravity_y",    "", float, fp(-30.f),  fp(30.f),   fp(-9.8f)> gravity_y;
-        slider<"r",            "", float, fp(0.f),    fp(1.f),    fp(1.f)>   r;
-        slider<"g",            "", float, fp(0.f),    fp(1.f),    fp(0.75f)> g;
-        slider<"b",            "", float, fp(0.f),    fp(1.f),    fp(0.3f)>  b;
-    } inputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(500.f), fp(50.f)> emit_rate;
+        normalled_in<float, fp(0.1f), fp(10.f), fp(0.5f)> lifetime_min;
+        normalled_in<float, fp(0.1f), fp(10.f), fp(2.f)> lifetime_max;
+        normalled_in<float, fp(0.01f), fp(1.f), fp(0.05f)> size_start;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> size_end;
+        normalled_in<float, fp(-50.f), fp(50.f), fp(0.f)> emit_x;
+        normalled_in<float, fp(-50.f), fp(50.f), fp(0.f)> emit_y;
+        normalled_in<float, fp(-50.f), fp(50.f), fp(0.f)> emit_z;
+        normalled_in<float, fp(0.f), fp(20.f), fp(3.f)> vel_up;
+        normalled_in<float, fp(0.f), fp(10.f), fp(1.f)> vel_spread;
+        normalled_in<float, fp(-30.f), fp(30.f), fp(-9.8f)> gravity_y;
+        normalled_in<float, fp(0.f), fp(1.f), fp(1.f)> r;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.75f)> g;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.3f)> b;
+    
+        ::out<DrawFn> render;
+    } endpoints;
 
     explicit ParticleSystem(int capacity = 1000);
     ~ParticleSystem();
@@ -55,9 +57,6 @@ public:
     ParticleSystem(ParticleSystem&&) noexcept;
     ParticleSystem& operator=(ParticleSystem&&) noexcept;
 
-    struct outputs {
-        port<"render", DrawFn> render;
-    } outputs;
 
     void set_emitter(EmitterParams const&);
     void update(float dt, Eigen::Vector3f gravity = {0.f, -9.8f, 0.f});

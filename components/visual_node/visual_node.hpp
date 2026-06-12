@@ -13,6 +13,6 @@ public:
         if (!d.gl_ready()) d.init_gl();
         d.sync_params();
         d.update(static_cast<float>(time_s));
-        d.outputs.render.value = [pd = &d](const Eigen::Matrix4f& vp) { pd->draw(vp); };
+        d.endpoints.render.value = [pd = &d](const Eigen::Matrix4f& vp) { pd->draw(vp); };
     }
 };

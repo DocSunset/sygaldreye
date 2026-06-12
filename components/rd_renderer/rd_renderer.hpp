@@ -13,19 +13,18 @@ public:
     static consteval std::string_view source_header() { return "components/rd_renderer/rd_renderer.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/rd_renderer/rd_renderer.cpp"; }
 
-    struct inputs {
-        port<"texture", GpuTexture>                                      texture;
-        slider<"r_a", "", float, fp(0.f), fp(1.f), fp(0.05f)>           r_a;
-        slider<"g_a", "", float, fp(0.f), fp(1.f), fp(0.15f)>           g_a;
-        slider<"b_a", "", float, fp(0.f), fp(1.f), fp(0.35f)>           b_a;
-        slider<"r_b", "", float, fp(0.f), fp(1.f), fp(0.95f)>           r_b;
-        slider<"g_b", "", float, fp(0.f), fp(1.f), fp(0.90f)>           g_b;
-        slider<"b_b", "", float, fp(0.f), fp(1.f), fp(0.70f)>           b_b;
-    } inputs;
+    struct endpoints {
+        ::in<GpuTexture> texture;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.05f)> r_a;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.15f)> g_a;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.35f)> b_a;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.95f)> r_b;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.90f)> g_b;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.70f)> b_b;
+    
+        ::out<DrawFn> render;
+    } endpoints;
 
-    struct outputs {
-        port<"render", DrawFn> render;
-    } outputs;
 
     static RDRenderer create();
     void operator()(double);

@@ -7,8 +7,8 @@
 // ── mesh_grid ───────────────────────────────────────────────────────────────
 
 void MeshGridNode::operator()(double) {
-    int   n = int(inputs.cells.value);
-    float s = inputs.size.value;
+    int   n = int(endpoints.cells.get());
+    float s = endpoints.size.get();
     if (n != cells_ || s != size_) {
         auto m = std::make_shared<TriMeshData>();
         m->vertices.reserve(size_t(n + 1) * (n + 1));
@@ -28,15 +28,15 @@ void MeshGridNode::operator()(double) {
         cached_ = std::move(m);
         cells_ = n; size_ = s;
     }
-    outputs.mesh.value = cached_;
+    endpoints.mesh.value = cached_;
 }
 
 // ── mesh_displace ───────────────────────────────────────────────────────────
 
 void MeshDisplaceNode::operator()(double) {
-    const MeshPtr& in = inputs.mesh.value;
-    const GpuTexture& tex = inputs.texture.value;
-    if (!in || !tex.valid()) { outputs.mesh.value = in; return; }
+    MeshPtr in = endpoints.mesh.get();
+    GpuTexture tex = endpoints.texture.get();
+    if (!in || !tex.valid()) { endpoints.mesh_out.value = in; return; }
 
     // GPU → CPU: read the texture back through a cached FBO.
     if (fbo_ == 0) glGenFramebuffers(1, &fbo_);
@@ -51,7 +51,7 @@ void MeshDisplaceNode::operator()(double) {
         glReadPixels(0, 0, tw_, th_, GL_RGBA, GL_UNSIGNED_BYTE, pixels_.data());
     }
     glBindFramebuffer(GL_FRAMEBUFFER, GLuint(prev_fbo));
-    if (!ok || tw_ == 0) { outputs.mesh.value = in; return; }
+    if (!ok || tw_ == 0) { endpoints.mesh_out.value = in; return; }
 
     // CPU: displace along +Y by luminance; tint vertex colors from texture.
     Eigen::Vector2f lo{1e9f, 1e9f}, hi{-1e9f, -1e9f};
@@ -71,8 +71,8 @@ void MeshDisplaceNode::operator()(double) {
         const unsigned char* p = &pixels_[(size_t(py) * tw_ + px) * 4];
         float r = p[0] / 255.f, g = p[1] / 255.f, b = p[2] / 255.f;
         float lum = 0.299f * r + 0.587f * g + 0.114f * b;
-        v.position.y() += lum * inputs.amplitude.value;
-        float t = inputs.tint.value;
+        v.position.y() += lum * endpoints.amplitude.get();
+        float t = endpoints.tint.get();
         v.color.head<3>() = (1.f - t) * v.color.head<3>() +
                             t * Eigen::Vector3f{r, g, b};
     }
@@ -89,7 +89,7 @@ void MeshDisplaceNode::operator()(double) {
     for (auto& v : out->vertices)
         if (v.normal.squaredNorm() > 1e-12f) v.normal.normalize();
 
-    outputs.mesh.value = std::move(out);
+    endpoints.mesh_out.value = std::move(out);
 }
 
 MeshDisplaceNode::~MeshDisplaceNode() {
@@ -128,8 +128,8 @@ void main() {
 } // namespace
 
 void MeshRenderNode::operator()(double) {
-    held_ = inputs.mesh.value;
-    outputs.render.value = [this](const Eigen::Matrix4f& pv) {
+    held_ = endpoints.mesh.get();
+    endpoints.render.value = [this](const Eigen::Matrix4f& pv) {
         if (!held_) return;
         if (!prog_) {
             auto p = GlProgram::build(kVert, kFrag);
@@ -144,8 +144,8 @@ void MeshRenderNode::operator()(double) {
         prog_->use();
         GlProgram::uniform(prog_->uniform_location("uMVP"), pv);
         glUniform3f(prog_->uniform_location("uOffset"),
-                    inputs.x.value, inputs.y.value, inputs.z.value);
-        const auto& ld = inputs.light_dir.value;
+                    endpoints.x.get(), endpoints.y.get(), endpoints.z.get());
+        Eigen::Vector3f ld = endpoints.light_dir.get();
         glUniform3f(prog_->uniform_location("uLightDir"), ld.x(), ld.y(), ld.z());
         gpu_.draw();
     };
@@ -154,8 +154,8 @@ void MeshRenderNode::operator()(double) {
 // ── generators ──────────────────────────────────────────────────────────────
 
 void MeshSphereNode::operator()(double) {
-    float r = inputs.radius.value;
-    int   n = int(inputs.segments.value);
+    float r = endpoints.radius.get();
+    int   n = int(endpoints.segments.get());
     if (r != radius_ || n != segs_) {
         auto m = std::make_shared<TriMeshData>();
         int lat = n / 2, lon = n;
@@ -177,11 +177,11 @@ void MeshSphereNode::operator()(double) {
         cached_ = std::move(m);
         radius_ = r; segs_ = n;
     }
-    outputs.mesh.value = cached_;
+    endpoints.mesh.value = cached_;
 }
 
 void MeshBoxNode::operator()(double) {
-    Eigen::Vector3f s{inputs.sx.value, inputs.sy.value, inputs.sz.value};
+    Eigen::Vector3f s{endpoints.sx.get(), endpoints.sy.get(), endpoints.sz.get()};
     if (s != size_) {
         auto m = std::make_shared<TriMeshData>();
         const Eigen::Vector3f n[6] = {{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
@@ -201,12 +201,12 @@ void MeshBoxNode::operator()(double) {
         cached_ = std::move(m);
         size_ = s;
     }
-    outputs.mesh.value = cached_;
+    endpoints.mesh.value = cached_;
 }
 
 void MeshCylinderNode::operator()(double) {
-    float r = inputs.radius.value, h = inputs.height.value;
-    int   n = int(inputs.segments.value);
+    float r = endpoints.radius.get(), h = endpoints.height.get();
+    int   n = int(endpoints.segments.get());
     if (r != radius_ || h != height_ || n != segs_) {
         auto m = std::make_shared<TriMeshData>();
         for (int i = 0; i <= 1; ++i)
@@ -224,30 +224,30 @@ void MeshCylinderNode::operator()(double) {
         cached_ = std::move(m);
         radius_ = r; height_ = h; segs_ = n;
     }
-    outputs.mesh.value = cached_;
+    endpoints.mesh.value = cached_;
 }
 
 // ── deformers ───────────────────────────────────────────────────────────────
 
 void MeshRippleNode::operator()(double t) {
-    const MeshPtr& in = inputs.mesh.value;
-    if (!in) { outputs.mesh.value = in; return; }
+    MeshPtr in = endpoints.mesh.get();
+    if (!in) { endpoints.mesh_out.value = in; return; }
     auto out = std::make_shared<TriMeshData>(*in);
-    float a = inputs.amplitude.value, f = inputs.freq.value;
-    float ph = float(t) * inputs.speed.value;
+    float a = endpoints.amplitude.get(), f = endpoints.freq.get();
+    float ph = float(t) * endpoints.speed.get();
     for (auto& v : out->vertices) {
         float w = std::sin(v.position.x() * f + ph) *
                   std::cos(v.position.z() * f * 0.7f + ph * 1.3f);
         v.position += v.normal * (a * w);
     }
-    outputs.mesh.value = std::move(out);
+    endpoints.mesh_out.value = std::move(out);
 }
 
 void MeshTwistNode::operator()(double) {
-    const MeshPtr& in = inputs.mesh.value;
-    if (!in) { outputs.mesh.value = in; return; }
+    MeshPtr in = endpoints.mesh.get();
+    if (!in) { endpoints.mesh_out.value = in; return; }
     auto out = std::make_shared<TriMeshData>(*in);
-    float k = inputs.angle.value;
+    float k = endpoints.angle.get();
     for (auto& v : out->vertices) {
         float ang = v.position.y() * k;
         float c = std::cos(ang), s = std::sin(ang);
@@ -258,20 +258,20 @@ void MeshTwistNode::operator()(double) {
         v.normal.x() = c * nx - s * nz;
         v.normal.z() = s * nx + c * nz;
     }
-    outputs.mesh.value = std::move(out);
+    endpoints.mesh_out.value = std::move(out);
 }
 
 void MeshTransformNode::operator()(double) {
-    const MeshPtr& in = inputs.mesh.value;
-    if (!in) { outputs.mesh.value = in; return; }
+    MeshPtr in = endpoints.mesh.get();
+    if (!in) { endpoints.mesh_out.value = in; return; }
     auto out = std::make_shared<TriMeshData>(*in);
-    const Eigen::Matrix4f& m4 = inputs.matrix.value;
+    Eigen::Matrix4f m4 = endpoints.matrix.get();
     Eigen::Matrix3f rot = m4.block<3, 3>(0, 0);
     for (auto& v : out->vertices) {
         v.position = (m4 * v.position.homogeneous()).head<3>();
         v.normal   = (rot * v.normal).normalized();
     }
-    outputs.mesh.value = std::move(out);
+    endpoints.mesh_out.value = std::move(out);
 }
 
 // ── span era ─────────────────────────────────────────────────────────────────

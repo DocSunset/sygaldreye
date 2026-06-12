@@ -223,17 +223,17 @@ void WaterSurface::init_gl() {
 void WaterSurface::operator()(double time_s) {
     if (!prog_) init_gl();
     // Spectrum inputs are patchable; rebuild + re-upload waves when they move.
-    if (inputs.wavelength.value != spec_wl_ ||
-        inputs.choppiness.value != spec_steep_ ||
-        inputs.amplitude.value  != spec_amp_) {
-        spec_wl_ = inputs.wavelength.value;
-        spec_steep_ = inputs.choppiness.value;
-        spec_amp_ = inputs.amplitude.value;
+    if (endpoints.wavelength.get() != spec_wl_ ||
+        endpoints.choppiness.get() != spec_steep_ ||
+        endpoints.amplitude.get()  != spec_amp_) {
+        spec_wl_ = endpoints.wavelength.get();
+        spec_steep_ = endpoints.choppiness.get();
+        spec_amp_ = endpoints.amplitude.get();
         params_.waves = make_waves(spec_wl_, spec_amp_, spec_steep_);
         upload_wave_params();
     }
     update(static_cast<float>(time_s));
-    outputs.render.value = [this](const Eigen::Matrix4f& vp) {
+    endpoints.render.value = [this](const Eigen::Matrix4f& vp) {
         // Use identity model and zero view_pos as defaults; app can override via set_sun().
         draw(vp, Eigen::Matrix4f::Identity(), Eigen::Vector3f::Zero());
     };

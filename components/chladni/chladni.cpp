@@ -110,7 +110,7 @@ void Chladni::update(float time_s) {
 }
 
 void Chladni::sync_params() {
-    params_.omega = inputs.omega.value;
+    params_.omega = endpoints.omega.get();
 }
 
 void Chladni::draw(Eigen::Matrix4f const& mvp) const {

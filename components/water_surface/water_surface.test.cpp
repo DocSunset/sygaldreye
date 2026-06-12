@@ -25,7 +25,7 @@ TEST(WaterSurfaceInputs, ToJsonContainsSunIntensity) {
 
 TEST(WaterSurfaceInputs, DefaultInputsMatchExpected) {
     WaterSurface ws;
-    EXPECT_NEAR(ws.inputs.cell_size.value,      1.0f,  1e-5f);
-    EXPECT_NEAR(ws.inputs.foam_threshold.value, 0.55f, 1e-5f);
-    EXPECT_NEAR(ws.inputs.sun_intensity.value,  1.2f,  1e-5f);
+    EXPECT_NEAR(ws.endpoints.cell_size.get(),      1.0f,  1e-5f);
+    EXPECT_NEAR(ws.endpoints.foam_threshold.get(), 0.55f, 1e-5f);
+    EXPECT_NEAR(ws.endpoints.sun_intensity.get(),  1.2f,  1e-5f);
 }

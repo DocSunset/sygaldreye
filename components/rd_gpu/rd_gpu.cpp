@@ -113,19 +113,19 @@ void RdGpu::operator()(double /*time_s*/) {
     glUseProgram(prog_);
     glUniform1i(glGetUniformLocation(prog_, "uState"), 0);
     glBindVertexArray(vao_);
-    int steps = static_cast<int>(inputs.steps_per_frame.value);
+    int steps = static_cast<int>(endpoints.steps_per_frame.get());
     for (int s = 0; s < steps; ++s) {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_[ping_]);
         glViewport(0, 0, width_, height_);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, tex_[1-ping_]);
-        glUniform1f(glGetUniformLocation(prog_, "uFeed"), inputs.feed.value);
-        glUniform1f(glGetUniformLocation(prog_, "uKill"), inputs.kill.value);
+        glUniform1f(glGetUniformLocation(prog_, "uFeed"), endpoints.feed.get());
+        glUniform1f(glGetUniformLocation(prog_, "uKill"), endpoints.kill.get());
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         ping_ = 1 - ping_;
     }
     glBindVertexArray(static_cast<GLuint>(prev_vao));
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(prev_fbo));
     glViewport(prev_vp[0], prev_vp[1], prev_vp[2], prev_vp[3]);
-    outputs.concentration.value = {tex_[ping_], width_, height_, GL_RG32F, GL_NEAREST};
+    endpoints.concentration.value = {tex_[ping_], width_, height_, GL_RG32F, GL_NEAREST};
 }

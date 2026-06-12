@@ -15,11 +15,11 @@
 struct MeshGridNode {
     static consteval std::string_view name() { return "mesh_grid"; }
     static consteval std::string_view source_header() { return "components/mesh_nodes/mesh_nodes.hpp"; }
-    struct inputs {
-        slider<"cells",   "", float, fp(2.f),   fp(200.f), fp(64.f)>  cells;
-        slider<"size",    "", float, fp(0.5f),  fp(100.f), fp(10.f)>  size;
-    } inputs;
-    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    struct endpoints {
+        normalled_in<float, fp(2.f),  fp(200.f), fp(64.f)> cells;
+        normalled_in<float, fp(0.5f), fp(100.f), fp(10.f)> size;
+        out<MeshPtr> mesh;
+    } endpoints;
     void operator()(double);
 private:
     int   cells_ = -1;
@@ -30,14 +30,14 @@ private:
 struct MeshDisplaceNode {
     static consteval std::string_view name() { return "mesh_displace"; }
     static consteval std::string_view source_header() { return "components/mesh_nodes/mesh_nodes.hpp"; }
-    struct inputs {
-        port<"mesh",    MeshPtr>    mesh;
-        port<"texture", GpuTexture> texture;   // RGBA8 readable (route float
-                                               // textures through glsl_effect)
-        slider<"amplitude", "", float, fp(-10.f), fp(10.f), fp(1.f)> amplitude;
-        slider<"tint", "", float, fp(0.f), fp(1.f), fp(1.f)> tint; // vertex color from texture
-    } inputs;
-    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    struct endpoints {
+        in<MeshPtr>    mesh;
+        in<GpuTexture> texture;   // RGBA8 readable (route float
+                                  // textures through glsl_effect)
+        normalled_in<float, fp(-10.f), fp(10.f), fp(1.f)> amplitude;
+        normalled_in<float, fp(0.f), fp(1.f), fp(1.f)> tint; // vertex color from texture
+        out<MeshPtr> mesh_out;    // processor convention: in mesh, out mesh_out
+    } endpoints;
     void operator()(double);
     ~MeshDisplaceNode();
 private:
@@ -49,15 +49,13 @@ private:
 struct MeshRenderNode {
     static consteval std::string_view name() { return "mesh_render"; }
     static consteval std::string_view source_header() { return "components/mesh_nodes/mesh_nodes.hpp"; }
-    struct inputs {
-        port<"mesh", MeshPtr> mesh;
-        slider<"x", "", float, fp(-100.f), fp(100.f), fp(0.f)> x;
-        slider<"y", "", float, fp(-100.f), fp(100.f), fp(0.f)> y;
-        slider<"z", "", float, fp(-100.f), fp(100.f), fp(0.f)> z;
-        port<"light_dir", Eigen::Vector3f> light_dir;
-    } inputs;
-    struct outputs { port<"render", DrawFn> render; } outputs;
-    MeshRenderNode() { inputs.light_dir.value = {-0.4f, -0.8f, -0.3f}; }
+    struct endpoints {
+        in<MeshPtr> mesh;
+        normalled_in<float, fp(-100.f), fp(100.f), fp(0.f)> x, y, z;
+        normalled_in<Eigen::Vector3f> light_dir;
+        out<DrawFn> render;
+    } endpoints;
+    MeshRenderNode() { endpoints.light_dir.fallback = {-0.4f, -0.8f, -0.3f}; }
     void operator()(double);
 private:
     std::unique_ptr<GlProgram> prog_;
@@ -69,11 +67,11 @@ private:
 // ── generators ──────────────────────────────────────────────────────────────
 struct MeshSphereNode {
     static consteval std::string_view name() { return "mesh_sphere"; }
-    struct inputs {
-        slider<"radius",   "", float, fp(0.05f), fp(50.f),  fp(1.f)>  radius;
-        slider<"segments", "", float, fp(4.f),   fp(128.f), fp(32.f)> segments;
-    } inputs;
-    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.05f), fp(50.f),  fp(1.f)>  radius;
+        normalled_in<float, fp(4.f),   fp(128.f), fp(32.f)> segments;
+        out<MeshPtr> mesh;
+    } endpoints;
     void operator()(double);
 private:
     float radius_ = -1.f; int segs_ = -1;
@@ -82,12 +80,10 @@ private:
 
 struct MeshBoxNode {
     static consteval std::string_view name() { return "mesh_box"; }
-    struct inputs {
-        slider<"sx", "", float, fp(0.05f), fp(50.f), fp(1.f)> sx;
-        slider<"sy", "", float, fp(0.05f), fp(50.f), fp(1.f)> sy;
-        slider<"sz", "", float, fp(0.05f), fp(50.f), fp(1.f)> sz;
-    } inputs;
-    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.05f), fp(50.f), fp(1.f)> sx, sy, sz;
+        out<MeshPtr> mesh;
+    } endpoints;
     void operator()(double);
 private:
     Eigen::Vector3f size_{-1.f, -1.f, -1.f};
@@ -96,12 +92,12 @@ private:
 
 struct MeshCylinderNode {
     static consteval std::string_view name() { return "mesh_cylinder"; }
-    struct inputs {
-        slider<"radius",   "", float, fp(0.05f), fp(50.f),  fp(0.5f)> radius;
-        slider<"height",   "", float, fp(0.05f), fp(50.f),  fp(2.f)>  height;
-        slider<"segments", "", float, fp(3.f),   fp(128.f), fp(24.f)> segments;
-    } inputs;
-    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.05f), fp(50.f),  fp(0.5f)> radius;
+        normalled_in<float, fp(0.05f), fp(50.f),  fp(2.f)>  height;
+        normalled_in<float, fp(3.f),   fp(128.f), fp(24.f)> segments;
+        out<MeshPtr> mesh;
+    } endpoints;
     void operator()(double);
 private:
     float radius_ = -1.f, height_ = -1.f; int segs_ = -1;
@@ -112,36 +108,35 @@ private:
 // Sine ripple along vertex normals; phase travels with time.
 struct MeshRippleNode {
     static consteval std::string_view name() { return "mesh_ripple"; }
-    struct inputs {
-        port<"mesh", MeshPtr> mesh;
-        slider<"amplitude", "", float, fp(-5.f), fp(5.f),  fp(0.2f)> amplitude;
-        slider<"freq",      "", float, fp(0.1f), fp(20.f), fp(3.f)>  freq;
-        slider<"speed",     "", float, fp(-10.f),fp(10.f), fp(1.f)>  speed;
-    } inputs;
-    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    struct endpoints {
+        in<MeshPtr> mesh;
+        normalled_in<float, fp(-5.f), fp(5.f),  fp(0.2f)> amplitude;
+        normalled_in<float, fp(0.1f), fp(20.f), fp(3.f)>  freq;
+        normalled_in<float, fp(-10.f),fp(10.f), fp(1.f)>  speed;
+        out<MeshPtr> mesh_out;
+    } endpoints;
     void operator()(double);
 };
 
 // Twist around Y proportional to height.
 struct MeshTwistNode {
     static consteval std::string_view name() { return "mesh_twist"; }
-    struct inputs {
-        port<"mesh", MeshPtr> mesh;
-        slider<"angle", "rad/m", float, fp(-6.2832f), fp(6.2832f), fp(1.f)> angle;
-    } inputs;
-    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
+    struct endpoints {
+        in<MeshPtr> mesh;
+        normalled_in<float, fp(-6.2832f), fp(6.2832f), fp(1.f)> angle;
+        out<MeshPtr> mesh_out;
+    } endpoints;
     void operator()(double);
 };
 
 // Bake a mat4 into the vertices (positions + rotated normals).
 struct MeshTransformNode {
     static consteval std::string_view name() { return "mesh_transform"; }
-    struct inputs {
-        port<"mesh",   MeshPtr>         mesh;
-        port<"matrix", Eigen::Matrix4f> matrix;
-    } inputs;
-    struct outputs { port<"mesh", MeshPtr> mesh; } outputs;
-    MeshTransformNode() { inputs.matrix.value.setIdentity(); }
+    struct endpoints {
+        in<MeshPtr>         mesh;
+        in<Eigen::Matrix4f> matrix;   // unwired reads Identity
+        out<MeshPtr> mesh_out;
+    } endpoints;
     void operator()(double);
 };
 

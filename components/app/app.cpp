@@ -19,7 +19,6 @@
 #include "xr_sources.hpp"
 #include "renderer_node.hpp"
 #include "lissajous.hpp"
-#include "aurora.hpp"
 #include "chladni.hpp"
 #include "terrain_generator.hpp"
 #include "particle_system.hpp"
@@ -120,7 +119,6 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<LeftControllerNode>());
     reg.register_builtin(make_descriptor<RightControllerNode>());
     reg.register_builtin(make_descriptor<Lissajous>());
-    reg.register_builtin(make_descriptor<Aurora>());
     reg.register_builtin(make_descriptor<Chladni>());
     reg.register_builtin(make_descriptor<TerrainRenderer>());
     reg.register_builtin(make_descriptor<ParticleSystem>());

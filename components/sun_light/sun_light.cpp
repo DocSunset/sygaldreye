@@ -4,10 +4,10 @@
 #include <cmath>
 
 void SunLight::operator()(double time_s) {
-    float period  = inputs.day_period_s.value;
-    float offset  = inputs.phase_offset.value;
-    float min_int = inputs.min_intensity.value;
-    float max_int = inputs.max_intensity.value;
+    float period  = endpoints.day_period_s.get();
+    float offset  = endpoints.phase_offset.get();
+    float min_int = endpoints.min_intensity.get();
+    float max_int = endpoints.max_intensity.get();
 
     float phase     = static_cast<float>(fmod(time_s / period + offset, 1.0));
     float elev_norm = sinf(2.0f * static_cast<float>(M_PI) * phase);
@@ -15,12 +15,12 @@ void SunLight::operator()(double time_s) {
     float azimuth   = static_cast<float>(M_PI) * phase;
     float ce        = cosf(elev_rad);
 
-    outputs.elevation_norm.value = elev_norm;
-    outputs.direction.value = {-ce * cosf(azimuth), -sinf(elev_rad), -ce * sinf(azimuth)};
+    endpoints.elevation_norm.value = elev_norm;
+    endpoints.direction.value = {-ce * cosf(azimuth), -sinf(elev_rad), -ce * sinf(azimuth)};
 
     float warm = std::max(0.0f, 1.0f - fabsf(elev_norm) * 3.5f);
     warm *= warm;
-    outputs.color.value = {1.0f, 0.85f + 0.15f * (1.0f - warm), 0.65f + 0.35f * (1.0f - warm)};
+    endpoints.color.value = {1.0f, 0.85f + 0.15f * (1.0f - warm), 0.65f + 0.35f * (1.0f - warm)};
 
-    outputs.intensity.value = std::max(min_int, sinf(elev_rad) * max_int);
+    endpoints.intensity.value = std::max(min_int, sinf(elev_rad) * max_int);
 }

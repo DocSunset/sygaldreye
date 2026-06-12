@@ -71,21 +71,21 @@ void ParticleSystem::set_emitter(EmitterParams const& p) { params_ = p; }
 
 void ParticleSystem::operator()(double time_s) {
     if (!prog_) create_gl_resources();  // constructed off render thread (HTTP parse)
-    params_.emit_rate    = inputs.emit_rate.value;
-    params_.lifetime_min = inputs.lifetime_min.value;
-    params_.lifetime_max = inputs.lifetime_max.value;
-    params_.size_start   = inputs.size_start.value;
-    params_.size_end     = inputs.size_end.value;
-    params_.origin       = {inputs.emit_x.value, inputs.emit_y.value, inputs.emit_z.value};
-    float up = inputs.vel_up.value, sp = inputs.vel_spread.value;
+    params_.emit_rate    = endpoints.emit_rate.get();
+    params_.lifetime_min = endpoints.lifetime_min.get();
+    params_.lifetime_max = endpoints.lifetime_max.get();
+    params_.size_start   = endpoints.size_start.get();
+    params_.size_end     = endpoints.size_end.get();
+    params_.origin       = {endpoints.emit_x.get(), endpoints.emit_y.get(), endpoints.emit_z.get()};
+    float up = endpoints.vel_up.get(), sp = endpoints.vel_spread.get();
     params_.velocity_min = {-sp, up * 0.6f, -sp};
     params_.velocity_max = { sp, up,         sp};
-    params_.color_start  = {inputs.r.value, inputs.g.value, inputs.b.value, 1.f};
-    params_.color_end    = {inputs.r.value, inputs.g.value, inputs.b.value, 0.f};
+    params_.color_start  = {endpoints.r.get(), endpoints.g.get(), endpoints.b.get(), 1.f};
+    params_.color_end    = {endpoints.r.get(), endpoints.g.get(), endpoints.b.get(), 0.f};
     float dt = (prev_time_ < 0.0) ? 0.0f : static_cast<float>(time_s - prev_time_);
     prev_time_ = time_s;
-    if (dt > 0.f) update(dt, {0.f, inputs.gravity_y.value, 0.f});
-    outputs.render.value = [this](const Eigen::Matrix4f& vp) {
+    if (dt > 0.f) update(dt, {0.f, endpoints.gravity_y.get(), 0.f});
+    endpoints.render.value = [this](const Eigen::Matrix4f& vp) {
         // Camera right and up derived from view matrix rows
         Eigen::Vector3f right = vp.row(0).head<3>().normalized();
         Eigen::Vector3f up    = vp.row(1).head<3>().normalized();

@@ -10,15 +10,14 @@
 struct RdGpu {
     static consteval std::string_view name() { return "rd_gpu"; }
 
-    struct inputs {
-        slider<"feed",   "", float, 0.f, 0.1f,  0.055f> feed;
-        slider<"kill",   "", float, 0.f, 0.1f,  0.062f> kill;
-        slider<"steps",  "", float, 1.f, 32.f,  8.f>    steps_per_frame;
-    } inputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(0.1f), fp(0.055f)> feed;
+        normalled_in<float, fp(0.f), fp(0.1f), fp(0.062f)> kill;
+        normalled_in<float, fp(1.f), fp(32.f), fp(8.f)> steps_per_frame;
+    
+        ::out<GpuTexture> concentration;  // GL_RG32F
+    } endpoints;
 
-    struct outputs {
-        port<"concentration", GpuTexture> concentration;  // GL_RG32F
-    } outputs;
 
     void operator()(double time_s);
     void init(int width, int height);

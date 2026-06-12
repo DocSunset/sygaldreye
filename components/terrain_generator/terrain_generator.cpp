@@ -160,23 +160,23 @@ TerrainRenderer TerrainRenderer::create(TerrainParams const& p) {
 }
 
 void TerrainRenderer::operator()(double /*time_s*/) {
-    bool dirty = (params_.height_scale   != inputs.height_scale.value)
-              || (params_.lacunarity     != inputs.lacunarity.value)
-              || (params_.gain           != inputs.gain.value)
-              || (params_.noise_offset_x != inputs.noise_offset_x.value)
-              || (params_.noise_offset_z != inputs.noise_offset_z.value);
-    params_.height_scale   = inputs.height_scale.value;
-    params_.lacunarity     = inputs.lacunarity.value;
-    params_.gain           = inputs.gain.value;
-    params_.noise_offset_x = inputs.noise_offset_x.value;
-    params_.noise_offset_z = inputs.noise_offset_z.value;
-    params_.sun.intensity  = inputs.sun_intensity.value;
+    bool dirty = (params_.height_scale   != endpoints.height_scale.get())
+              || (params_.lacunarity     != endpoints.lacunarity.get())
+              || (params_.gain           != endpoints.gain.get())
+              || (params_.noise_offset_x != endpoints.noise_offset_x.get())
+              || (params_.noise_offset_z != endpoints.noise_offset_z.get());
+    params_.height_scale   = endpoints.height_scale.get();
+    params_.lacunarity     = endpoints.lacunarity.get();
+    params_.gain           = endpoints.gain.get();
+    params_.noise_offset_x = endpoints.noise_offset_x.get();
+    params_.noise_offset_z = endpoints.noise_offset_z.get();
+    params_.sun.intensity  = endpoints.sun_intensity.get();
     if (dirty || !prog_) {  // !prog_: constructed off render thread (HTTP parse)
-        auto saved = inputs;
+        auto saved = endpoints;
         *this = TerrainRenderer::create(params_);
-        inputs = saved;
+        endpoints = saved;
     }
-    outputs.render.value = [this](const Eigen::Matrix4f& vp) {
+    endpoints.render.value = [this](const Eigen::Matrix4f& vp) {
         draw(vp, Eigen::Matrix4f::Identity(), Eigen::Vector3f::Zero());
     };
 }

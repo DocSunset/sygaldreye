@@ -96,12 +96,12 @@ void Lissajous::update(float time_s) {
 }
 
 void Lissajous::sync_params() {
-    params_.freq_x  = inputs.freq_x.value;
-    params_.freq_y  = inputs.freq_y.value;
-    params_.freq_z  = inputs.freq_z.value;
-    params_.phase_x = inputs.phase_x.value;
-    params_.amp     = inputs.amp.value;
-    params_.samples = static_cast<int>(inputs.samples.value);
+    params_.freq_x  = endpoints.freq_x.get();
+    params_.freq_y  = endpoints.freq_y.get();
+    params_.freq_z  = endpoints.freq_z.get();
+    params_.phase_x = endpoints.phase_x.get();
+    params_.amp     = endpoints.amp.get();
+    params_.samples = static_cast<int>(endpoints.samples.get());
 }
 
 void Lissajous::draw(Eigen::Matrix4f const& mvp) const {

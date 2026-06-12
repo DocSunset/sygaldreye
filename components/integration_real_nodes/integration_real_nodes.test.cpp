@@ -12,7 +12,6 @@
 #include "lissajous.hpp"
 #include "chladni.hpp"
 #include "reaction_diffusion.hpp"
-#include "aurora.hpp"
 #include <GLES3/gl3.h>
 #include <Eigen/Core>
 #include <gtest/gtest.h>
@@ -190,7 +189,6 @@ TEST_F(RealNodesTest, AllVisualNodesHaveDrawCalls) {
         { "lissajous",          make_descriptor<Lissajous>() },
         { "chladni",            make_descriptor<Chladni>() },
         { "reaction_diffusion", make_descriptor<ReactionDiffusion>() },
-        { "aurora",             make_descriptor<Aurora>() },
     };
 
     for (auto& nd : nodes) {

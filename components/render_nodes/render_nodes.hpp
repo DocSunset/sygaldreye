@@ -16,19 +16,17 @@
 struct RenderTargetNode {
     static consteval std::string_view name() { return "render_target"; }
     static consteval std::string_view source_header() { return "components/render_nodes/render_nodes.hpp"; }
-    struct inputs {
-        port<"draw", DrawFn>        draw;
-        port<"pv",   Eigen::Matrix4f> pv;
-        slider<"width",  "", float, fp(64.f), fp(2048.f), fp(512.f)> width;
-        slider<"height", "", float, fp(64.f), fp(2048.f), fp(512.f)> height;
-        slider<"bg_r", "", float, fp(0.f), fp(1.f), fp(0.05f)> bg_r;
-        slider<"bg_g", "", float, fp(0.f), fp(1.f), fp(0.05f)> bg_g;
-        slider<"bg_b", "", float, fp(0.f), fp(1.f), fp(0.1f)>  bg_b;
-    } inputs;
-    struct outputs {
-        port<"texture", GpuTexture> texture;
-    } outputs;
-    RenderTargetNode() { inputs.pv.value.setIdentity(); }
+    struct endpoints {
+        ::in<DrawFn> draw;
+        ::in<Eigen::Matrix4f> pv;
+        normalled_in<float, fp(64.f), fp(2048.f), fp(512.f)> width;
+        normalled_in<float, fp(64.f), fp(2048.f), fp(512.f)> height;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.05f)> bg_r;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.05f)> bg_g;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.1f)> bg_b;
+    
+        ::out<GpuTexture> texture;
+    } endpoints;
     void operator()(double);
     ~RenderTargetNode();
 private:
@@ -39,13 +37,11 @@ private:
 struct TextureViewNode {
     static consteval std::string_view name() { return "texture_view"; }
     static consteval std::string_view source_header() { return "components/render_nodes/render_nodes.hpp"; }
-    struct inputs {
-        port<"texture", GpuTexture> texture;
-        slider<"alpha", "", float, fp(0.f), fp(1.f), fp(1.f)> alpha;
-    } inputs;
-    struct outputs {
-        port<"render", DrawFn> render;
-    } outputs;
+    struct endpoints {
+        in<GpuTexture> texture;
+        normalled_in<float, fp(0.f), fp(1.f), fp(1.f)> alpha;
+        out<DrawFn> render;
+    } endpoints;
     void operator()(double);
 private:
     GlProgram* prog();  // lazy; render thread only

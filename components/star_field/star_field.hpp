@@ -14,15 +14,14 @@ public:
     static consteval std::string_view source_header() { return "components/star_field/star_field.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/star_field/star_field.cpp"; }
 
-    struct inputs {
-        slider<"sun_elevation", "", float, fp(-1.f), fp(1.f), fp(0.5f)> sun_elevation;
-        slider<"star_count",    "", float, fp(0.f), fp(5000.f), fp(2000.f)> star_count;
-        slider<"radius",        "", float, fp(10.f), fp(2000.f), fp(500.f)> radius;
-    } inputs;
+    struct endpoints {
+        normalled_in<float, fp(-1.f), fp(1.f), fp(0.5f)> sun_elevation;
+        normalled_in<float, fp(0.f), fp(5000.f), fp(2000.f)> star_count;
+        normalled_in<float, fp(10.f), fp(2000.f), fp(500.f)> radius;
+    
+        ::out<DrawFn> render;
+    } endpoints;
 
-    struct outputs {
-        port<"render", DrawFn> render;
-    } outputs;
 
     static StarField create(int star_count, float radius);
     void operator()(double);

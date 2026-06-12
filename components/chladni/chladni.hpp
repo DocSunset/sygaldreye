@@ -23,13 +23,12 @@ public:
     static consteval std::string_view source_header() { return "components/chladni/chladni.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/chladni/chladni.cpp"; }
 
-    struct inputs {
-        slider<"omega", "", float, fp(0.0f), fp(20.0f), fp(1.0f)> omega;
-    } inputs;
+    struct endpoints {
+        normalled_in<float, fp(0.0f), fp(20.0f), fp(1.0f)> omega;
+    
+        ::out<DrawFn> render;
+    } endpoints;
 
-    struct outputs {
-        port<"render", DrawFn> render;
-    } outputs;
 
     Chladni() = default;
 

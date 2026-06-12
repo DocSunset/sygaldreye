@@ -25,14 +25,14 @@ StarField StarField::create(int star_count, float radius) {
 
 void StarField::operator()(double /*time_s*/) {
     if (!prog_) {  // constructed off render thread (graph parse): lazy init
-        auto saved = inputs;
-        *this = create(int(inputs.star_count.value), inputs.radius.value);
-        inputs = saved;
+        auto saved = endpoints;
+        *this = create(int(endpoints.star_count.get()), endpoints.radius.get());
+        endpoints = saved;
     }
-    sun_elev_   = inputs.sun_elevation.value;
-    star_count_ = static_cast<GLsizei>(inputs.star_count.value);
-    radius_     = inputs.radius.value;
-    outputs.render.value = [this](const Eigen::Matrix4f& vp) { draw(vp); };
+    sun_elev_   = endpoints.sun_elevation.get();
+    star_count_ = static_cast<GLsizei>(endpoints.star_count.get());
+    radius_     = endpoints.radius.get();
+    endpoints.render.value = [this](const Eigen::Matrix4f& vp) { draw(vp); };
 }
 
 void StarField::draw(Eigen::Matrix4f const& vp) const {
