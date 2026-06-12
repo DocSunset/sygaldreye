@@ -119,8 +119,11 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
         } else if (g.nodes[f->second].desc->version >= 6 &&
                    g.nodes[t->second].desc->version >= 6 &&
                    g.nodes[f->second].desc->output_ptr &&
-                   g.nodes[t->second].desc->connect) {
+                   g.nodes[t->second].desc->connect &&
+                   out_kind(g.nodes[f->second], e.from_port) != "bang") {
             // endpoints v6 both sides: a literal pointer, wired once.
+            // (Bangs are DELIVERIES, not values — they keep the applier
+            // path: emitted as 0/1 scalars, reset by the producer.)
             plan->wires.push_back(&e);
             dag_edges.push_back(e);
         } else if (g.nodes[t->second].desc->version >= 6 &&

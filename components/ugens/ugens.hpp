@@ -73,16 +73,17 @@ struct Lift {
 // White (color 0) → pink (color 1) noise source. Mono.
 struct NoiseNode {
     static consteval std::string_view name() { return "noise"; }
-    struct inputs {
-        slider<"amp",   "", float, fp(0.f), fp(1.f), fp(0.5f)> amp;
-        slider<"color", "", float, fp(0.f), fp(1.f), fp(0.f)>  color;
-    } inputs;
-    struct outputs { port<"audio", AudioBuffer> audio; } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> amp;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)>  color;
+        out<AudioBuffer> audio;
+    } endpoints;
     void operator()(double t) {
         int n = g_.frames(t);
+        float a = endpoints.amp.get(), c = endpoints.color.get();
         for (int i = 0; i < n; ++i)
-            g_.buf[std::size_t(i)] = inputs.amp.value * k_.tick(inputs.color.value);
-        outputs.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
+            g_.buf[std::size_t(i)] = a * k_.tick(c);
+        endpoints.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
     }
 private:
     ugen_detail::Gen g_;
@@ -93,27 +94,26 @@ private:
 // auto-release. The pluck/strike envelope; for held notes use `adsr`.
 struct PercNode {
     static consteval std::string_view name() { return "perc"; }
-    struct inputs {
-        bang<"trigger"> trigger;
-        slider<"gate",    "",  float, fp(0.f),    fp(1.f),  fp(0.f)>    gate;
-        slider<"attack",  "s", float, fp(0.001f), fp(2.f),  fp(0.01f)>  attack;
-        slider<"decay",   "s", float, fp(0.001f), fp(2.f),  fp(0.1f)>   decay;
-        slider<"sustain", "",  float, fp(0.f),    fp(1.f),  fp(0.7f)>   sustain;
-        slider<"release", "s", float, fp(0.001f), fp(4.f),  fp(0.2f)>   release;
-    } inputs;
-    struct outputs {
-        port<"audio", AudioBuffer> audio;
-        port<"level", float>       level;
-    } outputs;
+    struct endpoints {
+        event_in trigger;
+        normalled_in<float, fp(0.f),    fp(1.f), fp(0.f)>    gate;
+        normalled_in<float, fp(0.001f), fp(2.f), fp(0.01f)>  attack;
+        normalled_in<float, fp(0.001f), fp(2.f), fp(0.1f)>   decay;
+        normalled_in<float, fp(0.f),    fp(1.f), fp(0.7f)>   sustain;
+        normalled_in<float, fp(0.001f), fp(4.f), fp(0.2f)>   release;
+        out<AudioBuffer> audio;
+        out<float>       level;
+    } endpoints;
     void operator()(double t) {
-        env_.attack_s      = inputs.attack.value;
-        env_.decay_s       = inputs.decay.value;
-        env_.sustain_level = inputs.sustain.value;
-        env_.release_s     = inputs.release.value;
-        bool gate = inputs.gate.value > 0.5f;
-        if (inputs.trigger.triggered || (gate && !prev_gate_)) env_.gate_on();
-        if (!gate && prev_gate_ && !inputs.trigger.triggered) env_.gate_off();
-        if (inputs.trigger.triggered && !gate) auto_release_ = true;
+        env_.attack_s      = endpoints.attack.get();
+        env_.decay_s       = endpoints.decay.get();
+        env_.sustain_level = endpoints.sustain.get();
+        env_.release_s     = endpoints.release.get();
+        bool gate = endpoints.gate.get() > 0.5f;
+        bool trig = endpoints.trigger.triggered;
+        if (trig || (gate && !prev_gate_)) env_.gate_on();
+        if (!gate && prev_gate_ && !trig) env_.gate_off();
+        if (trig && !gate) auto_release_ = true;
         prev_gate_ = gate;
         int n = g_.frames(t);
         for (int i = 0; i < n; ++i) g_.buf[std::size_t(i)] = env_.tick();
@@ -121,8 +121,8 @@ struct PercNode {
             env_.gate_off();
             auto_release_ = false;
         }
-        outputs.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
-        outputs.level.value = env_.envelope;
+        endpoints.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
+        endpoints.level.value = env_.envelope;
     }
 private:
     ugen_detail::Gen g_;
@@ -362,34 +362,30 @@ private:
 // square gate (width × duty) for the CV adsr.
 struct MetroNode {
     static consteval std::string_view name() { return "metro"; }
-    struct inputs {
-        slider<"rate", "/s", float, fp(0.f), fp(50.f), fp(1.f)> rate;
-        slider<"duty", "",   float, fp(0.f), fp(1.f),  fp(0.5f)> duty;
-    } inputs;
-    struct outputs {
-        port<"bang_out", float>       bang_out;
-        bang<"fire">                  fire;
-        port<"gate_out", AudioBuffer> gate_out;
-    } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(50.f), fp(1.f)>  rate;
+        normalled_in<float, fp(0.f), fp(1.f),  fp(0.5f)> duty;
+        out<float>       bang_out;
+        event_out        fire;
+        out<AudioBuffer> gate_out;
+    } endpoints;
     void operator()(double t) {
-        outputs.fire.triggered = false;
-        outputs.bang_out.value = 0.f;
+        endpoints.fire.triggered = false;
+        endpoints.bang_out.value = 0.f;
         int n = g_.frames(t);
-        float r = inputs.rate.value;
+        float r = endpoints.rate.get();
         if (r > 0.f) {
             // next_ can legitimately be at most one period ahead. Further
-            // means t's EPOCH changed under us — a region migration moved
-            // this instance between frame time (XR clock, ~1e5 s) and
-            // block time (stream clock, ~minutes) — and the metro would
-            // otherwise never fire again (bricked-chime bug, 2026-06-12).
+            // means t's EPOCH changed under us (region migration between
+            // XR and stream clocks) — resync or never fire again.
             if (next_ == 0.0 || next_ > t + 1.0 / double(r)) {
                 next_       = t;
                 gate_until_ = -1.0;
             }
             if (t >= next_) {
-                outputs.fire.triggered = true;
-                outputs.bang_out.value = 1.f;
-                gate_until_ = next_ + double(inputs.duty.value) / double(r);
+                endpoints.fire.triggered = true;
+                endpoints.bang_out.value = 1.f;
+                gate_until_ = next_ + double(endpoints.duty.get()) / double(r);
                 next_ += 1.0 / double(r);
                 if (t >= next_) next_ = t + 1.0 / double(r);
             }
@@ -398,13 +394,51 @@ struct MetroNode {
             double ts = t - double(n - i) / 48000.0;
             g_.buf[std::size_t(i)] = (r > 0.f && ts < gate_until_) ? 1.f : 0.f;
         }
-        outputs.gate_out.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
+        endpoints.gate_out.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
     }
 private:
     ugen_detail::Gen g_;
     double next_ = 0.0, gate_until_ = -1.0;
 };
 
+// Stochastic grain generator (the decomposition floor under rain/fire).
+struct GrainCloudNode {
+    static consteval std::string_view name() { return "grain_cloud"; }
+    struct endpoints {
+        normalled_in<float, fp(0.f),    fp(2000.f),  fp(100.f)>  rate;
+        normalled_in<float, fp(50.f),   fp(12000.f), fp(3000.f)> freq;
+        normalled_in<float, fp(0.f),    fp(1.f),     fp(0.5f)>   spread;
+        normalled_in<float, fp(0.001f), fp(0.5f),    fp(0.02f)>  decay;
+        normalled_in<float, fp(0.f),    fp(1.f),     fp(0.f)>    texture;
+        normalled_in<float, fp(0.f),    fp(1.f),     fp(0.5f)>   amp;
+        out<AudioBuffer> audio;
+    } endpoints;
+    void operator()(double t) {
+        int n = g_.frames(t);
+        float p_spawn = endpoints.rate.get() / ugen_detail::kRate;
+        float k = 1.f - 1.f / (endpoints.decay.get() * ugen_detail::kRate);
+        float freq = endpoints.freq.get(), spread = endpoints.spread.get();
+        float texture = endpoints.texture.get(), amp = endpoints.amp.get();
+        for (int i = 0; i < n; ++i) {
+            if (synth::white_noise(rng_) * 0.5f + 0.5f < p_spawn) {
+                float r = synth::white_noise(rng_);
+                voices_[next_voice_++ % kVoices].strike(
+                    freq * (1.f + spread * r * 0.8f));
+            }
+            float sum = 0.f;
+            for (auto& v : voices_)
+                sum += v.tick(texture, k, rng_, float(ugen_detail::kRate));
+            g_.buf[std::size_t(i)] = amp * sum * 0.5f;
+        }
+        endpoints.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
+    }
+private:
+    static constexpr int kVoices = 16;
+    ugen_detail::Gen g_;
+    synth::GrainVoice voices_[kVoices];
+    uint32_t rng_ = 0x2468ace1u;
+    int      next_voice_ = 0;
+};
 // Concatenate up to four sources' channel lists into one multichannel
 // edge (Max's mc.pack~; Pd-style channel concatenation).
 struct McPackNode {
@@ -478,40 +512,3 @@ private:
     std::vector<float> bufs_[4];
 };
 
-// Stochastic grain generator (the decomposition floor under rain/fire).
-struct GrainCloudNode {
-    static consteval std::string_view name() { return "grain_cloud"; }
-    struct inputs {
-        slider<"rate",    "/s", float, fp(0.f),    fp(2000.f),  fp(100.f)>  rate;
-        slider<"freq",    "Hz", float, fp(50.f),   fp(12000.f), fp(3000.f)> freq;
-        slider<"spread",  "",   float, fp(0.f),    fp(1.f),     fp(0.5f)>   spread;
-        slider<"decay",   "s",  float, fp(0.001f), fp(0.5f),    fp(0.02f)>  decay;
-        slider<"texture", "",   float, fp(0.f),    fp(1.f),     fp(0.f)>    texture;
-        slider<"amp",     "",   float, fp(0.f),    fp(1.f),     fp(0.5f)>   amp;
-    } inputs;
-    struct outputs { port<"audio", AudioBuffer> audio; } outputs;
-    void operator()(double t) {
-        int n = g_.frames(t);
-        float p_spawn = inputs.rate.value / ugen_detail::kRate;
-        float k = 1.f - 1.f / (inputs.decay.value * ugen_detail::kRate);
-        for (int i = 0; i < n; ++i) {
-            if (synth::white_noise(rng_) * 0.5f + 0.5f < p_spawn) {
-                float r = synth::white_noise(rng_);
-                voices_[next_voice_++ % kVoices].strike(
-                    inputs.freq.value * (1.f + inputs.spread.value * r * 0.8f));
-            }
-            float s = 0.f;
-            for (auto& v : voices_)
-                s += v.tick(inputs.texture.value, k, rng_,
-                            float(ugen_detail::kRate));
-            g_.buf[std::size_t(i)] = inputs.amp.value * s * 0.5f;
-        }
-        outputs.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
-    }
-private:
-    static constexpr int kVoices = 16;
-    ugen_detail::Gen g_;
-    synth::GrainVoice voices_[kVoices];
-    int next_voice_ = 0;
-    uint32_t rng_ = 0xBEEF5EEDu;
-};
