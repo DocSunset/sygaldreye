@@ -9,16 +9,11 @@ public:
     static consteval std::string_view source_header() { return "components/trigger_edge/trigger_edge.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/trigger_edge/trigger_edge.cpp"; }
 
-    struct inputs {
-        port<"trigger", float>                                              trigger;
-        slider<"threshold", "", float, fp(0.f), fp(1.f), fp(0.5f)>        threshold;
-    } inputs;
-
-    struct outputs {
-        port<"press",   float> press;
-        port<"release", float> release;
-        port<"held",    float> held;
-    } outputs;
+    struct endpoints {
+        in<float> trigger;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> threshold;
+        out<float> press, release, held;
+    } endpoints;
 
     void operator()(double);
 

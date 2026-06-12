@@ -11,27 +11,20 @@ struct HeadPoseNode {
     static consteval std::string_view source_header() { return "components/xr_sources/xr_sources.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/xr_sources/xr_sources.cpp"; }
 
-    struct inputs {} inputs;
-
-    struct outputs {
-        port<"pos_x", float> pos_x;
-        port<"pos_y", float> pos_y;
-        port<"pos_z", float> pos_z;
-        port<"rot_x", float> rot_x;
-        port<"rot_y", float> rot_y;
-        port<"rot_z", float> rot_z;
-        port<"rot_w", float> rot_w;
-    } outputs;
+    struct endpoints {
+        out<float> pos_x, pos_y, pos_z;
+        out<float> rot_x, rot_y, rot_z, rot_w;
+    } endpoints;
 
     void set_pose(const XrPosef& p) {
         pose_ = p;
-        outputs.pos_x.value = p.position.x;
-        outputs.pos_y.value = p.position.y;
-        outputs.pos_z.value = p.position.z;
-        outputs.rot_x.value = p.orientation.x;
-        outputs.rot_y.value = p.orientation.y;
-        outputs.rot_z.value = p.orientation.z;
-        outputs.rot_w.value = p.orientation.w;
+        endpoints.pos_x.value = p.position.x;
+        endpoints.pos_y.value = p.position.y;
+        endpoints.pos_z.value = p.position.z;
+        endpoints.rot_x.value = p.orientation.x;
+        endpoints.rot_y.value = p.orientation.y;
+        endpoints.rot_z.value = p.orientation.z;
+        endpoints.rot_w.value = p.orientation.w;
     }
 
     XrPosef current_pose() const { return pose_; }
@@ -47,25 +40,15 @@ struct ControllerNode {
     static consteval std::string_view source_header() { return "components/xr_sources/xr_sources.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/xr_sources/xr_sources.cpp"; }
 
-    struct inputs {} inputs;
-
-    struct outputs {
-        port<"pos_x",        float> pos_x;
-        port<"pos_y",        float> pos_y;
-        port<"pos_z",        float> pos_z;
-        port<"rot_x",        float> rot_x;
-        port<"rot_y",        float> rot_y;
-        port<"rot_z",        float> rot_z;
-        port<"rot_w",        float> rot_w;
-        port<"trigger",      float> trigger;
-        port<"grip",         float> grip;
-        port<"thumbstick_x", float> thumbstick_x;
-        port<"thumbstick_y", float> thumbstick_y;
-        port<"btn1",         float> btn1;  // X (left) / A (right)
-        port<"btn2",         float> btn2;  // Y (left) / B (right)
-        port<"pos",          Eigen::Vector3f>    pos;  // parity with host 'hand'
-        port<"rot",          Eigen::Quaternionf> rot;
-    } outputs;
+    struct endpoints {
+        out<float> pos_x, pos_y, pos_z;
+        out<float> rot_x, rot_y, rot_z, rot_w;
+        out<float> trigger, grip;
+        out<float> thumbstick_x, thumbstick_y;
+        out<float> btn1, btn2;   // X/A, Y/B
+        out<Eigen::Vector3f>    pos;  // parity with host 'hand'
+        out<Eigen::Quaternionf> rot;
+    } endpoints;
 
     void set_state(const XrPosef& p, bool trigger_pressed,
                    float grip = 0.f,
@@ -73,22 +56,22 @@ struct ControllerNode {
                    bool btn1 = false, bool btn2 = false) {
         pose_    = p;
         trigger_ = trigger_pressed;
-        outputs.pos_x.value        = p.position.x;
-        outputs.pos_y.value        = p.position.y;
-        outputs.pos_z.value        = p.position.z;
-        outputs.rot_x.value        = p.orientation.x;
-        outputs.rot_y.value        = p.orientation.y;
-        outputs.rot_z.value        = p.orientation.z;
-        outputs.rot_w.value        = p.orientation.w;
-        outputs.trigger.value      = trigger_pressed ? 1.f : 0.f;
-        outputs.grip.value         = grip;
-        outputs.thumbstick_x.value = thumb_x;
-        outputs.thumbstick_y.value = thumb_y;
-        outputs.btn1.value         = btn1 ? 1.f : 0.f;
-        outputs.btn2.value         = btn2 ? 1.f : 0.f;
-        outputs.pos.value          = {p.position.x, p.position.y, p.position.z};
-        outputs.rot.value          = Eigen::Quaternionf{p.orientation.w, p.orientation.x,
-                                                        p.orientation.y, p.orientation.z};
+        endpoints.pos_x.value        = p.position.x;
+        endpoints.pos_y.value        = p.position.y;
+        endpoints.pos_z.value        = p.position.z;
+        endpoints.rot_x.value        = p.orientation.x;
+        endpoints.rot_y.value        = p.orientation.y;
+        endpoints.rot_z.value        = p.orientation.z;
+        endpoints.rot_w.value        = p.orientation.w;
+        endpoints.trigger.value      = trigger_pressed ? 1.f : 0.f;
+        endpoints.grip.value         = grip;
+        endpoints.thumbstick_x.value = thumb_x;
+        endpoints.thumbstick_y.value = thumb_y;
+        endpoints.btn1.value         = btn1 ? 1.f : 0.f;
+        endpoints.btn2.value         = btn2 ? 1.f : 0.f;
+        endpoints.pos.value          = {p.position.x, p.position.y, p.position.z};
+        endpoints.rot.value          = Eigen::Quaternionf{p.orientation.w, p.orientation.x,
+                                                          p.orientation.y, p.orientation.z};
     }
 
     XrPosef pose() const { return pose_; }

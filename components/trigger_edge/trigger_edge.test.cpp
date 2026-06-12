@@ -2,68 +2,55 @@
 #include "trigger_edge.hpp"
 #include <gtest/gtest.h>
 
-static TriggerEdge make(float trigger, float threshold = 0.5f) {
+// Inputs are v6: tests drive them the way edges do — src points at a value.
+struct Rig {
     TriggerEdge n;
-    n.inputs.threshold.value = threshold;
-    n.inputs.trigger.value   = trigger;
-    n(0.0);
-    return n;
-}
+    float trigger = 0.f;
+    Rig(float threshold = 0.5f) {
+        n.endpoints.trigger.src = &trigger;
+        n.endpoints.threshold.fallback = threshold;
+    }
+    void tick(float t) { trigger = t; n(0.0); }
+};
 
 TEST(TriggerEdge, PressOnRisingEdge) {
-    TriggerEdge n;
-    n.inputs.threshold.value = 0.5f;
-
-    n.inputs.trigger.value = 0.f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.press.value, 0.f);
-
-    n.inputs.trigger.value = 1.f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.press.value, 1.f);
-
-    n.inputs.trigger.value = 1.f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.press.value, 0.f);
+    Rig r;
+    r.tick(0.f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.press.value, 0.f);
+    r.tick(1.f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.press.value, 1.f);
+    r.tick(1.f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.press.value, 0.f);
 }
 
 TEST(TriggerEdge, ReleaseOnFallingEdge) {
-    TriggerEdge n;
-    n.inputs.threshold.value = 0.5f;
-
-    n.inputs.trigger.value = 1.f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.release.value, 0.f);
-
-    n.inputs.trigger.value = 0.f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.release.value, 1.f);
-
-    n.inputs.trigger.value = 0.f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.release.value, 0.f);
+    Rig r;
+    r.tick(1.f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.release.value, 0.f);
+    r.tick(0.f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.release.value, 1.f);
+    r.tick(0.f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.release.value, 0.f);
 }
 
 TEST(TriggerEdge, HeldWhileAboveThreshold) {
-    TriggerEdge n;
-    n.inputs.threshold.value = 0.5f;
-
-    n.inputs.trigger.value = 0.f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.held.value, 0.f);
-
-    n.inputs.trigger.value = 0.8f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.held.value, 1.f);
-
-    n.inputs.trigger.value = 0.9f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.held.value, 1.f);
-
-    n.inputs.trigger.value = 0.2f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.held.value, 0.f);
+    Rig r;
+    r.tick(0.f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.held.value, 0.f);
+    r.tick(0.8f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.held.value, 1.f);
+    r.tick(0.9f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.held.value, 1.f);
+    r.tick(0.2f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.held.value, 0.f);
 }
 
 TEST(TriggerEdge, CustomThreshold) {
-    TriggerEdge n;
-    n.inputs.threshold.value = 0.8f;
-
-    n.inputs.trigger.value = 0.7f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.press.value, 0.f);
-    EXPECT_FLOAT_EQ(n.outputs.held.value,  0.f);
-
-    n.inputs.trigger.value = 0.9f; n(0.0);
-    EXPECT_FLOAT_EQ(n.outputs.press.value, 1.f);
-    EXPECT_FLOAT_EQ(n.outputs.held.value,  1.f);
+    Rig r(0.8f);
+    r.tick(0.7f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.press.value, 0.f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.held.value,  0.f);
+    r.tick(0.9f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.press.value, 1.f);
+    EXPECT_FLOAT_EQ(r.n.endpoints.held.value,  1.f);
 }
