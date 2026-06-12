@@ -51,25 +51,26 @@ TEST(SttWhisper, TranscribesSpokenPhrase) {
     }
 
     SttWhisperNode n;
-    n.inputs.model.value = "assets/models/ggml-base.en.bin";
-    n.inputs.record.value = 1.f;
+    AudioBuffer audio_src{};
+    n.endpoints.model.fallback = "assets/models/ggml-base.en.bin";
+    n.endpoints.record.fallback = 1.f;
     // Feed in ~16 ms mic-edge chunks.
     for (std::size_t off = 0; off < w48.size(); off += 768) {
         int len = int(std::min<std::size_t>(768, w48.size() - off));
-        n.inputs.audio_in.value = AudioBuffer{w48.data() + off, len, 1, 48000};
+        audio_src = AudioBuffer{w48.data() + off, len, 1, 48000}; n.endpoints.audio_in.src = &audio_src;
         n(0.0);
     }
-    n.inputs.audio_in.value = {};
-    n.inputs.record.value = 0.f;
+    audio_src = {}; n.endpoints.audio_in.src = &audio_src;
+    n.endpoints.record.fallback = 0.f;
     n(0.0);
-    n.inputs.send.value = 1.f;
+    n.endpoints.send.fallback = 1.f;
     n(0.0);
-    n.inputs.send.value = 0.f;
+    n.endpoints.send.fallback = 0.f;
 
     std::string text;
     for (int i = 0; i < 600; ++i) {   // up to 60 s (model load + inference)
         n(0.0);
-        if (n.outputs.heard.triggered) { text = n.outputs.text.value; break; }
+        if (n.endpoints.heard.triggered) { text = n.endpoints.text.value; break; }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     std::transform(text.begin(), text.end(), text.begin(), ::tolower);

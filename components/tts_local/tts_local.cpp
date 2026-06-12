@@ -38,15 +38,17 @@ TtsLocalNode::~TtsLocalNode() {
 }
 
 void TtsLocalNode::operator()(double t) {
-    bool seq_changed = inputs.seq.value != prev_seq_;
-    prev_seq_        = inputs.seq.value;
-    if (inputs.say.triggered || seq_changed) {
-        std::string msg   = inputs.message.value;
-        std::string dir   = inputs.model_dir.value.empty()
+    bool seq_changed = endpoints.seq.get() != prev_seq_;
+    prev_seq_        = endpoints.seq.get();
+    bool fire = endpoints.say.triggered || seq_changed;
+    endpoints.say.triggered = false;   // events are deliveries
+    if (fire) {
+        std::string msg   = endpoints.message.get();
+        std::string dir   = endpoints.model_dir.get().empty()
             ? "assets/models/vits-piper-en_US-ryan-medium"
-            : inputs.model_dir.value;
-        float speed = inputs.speed.value;
-        int   sid   = int(inputs.sid.value);
+            : endpoints.model_dir.get();
+        float speed = endpoints.speed.get();
+        int   sid   = int(endpoints.sid.get());
         auto  sh    = sh_;
         Worker::shared().post([sh, msg, dir, speed, sid] {
             if (msg.empty()) return;
@@ -105,6 +107,6 @@ void TtsLocalNode::operator()(double t) {
     int got = 0;
     for (; got < n && queue_pos_ < queue_.size(); ++got)
         buf_[std::size_t(got)] = queue_[queue_pos_++];
-    outputs.audio.value    = AudioBuffer{buf_.data(), n, 1, 48000};
-    outputs.speaking.value = (queue_pos_ < queue_.size()) ? 1.f : 0.f;
+    endpoints.audio.value    = AudioBuffer{buf_.data(), n, 1, 48000};
+    endpoints.speaking.value = (queue_pos_ < queue_.size()) ? 1.f : 0.f;
 }

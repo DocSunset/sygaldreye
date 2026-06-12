@@ -16,19 +16,19 @@ std::string q(const std::string& s) {  // single-quote for shell
 } // namespace
 
 void ClaudeTmuxNode::operator()(double) {
-    bool send_now = inputs.send.value > 0.5f;
+    bool send_now = endpoints.send.get() > 0.5f;
     bool edge     = send_now && !prev_send_;
     prev_send_    = send_now;
-    bool seq_changed = inputs.seq.value != prev_seq_;
-    prev_seq_        = inputs.seq.value;
+    bool seq_changed = endpoints.seq.get() != prev_seq_;
+    prev_seq_        = endpoints.seq.get();
 
     if (edge || seq_changed) {
-        std::string ses = inputs.session.value.empty() ? "claude_vr" : inputs.session.value;
-        std::string cmd = inputs.command.value.empty()
-            ? "claude --settings voice_hooks.json" : inputs.command.value;
-        std::string dir = inputs.workdir.value.empty() ? "companion/claude_vr"
-                                                       : inputs.workdir.value;
-        std::string msg = inputs.message.value;
+        std::string ses = endpoints.session.get().empty() ? "claude_vr" : endpoints.session.get();
+        std::string cmd = endpoints.command.get().empty()
+            ? "claude --settings voice_hooks.json" : endpoints.command.get();
+        std::string dir = endpoints.workdir.get().empty() ? "companion/claude_vr"
+                                                       : endpoints.workdir.get();
+        std::string msg = endpoints.message.get();
         auto sh = sh_;
         Worker::shared().post([ses, cmd, dir, msg, sh] {
             if (msg.empty()) return;
@@ -60,6 +60,6 @@ void ClaudeTmuxNode::operator()(double) {
         });
     }
 
-    outputs.sent.value    = sh_->sent.exchange(false) ? 1.f : 0.f;
-    outputs.running.value = sh_->running.load() ? 1.f : 0.f;
+    endpoints.sent.value    = sh_->sent.exchange(false) ? 1.f : 0.f;
+    endpoints.running.value = sh_->running.load() ? 1.f : 0.f;
 }

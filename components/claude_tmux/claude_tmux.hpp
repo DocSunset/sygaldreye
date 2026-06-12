@@ -22,19 +22,16 @@ struct ClaudeTmuxNode {
     static consteval std::string_view name() { return "claude_tmux"; }
     static consteval std::string_view source_header() { return "components/claude_tmux/claude_tmux.hpp"; }
 
-    struct inputs {
-        ::text<"session">  session;   // empty → "claude_vr"
-        ::text<"command">  command;   // empty → "claude"
-        ::text<"workdir">  workdir;   // empty → "companion/claude_vr"
-        ::text<"message">  message;
-        slider<"seq",  "", float, fp(0.f), fp(1e9f), fp(0.f)> seq;
-        slider<"send", "", float, fp(0.f), fp(1.f),  fp(0.f)> send;  // manual edge
-    } inputs;
-
-    struct outputs {
-        port<"running", float> running;
-        port<"sent",    float> sent;  // pulses 1 on the tick a delivery lands
-    } outputs;
+    struct endpoints {
+        normalled_in<std::string> session;   // empty → "claude_vr"
+        normalled_in<std::string> command;   // empty → "claude"
+        normalled_in<std::string> workdir;   // empty → "companion/claude_vr"
+        normalled_in<std::string> message;
+        normalled_in<float, fp(0.f), fp(1e9f), fp(0.f)> seq;
+        normalled_in<float, fp(0.f), fp(1.f),  fp(0.f)> send;  // manual edge
+        out<float> running;
+        out<float> sent;  // pulses 1 on the tick a delivery lands
+    } endpoints;
 
     void operator()(double);
 

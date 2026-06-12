@@ -18,21 +18,18 @@ public:
     static consteval std::string_view name()          { return "stt_whisper"; }
     static consteval std::string_view source_header() { return "components/stt_whisper/stt_whisper.hpp"; }
 
-    struct inputs {
-        port<"audio_in", AudioBuffer> audio_in;
-        slider<"record", "", float, fp(0.f), fp(1.f), fp(0.f)> record; // hold
-        slider<"send",   "", float, fp(0.f), fp(1.f), fp(0.f)> send;   // edge
-        slider<"erase",  "", float, fp(0.f), fp(1.f), fp(0.f)> erase;  // edge
-        ::text<"model"> model;  // empty → assets/models/ggml-tiny.en.bin
-    } inputs;
-
-    struct outputs {
-        port<"bip",       float> bip;        // 1 on take start, 0.5 on stop
-        port<"recording", float> recording;
-        port<"busy",      float> busy;       // inference in flight
-        port<"text", std::string> text;
-        bang<"heard">             heard;
-    } outputs;
+    struct endpoints {
+        in<AudioBuffer> audio_in;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> record; // hold
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> send;   // edge
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> erase;  // edge
+        normalled_in<std::string> model;  // empty → assets/models/ggml-tiny.en.bin
+        out<float> bip;        // 1 on take start, 0.5 on stop
+        out<float> recording;
+        out<float> busy;       // inference in flight
+        out<std::string> text;
+        event_out        heard;
+    } endpoints;
 
     SttWhisperNode() = default;
     ~SttWhisperNode();

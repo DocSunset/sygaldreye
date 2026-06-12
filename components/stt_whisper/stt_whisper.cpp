@@ -16,15 +16,15 @@ SttWhisperNode::~SttWhisperNode() {
 }
 
 void SttWhisperNode::operator()(double) {
-    outputs.bip.value = 0.f;
+    endpoints.bip.value = 0.f;
 
-    bool held = inputs.record.value > 0.5f;
-    if (held && !recording_)  { recording_ = true;  outputs.bip.value = 1.f; }
-    if (!held && recording_)  { recording_ = false; outputs.bip.value = 0.5f; }
+    bool held = endpoints.record.get() > 0.5f;
+    if (held && !recording_)  { recording_ = true;  endpoints.bip.value = 1.f; }
+    if (!held && recording_)  { recording_ = false; endpoints.bip.value = 0.5f; }
 
     // Accumulate the take at 16 kHz (whisper's rate): average each
     // 3-sample group of the 48 kHz mic edge.
-    const AudioBuffer& in = inputs.audio_in.value;
+    const AudioBuffer& in = endpoints.audio_in.get();
     if (recording_ && in.data && in.frames > 0) {
         for (int i = 0; i < in.frames; ++i) {
             ds_acc_ += in.data[i * std::max(1, in.channels)];
@@ -36,13 +36,13 @@ void SttWhisperNode::operator()(double) {
         }
     }
 
-    bool send_now = inputs.send.value > 0.5f;
+    bool send_now = endpoints.send.get() > 0.5f;
     if (send_now && !prev_send_ && !take_.empty()) {
         auto sh    = sh_;
         auto take  = std::make_shared<std::vector<float>>(std::move(take_));
         take_      = {};
-        std::string model = inputs.model.value.empty()
-            ? "assets/models/ggml-tiny.en.bin" : inputs.model.value;
+        std::string model = endpoints.model.get().empty()
+            ? "assets/models/ggml-tiny.en.bin" : endpoints.model.get();
         {
             std::lock_guard<std::mutex> lock(sh->m);
             sh->busy = true;
@@ -87,27 +87,27 @@ void SttWhisperNode::operator()(double) {
             sh->busy  = false;
         });
         recording_ = false;
-        outputs.bip.value = 1.f;
+        endpoints.bip.value = 1.f;
     }
     prev_send_ = send_now;
 
-    bool erase_now = inputs.erase.value > 0.5f;
+    bool erase_now = endpoints.erase.get() > 0.5f;
     if (erase_now && !prev_erase_) {
         take_.clear();
         recording_ = false;
-        outputs.bip.value = 0.5f;
+        endpoints.bip.value = 0.5f;
     }
     prev_erase_ = erase_now;
 
-    outputs.heard.triggered = false;
+    endpoints.heard.triggered = false;
     {
         std::lock_guard<std::mutex> lock(sh_->m);
-        outputs.busy.value = sh_->busy ? 1.f : 0.f;
+        endpoints.busy.value = sh_->busy ? 1.f : 0.f;
         if (sh_->fresh) {
-            outputs.text.value      = sh_->text;
-            outputs.heard.triggered = true;
+            endpoints.text.value      = sh_->text;
+            endpoints.heard.triggered = true;
             sh_->fresh              = false;
         }
     }
-    outputs.recording.value = recording_ ? 1.f : 0.f;
+    endpoints.recording.value = recording_ ? 1.f : 0.f;
 }

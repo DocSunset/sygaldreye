@@ -21,20 +21,17 @@ public:
     static consteval std::string_view name()          { return "tts_local"; }
     static consteval std::string_view source_header() { return "components/tts_local/tts_local.hpp"; }
 
-    struct inputs {
-        ::text<"message">   message;
-        bang<"say">         say;
+    struct endpoints {
+        normalled_in<std::string> message;
+        event_in                  say;
         // default → assets/models/vits-piper-en_US-ryan-medium (male)
-        ::text<"model_dir"> model_dir;
-        slider<"speed", "", float, fp(0.5f), fp(2.f),  fp(1.f)> speed;
-        slider<"sid",   "", float, fp(0.f),  fp(100.f), fp(0.f)> sid;
-        slider<"seq", "", float, fp(0.f), fp(1e9f), fp(0.f)> seq;  // deprecated firing path
-    } inputs;
-
-    struct outputs {
-        port<"audio",    AudioBuffer> audio;
-        port<"speaking", float>       speaking;
-    } outputs;
+        normalled_in<std::string> model_dir;
+        normalled_in<float, fp(0.5f), fp(2.f),   fp(1.f)> speed;
+        normalled_in<float, fp(0.f),  fp(100.f), fp(0.f)> sid;
+        normalled_in<float, fp(0.f),  fp(1e9f),  fp(0.f)> seq;  // deprecated firing path
+        out<AudioBuffer> audio;
+        out<float>       speaking;
+    } endpoints;
 
     TtsLocalNode() = default;
     ~TtsLocalNode();

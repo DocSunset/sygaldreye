@@ -18,11 +18,11 @@ TEST(TtsLocal, WhisperHearsWhatItSays) {
         GTEST_SKIP() << "whisper model not fetched";
 
     TtsLocalNode tts;
-    tts.inputs.message.value = "hello world, the graph is speaking.";
-    tts.inputs.say.triggered = true;
+    tts.endpoints.message.fallback = "hello world, the graph is speaking.";
+    tts.endpoints.say.triggered = true;
     double t = 1.0;
     tts(t);
-    tts.inputs.say.triggered = false;
+    tts.endpoints.say.triggered = false;
 
     // Collect paced output until the utterance ends (or 60 s timeout).
     std::vector<float> spoken;
@@ -30,10 +30,10 @@ TEST(TtsLocal, WhisperHearsWhatItSays) {
     for (int i = 0; i < 3600; ++i) {
         t += 1.0 / 60.0;
         tts(t);
-        const AudioBuffer& a = tts.outputs.audio.value;
+        const AudioBuffer& a = tts.endpoints.audio.value;
         if (a.data && a.frames > 0)
             spoken.insert(spoken.end(), a.data, a.data + a.frames);
-        if (tts.outputs.speaking.value > 0.5f) started = true;
+        if (tts.endpoints.speaking.value > 0.5f) started = true;
         else if (started) break;
         if (!started) std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
@@ -43,24 +43,25 @@ TEST(TtsLocal, WhisperHearsWhatItSays) {
     ASSERT_GT(spoken.size(), std::size_t(48000)) << "utterance under 1 s";
 
     SttWhisperNode stt;
-    stt.inputs.model.value  = "assets/models/ggml-base.en.bin";
-    stt.inputs.record.value = 1.f;
+    AudioBuffer audio_src{};
+    stt.endpoints.model.fallback = "assets/models/ggml-base.en.bin";
+    stt.endpoints.record.fallback = 1.f;
     for (std::size_t off = 0; off < spoken.size(); off += 768) {
         int len = int(std::min<std::size_t>(768, spoken.size() - off));
-        stt.inputs.audio_in.value = AudioBuffer{spoken.data() + off, len, 1, 48000};
+        audio_src = AudioBuffer{spoken.data() + off, len, 1, 48000}; stt.endpoints.audio_in.src = &audio_src;
         stt(0.0);
     }
-    stt.inputs.audio_in.value = {};
-    stt.inputs.record.value = 0.f;
+    audio_src = {}; stt.endpoints.audio_in.src = &audio_src;
+    stt.endpoints.record.fallback = 0.f;
     stt(0.0);
-    stt.inputs.send.value = 1.f;
+    stt.endpoints.send.fallback = 1.f;
     stt(0.0);
-    stt.inputs.send.value = 0.f;
+    stt.endpoints.send.fallback = 0.f;
 
     std::string text;
     for (int i = 0; i < 600; ++i) {
         stt(0.0);
-        if (stt.outputs.heard.triggered) { text = stt.outputs.text.value; break; }
+        if (stt.endpoints.heard.triggered) { text = stt.endpoints.text.value; break; }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     std::transform(text.begin(), text.end(), text.begin(), ::tolower);

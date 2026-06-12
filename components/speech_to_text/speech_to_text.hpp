@@ -13,22 +13,19 @@ public:
     static consteval std::string_view source_header() { return "components/speech_to_text/speech_to_text.hpp"; }
     static consteval std::string_view source_cpp()    { return "components/speech_to_text/speech_to_text.cpp"; }
 
-    struct inputs {
-        port<"audio_in",  AudioBuffer> audio_in;
-        slider<"record", "", float, fp(0.f), fp(1.f), fp(0.f)> record; // hold
-        slider<"send",   "", float, fp(0.f), fp(1.f), fp(0.f)> send;   // edge
-        slider<"erase",  "", float, fp(0.f), fp(1.f), fp(0.f)> erase;  // edge
-        ::text<"url"> url;  // empty → http://192.168.1.1:9090/transcribe
-    } inputs;
-
-    struct outputs {
-        port<"bip",       float> bip;        // 1 on take start, 0.5 on stop
-        port<"recording", float> recording;
+    struct endpoints {
+        in<AudioBuffer> audio_in;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> record; // hold
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> send;   // edge
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> erase;  // edge
+        normalled_in<std::string> url;  // empty → http://192.168.1.1:9090/transcribe
+        out<float> bip;        // 1 on take start, 0.5 on stop
+        out<float> recording;
         // The transcript as a VALUE: wire stt.text → claude.message and
         // stt.heard → claude.send — no companion forwarding, no seq bump.
-        port<"text", std::string> text;
-        bang<"heard">             heard;
-    } outputs;
+        out<std::string> text;
+        event_out        heard;
+    } endpoints;
 
     void operator()(double time_s);
 

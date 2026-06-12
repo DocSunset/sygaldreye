@@ -17,19 +17,16 @@ struct WhisperNode {
     static consteval std::string_view name() { return "whisper_stt"; }
     static consteval std::string_view source_header() { return "components/whisper_node/whisper_node.hpp"; }
 
-    struct inputs {
-        ::text<"file">        file;
+    struct endpoints {
+        normalled_in<std::string> file;
         // empty → "companion/.venv/bin/python companion/transcribe_cli.py"
-        ::text<"command">     command;
+        normalled_in<std::string> command;
         // empty → "http://127.0.0.1:8930/param"
-        ::text<"target_url">  target_url;
-        ::text<"target_node"> target_node;  // empty → "claude"
-        slider<"seq", "", float, fp(0.f), fp(1e9f), fp(0.f)> seq;
-    } inputs;
-
-    struct outputs {
-        port<"sent", float> sent;  // pulses 1 when a transcript forwarded
-    } outputs;
+        normalled_in<std::string> target_url;
+        normalled_in<std::string> target_node;  // empty → "claude"
+        normalled_in<float, fp(0.f), fp(1e9f), fp(0.f)> seq;
+        out<float> sent;  // pulses 1 when a transcript forwarded
+    } endpoints;
 
     void operator()(double);
 

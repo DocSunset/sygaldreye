@@ -23,22 +23,19 @@ struct EditorNode {
     static consteval std::string_view name() { return "editor"; }
     static consteval std::string_view source_header() { return "components/editor_node/editor_node.hpp"; }
 
-    struct inputs {
-        port<"left_pos",  Eigen::Vector3f>    left_pos;
-        port<"left_rot",  Eigen::Quaternionf> left_rot;
-        port<"right_pos", Eigen::Vector3f>    right_pos;
-        port<"right_rot", Eigen::Quaternionf> right_rot;
-        slider<"trigger_left",  "", float, fp(0.f),  fp(1.f), fp(0.f)> trigger_left;
-        slider<"trigger_right", "", float, fp(0.f),  fp(1.f), fp(0.f)> trigger_right;
-        slider<"grip_right",    "", float, fp(0.f),  fp(1.f), fp(0.f)> grip_right;
-        slider<"thumb_x",       "", float, fp(-1.f), fp(1.f), fp(0.f)> thumb_x;
-        slider<"thumb_y",       "", float, fp(-1.f), fp(1.f), fp(0.f)> thumb_y;
-        slider<"text_scale",    "", float, fp(0.1f), fp(2.f), fp(0.5f)> text_scale;
-    } inputs;
-
-    struct outputs {
-        port<"render", DrawFn> render;
-    } outputs;
+    struct endpoints {
+        in<Eigen::Vector3f>    left_pos;
+        in<Eigen::Quaternionf> left_rot;
+        in<Eigen::Vector3f>    right_pos;
+        in<Eigen::Quaternionf> right_rot;
+        normalled_in<float, fp(0.f),  fp(1.f), fp(0.f)> trigger_left;
+        normalled_in<float, fp(0.f),  fp(1.f), fp(0.f)> trigger_right;
+        normalled_in<float, fp(0.f),  fp(1.f), fp(0.f)> grip_right;
+        normalled_in<float, fp(-1.f), fp(1.f), fp(0.f)> thumb_x;
+        normalled_in<float, fp(-1.f), fp(1.f), fp(0.f)> thumb_y;
+        normalled_in<float, fp(0.1f), fp(2.f), fp(0.5f)> text_scale;
+        out<DrawFn> render;
+    } endpoints;
 
     void operator()(double time_s);
 

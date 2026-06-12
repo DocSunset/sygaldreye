@@ -23,21 +23,21 @@ void EditorNode::operator()(double time_s) {
     }
     last_graph_ = graph_;
 
-    XrPosef lp = to_pose(inputs.left_pos.value,  inputs.left_rot.value);
-    XrPosef rp = to_pose(inputs.right_pos.value, inputs.right_rot.value);
+    XrPosef lp = to_pose(endpoints.left_pos.get(),  endpoints.left_rot.get());
+    XrPosef rp = to_pose(endpoints.right_pos.get(), endpoints.right_rot.get());
     float dt = (prev_time_s_ > 0.0) ? float(time_s - prev_time_s_) : 0.016f;
     prev_time_s_ = time_s;
-    editor_.text_scale = inputs.text_scale.value;
+    editor_.text_scale = endpoints.text_scale.get();
 
     auto edit = editor_.update(&lp, &rp,
-                               inputs.trigger_left.value  > 0.5f,
-                               inputs.trigger_right.value > 0.5f,
-                               inputs.grip_right.value    > 0.5f,
-                               {inputs.thumb_x.value, inputs.thumb_y.value},
+                               endpoints.trigger_left.get()  > 0.5f,
+                               endpoints.trigger_right.get() > 0.5f,
+                               endpoints.grip_right.get()    > 0.5f,
+                               {endpoints.thumb_x.get(), endpoints.thumb_y.get()},
                                dt, graph_, *registry_);
     if (edit && edits_) edits_->push(std::move(edit->new_graph_json));
 
-    outputs.render.value = [this](const Eigen::Matrix4f& vp) {
+    endpoints.render.value = [this](const Eigen::Matrix4f& vp) {
         editor_.draw(vp, text_);
     };
 }

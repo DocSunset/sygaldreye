@@ -6,15 +6,17 @@
 #include <fstream>
 
 void TtsNode::operator()(double) {
-    bool seq_changed = inputs.seq.value != prev_seq_;
-    prev_seq_        = inputs.seq.value;
-    if (inputs.say.triggered || seq_changed) {
-        std::string msg = inputs.message.value;
-        std::string cmd = inputs.command.value.empty()
+    bool seq_changed = endpoints.seq.get() != prev_seq_;
+    prev_seq_        = endpoints.seq.get();
+    bool fire = endpoints.say.triggered || seq_changed;
+    endpoints.say.triggered = false;   // events are deliveries
+    if (fire) {
+        std::string msg = endpoints.message.get();
+        std::string cmd = endpoints.command.get().empty()
             ? "companion/.venv-melotts/bin/python companion/tts_cli.py"
-            : inputs.command.value;
-        std::string url = inputs.play_url.value.empty()
-            ? "http://127.0.0.1:8080/play" : inputs.play_url.value;
+            : endpoints.command.get();
+        std::string url = endpoints.play_url.get().empty()
+            ? "http://127.0.0.1:8080/play" : endpoints.play_url.get();
         auto sh = sh_;
         Worker::shared().post([msg, cmd, url, sh] {
             if (msg.empty()) return;
@@ -34,5 +36,5 @@ void TtsNode::operator()(double) {
             sh->spoken = true;
         });
     }
-    outputs.spoken.value = sh_->spoken.exchange(false) ? 1.f : 0.f;
+    endpoints.spoken.value = sh_->spoken.exchange(false) ? 1.f : 0.f;
 }

@@ -15,22 +15,19 @@ struct TtsNode {
     static consteval std::string_view name() { return "tts"; }
     static consteval std::string_view source_header() { return "components/tts_node/tts_node.hpp"; }
 
-    struct inputs {
-        ::text<"message">  message;
+    struct endpoints {
+        normalled_in<std::string> message;
         // empty → "companion/.venv-melotts/bin/python companion/tts_cli.py"
-        ::text<"command">  command;
+        normalled_in<std::string> command;
         // empty → "http://127.0.0.1:8080/play" (the device peer)
-        ::text<"play_url"> play_url;
+        normalled_in<std::string> play_url;
         // Speak the current message: message is a cold inlet (text edges
         // deliver it), say fires it. seq is the DEPRECATED firing path,
         // kept while external posters migrate.
-        bang<"say"> say;
-        slider<"seq", "", float, fp(0.f), fp(1e9f), fp(0.f)> seq;
-    } inputs;
-
-    struct outputs {
-        port<"spoken", float> spoken;  // pulses 1 when a wav was delivered
-    } outputs;
+        event_in say;
+        normalled_in<float, fp(0.f), fp(1e9f), fp(0.f)> seq;
+        out<float> spoken;  // pulses 1 when a wav was delivered
+    } endpoints;
 
     void operator()(double);
 

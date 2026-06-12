@@ -18,16 +18,16 @@ std::string json_escape(const std::string& s) {
 } // namespace
 
 void WhisperNode::operator()(double) {
-    if (inputs.seq.value != prev_seq_) {
-        prev_seq_ = inputs.seq.value;
-        std::string wav = inputs.file.value;
-        std::string cmd = inputs.command.value.empty()
+    if (endpoints.seq.get() != prev_seq_) {
+        prev_seq_ = endpoints.seq.get();
+        std::string wav = endpoints.file.get();
+        std::string cmd = endpoints.command.get().empty()
             ? "companion/.venv/bin/python companion/transcribe_cli.py"
-            : inputs.command.value;
-        std::string url = inputs.target_url.value.empty()
-            ? "http://127.0.0.1:8930/param" : inputs.target_url.value;
-        std::string node = inputs.target_node.value.empty()
-            ? "claude" : inputs.target_node.value;
+            : endpoints.command.get();
+        std::string url = endpoints.target_url.get().empty()
+            ? "http://127.0.0.1:8930/param" : endpoints.target_url.get();
+        std::string node = endpoints.target_node.get().empty()
+            ? "claude" : endpoints.target_node.get();
         auto sh = sh_;
         Worker::shared().post([wav, cmd, url, node, sh] {
             if (wav.empty()) return;
@@ -60,5 +60,5 @@ void WhisperNode::operator()(double) {
             sh->sent = true;
         });
     }
-    outputs.sent.value = sh_->sent.exchange(false) ? 1.f : 0.f;
+    endpoints.sent.value = sh_->sent.exchange(false) ? 1.f : 0.f;
 }
