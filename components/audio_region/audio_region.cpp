@@ -252,6 +252,17 @@ void AudioRegion::capture_latches(const Graph& g) {
 }
 
 void AudioRegion::pump_offline(double dt) {
+    // Zombie-stream recovery: a disconnected device stream never calls
+    // back again, which silently stalls the whole block region. Recreate.
+    if (stream_ && stream_->dead()) {
+        std::lock_guard<std::mutex> lock(plan_mutex_);
+        stream_.reset();
+        if (enable_device) {
+            stream_ = AudioOutput::create(
+                [this](float* o, int f) { render_block(o, f); }, kRate);
+            if (stream_) stream_->start();
+        }
+    }
     static int dbg_pump = 0;
     if (std::getenv("SYGALDREYE_BLOCK_DEBUG") && (++dbg_pump % 600) == 0)
         std::fprintf(stderr, "[pump] stream=%d active=%d\n",

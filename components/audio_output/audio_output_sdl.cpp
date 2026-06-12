@@ -42,6 +42,7 @@ std::optional<AudioOutput> AudioOutput::create(AudioCallback cb, int sample_rate
 
 void AudioOutput::start() { if (impl_) SDL_PauseAudioDevice(impl_->dev, 0); }
 void AudioOutput::stop()  { if (impl_) SDL_PauseAudioDevice(impl_->dev, 1); }
+bool AudioOutput::dead() const { return false; }  // SDL handles route changes
 
 AudioOutput::AudioOutput(Impl* impl) : impl_{impl} {}
 

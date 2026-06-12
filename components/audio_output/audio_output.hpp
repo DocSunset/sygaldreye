@@ -13,6 +13,10 @@ public:
     static std::optional<AudioOutput> create(AudioCallback, int sample_rate = 48000);
     void start();
     void stop();
+    // True after the backend reports a fatal stream error (AAudio
+    // disconnect on route change/idle). A dead stream never calls back
+    // again — the owner must recreate it.
+    bool dead() const;
     ~AudioOutput();
     AudioOutput(AudioOutput&&) noexcept;
     AudioOutput& operator=(AudioOutput&&) noexcept;
