@@ -8,6 +8,7 @@
 #include "port_schema_reader.hpp"
 #include <openxr/openxr.h>
 #include <Eigen/Core>
+#include <algorithm>
 #include <optional>
 #include <unordered_map>
 #include <string>
@@ -48,6 +49,18 @@ void draw_wire(const Eigen::Vector3f& p0, const Eigen::Vector3f& p3,
 
 struct VrEditor {
     void init(const ComponentRegistry& registry, const Graph* graph);
+
+    // Live text size multiplier (1.0 = the original, oversized, baked text).
+    float text_scale = 0.5f;
+
+    // Palette paging: row 0 flips pages, rows 1..kPaletteRows show a slice —
+    // the full 78-type list was a 4.7 m panel through the floor.
+    static constexpr int kPaletteRows = 15;
+    int palette_page_ = 0;
+    int palette_pages() const {
+        return std::max(1, (static_cast<int>(palette_types_.size()) +
+                            kPaletteRows - 1) / kPaletteRows);
+    }
 
     struct GraphEdit { std::string new_graph_json; };
 

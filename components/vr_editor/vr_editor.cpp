@@ -1,7 +1,7 @@
 // Copyright 2025 Travis West
 #include "vr_editor.hpp"
-#include "ray_selector.hpp"
 #include <Eigen/Geometry>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -23,11 +23,11 @@ build_port_handles_for_card(const VrPanel&, const std::string&, const PortSchema
 void VrEditor::init(const ComponentRegistry& registry, const Graph* graph) {
     shader_.create();
     palette_types_ = registry.type_names();
-    float palette_h = kPaletteRowH * static_cast<float>(palette_types_.size());
+    std::sort(palette_types_.begin(), palette_types_.end());
     palette_panel_.position = {-0.55f, 1.2f, -0.5f};
     palette_panel_.normal   = { 0.0f, 0.0f,  1.0f};
     palette_panel_.width    = 0.35f;
-    palette_panel_.height   = std::max(palette_h, 0.1f);
+    palette_panel_.height   = kPaletteRowH * static_cast<float>(kPaletteRows + 1);
     palette_panel_.color    = {0.05f, 0.08f, 0.12f, 0.90f};
     on_graph_changed(graph);
 }
@@ -55,10 +55,11 @@ void VrEditor::on_graph_changed(const Graph* graph) {
         float card_h = kBaseCardH + kPortRowH * static_cast<float>(wirable_inputs);
 
         VrPanel card;
-        // Eye-level grid, 4 cards per row — one endless ground-level row
-        // overlapped the scene and ran out of reach.
-        card.position = {static_cast<float>(i % 4) * kCardSpacing,
-                         1.45f - static_cast<float>(i / 4) * 0.5f,
+        // Reachable band: 8 per row, 4 rows, then a fresh block further
+        // right — the 4-wide grid sank below the floor by row 8.
+        card.position = {static_cast<float>(i % 8) * kCardSpacing - 1.6f +
+                             static_cast<float>(i / 32) * 4.0f,
+                         1.85f - static_cast<float>((i / 8) % 4) * 0.5f,
                          -0.5f};
         card.normal   = {0.0f, 0.0f, 1.0f};
         card.width    = kCardW;
@@ -191,12 +192,19 @@ std::optional<VrEditor::GraphEdit> VrEditor::update(
     if (auto e = update_undo(thumbstick_left))                   return e;
 
     if (!fire || !right_pose || palette_types_.empty()) return std::nullopt;
-    auto hit = RaySelector::test(*right_pose, {palette_panel_});
-    if (!hit) return std::nullopt;
-
-    float inv_y = 1.0f - hit->hit.uv.y();
-    int idx = static_cast<int>(inv_y * static_cast<float>(palette_types_.size()));
-    if (idx < 0 || idx >= static_cast<int>(palette_types_.size())) return std::nullopt;
+    // Poke, not ray: trigger with the tip in the panel. Row 0 flips pages.
+    Eigen::Vector3f d = controller_tip_ - palette_panel_.position;
+    if (std::abs(d.x()) > palette_panel_.width * 0.5f ||
+        std::abs(d.y()) > palette_panel_.height * 0.5f ||
+        std::abs(d.z()) > 0.08f) return std::nullopt;
+    int row = static_cast<int>((0.5f - d.y() / palette_panel_.height) *
+                               static_cast<float>(kPaletteRows + 1));
+    if (row <= 0) {
+        palette_page_ = (palette_page_ + 1) % palette_pages();
+        return std::nullopt;
+    }
+    int idx = palette_page_ * kPaletteRows + row - 1;
+    if (idx >= static_cast<int>(palette_types_.size())) return std::nullopt;
     const std::string& type_name = palette_types_[static_cast<size_t>(idx)];
 
     const auto* desc = registry.find(type_name);

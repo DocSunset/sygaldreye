@@ -4,6 +4,7 @@
 #include <GLES3/gl3.h>
 #include <Eigen/Geometry>
 #include <array>
+#include <cstdio>
 
 static constexpr int kBezierSegs = 14;
 
@@ -45,18 +46,24 @@ void draw_wire(const Eigen::Vector3f& p0, const Eigen::Vector3f& p3,
 }
 
 void VrEditor::draw(const Eigen::Matrix4f& vp, const TextMesh& text) const {
-    // Palette
+    // Palette: header row flips pages, then the current page's slice
     palette_panel_.draw(vp, shader_);
-    float n = static_cast<float>(palette_types_.size());
-    for (int i = 0; i < static_cast<int>(palette_types_.size()); ++i) {
-        float v = (static_cast<float>(i) + 0.5f) / n;
+    char hdr[32];
+    std::snprintf(hdr, sizeof(hdr), "more... %d/%d",
+                  palette_page_ + 1, palette_pages());
+    for (int r = 0; r <= kPaletteRows; ++r) {
+        int idx = palette_page_ * kPaletteRows + r - 1;
+        if (r > 0 && idx >= static_cast<int>(palette_types_.size())) break;
+        float v = (static_cast<float>(r) + 0.5f) /
+                  static_cast<float>(kPaletteRows + 1);
         float y = palette_panel_.position.y() + palette_panel_.height * (0.5f - v);
         Eigen::Matrix4f m = Eigen::Matrix4f::Identity();
-        m(0,0) = m(1,1) = 0.02f;
+        m(0,0) = m(1,1) = 0.02f * text_scale;
         m(0,3) = palette_panel_.position.x() - palette_panel_.width * 0.45f;
         m(1,3) = y;
         m(2,3) = palette_panel_.position.z() + 0.002f;
-        text.draw(palette_types_[static_cast<size_t>(i)], vp * m);
+        text.draw(r == 0 ? hdr : palette_types_[static_cast<size_t>(idx)].c_str(),
+                  vp * m);
     }
 
     // Node cards
@@ -64,7 +71,7 @@ void VrEditor::draw(const Eigen::Matrix4f& vp, const TextMesh& text) const {
         auto si = static_cast<size_t>(i);
         node_cards_[si].draw(vp, shader_);
         Eigen::Matrix4f m = Eigen::Matrix4f::Identity();
-        m(0,0) = m(1,1) = 0.018f;
+        m(0,0) = m(1,1) = 0.018f * text_scale;
         const auto& c = node_cards_[si];
         m(0,3) = c.position.x() - c.width * 0.45f;
         m(1,3) = c.position.y() + c.height * 0.4f;
@@ -132,13 +139,12 @@ void VrEditor::draw(const Eigen::Matrix4f& vp, const TextMesh& text) const {
         draw_wire(drag_from_pos_, controller_tip_,
                   port_kind_color(drag_from_kind_), vp, shader_);
 
-    // ── presence: pointer ray + controller markers ─────────────────────────
+    // ── presence: controller tip markers (the poke stick is the pointer) ───
     if (show_right_) {
-        Eigen::Vector4f ray_col = grip_r_ ? Eigen::Vector4f{0.4f, 1.0f, 0.5f, 0.8f}
+        Eigen::Vector4f tip_col = grip_r_ ? Eigen::Vector4f{0.4f, 1.0f, 0.5f, 0.8f}
                        : trig_r_ ? Eigen::Vector4f{1.0f, 0.8f, 0.3f, 0.8f}
                                  : Eigen::Vector4f{0.6f, 0.7f, 1.0f, 0.5f};
-        draw_wire(ray_origin_, ray_origin_ + ray_dir_ * 2.0f, ray_col, vp, shader_);
-        draw_quad(right_tip_, 0.008f, 0.008f, ray_col, vp, shader_);
+        draw_quad(right_tip_, 0.008f, 0.008f, tip_col, vp, shader_);
     }
     if (show_left_)
         draw_quad(left_tip_, 0.008f, 0.008f,
@@ -148,7 +154,7 @@ void VrEditor::draw(const Eigen::Matrix4f& vp, const TextMesh& text) const {
     // ── hover label: legible name beside whatever the tip is near ──────────
     if (!hover_label_.empty()) {
         Eigen::Matrix4f m = Eigen::Matrix4f::Identity();
-        m(0,0) = m(1,1) = 0.014f;
+        m(0,0) = m(1,1) = 0.014f * text_scale;
         m(0,3) = hover_pos_.x() + 0.018f;
         m(1,3) = hover_pos_.y() + 0.016f;
         m(2,3) = hover_pos_.z() + 0.012f;

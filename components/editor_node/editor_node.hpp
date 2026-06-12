@@ -33,6 +33,7 @@ struct EditorNode {
         slider<"grip_right",    "", float, fp(0.f),  fp(1.f), fp(0.f)> grip_right;
         slider<"thumb_x",       "", float, fp(-1.f), fp(1.f), fp(0.f)> thumb_x;
         slider<"thumb_y",       "", float, fp(-1.f), fp(1.f), fp(0.f)> thumb_y;
+        slider<"text_scale",    "", float, fp(0.1f), fp(2.f), fp(0.5f)> text_scale;
     } inputs;
 
     struct outputs {

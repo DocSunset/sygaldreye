@@ -27,6 +27,7 @@ void EditorNode::operator()(double time_s) {
     XrPosef rp = to_pose(inputs.right_pos.value, inputs.right_rot.value);
     float dt = (prev_time_s_ > 0.0) ? float(time_s - prev_time_s_) : 0.016f;
     prev_time_s_ = time_s;
+    editor_.text_scale = inputs.text_scale.value;
 
     auto edit = editor_.update(&lp, &rp,
                                inputs.trigger_left.value  > 0.5f,

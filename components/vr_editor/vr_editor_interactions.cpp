@@ -2,7 +2,6 @@
 // VrEditor interaction sub-update helpers: drag, sliders, dwell, undo
 #include "vr_editor.hpp"
 #include "port_types.hpp"
-#include "ray_selector.hpp"
 #include <Eigen/Geometry>
 #include <cstring>
 
@@ -238,10 +237,14 @@ std::optional<VrEditor::GraphEdit> VrEditor::update_dwell(
         return std::nullopt;
     }
 
-    // Find which card (if any) the ray hits
+    // Find which card (if any) the tip is inside (poke, not ray)
     int hit_card = -1;
-    auto cards_hit = RaySelector::test(*right_pose, node_cards_);
-    if (cards_hit) hit_card = cards_hit->panel_index;
+    for (size_t ci = 0; ci < node_cards_.size(); ++ci) {
+        Eigen::Vector3f d = controller_tip_ - node_cards_[ci].position;
+        if (std::abs(d.x()) < node_cards_[ci].width * 0.5f &&
+            std::abs(d.y()) < node_cards_[ci].height * 0.5f &&
+            std::abs(d.z()) < 0.08f) { hit_card = static_cast<int>(ci); break; }
+    }
 
     // Find which edge the controller tip is nearest to (midpoint heuristic)
     int hit_edge = -1;
