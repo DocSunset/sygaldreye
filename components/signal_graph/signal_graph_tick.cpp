@@ -40,6 +40,9 @@ void apply_value(const NodeInstance& n, const char* port, const PortValue& value
         } else if constexpr (std::is_same_v<T, MeshPtr>) {
             if (n.desc->set_mesh_in)
                 n.desc->set_mesh_in(n.data, port, static_cast<const void*>(&val));
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            if (n.desc->version >= 6 && n.desc->set_text_in)
+                n.desc->set_text_in(n.data, port, val.c_str());
         }
     }, value);
 }
@@ -92,6 +95,10 @@ EyeballsOutputCtx output_ctx(std::unordered_map<std::string, PortValue>* store,
                         const float* data, int frames, int channels, int rate) {
         (*static_cast<Store*>(s))[std::string(nid) + "." + port] =
             AudioBuffer{data, frames, channels, rate};
+    };
+    ctx.emit_text = [](void* s, const char* nid, const char* port, const char* utf8) {
+        (*static_cast<Store*>(s))[std::string(nid) + "." + port] =
+            std::string{utf8};
     };
     return ctx;
 }

@@ -2,6 +2,8 @@
 #pragma once
 #include "push_to_talk.hpp"
 #include "sygaldry_endpoints.hpp"
+#include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 
@@ -22,12 +24,22 @@ public:
     struct outputs {
         port<"bip",       float> bip;        // 1 on take start, 0.5 on stop
         port<"recording", float> recording;
+        // The transcript as a VALUE: wire stt.text → claude.message and
+        // stt.heard → claude.send — no companion forwarding, no seq bump.
+        port<"text", std::string> text;
+        bang<"heard">             heard;
     } outputs;
 
     void operator()(double time_s);
 
 private:
+    struct Pending {
+        std::mutex  m;
+        std::string text;
+        bool        fresh = false;
+    };
     PushToTalk ptt_;
+    std::shared_ptr<Pending> pending_ = std::make_shared<Pending>();
     bool recording_  = false;
     bool prev_send_  = false;
     bool prev_erase_ = false;

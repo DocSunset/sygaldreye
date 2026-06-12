@@ -2,6 +2,9 @@
 #include "subgraph_node.hpp"
 #include "signal_graph_plan.hpp"
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <string_view>
 
 // ── SubgraphNode ─────────────────────────────────────────────────────────────
 
@@ -65,4 +68,72 @@ void SubgraphNode::push_outlets(EyeballsOutputCtx* ctx) const {
 void SubgraphNode::push_draw_calls_to(DrawCallCtx* ctx) {
     ctx->calls->insert(ctx->calls->end(),
                        inner_->draw_calls.begin(), inner_->draw_calls.end());
+}
+
+// ── inlet-params (rung 1) ────────────────────────────────────────────────────
+
+void SubgraphNode::deserialize_params(const char* json) {
+    std::string_view s{json ? json : ""};
+    auto pos = s.find('{');
+    if (pos == std::string_view::npos) return;
+    ++pos;
+    while (pos < s.size()) {
+        while (pos < s.size() && s[pos] != '"' && s[pos] != '}') ++pos;
+        if (pos >= s.size() || s[pos] == '}') break;
+        auto key_end = s.find('"', ++pos);
+        if (key_end == std::string_view::npos) break;
+        std::string key{s.substr(pos, key_end - pos)};
+        pos = s.find(':', key_end);
+        if (pos == std::string_view::npos) break;
+        ++pos;
+        while (pos < s.size() && s[pos] == ' ') ++pos;
+        PortValue v;
+        if (pos < s.size() && s[pos] == '"') {
+            auto q = pos + 1;
+            while (q < s.size() && !(s[q] == '"' && s[q - 1] != '\\')) ++q;
+            std::string txt;
+            for (auto i = pos + 1; i < q; ++i) {
+                if (s[i] == '\\' && i + 1 < q) {
+                    char c = s[++i];
+                    txt += (c == 'n') ? '\n' : (c == 't') ? '\t' : c;
+                } else txt += s[i];
+            }
+            v   = std::move(txt);
+            pos = (q < s.size()) ? q + 1 : q;
+        } else {
+            auto end = s.find_first_of(",}", pos);
+            if (end == std::string_view::npos) end = s.size();
+            v   = strtod(s.data() + pos, nullptr);
+            pos = end;
+        }
+        param_defaults_[key] = v;
+        cache_inlet(key, std::move(v));
+    }
+}
+
+std::string SubgraphNode::serialize_params() const {
+    std::string out = "{";
+    bool first = true;
+    for (const auto& [k, v] : param_defaults_) {
+        if (!first) out += ',';
+        first = false;
+        out += '"' + k + "\":";
+        if (const double* d = std::get_if<double>(&v)) {
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "%g", *d);
+            out += buf;
+        } else if (const std::string* t = std::get_if<std::string>(&v)) {
+            out += '"';
+            for (char c : *t) {
+                if (c == '\n')      out += "\\n";
+                else if (c == '\t') out += "\\t";
+                else {
+                    if (c == '"' || c == '\\') out += '\\';
+                    out += c;
+                }
+            }
+            out += '"';
+        } else out += "0";
+    }
+    return out + "}";
 }

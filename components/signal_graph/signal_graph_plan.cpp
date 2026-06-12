@@ -115,7 +115,9 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
         if (back[ei]) {
             plan->delays.push_back(DelayMapping{EdgeApplier{&e}, std::nullopt, rf});
             plan->delayed[t->second].push_back(&plan->delays.back());
-        } else if (g.nodes[f->second].desc->output_ptr &&
+        } else if (g.nodes[f->second].desc->version >= 6 &&
+                   g.nodes[t->second].desc->version >= 6 &&
+                   g.nodes[f->second].desc->output_ptr &&
                    g.nodes[t->second].desc->connect) {
             // endpoints v6 both sides: a literal pointer, wired once.
             plan->wires.push_back(&e);
@@ -141,7 +143,7 @@ void wire_plan(Graph& g) {
     // Reset first: migrated instances may hold src pointers into producers
     // the swap just destroyed.
     for (auto& n : g.nodes) {
-        if (!n.desc->connect) continue;
+        if (n.desc->version < 6 || !n.desc->connect) continue;
         PortSchema s = parse_port_schema(n.desc->port_schema);
         for (const auto& p : s.inputs)
             n.desc->connect(n.data, p.name.c_str(), nullptr);

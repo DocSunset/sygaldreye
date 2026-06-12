@@ -21,6 +21,10 @@ struct TtsNode {
         ::text<"command">  command;
         // empty → "http://127.0.0.1:8080/play" (the device peer)
         ::text<"play_url"> play_url;
+        // Speak the current message: message is a cold inlet (text edges
+        // deliver it), say fires it. seq is the DEPRECATED firing path,
+        // kept while external posters migrate.
+        bang<"say"> say;
         slider<"seq", "", float, fp(0.f), fp(1e9f), fp(0.f)> seq;
     } inputs;
 

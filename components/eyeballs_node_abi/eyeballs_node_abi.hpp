@@ -92,6 +92,12 @@ template<typename F>
 concept MeshPortField = PortField<F> &&
     std::same_as<typename F::value_type, MeshPtr>;
 
+// Text VALUE port (port<"x", std::string>) — flows through edges, unlike
+// the legacy text<> param which persists but never propagates.
+template<typename F>
+concept TextPortField = PortField<F> &&
+    std::same_as<typename F::value_type, std::string>;
+
 // SliderField and ToggleField are defined in param_registry.hpp (already included).
 
 // GraphTextureCtx: legacy v2 context for push_textures. Kept for ABI compatibility.
@@ -135,6 +141,7 @@ constexpr std::string_view port_kind() {
     if constexpr (DrawCallField<F>)   return "draw_call";
     else if constexpr (TexturePortField<F>) return "texture";
     else if constexpr (MeshPortField<F>)   return "mesh";
+    else if constexpr (TextPortField<F>)   return "text";
     else if constexpr (AudioPortField<F>)  return "audio";
     else if constexpr (Mat4PortField<F>)   return "mat4";
     else if constexpr (QuatPortField<F>)   return "quat";
@@ -286,6 +293,10 @@ const EyeballsNodeDescriptor* make_descriptor() {
                         ctx->emit_audio(ctx->store, ctx->node_id, nm.data(),
                                         field.value.data, field.value.frames,
                                         field.value.channels, field.value.sample_rate);
+                    } else if constexpr (TextPortField<F>) {
+                        if (ctx->emit_text)
+                            ctx->emit_text(ctx->store, ctx->node_id, nm.data(),
+                                           field.value.c_str());
                     } else if constexpr (BangField<F>) {
                         // Event rate as a 0/1 copy: true for exactly the
                         // tick the producer fires (producer resets next tick).
@@ -466,6 +477,23 @@ const EyeballsNodeDescriptor* make_descriptor() {
         };
     }
 
+    // set_text_in (v6): writes legacy text<> params AND text value ports —
+    // a text edge delivers into either.
+    static void (*set_text_in_fn)(void*, const char*, const char*) = nullptr;
+    if constexpr (HasInputs<Node>) {
+        set_text_in_fn = [](void* p, const char* port_name, const char* utf8) {
+            auto* node = static_cast<Node*>(p);
+            boost::pfr::for_each_field(node->inputs,
+                [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
+                    using F = std::remove_cvref_t<decltype(field)>;
+                    if constexpr (TextField<F> || TextPortField<F>) {
+                        if (F::name() == std::string_view(port_name))
+                            field.value = utf8;
+                    }
+                });
+        };
+    }
+
     // set_drawfn_in (v5)
     static void (*set_drawfn_in_fn)(void*, const char*, const void*) = nullptr;
     if constexpr (HasInputs<Node>) {
@@ -563,6 +591,10 @@ const EyeballsNodeDescriptor* make_descriptor() {
                         } else if constexpr (std::same_as<T, Eigen::Vector2f>) {
                             ctx->emit_vec2(ctx->store, ctx->node_id, nm.data(),
                                            f.value.x(), f.value.y());
+                        } else if constexpr (std::same_as<T, std::string>) {
+                            if (ctx->emit_text)
+                                ctx->emit_text(ctx->store, ctx->node_id, nm.data(),
+                                               f.value.c_str());
                         } else if constexpr (std::is_arithmetic_v<T>) {
                             ctx->emit_scalar(ctx->store, ctx->node_id, nm.data(),
                                              static_cast<double>(f.value));
@@ -633,6 +665,19 @@ const EyeballsNodeDescriptor* make_descriptor() {
                 });
         };
 
+        set_text_in_fn = [](void* p, const char* port, const char* utf8) {
+            auto* node = static_cast<Node*>(p);
+            detail::for_each_named_field(node->endpoints,
+                [&](auto& f, std::string_view nm) {
+                    using F = std::remove_cvref_t<decltype(f)>;
+                    if (nm != std::string_view(port)) return;
+                    if constexpr (V6Normalled<F>) {
+                        if constexpr (std::same_as<typename F::value_type, std::string>)
+                            f.fallback = utf8;
+                    }
+                });
+        };
+
         connect_fn = [](void* p, const char* port, const void* src) -> int {
             auto* node = static_cast<Node*>(p);
             int hit = 0;
@@ -695,6 +740,7 @@ const EyeballsNodeDescriptor* make_descriptor() {
         .set_mesh_in      = set_mesh_in_fn,
         .connect          = connect_fn,
         .output_ptr       = output_ptr_fn,
+        .set_text_in      = set_text_in_fn,
     };
     return &d;
 }

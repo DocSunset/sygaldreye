@@ -24,6 +24,9 @@ typedef struct EyeballsOutputCtx {
                          const void* mesh);
     void (*emit_audio)  (void* store, const char* nid, const char* port,
                          const float* samples, int frames, int channels, int rate);
+    /* v6: text values through edges (transcripts, prompts, labels) */
+    void (*emit_text)   (void* store, const char* nid, const char* port,
+                         const char* utf8);
 } EyeballsOutputCtx;
 
 typedef struct {
@@ -68,6 +71,8 @@ typedef struct {
        through the set_* copy family instead. */
     int         (*connect)   (void* node, const char* port, const void* src);
     const void* (*output_ptr)(void* node, const char* port);
+    /* v6: text edge delivery (writes a text input's live value) */
+    void        (*set_text_in)(void* node, const char* port, const char* utf8);
 } EyeballsNodeDescriptor;
 
 /* Every plugin .so must export this symbol: */

@@ -27,14 +27,28 @@ void SpeechToTextNode::operator()(double /*time_s*/) {
 
     bool send_now = inputs.send.value > 0.5f;
     if (send_now && !prev_send_ && ptt_.has_audio()) {
-        ptt_.end_recording([](std::string_view t) {
+        auto pending = pending_;
+        ptt_.end_recording([pending](std::string_view t) {
             __android_log_print(ANDROID_LOG_INFO, "eyeballs",
                                 "transcript: %.*s", static_cast<int>(t.size()), t.data());
+            std::lock_guard<std::mutex> lock(pending->m);
+            pending->text  = std::string{t};
+            pending->fresh = true;
         });
         recording_ = false;
         outputs.bip.value = 1.f;
     }
     prev_send_ = send_now;
+
+    outputs.heard.triggered = false;
+    {
+        std::lock_guard<std::mutex> lock(pending_->m);
+        if (pending_->fresh) {
+            outputs.text.value      = pending_->text;
+            outputs.heard.triggered = true;
+            pending_->fresh         = false;
+        }
+    }
 
     bool erase_now = inputs.erase.value > 0.5f;
     if (erase_now && !prev_erase_) {

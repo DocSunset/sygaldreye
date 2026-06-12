@@ -6,8 +6,9 @@
 #include <fstream>
 
 void TtsNode::operator()(double) {
-    if (inputs.seq.value != prev_seq_) {
-        prev_seq_ = inputs.seq.value;
+    bool seq_changed = inputs.seq.value != prev_seq_;
+    prev_seq_        = inputs.seq.value;
+    if (inputs.say.triggered || seq_changed) {
         std::string msg = inputs.message.value;
         std::string cmd = inputs.command.value.empty()
             ? "companion/.venv-melotts/bin/python companion/tts_cli.py"

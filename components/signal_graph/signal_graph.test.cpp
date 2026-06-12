@@ -701,3 +701,74 @@ TEST(EndpointsV6Executor, WiresAreLiteralPointersAndResetOnSwap) {
     EXPECT_EQ(b2->endpoints.sig.src, nullptr);   // wire_plan reset it
     EXPECT_FLOAT_EQ(b2->endpoints.echo.value, -1.f);
 }
+
+// ── text edges + subgraph inlet-params (overnight 2 gates) ──────────────────
+
+struct TextSrcNode {
+    static consteval std::string_view name() { return "text_src"; }
+    struct inputs  { ::text<"seed"> seed; } inputs;
+    struct outputs { port<"text", std::string> text; } outputs;
+    void operator()(double) { outputs.text.value = inputs.seed.value + "!"; }
+};
+struct TextSinkNode {
+    static consteval std::string_view name() { return "text_sink"; }
+    struct inputs  { ::text<"in"> in; } inputs;
+    struct outputs { port<"len", float> len; } outputs;
+    void operator()(double) { outputs.len.value = float(inputs.in.value.size()); }
+};
+
+TEST(TextEdges, TextFlowsThroughAnEdge) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<TextSrcNode>());
+    reg.register_builtin(make_descriptor<TextSinkNode>());
+    auto g = parse_graph(R"({"nodes":[
+        {"id":"a","type":"text_src","params":{"seed":"hello"}},
+        {"id":"b","type":"text_sink"}],
+        "edges":[{"from":"a.text","to":"b.in"}]})", reg);
+    ASSERT_TRUE(g);
+    tick_graph(*g, 0.0);
+    tick_graph(*g, 0.1);   // slot exists after the first emit
+    TextSinkNode* b = nullptr;
+    for (auto& n : g->nodes) if (n.id == "b") b = static_cast<TextSinkNode*>(n.data);
+    ASSERT_TRUE(b);
+    EXPECT_EQ(b->inputs.in.value, "hello!");
+    auto it = g->values.find("a.text");
+    ASSERT_NE(it, g->values.end());
+    EXPECT_EQ(std::get<std::string>(it->second), "hello!");
+}
+
+struct GainNode {
+    static consteval std::string_view name() { return "gain2"; }
+    struct inputs  { slider<"gain", "", float, fp(0.f), fp(10.f), fp(1.f)> gain; } inputs;
+    struct outputs { port<"out", float> out; } outputs;
+    void operator()(double) { outputs.out.value = inputs.gain.value * 2.f; }
+};
+
+TEST(SubgraphInletParams, ParamsSetDefaultsAndRoundTrip) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<GainNode>());
+    const char* json = R"({"nodes":[{
+        "id":"sub","params":{"g":3},
+        "graph":{
+            "nodes":[{"id":"gn","type":"gain2","params":{}}],
+            "edges":[],
+            "inlets":[{"name":"g","node":"gn","port":"gain"}],
+            "outlets":[{"name":"out","node":"gn","port":"out"}]}}],
+        "edges":[]})";
+    auto g = parse_graph(json, reg);
+    ASSERT_TRUE(g);
+    tick_graph(*g, 0.0);
+    auto it = g->values.find("sub.out");
+    ASSERT_NE(it, g->values.end());
+    EXPECT_NEAR(std::get<double>(it->second), 6.0, 1e-6);   // 3 * 2
+
+    // round-trip: serialize captures the param default, reparse applies it
+    std::string s = serialize_graph(*g);
+    EXPECT_NE(s.find("\"g\":3"), std::string::npos);
+    auto g2 = parse_graph(s, reg);
+    ASSERT_TRUE(g2);
+    tick_graph(*g2, 0.0);
+    auto it2 = g2->values.find("sub.out");
+    ASSERT_NE(it2, g2->values.end());
+    EXPECT_NEAR(std::get<double>(it2->second), 6.0, 1e-6);
+}

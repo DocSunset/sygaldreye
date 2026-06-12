@@ -3,6 +3,8 @@
 #include "port_schema_reader.hpp"
 #include <array>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <utility>
 
 // C function pointers cannot capture, and create() takes no argument. To give
@@ -104,6 +106,16 @@ SubgraphDescriptor::SubgraphDescriptor(std::unique_ptr<Graph> graph_template,
     desc_.push_draw_calls = [](void* p, void* ctx) {
         static_cast<SubgraphNode*>(p)->push_draw_calls_to(static_cast<DrawCallCtx*>(ctx));
     };
+    // Inlet-params: {"type":"chime_synth_g","params":{"freq":880}} works —
+    // presets are parametric abstractions (inlet_defaults.md rung 1).
+    desc_.serialize = [](void* p) -> const char* {
+        auto s = static_cast<SubgraphNode*>(p)->serialize_params();
+        return strdup(s.c_str());
+    };
+    desc_.free_str = [](const char* s) { free(const_cast<char*>(s)); };
+    desc_.deserialize = [](void* p, const char* json) {
+        static_cast<SubgraphNode*>(p)->deserialize_params(json);
+    };
     desc_.set_scalar_in = [](void* p, const char* port, double v) {
         static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{v});
     };
@@ -136,6 +148,9 @@ SubgraphDescriptor::SubgraphDescriptor(std::unique_ptr<Graph> graph_template,
     };
     desc_.set_mesh_in = [](void* p, const char* port, const void* mesh) {
         static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{*static_cast<const MeshPtr*>(mesh)});
+    };
+    desc_.set_text_in = [](void* p, const char* port, const char* utf8) {
+        static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{std::string{utf8}});
     };
 }
 

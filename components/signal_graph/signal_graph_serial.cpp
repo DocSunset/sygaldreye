@@ -132,6 +132,9 @@ std::unique_ptr<Graph> parse_graph(const std::string& raw_json, const ComponentR
             const EyeballsNodeDescriptor* desc = subdesc->descriptor();
             void* data = desc->create();
             if (!data) return nullptr;
+            auto params = find_object(obj, "params");
+            if (!params.empty() && desc->deserialize)
+                desc->deserialize(data, std::string(params).c_str());
             g->nodes.push_back({desc, data, std::string(id)});
             g->owned_descriptors.push_back(std::move(subdesc));
             continue;
@@ -248,8 +251,16 @@ std::string serialize_graph(const Graph& g) {
     for (const auto& n : g.nodes) {
         if (!first) out += ',';
         first = false;
-        out += "{\"id\":\""; out += n.id; out += "\",\"type\":\"";
-        out += n.desc->type_name; out += "\"";
+        out += "{\"id\":\""; out += n.id; out += '"';
+        std::string_view tn{n.desc->type_name};
+        if (tn.substr(0, 9) == "__inline_") {
+            // Inline subgraphs round-trip as their definition, not a type
+            // name no registry knows.
+            out += ",\"graph\":";
+            out += serialize_graph(static_cast<const SubgraphNode*>(n.data)->inner());
+        } else {
+            out += ",\"type\":\""; out += tn; out += '"';
+        }
         if (n.desc->serialize) {
             const char* s = n.desc->serialize(n.data);
             out += ",\"params\":"; out += s;

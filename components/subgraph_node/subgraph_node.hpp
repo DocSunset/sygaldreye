@@ -17,9 +17,18 @@ public:
     void push_outlets(EyeballsOutputCtx* ctx) const;
     void push_draw_calls_to(DrawCallCtx* ctx);
 
+    // Inlet-params (inlet_defaults.md rung 1): {"inlet": value} JSON sets
+    // persisted defaults applied like any inlet value — presets become
+    // parametric abstractions. serialize emits the DEFAULTS (never live
+    // edge values); scalar + text v1.
+    void        deserialize_params(const char* json);
+    std::string serialize_params() const;
+    const Graph& inner() const { return *inner_; }  // serializer round-trip
+
 private:
     std::unique_ptr<Graph>                     inner_;
     std::unordered_map<std::string, PortValue> inlet_cache_;
+    std::unordered_map<std::string, PortValue> param_defaults_;
 };
 
 // Owns a dynamically-allocated EyeballsNodeDescriptor and its heap strings for a
