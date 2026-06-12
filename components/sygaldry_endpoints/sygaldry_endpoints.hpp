@@ -174,10 +174,11 @@ struct cv_in {
 };
 
 // out<T>: owned output storage — what input src pointers point at.
+// Default via endpoint_default — Eigen's default ctor is UNINITIALIZED.
 template<typename T>
 struct out {
     using value_type = T;
-    T value{};
+    T value = endpoint_default<T>::value();
 };
 
 // Events are deliveries, not values: fired for exactly one tick, carried

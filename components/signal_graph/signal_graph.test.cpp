@@ -35,6 +35,11 @@ static EyeballsNodeDescriptor make_node_a_desc() {
         .set_quat_in      = nullptr,
         .set_texture_in   = nullptr,
         .set_audio_in     = nullptr,
+        .set_drawfn_in    = nullptr,
+        .set_mesh_in      = nullptr,
+        .connect          = nullptr,
+        .output_ptr       = nullptr,
+        .set_text_in      = nullptr,
     };
 }
 
@@ -63,6 +68,11 @@ static EyeballsNodeDescriptor make_node_b_desc() {
         .set_quat_in      = nullptr,
         .set_texture_in   = nullptr,
         .set_audio_in     = nullptr,
+        .set_drawfn_in    = nullptr,
+        .set_mesh_in      = nullptr,
+        .connect          = nullptr,
+        .output_ptr       = nullptr,
+        .set_text_in      = nullptr,
     };
 }
 

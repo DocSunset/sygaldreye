@@ -18,13 +18,6 @@
 #include "rd_gpu.hpp"
 #include "xr_sources.hpp"
 #include "renderer_node.hpp"
-#include "atmos_synth.hpp"
-#include "rain_synth.hpp"
-#include "fire_synth.hpp"
-#include "engine_synth.hpp"
-#include "water_synth.hpp"
-#include "creature_synth.hpp"
-#include "chime_synth.hpp"
 #include "lissajous.hpp"
 #include "aurora.hpp"
 #include "chladni.hpp"
@@ -126,13 +119,6 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<HeadPoseNode>());
     reg.register_builtin(make_descriptor<LeftControllerNode>());
     reg.register_builtin(make_descriptor<RightControllerNode>());
-    reg.register_builtin(make_descriptor<AtmosSynth>());
-    reg.register_builtin(make_descriptor<RainSynth>());
-    reg.register_builtin(make_descriptor<FireSynth>());
-    reg.register_builtin(make_descriptor<EngineSynth>());
-    reg.register_builtin(make_descriptor<WaterSynth>());
-    reg.register_builtin(make_descriptor<CreatureSynth>());
-    reg.register_builtin(make_descriptor<ChimeSynth>());
     reg.register_builtin(make_descriptor<Lissajous>());
     reg.register_builtin(make_descriptor<Aurora>());
     reg.register_builtin(make_descriptor<Chladni>());
