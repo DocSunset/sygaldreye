@@ -133,5 +133,5 @@ TEST(AudioRegion, LatchForwardsFrameControlIntoBlock) {
     EXPECT_EQ(f.g->plan->block_order.size(), 2u);  // kconst stays frame-side
     for (int i = 0; i < 5; ++i) f.frame();
     auto* osc = static_cast<OscNode*>(f.g->nodes[1].data);
-    EXPECT_FLOAT_EQ(osc->inputs.freq.value, 2000.f);  // latched through
+    EXPECT_FLOAT_EQ(osc->endpoints.freq.get(), 2000.f);  // latched through
 }

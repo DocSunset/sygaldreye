@@ -14,33 +14,31 @@ struct OscNode {
     static consteval std::string_view name() { return "osc"; }
     static consteval std::string_view source_header() { return "components/osc_node/osc_node.hpp"; }
 
-    struct inputs {
-        slider<"freq", "Hz", float, fp(20.f), fp(20000.f), fp(440.f)> freq;
-        slider<"amp",  "",   float, fp(0.f),  fp(1.f),     fp(0.5f)>  amp;
-        slider<"wave", "",   float, fp(0.f),  fp(3.f),     fp(0.f)>   wave;  // sine saw square tri
-    } inputs;
-
-    struct outputs {
-        port<"audio", AudioBuffer> audio;
-    } outputs;
+    struct endpoints {
+        normalled_in<float, fp(20.f), fp(20000.f), fp(440.f)> freq;
+        normalled_in<float, fp(0.f),  fp(1.f),     fp(0.5f)>  amp;
+        normalled_in<float, fp(0.f),  fp(3.f),     fp(0.f)>   wave;  // sine saw square tri
+        out<AudioBuffer> audio;
+    } endpoints;
 
     void operator()(double time_s) {
         double dt = (prev_t_ > 0.0) ? time_s - prev_t_ : 1.0 / 60.0;
         prev_t_ = time_s;
         int frames = std::clamp(int(dt * 48000.0), 0, 4800);
         buf_.resize(std::size_t(frames));
-        float w = 6.2831853f * inputs.freq.value / 48000.f;
-        int wave = int(inputs.wave.value + 0.5f);
+        float w = 6.2831853f * endpoints.freq.get() / 48000.f;
+        float amp = endpoints.amp.get();
+        int wave = int(endpoints.wave.get() + 0.5f);
         for (int i = 0; i < frames; ++i) {
             float s = wave == 1 ? synth::sawtooth(phase_)
                     : wave == 2 ? synth::square(phase_)
                     : wave == 3 ? synth::triangle(phase_)
                                 : std::sin(phase_);
-            buf_[std::size_t(i)] = inputs.amp.value * s;
+            buf_[std::size_t(i)] = amp * s;
             phase_ += w;
         }
         phase_ = std::fmod(phase_, 6.2831853f);
-        outputs.audio.value = AudioBuffer{buf_.data(), frames, 1, 48000};
+        endpoints.audio.value = AudioBuffer{buf_.data(), frames, 1, 48000};
     }
 
 private:

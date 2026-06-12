@@ -443,16 +443,14 @@ private:
 // edge (Max's mc.pack~; Pd-style channel concatenation).
 struct McPackNode {
     static consteval std::string_view name() { return "mc_pack"; }
-    struct inputs {
-        port<"in1", AudioBuffer> in1;
-        port<"in2", AudioBuffer> in2;
-        port<"in3", AudioBuffer> in3;
-        port<"in4", AudioBuffer> in4;
-    } inputs;
-    struct outputs { port<"audio", AudioBuffer> audio; } outputs;
+    struct endpoints {
+        in<AudioBuffer> in1, in2, in3, in4;
+        out<AudioBuffer> audio;
+    } endpoints;
     void operator()(double) {
-        const AudioBuffer* ins[4] = {&inputs.in1.value, &inputs.in2.value,
-                                     &inputs.in3.value, &inputs.in4.value};
+        const AudioBuffer bufs[4] = {endpoints.in1.get(), endpoints.in2.get(),
+                                     endpoints.in3.get(), endpoints.in4.get()};
+        const AudioBuffer* ins[4] = {&bufs[0], &bufs[1], &bufs[2], &bufs[3]};
         int n = 0, ch = 0, rate = 48000;
         for (auto* b : ins)
             if (b->data && b->frames > 0) {
@@ -472,7 +470,7 @@ struct McPackNode {
                          std::size_t(base + c)] = ugen_detail::at(*b, i, c);
             base += bch;
         }
-        outputs.audio.value = AudioBuffer{buf_.data(), n, out_ch, rate};
+        endpoints.audio.value = AudioBuffer{buf_.data(), n, out_ch, rate};
     }
 private:
     std::vector<float> buf_;
@@ -481,15 +479,12 @@ private:
 // Peel the first four channels off a multichannel edge as mono outputs.
 struct McUnpackNode {
     static consteval std::string_view name() { return "mc_unpack"; }
-    struct inputs { port<"audio", AudioBuffer> audio; } inputs;
-    struct outputs {
-        port<"out1", AudioBuffer> out1;
-        port<"out2", AudioBuffer> out2;
-        port<"out3", AudioBuffer> out3;
-        port<"out4", AudioBuffer> out4;
-    } outputs;
+    struct endpoints {
+        in<AudioBuffer> audio;
+        out<AudioBuffer> out1, out2, out3, out4;
+    } endpoints;
     void operator()(double) {
-        const AudioBuffer& in = inputs.audio.value;
+        const AudioBuffer in = endpoints.audio.get();
         int n  = in.data ? in.frames : 0;
         int ch = ugen_detail::chans(in);
         auto peel = [&](auto& out, int c) {
@@ -503,10 +498,10 @@ struct McUnpackNode {
                 out.value = AudioBuffer{};
             }
         };
-        peel(outputs.out1, 0);
-        peel(outputs.out2, 1);
-        peel(outputs.out3, 2);
-        peel(outputs.out4, 3);
+        peel(endpoints.out1, 0);
+        peel(endpoints.out2, 1);
+        peel(endpoints.out3, 2);
+        peel(endpoints.out4, 3);
     }
 private:
     std::vector<float> bufs_[4];
