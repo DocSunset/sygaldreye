@@ -144,3 +144,44 @@ struct MeshTransformNode {
     MeshTransformNode() { inputs.matrix.value.setIdentity(); }
     void operator()(double);
 };
+
+// ── span era (conformability.md): lists as values ───────────────────────────
+
+// N pseudo-random positions scattered in a disc — forest fodder. The
+// first span producer: positions leave as an N×3 value.
+struct ScatterNode {
+    static consteval std::string_view name() { return "scatter"; }
+    struct endpoints {
+        normalled_in<float, fp(1.f),   fp(2000.f), fp(60.f)>  count;
+        normalled_in<float, fp(0.5f),  fp(200.f),  fp(25.f)>  radius;
+        normalled_in<float, fp(0.f),   fp(100.f),  fp(1.f)>   seed;
+        normalled_in<float, fp(-10.f), fp(10.f),   fp(0.f)>   y;
+        out<Span> positions;
+    } endpoints;
+    void operator()(double);
+private:
+    std::vector<float> pts_;
+    int   n_ = -1;
+    float r_ = -1.f, s_ = -1.f, y_ = -1e9f;
+};
+
+// One mesh drawn at every row of an N×3 span — the ratified forest
+// acceptance, "lift the draw" route. Manual lifting until the
+// conformability executor takes over.
+struct MeshInstancesNode {
+    static consteval std::string_view name() { return "mesh_instances"; }
+    struct endpoints {
+        in<MeshPtr> mesh;
+        in<Span>    positions;
+        normalled_in<Eigen::Vector3f> light_dir;
+        out<DrawFn> render;
+    } endpoints;
+    MeshInstancesNode() { endpoints.light_dir.fallback = {0.4f, 0.8f, 0.3f}; }
+    void operator()(double);
+private:
+    MeshPtr held_;
+    std::vector<float> held_pts_;   // copy: draw runs after the tick
+    std::unique_ptr<GlProgram> prog_;
+    TriMesh gpu_;
+    const TriMeshData* uploaded_ = nullptr;
+};

@@ -83,6 +83,8 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<LfoNode>());
     reg.register_builtin(make_descriptor<SttWhisperNode>());
     reg.register_builtin(make_descriptor<TtsLocalNode>());
+    reg.register_builtin(make_descriptor<ScatterNode>());
+    reg.register_builtin(make_descriptor<MeshInstancesNode>());
     reg.register_builtin(make_descriptor<ScaleNode>());
     reg.register_builtin(make_descriptor<AddNode>());
     reg.register_builtin(make_descriptor<MulNode>());

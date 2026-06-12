@@ -125,6 +125,7 @@ constexpr std::string_view v6_kind() {
     else if constexpr (std::same_as<T, GpuTexture>)    return "texture";
     else if constexpr (std::same_as<T, MeshPtr>)       return "mesh";
     else if constexpr (std::same_as<T, AudioBuffer>)   return "audio";
+    else if constexpr (std::same_as<T, Span>)          return "span";
     else if constexpr (std::same_as<T, Eigen::Matrix4f>) return "mat4";
     else if constexpr (std::same_as<T, Eigen::Quaternionf>) return "quat";
     else if constexpr (std::same_as<T, Eigen::Vector4f>) return "vec4";
@@ -591,6 +592,11 @@ const EyeballsNodeDescriptor* make_descriptor() {
                         } else if constexpr (std::same_as<T, Eigen::Vector2f>) {
                             ctx->emit_vec2(ctx->store, ctx->node_id, nm.data(),
                                            f.value.x(), f.value.y());
+                        } else if constexpr (std::same_as<T, Span>) {
+                            if (ctx->emit_span)
+                                ctx->emit_span(ctx->store, ctx->node_id, nm.data(),
+                                               f.value.data, f.value.rows,
+                                               f.value.cols);
                         } else if constexpr (std::same_as<T, std::string>) {
                             if (ctx->emit_text)
                                 ctx->emit_text(ctx->store, ctx->node_id, nm.data(),

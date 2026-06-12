@@ -62,9 +62,11 @@ struct TickPlan {
     // the in<T>-only kind. deque: stable addresses.
     struct SlotApplier {
         EdgeApplier  applier;
-        AudioBuffer* slot;
+        AudioBuffer* audio = nullptr;   // exactly one of these is set,
+        MeshPtr*     mesh  = nullptr;   // by the edge's payload kind
     };
     std::deque<AudioBuffer>                  audio_slots;
+    std::deque<MeshPtr>                      mesh_slots;
     std::vector<std::vector<SlotApplier>>    slot_appliers;  // per target node
 };
 

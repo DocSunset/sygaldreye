@@ -50,6 +50,7 @@
 #include "osc_node.hpp"
 #include "dac_node.hpp"
 #include "ugens.hpp"
+#include "mesh_nodes.hpp"
 #include "spatialize_node.hpp"
 #include "sample_player.hpp"
 #include "spectrogram.hpp"
@@ -174,6 +175,8 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<AdsrNode>());
     reg.register_builtin(make_descriptor<VcaNode>());
     reg.register_builtin(make_descriptor<MixNode>());
+    reg.register_builtin(make_descriptor<ScatterNode>());
+    reg.register_builtin(make_descriptor<MeshInstancesNode>());
     reg.register_builtin(make_descriptor<BiquadNode>());
     reg.register_builtin(make_descriptor<DelayNode>());
     reg.register_builtin(make_descriptor<ShaperNode>());

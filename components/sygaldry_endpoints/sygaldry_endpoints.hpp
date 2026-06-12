@@ -99,6 +99,16 @@ struct AudioBuffer {
 // Draw call: a renderable callback invoked by the renderer each frame.
 using DrawFn = std::function<void(const Eigen::Matrix4f& vp)>;
 
+// Span: rank-≤2 float view, frame-leading (N×3 positions, N×16
+// transforms, edge lists...). The general array payload ratified in
+// conformability.md — lists flow through edges as values; lifting and
+// named axes build on this. Borrowed pointer, valid during the tick.
+struct Span {
+    const float* data = nullptr;
+    int rows = 0;   // frame axis (N)
+    int cols = 0;   // cell width (3 = vec3, 16 = mat4, ...)
+};
+
 // ── endpoints v6 (kanban/backlog/endpoints_v6.md) ───────────────────────────
 // One `endpoints` struct per node; direction is the shape, names come from
 // the field names (boost::pfr core_name). Inputs hold a pointer-to-const

@@ -273,3 +273,57 @@ void MeshTransformNode::operator()(double) {
     }
     outputs.mesh.value = std::move(out);
 }
+
+// ── span era ─────────────────────────────────────────────────────────────────
+
+void ScatterNode::operator()(double) {
+    int   n = std::max(1, int(endpoints.count.get()));
+    float r = endpoints.radius.get();
+    float s = endpoints.seed.get();
+    float y = endpoints.y.get();
+    if (n != n_ || r != r_ || s != s_ || y != y_) {
+        pts_.resize(std::size_t(n) * 3);
+        uint32_t rng = 0x9e3779b9u + uint32_t(s * 977.f);
+        auto next = [&rng] {
+            rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;
+            return float(rng) / 4294967296.f;   // [0,1)
+        };
+        for (int i = 0; i < n; ++i) {
+            float a = next() * 6.2831853f;
+            float d = std::sqrt(next()) * r;    // uniform over the disc
+            pts_[std::size_t(i) * 3 + 0] = std::cos(a) * d;
+            pts_[std::size_t(i) * 3 + 1] = y;
+            pts_[std::size_t(i) * 3 + 2] = std::sin(a) * d;
+        }
+        n_ = n; r_ = r; s_ = s; y_ = y;
+    }
+    endpoints.positions.value = Span{pts_.data(), n, 3};
+}
+
+void MeshInstancesNode::operator()(double) {
+    held_ = endpoints.mesh.get();
+    Span p = endpoints.positions.get();
+    held_pts_.assign(p.data, p.data + (p.cols == 3 ? std::size_t(p.rows) * 3 : 0));
+    endpoints.render.value = [this](const Eigen::Matrix4f& pv) {
+        if (!held_ || held_pts_.empty()) return;
+        if (!prog_) {
+            auto pr = GlProgram::build(kVert, kFrag);
+            if (!pr) { std::fprintf(stderr, "mesh_instances: shader failed\n"); return; }
+            prog_ = std::make_unique<GlProgram>(std::move(*pr));
+        }
+        if (uploaded_ != held_.get()) {
+            if (uploaded_ == nullptr) gpu_ = TriMesh::create(*held_);
+            else gpu_.update(*held_);
+            uploaded_ = held_.get();
+        }
+        prog_->use();
+        GlProgram::uniform(prog_->uniform_location("uMVP"), pv);
+        const auto ld = endpoints.light_dir.get();
+        glUniform3f(prog_->uniform_location("uLightDir"), ld.x(), ld.y(), ld.z());
+        int off = prog_->uniform_location("uOffset");
+        for (std::size_t i = 0; i + 2 < held_pts_.size(); i += 3) {
+            glUniform3f(off, held_pts_[i], held_pts_[i + 1], held_pts_[i + 2]);
+            gpu_.draw();
+        }
+    };
+}

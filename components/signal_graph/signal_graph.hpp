@@ -24,7 +24,8 @@ using PortValue = std::variant<
     AudioBuffer,
     DrawFn,
     MeshPtr,
-    std::string
+    std::string,
+    Span
 >;
 
 struct NodeInstance {

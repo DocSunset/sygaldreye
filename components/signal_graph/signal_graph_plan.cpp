@@ -125,13 +125,20 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
             dag_edges.push_back(e);
         } else if (g.nodes[t->second].desc->version >= 6 &&
                    g.nodes[t->second].desc->connect &&
-                   out_kind(g.nodes[f->second], e.from_port) == "audio") {
+                   (out_kind(g.nodes[f->second], e.from_port) == "audio" ||
+                    out_kind(g.nodes[f->second], e.from_port) == "mesh")) {
             // Legacy producer → v6 stream consumer: v6 in<T> has no
             // writer, so the consumer points at a plan-owned slot and a
             // slot applier copies the producer's store value in per tick.
-            plan->audio_slots.emplace_back();
-            plan->slot_appliers[t->second].push_back(
-                {EdgeApplier{&e}, &plan->audio_slots.back()});
+            TickPlan::SlotApplier sa{EdgeApplier{&e}, nullptr, nullptr};
+            if (out_kind(g.nodes[f->second], e.from_port) == "audio") {
+                plan->audio_slots.emplace_back();
+                sa.audio = &plan->audio_slots.back();
+            } else {
+                plan->mesh_slots.emplace_back();
+                sa.mesh = &plan->mesh_slots.back();
+            }
+            plan->slot_appliers[t->second].push_back(sa);
             dag_edges.push_back(e);
         } else {
             plan->appliers[t->second].push_back(EdgeApplier{&e});
@@ -188,8 +195,10 @@ void wire_plan(Graph& g) {
     // Mixed edges: point each v6 consumer at its plan-owned slot.
     for (std::size_t i = 0; i < g.plan->slot_appliers.size(); ++i)
         for (auto& sa : g.plan->slot_appliers[i])
-            g.nodes[i].desc->connect(g.nodes[i].data,
-                                     sa.applier.edge->to_port.c_str(), sa.slot);
+            g.nodes[i].desc->connect(
+                g.nodes[i].data, sa.applier.edge->to_port.c_str(),
+                sa.audio ? static_cast<const void*>(sa.audio)
+                         : static_cast<const void*>(sa.mesh));
 }
 
 std::vector<const Edge*> cycle_mappings(const Graph& g) {

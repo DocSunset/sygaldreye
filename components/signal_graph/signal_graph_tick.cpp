@@ -100,6 +100,11 @@ EyeballsOutputCtx output_ctx(std::unordered_map<std::string, PortValue>* store,
         (*static_cast<Store*>(s))[std::string(nid) + "." + port] =
             std::string{utf8};
     };
+    ctx.emit_span = [](void* s, const char* nid, const char* port,
+                       const float* data, int rows, int cols) {
+        (*static_cast<Store*>(s))[std::string(nid) + "." + port] =
+            Span{data, rows, cols};
+    };
     return ctx;
 }
 
@@ -126,8 +131,12 @@ void tick_graph(Graph& g, double time_s) {
         auto& n = g.nodes[idx];
 
         for (auto& sa : plan.slot_appliers[idx])
-            if (const PortValue* src = resolve_applier(sa.applier, g.values))
-                if (auto* ab = std::get_if<AudioBuffer>(src)) *sa.slot = *ab;
+            if (const PortValue* src = resolve_applier(sa.applier, g.values)) {
+                if (sa.audio)
+                    if (auto* ab = std::get_if<AudioBuffer>(src)) *sa.audio = *ab;
+                if (sa.mesh)
+                    if (auto* m = std::get_if<MeshPtr>(src)) *sa.mesh = *m;
+            }
         for (auto& a : plan.appliers[idx])
             if (const PortValue* src = resolve_applier(a, g.values))
                 apply_value(n, a.edge->to_port.c_str(), *src);

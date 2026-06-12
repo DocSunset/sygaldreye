@@ -27,6 +27,9 @@ typedef struct EyeballsOutputCtx {
     /* v6: text values through edges (transcripts, prompts, labels) */
     void (*emit_text)   (void* store, const char* nid, const char* port,
                          const char* utf8);
+    /* v6: rank-<=2 float spans (positions, transforms, lists) */
+    void (*emit_span)   (void* store, const char* nid, const char* port,
+                         const float* data, int rows, int cols);
 } EyeballsOutputCtx;
 
 typedef struct {
