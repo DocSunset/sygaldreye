@@ -176,6 +176,11 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<VcaNode>());
     reg.register_builtin(make_descriptor<MixNode>());
     reg.register_builtin(make_descriptor<ScatterNode>());
+    reg.register_builtin(make_descriptor<MeshGridNode>());
+    reg.register_builtin(make_descriptor<MeshSphereNode>());
+    reg.register_builtin(make_descriptor<MeshBoxNode>());
+    reg.register_builtin(make_descriptor<MeshCylinderNode>());
+    reg.register_builtin(make_descriptor<MeshRenderNode>());
     reg.register_builtin(make_descriptor<MeshInstancesNode>());
     reg.register_builtin(make_descriptor<BiquadNode>());
     reg.register_builtin(make_descriptor<DelayNode>());
