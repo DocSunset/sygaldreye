@@ -38,7 +38,16 @@ std::optional<AudioOutput> AudioOutput::create(AudioCallback cb, int sample_rate
 }
 
 void AudioOutput::start() { AAudioStream_requestStart(impl_->stream); }
-void AudioOutput::stop()  { AAudioStream_requestStop(impl_->stream); }
+void AudioOutput::stop() {
+    AAudioStream_requestStop(impl_->stream);
+    // requestStop is async — wait for callbacks to actually cease before
+    // the destructor closes and frees (same use-after-free class as the
+    // mic_capture teardown crash, 2026-06-12).
+    aaudio_stream_state_t st = AAudioStream_getState(impl_->stream);
+    for (int i = 0; i < 10 && st != AAUDIO_STREAM_STATE_STOPPED &&
+                    st != AAUDIO_STREAM_STATE_CLOSED; ++i)
+        AAudioStream_waitForStateChange(impl_->stream, st, &st, 100'000'000);
+}
 
 AudioOutput::AudioOutput(Impl* impl) : impl_{impl} {}
 

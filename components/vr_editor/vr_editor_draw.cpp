@@ -5,44 +5,77 @@
 #include <Eigen/Geometry>
 #include <array>
 #include <cstdio>
+#include <map>
+#include <vector>
 
 static constexpr int kBezierSegs = 14;
 
+namespace {
+// All editor primitives accumulate into per-color vertex runs flushed
+// through ONE persistent VAO/VBO at the end of VrEditor::draw. The old
+// per-quad/per-wire buffer create-upload-delete churn pegged the render
+// thread (22 FPS playground — kanban editor_wire_batching.md).
+struct PrimBatch {
+    GLuint vao = 0, vbo = 0;
+    std::map<std::array<float, 4>, std::vector<float>> tris, lines;
+
+    std::vector<float>& run(const Eigen::Vector4f& c, bool line) {
+        return (line ? lines : tris)[{c.x(), c.y(), c.z(), c.w()}];
+    }
+    void flush(const Eigen::Matrix4f& vp, RgbaShader& shader) {
+        if (!vao) { glGenVertexArrays(1, &vao); glGenBuffers(1, &vbo); }
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+        shader.use();
+        shader.set_mvp(vp);
+        auto draw_runs = [&](auto& groups, GLenum mode) {
+            for (auto& [color, verts] : groups) {
+                if (verts.empty()) continue;
+                glBufferData(GL_ARRAY_BUFFER,
+                             static_cast<GLsizeiptr>(verts.size() * sizeof(float)),
+                             verts.data(), GL_STREAM_DRAW);
+                shader.set_color({color[0], color[1], color[2], color[3]});
+                glDrawArrays(mode, 0, static_cast<GLsizei>(verts.size() / 3));
+                verts.clear();
+            }
+        };
+        draw_runs(tris, GL_TRIANGLES);
+        draw_runs(lines, GL_LINES);
+        glBindVertexArray(0);
+    }
+};
+PrimBatch g_batch;  // one editor, one GL thread
+} // namespace
+
+void draw_quad(const Eigen::Vector3f& pos, float hw, float hh,
+               const Eigen::Vector4f& color,
+               const Eigen::Matrix4f&, RgbaShader&) {
+    auto& v = g_batch.run(color, false);
+    const float x = pos.x(), y = pos.y(), z = pos.z();
+    const float q[18] = {x-hw,y-hh,z, x+hw,y-hh,z, x+hw,y+hh,z,
+                         x-hw,y-hh,z, x+hw,y+hh,z, x-hw,y+hh,z};
+    v.insert(v.end(), q, q + 18);
+}
+
 void draw_wire(const Eigen::Vector3f& p0, const Eigen::Vector3f& p3,
                const Eigen::Vector4f& color,
-               const Eigen::Matrix4f& vp, RgbaShader& shader) {
+               const Eigen::Matrix4f&, RgbaShader&) {
     // P1 = p0 + forward 0.1, P2 = p3 - forward 0.1 (cards face +Z)
     Eigen::Vector3f p1 = p0 + Eigen::Vector3f{0, 0, -0.1f};
     Eigen::Vector3f p2 = p3 + Eigen::Vector3f{0, 0, -0.1f};
 
-    std::array<float, (kBezierSegs+1)*3> pts{};
-    for (int i = 0; i <= kBezierSegs; ++i) {
+    auto& v = g_batch.run(color, true);
+    Eigen::Vector3f prev = p0;
+    for (int i = 1; i <= kBezierSegs; ++i) {
         float t  = static_cast<float>(i) / static_cast<float>(kBezierSegs);
         float t2 = t*t, t3 = t2*t;
         float u  = 1.f - t, u2 = u*u, u3 = u2*u;
         Eigen::Vector3f p = u3*p0 + 3.f*u2*t*p1 + 3.f*u*t2*p2 + t3*p3;
-        pts[static_cast<size_t>(i)*3+0] = p.x();
-        pts[static_cast<size_t>(i)*3+1] = p.y();
-        pts[static_cast<size_t>(i)*3+2] = p.z();
+        v.insert(v.end(), {prev.x(), prev.y(), prev.z(), p.x(), p.y(), p.z()});
+        prev = p;
     }
-
-    GLuint vao=0, vbo=0;
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER,
-                 static_cast<GLsizeiptr>(pts.size()*sizeof(float)),
-                 pts.data(), GL_STREAM_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-    shader.use();
-    shader.set_mvp(vp);
-    shader.set_color(color);
-    glDrawArrays(GL_LINE_STRIP, 0, kBezierSegs+1);
-    glBindVertexArray(0);
-    glDeleteBuffers(1, &vbo);
-    glDeleteVertexArrays(1, &vao);
 }
 
 void VrEditor::draw(const Eigen::Matrix4f& vp, const TextMesh& text) const {
@@ -163,4 +196,6 @@ void VrEditor::draw(const Eigen::Matrix4f& vp, const TextMesh& text) const {
                   0.06f, 0.014f, {0.02f, 0.02f, 0.05f, 0.92f}, vp, shader_);
         text.draw(hover_label_, vp * m);
     }
+
+    g_batch.flush(vp, shader_);
 }

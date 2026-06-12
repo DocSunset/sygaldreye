@@ -67,7 +67,17 @@ void MicCapture::start() {
     if (r != AAUDIO_OK)
         MLOG("mic_capture: requestStart failed: %s", AAudio_convertResultToText(r));
 }
-void MicCapture::stop()  { AAudioStream_requestStop(impl_->stream); }
+void MicCapture::stop() {
+    AAudioStream_requestStop(impl_->stream);
+    // requestStop is async. Wait until callbacks have actually ceased:
+    // closing (then freeing the callback's captures) with the stream
+    // still running is a use-after-free — device heap-corruption crash
+    // ~15 s after a graph swap removed the mic (2026-06-12).
+    aaudio_stream_state_t st = AAudioStream_getState(impl_->stream);
+    for (int i = 0; i < 10 && st != AAUDIO_STREAM_STATE_STOPPED &&
+                    st != AAUDIO_STREAM_STATE_CLOSED; ++i)
+        AAudioStream_waitForStateChange(impl_->stream, st, &st, 100'000'000);
+}
 
 MicCapture::MicCapture(Impl* impl) : impl_{impl} {}
 

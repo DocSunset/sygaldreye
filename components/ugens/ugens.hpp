@@ -412,7 +412,15 @@ struct MetroNode {
         int n = g_.frames(t);
         float r = inputs.rate.value;
         if (r > 0.f) {
-            if (next_ == 0.0) next_ = t;
+            // next_ can legitimately be at most one period ahead. Further
+            // means t's EPOCH changed under us — a region migration moved
+            // this instance between frame time (XR clock, ~1e5 s) and
+            // block time (stream clock, ~minutes) — and the metro would
+            // otherwise never fire again (bricked-chime bug, 2026-06-12).
+            if (next_ == 0.0 || next_ > t + 1.0 / double(r)) {
+                next_       = t;
+                gate_until_ = -1.0;
+            }
             if (t >= next_) {
                 outputs.fire.triggered = true;
                 outputs.bang_out.value = 1.f;

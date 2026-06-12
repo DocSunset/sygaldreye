@@ -14,7 +14,12 @@ HrtfSpatializer::HrtfSpatializer(SpatializerParams const& p)
 
 void HrtfSpatializer::set_position(Eigen::Vector3f direction, float distance_m)
 {
-    direction.normalize();
+    // Source at the listener's head: normalize(0) is 0/0 = NaN, which
+    // permanently poisons the IIR state (silent spatialize, 2026-06-12).
+    // Treat it as dead ahead at minimum distance instead.
+    float len = direction.norm();
+    direction = (len > 1e-6f) ? Eigen::Vector3f(direction / len)
+                              : Eigen::Vector3f(0.f, 0.f, -1.f);
     PositionState s;
     s.azimuth    = std::asin(std::clamp(direction.x(), -1.0f, 1.0f));
     s.elevation  = std::asin(std::clamp(direction.y(), -1.0f, 1.0f));
@@ -61,6 +66,17 @@ float HrtfSpatializer::read_delayed(float delay_samples) const
 
 void HrtfSpatializer::process(float const* mono_in, float* stereo_out, int frames)
 {
+    // A NaN that slips into IIR feedback or the delay line never leaves.
+    // (NaN + x = NaN, so one summed check covers all four filters.)
+    if (!std::isfinite(shelf_filter_.s1 + absorb_filter_.s1 +
+                       notch_l_.s1 + notch_r_.s1 + delay_buf_[0])) {
+        shelf_filter_.s1 = shelf_filter_.s2 = 0.f;
+        absorb_filter_.s1 = absorb_filter_.s2 = 0.f;
+        notch_l_.s1 = notch_l_.s2 = 0.f;
+        notch_r_.s1 = notch_r_.s2 = 0.f;
+        delay_buf_.fill(0.f);
+    }
+
     PositionState pos = pos_buf_[static_cast<size_t>(read_idx_.load(std::memory_order_acquire))];
 
     if (pos.azimuth   != prev_azimuth_   ||
@@ -73,7 +89,9 @@ void HrtfSpatializer::process(float const* mono_in, float* stereo_out, int frame
         prev_distance_  = pos.distance_m;
     }
 
-    float dist_gain = 1.0f / std::max(pos.distance_m, 0.1f);
+    // 1 m reference distance: closer than 1 m never amplifies — a source
+    // clamped to the listener's head was 10x gain and clipped the dac.
+    float dist_gain = 1.0f / std::max(pos.distance_m, 1.0f);
     float delay_samples = (params_.head_radius_m / kSpeedOfSound) * params_.sample_rate
                         * (pos.azimuth + std::sin(pos.azimuth));
     // Positive azimuth = source right → left ear is contralateral (delayed)

@@ -169,6 +169,48 @@ void PeerCore::install_routes() {
         queue_param(std::string(node), std::string(params));
         return R"({"ok":true})";
     });
+    // Executor observability: the active TickPlan as the agent sees it.
+    http_.add_route("GET", "/plan", [this](std::string_view) -> std::string {
+        std::lock_guard<std::mutex> lock(graph_mutex_);
+        if (!active_ || !active_->plan) return "{}";
+        const auto& g = *active_;
+        const auto& p = *g.plan;
+        auto ids = [&](const std::vector<std::size_t>& v) {
+            std::string s = "[";
+            for (std::size_t i : v)
+                s += (s.size() > 1 ? ",\"" : "\"") + g.nodes[i].id + '"';
+            return s + "]";
+        };
+        std::string s = "{\"order\":" + ids(p.order)
+                      + ",\"block_order\":" + ids(p.block_order)
+                      + ",\"appliers\":[";
+        bool first = true;
+        for (std::size_t n = 0; n < p.appliers.size(); ++n)
+            for (const auto& a : p.appliers[n]) {
+                if (!first) s += ',';
+                first = false;
+                s += "\"" + a.edge->from_node + "." + a.edge->from_port +
+                     "->" + g.nodes[n].id + "." + a.edge->to_port + '"';
+            }
+        s += "],\"delayed\":[";
+        first = true;
+        for (const auto& d : p.delays) {
+            if (!first) s += ',';
+            first = false;
+            s += "\"" + d.applier.edge->from_node + "." + d.applier.edge->from_port +
+                 "->" + d.applier.edge->to_node + "." + d.applier.edge->to_port + '"';
+        }
+        s += "],\"crossings\":[";
+        first = true;
+        for (const auto& c : p.crossings) {
+            if (!first) s += ',';
+            first = false;
+            s += "\"" + c.edge->from_node + "." + c.edge->from_port + "->" +
+                 c.edge->to_node + "." + c.edge->to_port + ":" +
+                 std::string(c.mapping) + '"';
+        }
+        return s + "]}";
+    });
     http_.add_route("GET", "/values", [this](std::string_view) -> std::string {
         std::lock_guard<std::mutex> lock(values_mutex_);
         std::string out = "{";
