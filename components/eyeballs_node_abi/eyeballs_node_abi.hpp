@@ -111,6 +111,25 @@ struct DrawCallCtx {
 
 namespace detail {
 
+// v6: kind from a shape's value_type (shapes carry no name(), so the old
+// PortField-based concepts don't apply).
+template<typename T>
+constexpr std::string_view v6_kind() {
+    if constexpr (std::same_as<T, DrawFn>)             return "draw_call";
+    else if constexpr (std::same_as<T, GpuTexture>)    return "texture";
+    else if constexpr (std::same_as<T, MeshPtr>)       return "mesh";
+    else if constexpr (std::same_as<T, AudioBuffer>)   return "audio";
+    else if constexpr (std::same_as<T, Eigen::Matrix4f>) return "mat4";
+    else if constexpr (std::same_as<T, Eigen::Quaternionf>) return "quat";
+    else if constexpr (std::same_as<T, Eigen::Vector4f>) return "vec4";
+    else if constexpr (std::same_as<T, Eigen::Vector3f>) return "vec3";
+    else if constexpr (std::same_as<T, Eigen::Vector2f>) return "vec2";
+    else if constexpr (std::same_as<T, bool>)          return "bool";
+    else if constexpr (std::is_arithmetic_v<T>)        return "scalar";
+    else if constexpr (std::same_as<T, std::string>)   return "text";
+    else                                               return "unknown";
+}
+
 template<typename F>
 constexpr std::string_view port_kind() {
     if constexpr (DrawCallField<F>)   return "draw_call";
@@ -153,6 +172,16 @@ void append_ports_json(const S& s, std::string& out) {
                 out += buf;
             }
             out += '}';
+        });
+}
+
+// v6: visit a struct's fields with their pfr core names.
+template<typename S, typename Fn>
+void for_each_named_field(S& s, Fn&& fn) {
+    boost::pfr::for_each_field(s,
+        [&]<std::size_t I>(auto& field, std::integral_constant<std::size_t, I>) {
+            constexpr auto nm = boost::pfr::get_name<I, std::remove_cvref_t<S>>();
+            fn(field, std::string_view{nm});
         });
 }
 
@@ -453,6 +482,186 @@ const EyeballsNodeDescriptor* make_descriptor() {
         };
     }
 
+    // ── endpoints v6: one struct, shape-directed ────────────────────────────
+    // A v6 node has `endpoints` and neither `inputs` nor `outputs`, so the
+    // legacy blocks above no-op and these take over wholesale.
+    static int (*connect_fn)(void*, const char*, const void*) = nullptr;
+    static const void* (*output_ptr_fn)(void*, const char*)   = nullptr;
+    if constexpr (HasEndpoints<Node>) {
+        static std::string v6_schema = [] {
+            std::string ins = "[", outs = "[";
+            Node tmp{};
+            detail::for_each_named_field(tmp.endpoints,
+                [&](auto& f, std::string_view nm) {
+                    using F = std::remove_cvref_t<decltype(f)>;
+                    auto add = [&](std::string& s, std::string_view kind,
+                                   const std::string& extra) {
+                        if (s.size() > 1) s += ',';
+                        s += "{\"name\":\""; s += nm;
+                        s += "\",\"kind\":\""; s += kind; s += '"';
+                        s += extra; s += '}';
+                    };
+                    if constexpr (V6EventIn<F>)       add(ins,  "bang", "");
+                    else if constexpr (V6EventOut<F>) add(outs, "bang", "");
+                    else if constexpr (V6Normalled<F>) {
+                        std::string extra;
+                        if constexpr (std::is_arithmetic_v<typename F::value_type>) {
+                            char buf[64];
+                            std::snprintf(buf, sizeof(buf), ",\"min\":%g,\"max\":%g",
+                                          double(F::min()), double(F::max()));
+                            extra = buf;
+                        }
+                        add(ins, detail::v6_kind<typename F::value_type>(), extra);
+                    }
+                    else if constexpr (V6Input<F>)
+                        add(ins, detail::v6_kind<typename F::value_type>(), "");
+                    else if constexpr (V6Output<F>)
+                        add(outs, detail::v6_kind<typename F::value_type>(), "");
+                });
+            return "{\"inputs\":" + ins + "],\"outputs\":" + outs + "]}";
+        }();
+        port_schema_ptr = v6_schema.c_str();
+
+        push_outputs_fn = [](void* p, EyeballsOutputCtx* ctx) {
+            auto* node = static_cast<Node*>(p);
+            detail::for_each_named_field(node->endpoints,
+                [&](auto& f, std::string_view nm) {
+                    using F = std::remove_cvref_t<decltype(f)>;
+                    if constexpr (V6EventOut<F>) {
+                        ctx->emit_scalar(ctx->store, ctx->node_id, nm.data(),
+                                         f.triggered ? 1.0 : 0.0);
+                    } else if constexpr (V6Output<F>) {
+                        using T = typename F::value_type;
+                        if constexpr (std::same_as<T, DrawFn>) {
+                            if (ctx->emit_drawfn && f.value)
+                                ctx->emit_drawfn(ctx->store, ctx->node_id, nm.data(),
+                                                 static_cast<const void*>(&f.value));
+                        } else if constexpr (std::same_as<T, MeshPtr>) {
+                            if (ctx->emit_mesh && f.value)
+                                ctx->emit_mesh(ctx->store, ctx->node_id, nm.data(),
+                                               static_cast<const void*>(&f.value));
+                        } else if constexpr (std::same_as<T, GpuTexture>) {
+                            ctx->emit_texture(ctx->store, ctx->node_id, nm.data(),
+                                              f.value.id, f.value.width, f.value.height,
+                                              f.value.internal_format, f.value.filter);
+                        } else if constexpr (std::same_as<T, AudioBuffer>) {
+                            ctx->emit_audio(ctx->store, ctx->node_id, nm.data(),
+                                            f.value.data, f.value.frames,
+                                            f.value.channels, f.value.sample_rate);
+                        } else if constexpr (std::same_as<T, Eigen::Matrix4f>) {
+                            ctx->emit_mat4(ctx->store, ctx->node_id, nm.data(),
+                                           f.value.data());
+                        } else if constexpr (std::same_as<T, Eigen::Quaternionf>) {
+                            ctx->emit_quat(ctx->store, ctx->node_id, nm.data(),
+                                           f.value.x(), f.value.y(), f.value.z(), f.value.w());
+                        } else if constexpr (std::same_as<T, Eigen::Vector4f>) {
+                            ctx->emit_vec4(ctx->store, ctx->node_id, nm.data(),
+                                           f.value.x(), f.value.y(), f.value.z(), f.value.w());
+                        } else if constexpr (std::same_as<T, Eigen::Vector3f>) {
+                            ctx->emit_vec3(ctx->store, ctx->node_id, nm.data(),
+                                           f.value.x(), f.value.y(), f.value.z());
+                        } else if constexpr (std::same_as<T, Eigen::Vector2f>) {
+                            ctx->emit_vec2(ctx->store, ctx->node_id, nm.data(),
+                                           f.value.x(), f.value.y());
+                        } else if constexpr (std::is_arithmetic_v<T>) {
+                            ctx->emit_scalar(ctx->store, ctx->node_id, nm.data(),
+                                             static_cast<double>(f.value));
+                        }
+                    }
+                });
+        };
+
+        push_draw_calls_fn = [](void* p, void* ctx_ptr) {
+            auto* node = static_cast<Node*>(p);
+            auto* ctx  = static_cast<DrawCallCtx*>(ctx_ptr);
+            detail::for_each_named_field(node->endpoints,
+                [&](auto& f, std::string_view) {
+                    using F = std::remove_cvref_t<decltype(f)>;
+                    if constexpr (V6Output<F>) {
+                        if constexpr (std::same_as<typename F::value_type, DrawFn>)
+                            if (f.value) ctx->calls->push_back(f.value);
+                    }
+                });
+        };
+
+        // Param writers: normalled fallback / cv offset / event trigger.
+        // (in<T> has no storage by design — connection-only.)
+        set_scalar_in_fn = [](void* p, const char* port, double v) {
+            auto* node = static_cast<Node*>(p);
+            detail::for_each_named_field(node->endpoints,
+                [&](auto& f, std::string_view nm) {
+                    using F = std::remove_cvref_t<decltype(f)>;
+                    if (nm != std::string_view(port)) return;
+                    if constexpr (V6EventIn<F>) f.triggered = (v != 0.0);
+                    else if constexpr (V6Normalled<F>) {
+                        if constexpr (std::is_arithmetic_v<typename F::value_type>)
+                            f.fallback = static_cast<typename F::value_type>(v);
+                    } else if constexpr (V6Cv<F>) {
+                        if constexpr (std::is_arithmetic_v<typename F::value_type>)
+                            f.offset = static_cast<typename F::value_type>(v);
+                    }
+                });
+        };
+        set_vec3_in_fn = [](void* p, const char* port, float x, float y, float z) {
+            auto* node = static_cast<Node*>(p);
+            detail::for_each_named_field(node->endpoints,
+                [&](auto& f, std::string_view nm) {
+                    using F = std::remove_cvref_t<decltype(f)>;
+                    if (nm != std::string_view(port)) return;
+                    if constexpr (V6Normalled<F>) {
+                        if constexpr (std::same_as<typename F::value_type, Eigen::Vector3f>)
+                            f.fallback = Eigen::Vector3f{x, y, z};
+                    } else if constexpr (V6Cv<F>) {
+                        if constexpr (std::same_as<typename F::value_type, Eigen::Vector3f>)
+                            f.offset = Eigen::Vector3f{x, y, z};
+                    }
+                });
+        };
+        set_quat_in_fn = [](void* p, const char* port, float x, float y, float z, float w) {
+            auto* node = static_cast<Node*>(p);
+            detail::for_each_named_field(node->endpoints,
+                [&](auto& f, std::string_view nm) {
+                    using F = std::remove_cvref_t<decltype(f)>;
+                    if (nm != std::string_view(port)) return;
+                    if constexpr (V6Normalled<F>) {
+                        if constexpr (std::same_as<typename F::value_type, Eigen::Quaternionf>)
+                            f.fallback = Eigen::Quaternionf{w, x, y, z};
+                    } else if constexpr (V6Cv<F>) {
+                        if constexpr (std::same_as<typename F::value_type, Eigen::Quaternionf>)
+                            f.offset = Eigen::Quaternionf{w, x, y, z};
+                    }
+                });
+        };
+
+        connect_fn = [](void* p, const char* port, const void* src) -> int {
+            auto* node = static_cast<Node*>(p);
+            int hit = 0;
+            detail::for_each_named_field(node->endpoints,
+                [&](auto& f, std::string_view nm) {
+                    using F = std::remove_cvref_t<decltype(f)>;
+                    if constexpr (V6Input<F>) {
+                        if (nm == std::string_view(port)) {
+                            f.src = static_cast<const typename F::value_type*>(src);
+                            hit = 1;
+                        }
+                    }
+                });
+            return hit;
+        };
+        output_ptr_fn = [](void* p, const char* port) -> const void* {
+            auto* node = static_cast<Node*>(p);
+            const void* out = nullptr;
+            detail::for_each_named_field(node->endpoints,
+                [&](auto& f, std::string_view nm) {
+                    using F = std::remove_cvref_t<decltype(f)>;
+                    if constexpr (V6Output<F>) {
+                        if (nm == std::string_view(port)) out = &f.value;
+                    }
+                });
+            return out;
+        };
+    }
+
     static EyeballsNodeDescriptor d {
         .version          = EYEBALLS_ABI_VERSION,
         .type_name        = Node::name().data(),
@@ -484,6 +693,8 @@ const EyeballsNodeDescriptor* make_descriptor() {
         .set_audio_in     = set_audio_in_fn,
         .set_drawfn_in    = set_drawfn_in_fn,
         .set_mesh_in      = set_mesh_in_fn,
+        .connect          = connect_fn,
+        .output_ptr       = output_ptr_fn,
     };
     return &d;
 }

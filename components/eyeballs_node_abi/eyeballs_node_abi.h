@@ -2,7 +2,7 @@
 #ifndef EYEBALLS_NODE_ABI_H
 #define EYEBALLS_NODE_ABI_H
 
-#define EYEBALLS_ABI_VERSION 5
+#define EYEBALLS_ABI_VERSION 6
 
 /* v4: typed output emission context passed to push_outputs. */
 typedef struct EyeballsOutputCtx {
@@ -60,6 +60,14 @@ typedef struct {
     void        (*set_drawfn_in)(void* node, const char* port, const void* fn);
     /* v5: mesh points at a C++ MeshPtr to copy; nullable */
     void        (*set_mesh_in)  (void* node, const char* port, const void* mesh);
+    /* v6: literal edges. connect points an input's src at a producer's
+       owned output storage (type per port_schema kind); NULL disconnects.
+       Returns 1 if the port exists and accepted the pointer. output_ptr
+       returns the address of a named output's storage (stable until the
+       node is destroyed), or NULL. Both nullable: legacy nodes wire
+       through the set_* copy family instead. */
+    int         (*connect)   (void* node, const char* port, const void* src);
+    const void* (*output_ptr)(void* node, const char* port);
 } EyeballsNodeDescriptor;
 
 /* Every plugin .so must export this symbol: */
