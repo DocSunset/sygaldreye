@@ -57,3 +57,49 @@ TEST(SynthCore, WhiteNoiseBoundedAndVarying) {
     }
     EXPECT_TRUE(varying);
 }
+
+// ── kernels (planning/kernel_extraction.md) ─────────────────────────────────
+#include "kernels.hpp"
+
+TEST(Kernels, PinkNoiseBoundedAndColored) {
+    synth::PinkNoise k;
+    float peak_w = 0.f;
+    for (int i = 0; i < 48000; ++i)
+        peak_w = std::max(peak_w, std::abs(k.tick(0.f)));
+    EXPECT_GT(peak_w, 0.5f);
+    EXPECT_LE(peak_w, 1.0f);
+}
+
+TEST(Kernels, DelayLineEchoesAtDelay) {
+    synth::DelayLine d;
+    d.prepare(100);
+    EXPECT_FLOAT_EQ(d.tick(1.f, 10, 0.f), 0.f);   // impulse in
+    for (int i = 1; i < 10; ++i) EXPECT_FLOAT_EQ(d.tick(0.f, 10, 0.f), 0.f);
+    EXPECT_FLOAT_EQ(d.tick(0.f, 10, 0.f), 1.f);   // echo exactly 10 later
+}
+
+TEST(Kernels, SampleHoldHoldsBetweenClocks) {
+    synth::SampleHold k;
+    EXPECT_FLOAT_EQ(k.tick(3.f, true), 3.f);
+    EXPECT_FLOAT_EQ(k.tick(9.f, false), 3.f);
+    EXPECT_FLOAT_EQ(k.tick(9.f, true), 9.f);
+}
+
+TEST(Kernels, SlewLimitsStep) {
+    synth::Slew k;
+    EXPECT_FLOAT_EQ(k.tick(10.f, 1.f), 1.f);
+    EXPECT_FLOAT_EQ(k.tick(10.f, 1.f), 2.f);
+    EXPECT_FLOAT_EQ(k.tick(0.f, 100.f), 0.f);
+}
+
+TEST(Kernels, GrainVoiceDecaysToSilence) {
+    synth::GrainVoice v;
+    uint32_t rng = 1;
+    v.strike(440.f);
+    float peak = 0.f;   // sine starts at 0; peak over the first cycle instead
+    for (int i = 0; i < 200; ++i)
+        peak = std::max(peak, std::abs(v.tick(0.f, 0.99f, rng, 48000.f)));
+    for (int i = 0; i < 2000; ++i) v.tick(0.f, 0.99f, rng, 48000.f);
+    EXPECT_GT(peak, 0.1f);
+    EXPECT_FLOAT_EQ(v.tick(0.f, 0.99f, rng, 48000.f), 0.f);  // env floor
+}

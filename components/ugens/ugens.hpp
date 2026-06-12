@@ -2,6 +2,7 @@
 #pragma once
 #include "sygaldry_endpoints.hpp"
 #include "synth_core.hpp"
+#include "kernels.hpp"
 #include "biquad_filter.hpp"
 #include <algorithm>
 #include <cmath>
@@ -55,23 +56,13 @@ struct NoiseNode {
     struct outputs { port<"audio", AudioBuffer> audio; } outputs;
     void operator()(double t) {
         int n = g_.frames(t);
-        for (int i = 0; i < n; ++i) {
-            float w = synth::white_noise(rng_);
-            // Paul Kellet pink approximation, crossfaded by `color`.
-            p0_ = 0.99765f * p0_ + w * 0.0990460f;
-            p1_ = 0.96300f * p1_ + w * 0.2965164f;
-            p2_ = 0.57000f * p2_ + w * 1.0526913f;
-            float pink = (p0_ + p1_ + p2_ + w * 0.1848f) * 0.25f;
-            g_.buf[std::size_t(i)] =
-                inputs.amp.value * ((1.f - inputs.color.value) * w +
-                                    inputs.color.value * pink);
-        }
+        for (int i = 0; i < n; ++i)
+            g_.buf[std::size_t(i)] = inputs.amp.value * k_.tick(inputs.color.value);
         outputs.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
     }
 private:
     ugen_detail::Gen g_;
-    uint32_t rng_ = 0x1234567u;
-    float p0_ = 0.f, p1_ = 0.f, p2_ = 0.f;
+    synth::PinkNoise k_;
 };
 
 // Percussive one-shot envelope: bang (or gate rise) → attack/decay,
@@ -290,30 +281,23 @@ struct DelayNode {
         const AudioBuffer& in = inputs.audio.value;
         int n  = in.data ? in.frames : 0;
         int ch = ugen_detail::chans(in);
-        if (int(lines_.size()) != ch) {
-            lines_.assign(std::size_t(ch), std::vector<float>(kLen, 0.f));
-            write_ = 0;
-        }
+        if (int(lines_.size()) != ch) lines_.assign(std::size_t(ch), {});
+        for (auto& l : lines_) l.prepare(kLen);
         buf_.resize(std::size_t(n) * std::size_t(ch));
         int d = std::clamp(int(inputs.time.value * 48000.f), 1, kLen - 1);
-        for (int i = 0; i < n; ++i) {
-            int rd = (write_ - d + kLen) % kLen;
+        for (int i = 0; i < n; ++i)
             for (int c = 0; c < ch; ++c) {
-                auto& line = lines_[std::size_t(c)];
-                float echo = line[std::size_t(rd)];
                 float dry  = ugen_detail::at(in, i, c);
-                line[std::size_t(write_)] = dry + echo * inputs.feedback.value;
+                float echo = lines_[std::size_t(c)].tick(dry, d,
+                                                         inputs.feedback.value);
                 buf_[std::size_t(i) * std::size_t(ch) + std::size_t(c)] =
                     dry * (1.f - inputs.wet.value) + echo * inputs.wet.value;
             }
-            write_ = (write_ + 1) % kLen;
-        }
         outputs.audio.value = AudioBuffer{buf_.data(), n, ch, in.sample_rate};
     }
 private:
-    std::vector<std::vector<float>> lines_;
+    std::vector<synth::DelayLine> lines_;
     std::vector<float> buf_;
-    int write_ = 0;
 };
 
 // tanh waveshaper (stateless — channel count passes straight through).
@@ -351,23 +335,21 @@ struct SampleHoldNode {
         const AudioBuffer& in = inputs.audio.value;
         int n  = in.data ? in.frames : 0;
         int ch = ugen_detail::chans(in);
-        if (int(held_.size()) != ch) held_.assign(std::size_t(ch), 0.f);
+        if (int(held_.size()) != ch) held_.assign(std::size_t(ch), {});
         buf_.resize(std::size_t(n) * std::size_t(ch));
         float period = 48000.f / std::max(0.5f, inputs.rate.value);
         for (int i = 0; i < n; ++i) {
-            if (++count_ >= period) {
-                for (int c = 0; c < ch; ++c)
-                    held_[std::size_t(c)] = ugen_detail::at(in, i, c);
-                count_ = 0.f;
-            }
+            bool sample = (++count_ >= period);
+            if (sample) count_ = 0.f;
             for (int c = 0; c < ch; ++c)
                 buf_[std::size_t(i) * std::size_t(ch) + std::size_t(c)] =
-                    held_[std::size_t(c)];
+                    held_[std::size_t(c)].tick(ugen_detail::at(in, i, c), sample);
         }
         outputs.audio.value = AudioBuffer{buf_.data(), n, ch, in.sample_rate};
     }
 private:
-    std::vector<float> buf_, held_;
+    std::vector<float> buf_;
+    std::vector<synth::SampleHold> held_;
     float count_ = 0.f;
 };
 
@@ -383,14 +365,12 @@ struct SlewNode {
         double dt = (prev_t_ > 0.0) ? t - prev_t_ : 1.0 / 60.0;
         prev_t_ = t;
         if (dt <= 0.0 || dt > 0.1) dt = 1.0 / 60.0;
-        float step = inputs.rate.value * float(dt);
-        float d    = inputs.target.value - cur_;
-        cur_ += std::clamp(d, -step, step);
-        outputs.out.value = cur_;
+        outputs.out.value = k_.tick(inputs.target.value,
+                                    inputs.rate.value * float(dt));
     }
 private:
-    double prev_t_ = 0.0;
-    float  cur_ = 0.f;
+    double      prev_t_ = 0.0;
+    synth::Slew k_;
 };
 
 // Bang clock: fires `rate` times per second. `gate_out` is the audio-rate
@@ -531,33 +511,22 @@ struct GrainCloudNode {
         float k = 1.f - 1.f / (inputs.decay.value * ugen_detail::kRate);
         for (int i = 0; i < n; ++i) {
             if (synth::white_noise(rng_) * 0.5f + 0.5f < p_spawn) {
-                auto& v = voices_[next_voice_++ % kVoices];
-                v.env   = 1.f;
-                v.phase = 0.f;
                 float r = synth::white_noise(rng_);
-                v.freq  = inputs.freq.value *
-                          (1.f + inputs.spread.value * r * 0.8f);
+                voices_[next_voice_++ % kVoices].strike(
+                    inputs.freq.value * (1.f + inputs.spread.value * r * 0.8f));
             }
             float s = 0.f;
-            for (auto& v : voices_) {
-                if (v.env <= 0.001f) continue;
-                float tone  = synth::sine(v.phase);
-                float burst = synth::white_noise(rng_);
-                s += v.env * ((1.f - inputs.texture.value) * tone +
-                              inputs.texture.value * burst);
-                v.phase += 6.2831853f * v.freq / ugen_detail::kRate;
-                if (v.phase > 6.2831853f) v.phase -= 6.2831853f;
-                v.env *= k;
-            }
+            for (auto& v : voices_)
+                s += v.tick(inputs.texture.value, k, rng_,
+                            float(ugen_detail::kRate));
             g_.buf[std::size_t(i)] = inputs.amp.value * s * 0.5f;
         }
         outputs.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
     }
 private:
     static constexpr int kVoices = 16;
-    struct Voice { float env = 0.f, phase = 0.f, freq = 440.f; };
     ugen_detail::Gen g_;
-    Voice voices_[kVoices];
+    synth::GrainVoice voices_[kVoices];
     int next_voice_ = 0;
     uint32_t rng_ = 0xBEEF5EEDu;
 };
