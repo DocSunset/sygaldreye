@@ -11,6 +11,10 @@ constexpr size_t kRingCap = 48000 * 2;  // 2 s per crossing edge
 
 void AudioRegion::rebuild(Graph& g) {
     std::lock_guard<std::mutex> lock(plan_mutex_);
+    rebuild_unlocked(g);
+}
+
+void AudioRegion::rebuild_unlocked(Graph& g) {
     latches_.clear();
     rings_.clear();
     snaps_.clear();

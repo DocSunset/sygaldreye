@@ -34,7 +34,8 @@ def compile_node(src_path: str, target: str, ndk_root: str, peer_url: str) -> bo
             f"{ndk_root}/toolchains/llvm/prebuilt/linux-x86_64/bin/"
             "aarch64-linux-android33-clang++"
         )
-        libs = ["-lGLESv3"]
+        # the app links libc++ statically; the plugin must carry its own
+        libs = ["-lGLESv3", "-static-libstdc++"]
     else:
         cc = os.environ.get("CXX", "clang++")
         libs = ["-lGLESv2"]
@@ -43,9 +44,12 @@ def compile_node(src_path: str, target: str, ndk_root: str, peer_url: str) -> bo
     out = src_path.replace(".cpp", f".{target}.so")
     # -fno-gnu-unique: otherwise the descriptor's local static is bound
     # process-wide and hot-reloading a type silently keeps the OLD version.
-    cmd = ([cc, "-shared", "-fPIC", "-std=c++20", "-O2", "-DSYGALDREYE_PLUGIN",
-            "-fno-gnu-unique"]
-           + include_flags(repo_root, src_path) + [src_path, "-o", out] + libs)
+    # (glibc-only concept: bionic has no STB_GNU_UNIQUE, and android clang
+    # rejects the flag.)
+    flags = [cc, "-shared", "-fPIC", "-std=c++20", "-O2", "-DSYGALDREYE_PLUGIN"]
+    if target != "android":
+        flags.append("-fno-gnu-unique")
+    cmd = (flags + include_flags(repo_root, src_path) + [src_path, "-o", out] + libs)
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         print("Compile error:", result.stderr, file=sys.stderr)

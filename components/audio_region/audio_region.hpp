@@ -26,6 +26,13 @@ public:
     // Render thread, once per graph (builds g.plan if the render scheduler
     // hasn't yet). Instantiates boundary mappings from plan crossings.
     void rebuild(Graph& g);
+    // Graph swaps MUST destroy the old graph under this lock: the audio
+    // callback holds raw node pointers mid-block (learned the hard way —
+    // device SIGSEGV in SubgraphNode::operator() on a freed inner graph).
+    std::unique_lock<std::mutex> pause_blocks() {
+        return std::unique_lock<std::mutex>(plan_mutex_);
+    }
+    void rebuild_unlocked(Graph& g);  // call while holding pause_blocks()
 
     // Render thread, BEFORE tick_graph: rings + snapshots → g.values.
     void publish(Graph& g);

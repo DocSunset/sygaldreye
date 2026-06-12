@@ -51,6 +51,8 @@
 #include "spatialize_node.hpp"
 #include "sample_player.hpp"
 #include "spectrogram.hpp"
+#include "poke_stick.hpp"
+#include "poke_button.hpp"
 #include <GLES3/gl3.h>
 #include <memory>
 #include <optional>
@@ -182,6 +184,8 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<SpatializeNode>());
     reg.register_builtin(make_descriptor<SamplePlayerNode>());
     reg.register_builtin(make_descriptor<SpectrogramNode>());
+    reg.register_builtin(make_descriptor<PokeStickNode>());
+    reg.register_builtin(make_descriptor<PokeButtonNode>());
 }
 
 // Pump XR source nodes with current frame's live pose/input data.

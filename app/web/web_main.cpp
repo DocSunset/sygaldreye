@@ -128,8 +128,11 @@ void frame() {
     g.last_t = t;
 
     if (g.pending) {
+        auto audio_guard = g.audio.pause_blocks();
         if (g.active) migrate_graph(*g.pending, *g.active);
+        auto old = std::move(g.active);
         g.active = std::move(g.pending);
+        g.audio.rebuild_unlocked(*g.active);
     }
     if (!g.active) return;
     if (!g.active->plan) g.audio.rebuild(*g.active);

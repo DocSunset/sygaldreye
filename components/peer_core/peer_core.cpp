@@ -40,9 +40,17 @@ void PeerCore::begin_frame() {
     {
         std::lock_guard<std::mutex> lock(graph_mutex_);
         if (pending_) {
+            // Swap, migrate, retire the old graph, and re-derive the block
+            // region all while the audio callback is held off — it keeps
+            // raw node pointers across a block.
+            auto audio_guard = audio_.pause_blocks();
             if (active_) migrate_graph(*pending_, *active_);
-            active_ = std::move(pending_);
+            auto old = std::move(active_);
+            active_  = std::move(pending_);
+            audio_.rebuild_unlocked(*active_);
             if (on_graph_swapped) on_graph_swapped(active_.get());
+            // `old` (and every displaced instance) destructs here, inside
+            // the guard.
         }
     }
     if (!active_) return;
