@@ -33,6 +33,10 @@ struct RouteKeyHash {
 struct HttpServer {
     // Register a handler for method+path before calling start().
     void add_route(std::string method, std::string path, HttpHandler handler);
+    // Query string of the request currently being handled (poll loop is
+    // single-threaded; valid only inside a handler).
+    static std::string last_query() { return last_query_; }
+    static inline std::string last_query_;
 
     // Start serving on port in a background thread.
     // get_handler: called on GET /params — returns JSON

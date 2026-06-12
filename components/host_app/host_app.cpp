@@ -9,6 +9,8 @@
 #include "editor_node.hpp"
 #include "spawner_node.hpp"
 #include "math_nodes.hpp"
+#include "stt_whisper.hpp"
+#include "tts_local.hpp"
 #include "net_nodes.hpp"
 #include "ui_nodes.hpp"
 #include "water_surface.hpp"
@@ -79,6 +81,8 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<EditorNode>());
     reg.register_builtin(make_descriptor<SpawnerNode>());
     reg.register_builtin(make_descriptor<LfoNode>());
+    reg.register_builtin(make_descriptor<SttWhisperNode>());
+    reg.register_builtin(make_descriptor<TtsLocalNode>());
     reg.register_builtin(make_descriptor<ScaleNode>());
     reg.register_builtin(make_descriptor<AddNode>());
     reg.register_builtin(make_descriptor<MulNode>());

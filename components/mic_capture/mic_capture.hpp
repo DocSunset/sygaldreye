@@ -1,20 +1,21 @@
 #pragma once
+#include <functional>
 #include <optional>
 
-// Microphone capture in PULL mode: the stream has NO data callback — the
-// owner drains it with non-blocking read() from whatever thread ticks it.
-// One audio thread per process: a second AAudio callback thread starved
-// the OUTPUT stream on Quest (silent/distorted synths — see kanban
-// block_swap_poison.md), and a callback outliving its buffers corrupted
-// the heap on teardown. Pull mode removes both classes.
+// Called from the capture stream's thread with mono float32 samples.
+// Must be real-time safe.
+using MicCallback = std::function<void(const float* samples, int frames)>;
+
+// Microphone capture. Callback mode: Quest's AAudio input delivers
+// reliably with its own data callback but starves a non-blocking
+// pull-read (verified 2026-06-12). Ownership lives with AudioEngine —
+// ONE capture stream per process; nodes tap the engine's shared ring.
 class MicCapture {
 public:
     struct Impl;
-    static std::optional<MicCapture> create(int sample_rate = 48000);
+    static std::optional<MicCapture> create(MicCallback cb, int sample_rate = 48000);
     void start();
-    void stop();
-    // Non-blocking: returns frames actually read (mono float32), 0 if none.
-    int  read(float* dst, int max_frames);
+    void stop();   // waits until callbacks have actually ceased
     ~MicCapture();
     MicCapture(MicCapture&&) noexcept;
     MicCapture& operator=(MicCapture&&) noexcept;

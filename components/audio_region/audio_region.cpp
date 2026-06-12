@@ -279,6 +279,7 @@ void AudioRegion::pump_offline(double dt) {
     // Zombie-stream recovery: a disconnected device stream never calls
     // back again, which silently stalls the whole block region. Recreate.
     engine.recover_if_dead();
+    engine.recover_input();
     static int dbg_pump = 0;
     if (blk_debug() && (++dbg_pump % 600) == 0)
         BLKLOG("[pump] device=%d active=%d",

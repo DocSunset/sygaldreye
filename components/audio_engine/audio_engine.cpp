@@ -17,7 +17,8 @@ struct AudioEngine::InputState {
 #endif
     std::vector<float>  ring  = std::vector<float>(kInputRingCap);
     std::atomic<size_t> head{0}, tail{0};
-    std::vector<float>  scratch = std::vector<float>(4800);
+    std::atomic<int>    starved_blocks{0};
+    int                 reopen_attempts = 0;
 };
 
 AudioEngine& AudioEngine::instance() {
@@ -46,6 +47,21 @@ void AudioEngine::recover_if_dead() {
             output_->start();
 }
 
+void AudioEngine::recover_input() {
+    std::lock_guard<std::mutex> lock(setup_mutex_);
+    InputState* s = input_;
+    if (!s) return;
+    // ~2 s of zero reads at 256-frame blocks: the documented Quest mode
+    // where an input stream opens but never delivers. Reopen.
+    if (s->starved_blocks.load(std::memory_order_relaxed) < 400) return;
+    if (s->reopen_attempts >= 5) return;
+    int attempts = s->reopen_attempts + 1;
+    input_ = nullptr;   // audio callback sees null before teardown
+    delete s;
+    open_input_locked();
+    if (input_) input_->reopen_attempts = attempts;
+}
+
 void AudioEngine::add_input_tap() {
     std::lock_guard<std::mutex> lock(setup_mutex_);
     if (input_taps_++ == 0) open_input_locked();
@@ -64,7 +80,21 @@ void AudioEngine::remove_input_tap() {
 void AudioEngine::open_input_locked() {
 #ifdef __ANDROID__
     auto* s = new InputState{};
-    s->mic = MicCapture::create(kRate);
+    // Capture callback (its own stream thread) produces into the shared
+    // SPSC ring; consumers drain via read_input. The engine still OWNS
+    // the one capture stream — callback mode is just how Quest input
+    // actually delivers (pull-reads starve).
+    s->mic = MicCapture::create([s](const float* samples, int frames) {
+        size_t head = s->head.load(std::memory_order_relaxed);
+        size_t tail = s->tail.load(std::memory_order_acquire);
+        for (int i = 0; i < frames; ++i) {
+            if (head - tail >= kInputRingCap) break;  // full: drop newest
+            s->ring[head % kInputRingCap] = samples[i];
+            ++head;
+        }
+        s->head.store(head, std::memory_order_release);
+        s->starved_blocks.store(0, std::memory_order_relaxed);
+    }, kRate);
     if (s->mic) {
         s->mic->start();
         input_ = s;
@@ -92,25 +122,10 @@ void AudioEngine::play(std::vector<float> samples) {
 }
 
 void AudioEngine::callback(float* out, int frames) {
-    // 1. Drain the capture stream into the shared input ring (pull mode —
-    //    this audio thread is the only reader of the device).
-    if (InputState* s = input_) {
-#ifdef __ANDROID__
-        if (s->mic) {
-            int got = s->mic->read(s->scratch.data(),
-                                   int(std::min<std::size_t>(s->scratch.size(),
-                                                             std::size_t(frames) * 2)));
-            size_t head = s->head.load(std::memory_order_relaxed);
-            size_t tail = s->tail.load(std::memory_order_acquire);
-            for (int i = 0; i < got; ++i) {
-                if (head - tail >= kInputRingCap) break;  // full: drop newest
-                s->ring[head % kInputRingCap] = s->scratch[std::size_t(i)];
-                ++head;
-            }
-            s->head.store(head, std::memory_order_release);
-        }
-#endif
-    }
+    // 1. Capture arrives via the input stream's own callback (see
+    //    open_input_locked); track starvation for the reopen watchdog.
+    if (InputState* s = input_)
+        s->starved_blocks.fetch_add(1, std::memory_order_relaxed);
 
     // 2. The block scheduler renders the graph (memsets `out` itself).
     if (render_) render_(out, frames);

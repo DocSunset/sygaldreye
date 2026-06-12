@@ -22,6 +22,9 @@ public:
     bool has_device() const { return output_.has_value() && !output_->dead(); }
     // Recreate a disconnected stream (call from a non-audio thread).
     void recover_if_dead();
+    // Quest input streams sometimes open but never deliver; reopen after
+    // sustained starvation (call from a non-audio thread, e.g. per frame).
+    void recover_input();
 
     // Input taps (adc/mic nodes): refcounted; the capture stream opens on
     // the first tap. read_input drains the shared SPSC ring (any single

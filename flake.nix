@@ -2,8 +2,12 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
   inputs.openxr-sdk.url = "github:KhronosGroup/OpenXR-SDK?ref=release-1.1.60";
   inputs.openxr-sdk.flake = false;
+  # whisper.cpp as SOURCE: one version built by every toolchain
+  # (host clang/gcc, NDK for Quest, emscripten for browser).
+  inputs.whisper-cpp-src.url = "github:ggml-org/whisper.cpp?ref=v1.8.2";
+  inputs.whisper-cpp-src.flake = false;
 
-  outputs = { self, nixpkgs, openxr-sdk }:
+  outputs = { self, nixpkgs, openxr-sdk, whisper-cpp-src }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
@@ -68,6 +72,7 @@
           pkgs.stb
           pkgs.boost.dev
           pkgs.glfw
+          pkgs.sherpa-onnx     # warm in-process TTS (tts_local node)
         ];
 
         ANDROID_NDK_ROOT = ndkRoot;
@@ -79,6 +84,8 @@
         GLFW_INCLUDE_DIR = "${pkgs.glfw}/include";
         GLFW_LIB_DIR = "${pkgs.glfw}/lib";
         CONCURRENTQUEUE_INCLUDE_DIR = "${concurrentqueue}";
+        WHISPER_CPP_SRC = whisper-cpp-src;
+        SHERPA_ONNX_ROOT = "${pkgs.sherpa-onnx}";
       };
     };
 }

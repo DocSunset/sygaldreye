@@ -13,6 +13,7 @@
 #include "mdns_advertiser.hpp"
 #include "eyeballs_node_abi.hpp"
 #include "speech_to_text.hpp"
+#include "stt_whisper.hpp"
 #include "vr_editor.hpp"
 #include "rd_gpu.hpp"
 #include "xr_sources.hpp"
@@ -145,6 +146,7 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<CubeNode>());
     reg.register_builtin(make_descriptor<TextLabelNode>());
     reg.register_builtin(make_descriptor<SpeechToTextNode>());
+    reg.register_builtin(make_descriptor<SttWhisperNode>());
     reg.register_builtin(make_descriptor<LfoNode>());
     reg.register_builtin(make_descriptor<ScaleNode>());
     reg.register_builtin(make_descriptor<AddNode>());

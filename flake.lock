@@ -36,7 +36,25 @@
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
-        "openxr-sdk": "openxr-sdk"
+        "openxr-sdk": "openxr-sdk",
+        "whisper-cpp-src": "whisper-cpp-src"
+      }
+    },
+    "whisper-cpp-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1760513382,
+        "narHash": "sha256-OU5mDnLZHmtdSEN5u0syJcU91L+NCO45f9eG6OsgFfU=",
+        "owner": "ggml-org",
+        "repo": "whisper.cpp",
+        "rev": "4979e04f5dcaccb36057e059bbaed8a2f5288315",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ggml-org",
+        "ref": "v1.8.2",
+        "repo": "whisper.cpp",
+        "type": "github"
       }
     }
   },

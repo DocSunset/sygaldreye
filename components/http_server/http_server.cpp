@@ -56,6 +56,7 @@ static void ev_handler(struct mg_connection* c, int ev, void* ev_data) {
         mg_http_reply(c, 404, "", "Not found\n");
         return;
     }
+    HttpServer::last_query_.assign(hm->query.buf, hm->query.len);
     std::string body(hm->body.buf, hm->body.len);
     std::string response = it->second(body);
     // Binary-safe: %.*s would truncate at the first NUL (PNG bodies).

@@ -263,6 +263,26 @@ void PeerCore::install_routes() {
         queue_param(right ? "hand_r" : "hand_l", params);
         return R"({"ok":true})";
     });
+    // Model weights (whisper/tts) land in data_dir like presets do —
+    // ?name= gives the filename; nodes reference the absolute path.
+    http_.add_route("POST", "/models", [this](std::string_view body) -> std::string {
+        std::string name = "model.bin";
+        if (auto q = HttpServer::last_query(); !q.empty()) {
+            auto p = q.find("name=");
+            if (p != std::string::npos) name = std::string(q.substr(p + 5));
+        }
+        if (name.find('/') != std::string::npos)
+            return R"({"ok":false,"error":"bad name"})";
+        std::string path = cfg_.data_dir + "/" + name;
+        FILE* f = std::fopen(path.c_str(), "wb");
+        if (!f) return R"({"ok":false,"error":"fopen"})";
+        std::size_t wrote = std::fwrite(body.data(), 1, body.size(), f);
+        std::fclose(f);
+        char out[160];
+        std::snprintf(out, sizeof(out), R"({"ok":%s,"bytes":%zu,"path":"%s"})",
+                      wrote == body.size() ? "true" : "false", wrote, path.c_str());
+        return out;
+    });
     http_.add_route("POST", "/play", [this](std::string_view body) -> std::string {
         char path[512];
         std::snprintf(path, sizeof(path), "%s/play.wav", cfg_.data_dir.c_str());
