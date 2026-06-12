@@ -9,7 +9,15 @@
 // ── SubgraphNode ─────────────────────────────────────────────────────────────
 
 SubgraphNode::SubgraphNode(std::unique_ptr<Graph> inner)
-    : inner_(std::move(inner)) {}
+    : inner_(std::move(inner)) {
+    // Plan + wire the inner graph NOW: its wire_plan resets every v6 input,
+    // so it must run before the outer graph forwards wires into us (the
+    // lazy build at first tick would wipe outer connections).
+    if (!inner_->plan) {
+        inner_->plan = build_plan(*inner_);
+        wire_plan(*inner_);
+    }
+}
 
 void SubgraphNode::cache_inlet(const std::string& name, PortValue val) {
     inlet_cache_[name] = std::move(val);
@@ -63,6 +71,29 @@ void SubgraphNode::push_outlets(EyeballsOutputCtx* ctx) const {
             }
         }, it->second);
     }
+}
+
+int SubgraphNode::connect_inlet(const char* name, const void* src) {
+    int hit = 0;
+    for (const auto& decl : inner_->inlets) {
+        if (decl.name != name) continue;
+        auto it = std::find_if(inner_->nodes.begin(), inner_->nodes.end(),
+                               [&](const NodeInstance& n) { return n.id == decl.node; });
+        if (it == inner_->nodes.end() || !it->desc->connect) continue;
+        hit |= it->desc->connect(it->data, decl.port.c_str(), src);
+    }
+    return hit;
+}
+
+const void* SubgraphNode::outlet_ptr(const char* name) const {
+    for (const auto& decl : inner_->outlets) {
+        if (decl.name != name) continue;
+        auto it = std::find_if(inner_->nodes.begin(), inner_->nodes.end(),
+                               [&](const NodeInstance& n) { return n.id == decl.node; });
+        if (it == inner_->nodes.end() || !it->desc->output_ptr) continue;
+        return it->desc->output_ptr(it->data, decl.port.c_str());
+    }
+    return nullptr;
 }
 
 void SubgraphNode::push_draw_calls_to(DrawCallCtx* ctx) {

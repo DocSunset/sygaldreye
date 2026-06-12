@@ -152,6 +152,13 @@ SubgraphDescriptor::SubgraphDescriptor(std::unique_ptr<Graph> graph_template,
     desc_.set_text_in = [](void* p, const char* port, const char* utf8) {
         static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{std::string{utf8}});
     };
+    // endpoints v6: outer edges wire straight through to inner storage.
+    desc_.connect = [](void* p, const char* port, const void* src) -> int {
+        return static_cast<SubgraphNode*>(p)->connect_inlet(port, src);
+    };
+    desc_.output_ptr = [](void* p, const char* port) -> const void* {
+        return static_cast<SubgraphNode*>(p)->outlet_ptr(port);
+    };
 }
 
 SubgraphDescriptor::~SubgraphDescriptor() {

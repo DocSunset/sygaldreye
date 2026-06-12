@@ -17,6 +17,13 @@ public:
     void push_outlets(EyeballsOutputCtx* ctx) const;
     void push_draw_calls_to(DrawCallCtx* ctx);
 
+    // endpoints v6 forwarding: an outer edge wires straight through to the
+    // inner node's storage — subgraphs participate in literal edges like
+    // any node (nested subgraphs recurse). An inlet name may fan out to
+    // several inner ports (aurora: one ripple_amp, five curtains).
+    int         connect_inlet(const char* name, const void* src);
+    const void* outlet_ptr(const char* name) const;
+
     // Inlet-params (inlet_defaults.md rung 1): {"inlet": value} JSON sets
     // persisted defaults applied like any inlet value — presets become
     // parametric abstractions. serialize emits the DEFAULTS (never live

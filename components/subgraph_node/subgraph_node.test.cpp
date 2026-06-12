@@ -112,3 +112,42 @@ TEST(SubgraphNode, CloneIndependence) {
     EXPECT_EQ(clone->inlets.size(), src->inlets.size());
     EXPECT_EQ(clone->outlets.size(), src->outlets.size());
 }
+
+// ── endpoints v6: outer wires forward through the subgraph boundary ──────────
+
+struct V6ThruNode {
+    static consteval std::string_view name() { return "v6_thru"; }
+    struct endpoints {
+        ::in<float, fp(-1.f)> in;
+        ::out<float> out;
+    } endpoints;
+    void operator()(double) { endpoints.out.value = endpoints.in.get() * 2.f; }
+};
+
+TEST(SubgraphNode, V6WiresForwardToInnerStorage) {
+    ComponentRegistry reg;
+    static auto desc = make_descriptor<V6ThruNode>();
+    reg.register_builtin(desc);
+    auto inner = parse_graph(R"({
+        "nodes":[{"id":"t","type":"v6_thru","params":{}}],
+        "edges":[],
+        "inlets":[{"name":"gain","node":"t","port":"in"}],
+        "outlets":[{"name":"level","node":"t","port":"out"}]
+    })", reg);
+    ASSERT_NE(inner, nullptr);
+    auto* thru = static_cast<V6ThruNode*>(inner->nodes[0].data);
+
+    SubgraphNode sn(std::move(inner));
+    // outlet_ptr returns the INNER node's storage address
+    EXPECT_EQ(sn.outlet_ptr("level"),
+              static_cast<const void*>(&thru->endpoints.out.value));
+    // connect_inlet points the inner input at an outer producer
+    float outer = 3.f;
+    EXPECT_EQ(sn.connect_inlet("gain", &outer), 1);
+    sn(0.0);
+    EXPECT_FLOAT_EQ(thru->endpoints.out.value, 6.f);
+    // disconnect: inner input falls back to its compile-time default
+    EXPECT_EQ(sn.connect_inlet("gain", nullptr), 1);
+    sn(0.1);
+    EXPECT_FLOAT_EQ(thru->endpoints.out.value, -2.f);
+}
