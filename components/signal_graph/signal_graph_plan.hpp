@@ -55,6 +55,17 @@ struct TickPlan {
     // become literal pointers (consumer src → producer storage), wired once
     // by wire_plan. No applier, no per-tick copy.
     std::vector<const Edge*>                 wires;
+    // Mixed edges, legacy producer → v6 stream consumer: the consumer's
+    // src points at a PLAN-OWNED typed slot; a slot applier copies the
+    // producer's store value into the slot each tick ("consumers point
+    // at the mapping's slot"). Audio only for now — stream payloads are
+    // the in<T>-only kind. deque: stable addresses.
+    struct SlotApplier {
+        EdgeApplier  applier;
+        AudioBuffer* slot;
+    };
+    std::deque<AudioBuffer>                  audio_slots;
+    std::vector<std::vector<SlotApplier>>    slot_appliers;  // per target node
 };
 
 std::unique_ptr<TickPlan> build_plan(const Graph& g);

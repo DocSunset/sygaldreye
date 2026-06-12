@@ -125,6 +125,9 @@ void tick_graph(Graph& g, double time_s) {
     for (std::size_t idx : plan.order) {
         auto& n = g.nodes[idx];
 
+        for (auto& sa : plan.slot_appliers[idx])
+            if (const PortValue* src = resolve_applier(sa.applier, g.values))
+                if (auto* ab = std::get_if<AudioBuffer>(src)) *sa.slot = *ab;
         for (auto& a : plan.appliers[idx])
             if (const PortValue* src = resolve_applier(a, g.values))
                 apply_value(n, a.edge->to_port.c_str(), *src);

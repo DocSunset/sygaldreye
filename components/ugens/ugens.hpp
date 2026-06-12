@@ -185,38 +185,34 @@ private:
 // carries the widest input's channel count).
 struct MixNode {
     static consteval std::string_view name() { return "mix"; }
-    struct inputs {
-        port<"in1", AudioBuffer> in1;
-        port<"in2", AudioBuffer> in2;
-        port<"in3", AudioBuffer> in3;
-        port<"in4", AudioBuffer> in4;
-        slider<"g1", "", float, fp(0.f), fp(2.f), fp(1.f)> g1;
-        slider<"g2", "", float, fp(0.f), fp(2.f), fp(1.f)> g2;
-        slider<"g3", "", float, fp(0.f), fp(2.f), fp(1.f)> g3;
-        slider<"g4", "", float, fp(0.f), fp(2.f), fp(1.f)> g4;
-    } inputs;
-    struct outputs { port<"audio", AudioBuffer> audio; } outputs;
+    // endpoints v6: unconnected in<AudioBuffer> is structurally silent —
+    // a deleted producer can never leave a stale view droning here.
+    struct endpoints {
+        in<AudioBuffer> in1, in2, in3, in4;
+        normalled_in<float, fp(0.f), fp(2.f), fp(1.f)> g1, g2, g3, g4;
+        out<AudioBuffer> audio;
+    } endpoints;
     void operator()(double) {
-        const AudioBuffer* ins[4]  = {&inputs.in1.value, &inputs.in2.value,
-                                      &inputs.in3.value, &inputs.in4.value};
-        float gains[4] = {inputs.g1.value, inputs.g2.value,
-                          inputs.g3.value, inputs.g4.value};
+        const AudioBuffer bufs[4] = {endpoints.in1.get(), endpoints.in2.get(),
+                                     endpoints.in3.get(), endpoints.in4.get()};
+        float gains[4] = {endpoints.g1.get(), endpoints.g2.get(),
+                          endpoints.g3.get(), endpoints.g4.get()};
         int n = 0, ch = 1, rate = 48000;
-        for (auto* b : ins)
-            if (b->data && b->frames > 0) {
-                n    = std::max(n, b->frames);
-                ch   = std::max(ch, ugen_detail::chans(*b));
-                rate = b->sample_rate;
+        for (const auto& b : bufs)
+            if (b.data && b.frames > 0) {
+                n    = std::max(n, b.frames);
+                ch   = std::max(ch, ugen_detail::chans(b));
+                rate = b.sample_rate;
             }
         buf_.assign(std::size_t(n) * std::size_t(ch), 0.f);
         for (int s = 0; s < 4; ++s) {
-            if (!ins[s]->data) continue;
-            for (int i = 0; i < std::min(n, ins[s]->frames); ++i)
+            if (!bufs[s].data) continue;
+            for (int i = 0; i < std::min(n, bufs[s].frames); ++i)
                 for (int c = 0; c < ch; ++c)
                     buf_[std::size_t(i) * std::size_t(ch) + std::size_t(c)] +=
-                        ugen_detail::at(*ins[s], i, c) * gains[s];
+                        ugen_detail::at(bufs[s], i, c) * gains[s];
         }
-        outputs.audio.value = AudioBuffer{buf_.data(), n, ch, rate};
+        endpoints.audio.value = AudioBuffer{buf_.data(), n, ch, rate};
     }
 private:
     std::vector<float> buf_;

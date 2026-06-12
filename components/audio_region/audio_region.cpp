@@ -57,7 +57,7 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
     if (plan_->block_order.empty()) return;
     for (std::size_t i : plan_->block_order)
         if (std::string_view{g.nodes[i].desc->type_name} == "dac")
-            dac_out_keys_.push_back(g.nodes[i].id + ".out");
+            dac_out_keys_.push_back(g.nodes[i].id + ".audio_out");
 
     // Instantiate the canonical mappings the plan declared at crossings.
     std::unordered_map<std::string, const NodeInstance*> by_id;
@@ -164,6 +164,9 @@ void AudioRegion::render_block(float* out, int frames) {
 
     for (std::size_t idx : plan_->block_order) {
         auto& n = graph_->nodes[idx];
+        for (auto& sa : plan_->slot_appliers[idx])
+            if (const PortValue* src = resolve_applier(sa.applier, store_))
+                if (auto* ab = std::get_if<AudioBuffer>(src)) *sa.slot = *ab;
         for (auto& a : plan_->appliers[idx])
             if (const PortValue* src = resolve_applier(a, store_))
                 apply_value(n, a.edge->to_port.c_str(), *src);

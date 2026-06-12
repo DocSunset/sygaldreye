@@ -15,30 +15,29 @@ struct DacNode {
     static consteval std::string_view name() { return "dac"; }
     static consteval std::string_view source_header() { return "components/dac_node/dac_node.hpp"; }
 
-    struct inputs {
-        port<"audio", AudioBuffer> audio;
-        slider<"gain", "", float, fp(0.f), fp(1.f), fp(0.8f)> gain;
-    } inputs;
-
-    struct outputs {
-        port<"out",   AudioBuffer> out;
-        port<"level", float>       level;  // block RMS, snapshots to frame
-    } outputs;
+    // endpoints v6: an unconnected audio input is structurally silent.
+    struct endpoints {
+        in<AudioBuffer> audio;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.8f)> gain;
+        out<AudioBuffer> audio_out;
+        out<float>       level;  // block RMS, snapshots to frame
+    } endpoints;
 
     void operator()(double) {
-        const AudioBuffer& in = inputs.audio.value;
+        const AudioBuffer in = endpoints.audio.get();
         int ch = std::max(1, std::min(2, in.channels));
         std::size_t samples = in.data && in.frames > 0
             ? std::size_t(in.frames) * std::size_t(ch) : 0;
         buf_.assign(samples, 0.f);
+        float g = endpoints.gain.get();
         float sq = 0.f;
         for (std::size_t i = 0; i < samples; ++i) {
-            buf_[i] = in.data[i] * inputs.gain.value;
+            buf_[i] = in.data[i] * g;
             sq += buf_[i] * buf_[i];
         }
-        outputs.out.value   = AudioBuffer{buf_.data(),
-                                          int(samples) / ch, ch, in.sample_rate};
-        outputs.level.value = samples == 0 ? 0.f
+        endpoints.audio_out.value = AudioBuffer{buf_.data(),
+                                            int(samples) / ch, ch, in.sample_rate};
+        endpoints.level.value = samples == 0 ? 0.f
             : std::sqrt(sq / float(samples));
     }
 

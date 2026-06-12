@@ -17,21 +17,21 @@ struct SpatializeNode {
     static consteval std::string_view name() { return "spatialize"; }
     static consteval std::string_view source_header() { return "components/spatialize_node/spatialize_node.hpp"; }
 
-    struct inputs {
-        port<"audio",        AudioBuffer>        audio;
-        port<"pos",          Eigen::Vector3f>    pos;
-        port<"listener_pos", Eigen::Vector3f>    listener_pos;
-        port<"listener_rot", Eigen::Quaternionf> listener_rot;
-        slider<"gain", "", float, fp(0.f), fp(4.f), fp(1.f)> gain;
-    } inputs;
+    // endpoints v6: unconnected audio is structurally silent; pos and the
+    // listener pose are normalled (latches write the fallback) with SAFE
+    // defaults via endpoint_default (zero vec, identity quat — the
+    // uninitialized-Eigen drone class is dead by construction).
+    struct endpoints {
+        in<AudioBuffer>                 audio;
+        normalled_in<Eigen::Vector3f>    pos;
+        normalled_in<Eigen::Vector3f>    listener_pos;
+        normalled_in<Eigen::Quaternionf> listener_rot;
+        normalled_in<float, fp(0.f), fp(4.f), fp(1.f)> gain;
+        out<AudioBuffer> audio_out;
+        out<float>       level_l;  // per-ear RMS: the agent's
+        out<float>       level_r;  // pan evidence
+    } endpoints;
 
-    struct outputs {
-        port<"audio",   AudioBuffer> audio;   // interleaved stereo
-        port<"level_l", float>       level_l; // per-ear RMS: the agent's
-        port<"level_r", float>       level_r; // pan evidence
-    } outputs;
-
-    SpatializeNode() { inputs.listener_rot.value.setIdentity(); }
     void operator()(double);
 
 private:

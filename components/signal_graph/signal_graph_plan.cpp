@@ -88,6 +88,7 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
     plan->node_region = infer_regions(g, idx);
     plan->appliers.resize(g.nodes.size());
     plan->delayed.resize(g.nodes.size());
+    plan->slot_appliers.resize(g.nodes.size());
 
     std::vector<Edge> dag_edges;
     for (std::size_t ei = 0; ei < g.edges.size(); ++ei) {
@@ -121,6 +122,16 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
                    g.nodes[t->second].desc->connect) {
             // endpoints v6 both sides: a literal pointer, wired once.
             plan->wires.push_back(&e);
+            dag_edges.push_back(e);
+        } else if (g.nodes[t->second].desc->version >= 6 &&
+                   g.nodes[t->second].desc->connect &&
+                   out_kind(g.nodes[f->second], e.from_port) == "audio") {
+            // Legacy producer → v6 stream consumer: v6 in<T> has no
+            // writer, so the consumer points at a plan-owned slot and a
+            // slot applier copies the producer's store value in per tick.
+            plan->audio_slots.emplace_back();
+            plan->slot_appliers[t->second].push_back(
+                {EdgeApplier{&e}, &plan->audio_slots.back()});
             dag_edges.push_back(e);
         } else {
             plan->appliers[t->second].push_back(EdgeApplier{&e});
@@ -174,6 +185,11 @@ void wire_plan(Graph& g) {
                                                       e->from_port.c_str());
         if (src) t->second->desc->connect(t->second->data, e->to_port.c_str(), src);
     }
+    // Mixed edges: point each v6 consumer at its plan-owned slot.
+    for (std::size_t i = 0; i < g.plan->slot_appliers.size(); ++i)
+        for (auto& sa : g.plan->slot_appliers[i])
+            g.nodes[i].desc->connect(g.nodes[i].data,
+                                     sa.applier.edge->to_port.c_str(), sa.slot);
 }
 
 std::vector<const Edge*> cycle_mappings(const Graph& g) {

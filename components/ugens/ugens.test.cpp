@@ -20,6 +20,7 @@ struct Fixture {
         reg.register_builtin(make_descriptor<MetroNode>());
         reg.register_builtin(make_descriptor<AdsrNode>());
         reg.register_builtin(make_descriptor<VcaNode>());
+        reg.register_builtin(make_descriptor<MixNode>());
         g = parse_graph(json, reg);
     }
     void frame() { t += 1.0 / 60.0; tick_graph(*g, t); }
@@ -104,4 +105,32 @@ TEST(Adsr, GateSignalDrivesEnvelope) {
     }
     EXPECT_GT(peak, 0.5f);    // sustained near sustain level while gated
     EXPECT_LT(trough, 0.1f);  // released between gates
+}
+
+TEST(EndpointsV6Combiners, DeletedProducerLeavesNoStaleDrone) {
+    // THE drone regression (2026-06-12): a v6 mix fed by a legacy osc must
+    // fall structurally silent when the producer is deleted — never replay
+    // a stale buffer view.
+    Fixture f(R"({"nodes":[
+        {"id":"a","type":"osc","params":{"freq":200,"amp":1}},
+        {"id":"m","type":"mix","params":{}}],
+        "edges":[{"from":"a.audio","to":"m.in1"}]})");
+    ASSERT_TRUE(f.g);
+    for (int i = 0; i < 5; ++i) f.frame();
+    const AudioBuffer* live = f.audio("m.audio");
+    ASSERT_TRUE(live);
+    EXPECT_GT(rms(*live, 0), 0.4f);   // slot path delivers legacy audio
+
+    auto g2 = parse_graph(R"({"nodes":[
+        {"id":"m","type":"mix","params":{}}],
+        "edges":[]})", f.reg);
+    ASSERT_TRUE(g2);
+    migrate_graph(*g2, *f.g);          // the SAME mix instance survives
+    tick_graph(*g2, f.t += 1.0 / 60.0);
+    tick_graph(*g2, f.t += 1.0 / 60.0);
+    auto it = g2->values.find("m.audio");
+    ASSERT_NE(it, g2->values.end());
+    const AudioBuffer* after = std::get_if<AudioBuffer>(&it->second);
+    ASSERT_TRUE(after);
+    EXPECT_EQ(after->frames, 0);       // unconnected in<T> = absent, not stale
 }
