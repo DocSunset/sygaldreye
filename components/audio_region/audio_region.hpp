@@ -85,4 +85,10 @@ private:
     std::vector<std::string> dac_out_keys_;  // ALL dacs sum into the device
     std::unordered_map<std::string, PortValue> store_;  // block-region values
     double t_ = 0.0;
+    // Debug tracing is written here by the CALLBACK (snprintf into
+    // preallocated storage, no syscalls) and flushed by the render thread.
+    // Logging inside the callback blew its deadline — audible ~2Hz grit
+    // (2026-06-12, "respect real-time thread safety").
+    char              dbg_buf_[2048] = {};
+    std::atomic<bool> dbg_ready_{false};
 };

@@ -113,32 +113,35 @@ bool AudioRegion::has_device() const {
 void AudioRegion::render_block(float* out, int frames) {
     std::memset(out, 0, std::size_t(frames) * 2 * sizeof(float));
     std::unique_lock<std::mutex> lock(plan_mutex_, std::try_to_lock);
-    static int dbg_calls = 0;
-    if (blk_debug() && (++dbg_calls % 188) == 0)
-        BLKLOG("[blk-pre] call=%d lock=%d plan=%d block=%zu",
-               dbg_calls, int(lock.owns_lock()), int(plan_ != nullptr),
-               plan_ ? plan_->block_order.size() : std::size_t(0));
     if (!lock.owns_lock() || !plan_ || plan_->block_order.empty()) return;
 
+    // Debug snapshot: snprintf into preallocated storage only — NEVER log
+    // from this thread (the syscalls blew the callback deadline; audible).
     static int dbg_count = 0;
-    bool dbg_now = blk_debug() && (++dbg_count % 188 == 0);
+    bool dbg_now = blk_debug() && (++dbg_count % 188 == 0) &&
+                   !dbg_ready_.load(std::memory_order_relaxed);
     if (dbg_now) {
-        BLKLOG("[blk] t=%.1f frames=%d order=%zu store=%zu latches=%zu snaps=%zu",
+        int off = std::snprintf(dbg_buf_, sizeof(dbg_buf_),
+               "[blk] t=%.1f frames=%d order=%zu store=%zu latches=%zu snaps=%zu",
                t_, frames, plan_->block_order.size(), store_.size(),
                latches_.size(), snaps_.size());
-        for (auto& l : latches_)
-            BLKLOG("[blk]   latch ->%s.%s set=%d", l->to.id.c_str(),
-                   l->edge->to_port.c_str(), int(l->set));
         for (std::size_t idx : plan_->block_order) {
             auto& n = graph_->nodes[idx];
+            // v6 convention: generators emit 'audio', processors/dac
+            // 'audio_out' — try both.
             auto it = store_.find(n.id + ".audio");
+            if (it == store_.end()) it = store_.find(n.id + ".audio_out");
             float peak = 0.f;
             if (it != store_.end())
                 if (auto* a = std::get_if<AudioBuffer>(&it->second))
                     for (int i = 0; i < std::min(a->frames * a->channels, 256); ++i)
                         peak = std::max(peak, std::abs(a->data[i]));
-            BLKLOG("[blk]   node %s peak=%g", n.id.c_str(), double(peak));
+            if (off < int(sizeof(dbg_buf_)))
+                off += std::snprintf(dbg_buf_ + off, sizeof(dbg_buf_) - off,
+                                     "\n[blk]   node %s peak=%g",
+                                     n.id.c_str(), double(peak));
         }
+        dbg_ready_.store(true, std::memory_order_release);
     }
 
     t_ += double(frames) / kRate;
@@ -275,6 +278,11 @@ void AudioRegion::capture_latches(const Graph& g) {
 }
 
 void AudioRegion::pump_offline(double dt) {
+    // Flush the callback's debug snapshot from a thread that may log.
+    if (dbg_ready_.load(std::memory_order_acquire)) {
+        BLKLOG("%s", dbg_buf_);
+        dbg_ready_.store(false, std::memory_order_release);
+    }
     auto& engine = AudioEngine::instance();
     // Zombie-stream recovery: a disconnected device stream never calls
     // back again, which silently stalls the whole block region. Recreate.
