@@ -21,22 +21,23 @@ sockaddr_in loopback(int port) {
 void UdpSendNode::operator()(double) {
     if (fd_ < 0) fd_ = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd_ < 0) return;
-    auto addr = loopback(int(inputs.port.value));
-    if (!inputs.host.value.empty()) {
-        if (inputs.host.value != resolved_host_) {  // resolve once per change
+    auto addr = loopback(int(endpoints.port.get()));
+    std::string host = endpoints.host.get();
+    if (!host.empty()) {
+        if (host != resolved_host_) {  // resolve once per change
             addrinfo hints{}; hints.ai_family = AF_INET; hints.ai_socktype = SOCK_DGRAM;
             addrinfo* res = nullptr;
-            if (getaddrinfo(inputs.host.value.c_str(), nullptr, &hints, &res) == 0 && res) {
+            if (getaddrinfo(host.c_str(), nullptr, &hints, &res) == 0 && res) {
                 resolved_addr_ = reinterpret_cast<sockaddr_in*>(res->ai_addr)->sin_addr;
                 freeaddrinfo(res);
-                resolved_host_ = inputs.host.value;
+                resolved_host_ = host;
             }
         }
-        if (inputs.host.value == resolved_host_) addr.sin_addr = resolved_addr_;
+        if (host == resolved_host_) addr.sin_addr = resolved_addr_;
     }
     char buf[48];
     int n = std::snprintf(buf, sizeof(buf), "%d %g",
-                          int(inputs.channel.value), double(inputs.in.value));
+                          int(endpoints.channel.get()), double(endpoints.in.get()));
     sendto(fd_, buf, size_t(n), 0,
            reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
 }
@@ -44,7 +45,7 @@ void UdpSendNode::operator()(double) {
 UdpSendNode::~UdpSendNode() { if (fd_ >= 0) close(fd_); }
 
 void UdpRecvNode::operator()(double) {
-    int want = int(inputs.port.value);
+    int want = int(endpoints.port.get());
     if (fd_ >= 0 && bound_port_ != want) { close(fd_); fd_ = -1; }
     if (fd_ < 0) {
         fd_ = socket(AF_INET, SOCK_DGRAM, 0);
@@ -65,8 +66,8 @@ void UdpRecvNode::operator()(double) {
         buf[n] = '\0';
         int ch; double v;
         if (std::sscanf(buf, "%d %lf", &ch, &v) == 2 &&
-            ch == int(inputs.channel.value))
-            outputs.out.value = float(v);
+            ch == int(endpoints.channel.get()))
+            endpoints.out.value = float(v);
     }
 }
 

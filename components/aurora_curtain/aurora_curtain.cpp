@@ -68,21 +68,21 @@ void AuroraCurtainNode::init_gl() {
 void AuroraCurtainNode::operator()(double time_s) {
     if (!prog_) init_gl();
     time_s_ = float(time_s);
-    outputs.render.value = [this](const Eigen::Matrix4f& vp) {
+    endpoints.render.value = [this](const Eigen::Matrix4f& vp) {
         if (!prog_) return;
         prog_->use();
         GlProgram::uniform(prog_->uniform_location("uVP"), vp);
         glUniform1f(prog_->uniform_location("uTime"),        time_s_);
-        glUniform1f(prog_->uniform_location("uXOffset"),     inputs.x_offset.value);
-        glUniform1f(prog_->uniform_location("uPhase"),       inputs.phase.value);
-        glUniform1f(prog_->uniform_location("uFreq"),        inputs.freq.value);
-        glUniform1f(prog_->uniform_location("uSpeed"),       inputs.speed.value);
-        glUniform1f(prog_->uniform_location("uRippleAmp"),   inputs.ripple_amp.value);
-        glUniform1f(prog_->uniform_location("uAltBase"),     inputs.alt_base.value);
-        glUniform1f(prog_->uniform_location("uAltHeight"),   inputs.alt_height.value);
-        glUniform1f(prog_->uniform_location("uDepthExtent"), inputs.depth.value);
+        glUniform1f(prog_->uniform_location("uXOffset"),     endpoints.x_offset.get());
+        glUniform1f(prog_->uniform_location("uPhase"),       endpoints.phase.get());
+        glUniform1f(prog_->uniform_location("uFreq"),        endpoints.freq.get());
+        glUniform1f(prog_->uniform_location("uSpeed"),       endpoints.speed.get());
+        glUniform1f(prog_->uniform_location("uRippleAmp"),   endpoints.ripple_amp.get());
+        glUniform1f(prog_->uniform_location("uAltBase"),     endpoints.alt_base.get());
+        glUniform1f(prog_->uniform_location("uAltHeight"),   endpoints.alt_height.get());
+        glUniform1f(prog_->uniform_location("uDepthExtent"), endpoints.depth.get());
         glUniform3f(prog_->uniform_location("uColor"),
-                    inputs.r.value, inputs.g.value, inputs.b.value);
+                    endpoints.r.get(), endpoints.g.get(), endpoints.b.get());
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         glDisable(GL_DEPTH_TEST);

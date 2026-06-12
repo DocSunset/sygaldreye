@@ -10,18 +10,18 @@ void TextLabelNode::operator()(double /*time_s*/) {
     }
 
     Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
-    transform(0, 3) = inputs.pos_x.value;
-    transform(1, 3) = inputs.pos_y.value;
-    transform(2, 3) = inputs.pos_z.value;
-    const float s = inputs.scale.value;
+    transform(0, 3) = endpoints.pos_x.get();
+    transform(1, 3) = endpoints.pos_y.get();
+    transform(2, 3) = endpoints.pos_z.get();
+    const float s = endpoints.scale.get();
     transform(0, 0) = s;
     transform(1, 1) = s;
     transform(2, 2) = s;
 
-    std::string  text_copy      = inputs.label.value.empty() ? "label" : inputs.label.value;
+    std::string text = endpoints.text.get();
+    if (text.empty()) text = "label";
     Eigen::Matrix4f transform_copy = transform;
-    outputs.render.value = [this, text_copy, transform_copy](const Eigen::Matrix4f& pv) {
-        mesh_.draw(text_copy, pv * transform_copy);
+    endpoints.render.value = [this, text, transform_copy](const Eigen::Matrix4f& pv) {
+        mesh_.draw(text, pv * transform_copy);
     };
 }
-

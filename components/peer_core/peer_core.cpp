@@ -75,7 +75,7 @@ void PeerCore::pump_contexts(float aspect) {
             static_cast<SpawnerNode*>(n.data)->set_context(active_.get(), &registry,
                                                            &edit_events_);
         else if (type == "fly_camera")
-            static_cast<FlyCameraNode*>(n.data)->inputs.aspect.value = aspect;
+            static_cast<FlyCameraNode*>(n.data)->endpoints.aspect.fallback = aspect;
     }
 }
 

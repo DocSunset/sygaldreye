@@ -23,25 +23,25 @@ VrPanel make_panel(float x, float y, float z, float w, float h,
 } // namespace
 
 void UiSliderNode::operator()(double) {
+    float lo = endpoints.min.get(), hi = endpoints.max.get();
     if (value_norm_ < 0.f) {
-        float span = inputs.max.value - inputs.min.value;
+        float span = hi - lo;
         value_norm_ = (span != 0.f)
-            ? std::clamp((inputs.init.value - inputs.min.value) / span, 0.f, 1.f)
+            ? std::clamp((endpoints.init.get() - lo) / span, 0.f, 1.f)
             : 0.f;
     }
 
-    VrPanel track = make_panel(inputs.x.value, inputs.y.value, inputs.z.value,
-                               inputs.width.value, 0.03f,
+    VrPanel track = make_panel(endpoints.x.get(), endpoints.y.get(), endpoints.z.get(),
+                               endpoints.width.get(), 0.03f,
                                {0.15f, 0.17f, 0.22f, 0.95f});
-    auto hit = track.intersect(inputs.ray_pos.value, ray_dir(inputs.ray_rot.value));
+    auto hit = track.intersect(endpoints.ray_pos.get(), ray_dir(endpoints.ray_rot.get()));
     hover_ = hit.has_value();
-    if (hover_ && inputs.trigger.value > 0.5f)
+    if (hover_ && endpoints.trigger.get() > 0.5f)
         value_norm_ = std::clamp(hit->uv.x(), 0.f, 1.f);
 
-    outputs.value.value = inputs.min.value +
-        value_norm_ * (inputs.max.value - inputs.min.value);
+    endpoints.value.value = lo + value_norm_ * (hi - lo);
 
-    outputs.render.value = [this, track](const Eigen::Matrix4f& vp) {
+    endpoints.render.value = [this, track](const Eigen::Matrix4f& vp) {
         if (!shader_ready_) { shader_.create(); shader_ready_ = true; }
         track.draw(vp, shader_);
         VrPanel thumb = track;
@@ -56,16 +56,16 @@ void UiSliderNode::operator()(double) {
 }
 
 void UiButtonNode::operator()(double) {
-    VrPanel face = make_panel(inputs.x.value, inputs.y.value, inputs.z.value,
-                              inputs.width.value, inputs.height.value,
+    VrPanel face = make_panel(endpoints.x.get(), endpoints.y.get(), endpoints.z.get(),
+                              endpoints.width.get(), endpoints.height.get(),
                               {0.2f, 0.25f, 0.3f, 0.95f});
-    auto hit = face.intersect(inputs.ray_pos.value, ray_dir(inputs.ray_rot.value));
+    auto hit = face.intersect(endpoints.ray_pos.get(), ray_dir(endpoints.ray_rot.get()));
     hover_   = hit.has_value();
-    pressed_ = hover_ && inputs.trigger.value > 0.5f;
-    outputs.pressed.value = pressed_ ? 1.f : 0.f;
-    outputs.hover.value   = hover_ ? 1.f : 0.f;
+    pressed_ = hover_ && endpoints.trigger.get() > 0.5f;
+    endpoints.pressed.value = pressed_ ? 1.f : 0.f;
+    endpoints.hover.value   = hover_ ? 1.f : 0.f;
 
-    outputs.render.value = [this, face](const Eigen::Matrix4f& vp) {
+    endpoints.render.value = [this, face](const Eigen::Matrix4f& vp) {
         if (!shader_ready_) { shader_.create(); shader_ready_ = true; }
         VrPanel f = face;
         if (pressed_)     f.color = {0.9f, 0.6f, 0.2f, 1.f};
@@ -75,11 +75,11 @@ void UiButtonNode::operator()(double) {
 }
 
 void UiPaneNode::operator()(double) {
-    VrPanel pane = make_panel(inputs.x.value, inputs.y.value, inputs.z.value,
-                              inputs.width.value, inputs.height.value,
-                              {inputs.r.value, inputs.g.value, inputs.b.value,
-                               inputs.alpha.value});
-    outputs.render.value = [this, pane](const Eigen::Matrix4f& vp) {
+    VrPanel pane = make_panel(endpoints.x.get(), endpoints.y.get(), endpoints.z.get(),
+                              endpoints.width.get(), endpoints.height.get(),
+                              {endpoints.r.get(), endpoints.g.get(), endpoints.b.get(),
+                               endpoints.alpha.get()});
+    endpoints.render.value = [this, pane](const Eigen::Matrix4f& vp) {
         if (!shader_ready_) { shader_.create(); shader_ready_ = true; }
         pane.draw(vp, shader_);
     };

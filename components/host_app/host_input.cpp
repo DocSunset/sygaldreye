@@ -14,9 +14,9 @@ void apply_fps_input(void* window, HostApp& app, float dt) {
     FlyCamera cam{};
     if (auto p = app.probe("camera.pos"))
         cam.pos = std::get<Eigen::Vector3f>(*p);
-    if (auto y = app.probe("camera.yaw"))
+    if (auto y = app.probe("camera.yaw_out"))
         cam.yaw = float(std::get<double>(*y));
-    if (auto p = app.probe("camera.pitch"))
+    if (auto p = app.probe("camera.pitch_out"))
         cam.pitch = float(std::get<double>(*p));
 
     float fwd = 0.f, side = 0.f, up = 0.f;

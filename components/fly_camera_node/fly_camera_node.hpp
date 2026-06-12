@@ -6,38 +6,34 @@
 #include <string_view>
 
 // The camera as a graph node: anything can patch into its pose; the platform
-// reads outputs.pv to render. aspect is pumped by the platform each frame.
+// reads the pv output to render. aspect is pumped by the platform each frame.
+// v6 note: yaw/pitch outputs gained an _out suffix (the params keep the
+// short names — they are the write contract for /camera and orbit rigs).
 struct FlyCameraNode {
     static consteval std::string_view name() { return "fly_camera"; }
     static consteval std::string_view source_header() { return "components/fly_camera_node/fly_camera_node.hpp"; }
 
-    struct inputs {
-        slider<"x",      "", float, fp(-200.f),  fp(200.f),   fp(0.f)>    x;
-        slider<"y",      "", float, fp(-200.f),  fp(200.f),   fp(2.f)>    y;
-        slider<"z",      "", float, fp(-200.f),  fp(200.f),   fp(8.f)>    z;
-        slider<"yaw",    "", float, fp(-6.2832f),fp(6.2832f), fp(0.f)>    yaw;
-        slider<"pitch",  "", float, fp(-1.55f),  fp(1.55f),   fp(0.f)>    pitch;
-        slider<"fov",    "", float, fp(0.2f),    fp(2.5f),    fp(0.9f)>   fov;
-        slider<"aspect", "", float, fp(0.1f),    fp(5.f),     fp(1.777f)> aspect;
-    } inputs;
-
-    struct outputs {
-        port<"view",  Eigen::Matrix4f> view;
-        port<"proj",  Eigen::Matrix4f> proj;
-        port<"pv",    Eigen::Matrix4f> pv;
-        port<"pos",   Eigen::Vector3f> pos;
-        port<"yaw",   float>           yaw;
-        port<"pitch", float>           pitch;
-    } outputs;
+    struct endpoints {
+        normalled_in<float, fp(-200.f),  fp(200.f),   fp(0.f)>    x;
+        normalled_in<float, fp(-200.f),  fp(200.f),   fp(2.f)>    y;
+        normalled_in<float, fp(-200.f),  fp(200.f),   fp(8.f)>    z;
+        normalled_in<float, fp(-6.2832f),fp(6.2832f), fp(0.f)>    yaw;
+        normalled_in<float, fp(-1.55f),  fp(1.55f),   fp(0.f)>    pitch;
+        normalled_in<float, fp(0.2f),    fp(2.5f),    fp(0.9f)>   fov;
+        normalled_in<float, fp(0.1f),    fp(5.f),     fp(1.777f)> aspect;
+        ::out<Eigen::Matrix4f> view, proj, pv;
+        ::out<Eigen::Vector3f> pos;
+        ::out<float> yaw_out, pitch_out;
+    } endpoints;
 
     void operator()(double) {
-        FlyCamera c{{inputs.x.value, inputs.y.value, inputs.z.value},
-                    inputs.yaw.value, inputs.pitch.value, inputs.fov.value};
-        outputs.view.value  = c.view();
-        outputs.proj.value  = c.proj(inputs.aspect.value);
-        outputs.pv.value    = outputs.proj.value * outputs.view.value;
-        outputs.pos.value   = c.pos;
-        outputs.yaw.value   = c.yaw;
-        outputs.pitch.value = c.pitch;
+        FlyCamera c{{endpoints.x.get(), endpoints.y.get(), endpoints.z.get()},
+                    endpoints.yaw.get(), endpoints.pitch.get(), endpoints.fov.get()};
+        endpoints.view.value      = c.view();
+        endpoints.proj.value      = c.proj(endpoints.aspect.get());
+        endpoints.pv.value        = endpoints.proj.value * endpoints.view.value;
+        endpoints.pos.value       = c.pos;
+        endpoints.yaw_out.value   = c.yaw;
+        endpoints.pitch_out.value = c.pitch;
     }
 };

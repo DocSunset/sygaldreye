@@ -11,24 +11,19 @@ class CubeNode {
 public:
     static consteval std::string_view name() { return "cube"; }
 
-    struct inputs {
-        slider<"pos_x",         "", float, fp(-50.f), fp(50.f),  fp(0.f)>  pos_x;
-        slider<"pos_y",         "", float, fp(-50.f), fp(50.f),  fp(0.f)>  pos_y;
-        slider<"pos_z",         "", float, fp(-50.f), fp(50.f),  fp(-2.f)> pos_z;
-        slider<"scale",         "", float, fp(0.01f), fp(20.f),  fp(0.5f)> scale;
-        slider<"color_r",       "", float, fp(0.f),   fp(1.f),   fp(0.8f)> color_r;
-        slider<"color_g",       "", float, fp(0.f),   fp(1.f),   fp(0.8f)> color_g;
-        slider<"color_b",       "", float, fp(0.f),   fp(1.f),   fp(0.8f)> color_b;
-        slider<"roughness",     "", float, fp(0.f),   fp(1.f),   fp(0.5f)> roughness;
-        slider<"metalness",     "", float, fp(0.f),   fp(1.f),   fp(0.f)>  metalness;
-        port<"light_dir",       Eigen::Vector3f>                            light_dir;
-        port<"light_color",     Eigen::Vector3f>                            light_color;
-        port<"light_intensity", float>                                      light_intensity;
-    } inputs;
-
-    struct outputs {
-        port<"render", DrawFn> render;
-    } outputs;
+    struct endpoints {
+        normalled_in<float, fp(-50.f), fp(50.f),  fp(0.f)>  pos_x;
+        normalled_in<float, fp(-50.f), fp(50.f),  fp(0.f)>  pos_y;
+        normalled_in<float, fp(-50.f), fp(50.f),  fp(-2.f)> pos_z;
+        normalled_in<float, fp(0.01f), fp(20.f),  fp(0.5f)> scale;
+        normalled_in<float, fp(0.f),   fp(1.f),   fp(0.8f)> color_r, color_g, color_b;
+        normalled_in<float, fp(0.f),   fp(1.f),   fp(0.5f)> roughness;
+        normalled_in<float, fp(0.f),   fp(1.f),   fp(0.f)>  metalness;
+        ::in<Eigen::Vector3f> light_dir;
+        ::in<Eigen::Vector3f> light_color;
+        ::in<float>           light_intensity;
+        ::out<DrawFn> render;
+    } endpoints;
 
     void operator()(double time_s);
 

@@ -238,8 +238,9 @@ void PeerCore::install_routes() {
     });
     http_.add_route("GET", "/camera", [this](std::string_view) -> std::string {
         std::string out = "{";
-        for (const char* k : {"pos", "yaw", "pitch"}) {
-            if (auto v = probe(std::string("camera.") + k)) {
+        for (auto [k, port] : {std::pair{"pos", "pos"}, {"yaw", "yaw_out"},
+                               {"pitch", "pitch_out"}}) {
+            if (auto v = probe(std::string("camera.") + port)) {
                 if (out.size() > 1) out += ',';
                 out += '"'; out += k; out += "\":"; out += value_json(*v);
             }
@@ -255,7 +256,7 @@ void PeerCore::install_routes() {
         // Re-emit only numeric fields: hand node inputs share these names.
         char params[256];
         std::snprintf(params, sizeof(params),
-            R"({"x":%g,"y":%g,"z":%g,"qx":%g,"qy":%g,"qz":%g,"qw":%g,"trigger":%g,"grip":%g,"thumb_x":%g,"thumb_y":%g})",
+            R"({"x":%g,"y":%g,"z":%g,"qx":%g,"qy":%g,"qz":%g,"qw":%g,"trigger_in":%g,"grip_in":%g,"thumb_x_in":%g,"thumb_y_in":%g})",
             find_number(body, "x", 0), find_number(body, "y", 1.2),
             find_number(body, "z", -0.4),
             find_number(body, "qx", 0), find_number(body, "qy", 0),

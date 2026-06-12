@@ -12,13 +12,12 @@
 
 struct UdpSendNode {
     static consteval std::string_view name() { return "udp_send"; }
-    struct inputs {
-        slider<"in",      "", float, fp(-1e6f),  fp(1e6f),   fp(0.f)>    in;
-        slider<"channel", "", float, fp(0.f),    fp(127.f),  fp(0.f)>    channel;
-        slider<"port",    "", float, fp(1024.f), fp(65535.f),fp(9100.f)> port;
-        ::text<"host"> host;  // empty = 127.0.0.1
-    } inputs;
-    struct outputs {} outputs;
+    struct endpoints {
+        normalled_in<float, fp(-1e6f),  fp(1e6f),   fp(0.f)>    in;
+        normalled_in<float, fp(0.f),    fp(127.f),  fp(0.f)>    channel;
+        normalled_in<float, fp(1024.f), fp(65535.f),fp(9100.f)> port;
+        normalled_in<std::string> host;  // empty = 127.0.0.1
+    } endpoints;
     void operator()(double);
     ~UdpSendNode();
 private:
@@ -29,11 +28,11 @@ private:
 
 struct UdpRecvNode {
     static consteval std::string_view name() { return "udp_recv"; }
-    struct inputs {
-        slider<"channel", "", float, fp(0.f),    fp(127.f),  fp(0.f)>    channel;
-        slider<"port",    "", float, fp(1024.f), fp(65535.f),fp(9100.f)> port;
-    } inputs;
-    struct outputs { port<"out", float> out; } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f),    fp(127.f),  fp(0.f)>    channel;
+        normalled_in<float, fp(1024.f), fp(65535.f),fp(9100.f)> port;
+        ::out<float> out;
+    } endpoints;
     void operator()(double);
     ~UdpRecvNode();
 private:
