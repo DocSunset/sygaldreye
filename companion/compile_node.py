@@ -22,7 +22,7 @@ def include_flags(repo_root: str, src_path: str) -> list[str]:
     for d in dirs:
         flags += ["-I", os.path.join(repo_root, d)]
     flags += ["-I", os.path.dirname(os.path.abspath(src_path))]
-    for var in ("BOOST_INCLUDE_DIR", "EIGEN_INCLUDE_DIR"):
+    for var in ("BOOST_INCLUDE_DIR", "EIGEN_INCLUDE_DIR", "EIGEN3_INCLUDE_DIR"):
         if os.environ.get(var):
             flags += ["-I", os.environ[var]]
     return flags
