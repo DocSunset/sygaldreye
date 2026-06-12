@@ -1,9 +1,6 @@
 // Copyright 2025 Travis West
 #pragma once
-#include "mic_capture.hpp"
 #include "sygaldry_endpoints.hpp"
-#include <mutex>
-#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -27,11 +24,5 @@ public:
     void operator()(double time_s);
 
 private:
-    std::optional<MicCapture> mic_;
-    bool                       mic_failed_ = false;
-    int                        starved_ticks_ = 0;
-    int                        reopen_attempts_ = 0;
-    std::mutex                mutex_;
-    std::vector<float>        accum_;
-    std::vector<float>        tick_buf_;
+    std::vector<float> tick_buf_;
 };

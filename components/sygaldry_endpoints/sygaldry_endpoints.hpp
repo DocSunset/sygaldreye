@@ -57,12 +57,35 @@ struct text {
     std::string value;
 };
 
+// Unwired default for non-arithmetic payloads. Eigen's default ctor is
+// UNINITIALIZED — these must say Zero()/Identity() explicitly. (An
+// unwired port<vec3> holding heap garbage silenced spatializers
+// nondeterministically for two days — see block_swap_poison.md.)
+template<typename T> struct endpoint_default {
+    static T value() { return T{}; }
+};
+template<> struct endpoint_default<Eigen::Vector2f> {
+    static Eigen::Vector2f value() { return Eigen::Vector2f::Zero(); }
+};
+template<> struct endpoint_default<Eigen::Vector3f> {
+    static Eigen::Vector3f value() { return Eigen::Vector3f::Zero(); }
+};
+template<> struct endpoint_default<Eigen::Vector4f> {
+    static Eigen::Vector4f value() { return Eigen::Vector4f::Zero(); }
+};
+template<> struct endpoint_default<Eigen::Matrix4f> {
+    static Eigen::Matrix4f value() { return Eigen::Matrix4f::Identity(); }
+};
+template<> struct endpoint_default<Eigen::Quaternionf> {
+    static Eigen::Quaternionf value() { return Eigen::Quaternionf::Identity(); }
+};
+
 // Generic typed port — carries any value type; no slider metadata.
 template<fixed_string Name, typename T>
 struct port {
     static consteval std::string_view name() { return Name; }
     using value_type = T;
-    T value{};
+    T value = endpoint_default<T>::value();
 };
 
 // Audio buffer: borrowed pointer valid only during tick_graph.
@@ -81,24 +104,6 @@ using DrawFn = std::function<void(const Eigen::Matrix4f& vp)>;
 // the field names (boost::pfr core_name). Inputs hold a pointer-to-const
 // into the producer's out<T> storage — edges are literal pointers, wired
 // once per graph swap. get() is total: unwired reads a default.
-
-// Unwired default for non-arithmetic payloads. Eigen's default ctor is
-// UNINITIALIZED — these must say Zero()/Identity() explicitly.
-template<typename T> struct endpoint_default {
-    static T value() { return T{}; }
-};
-template<> struct endpoint_default<Eigen::Vector2f> {
-    static Eigen::Vector2f value() { return Eigen::Vector2f::Zero(); }
-};
-template<> struct endpoint_default<Eigen::Vector3f> {
-    static Eigen::Vector3f value() { return Eigen::Vector3f::Zero(); }
-};
-template<> struct endpoint_default<Eigen::Vector4f> {
-    static Eigen::Vector4f value() { return Eigen::Vector4f::Zero(); }
-};
-template<> struct endpoint_default<Eigen::Matrix4f> {
-    static Eigen::Matrix4f value() { return Eigen::Matrix4f::Identity(); }
-};
 
 // in<T, Def>: connection-only input. No persistence, no widget. The
 // natural shape for stream/GPU payloads (audio, texture, mesh, draw_call)

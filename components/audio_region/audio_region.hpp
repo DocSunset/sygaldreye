@@ -2,7 +2,6 @@
 #pragma once
 #include "signal_graph.hpp"
 #include "signal_graph_plan.hpp"
-#include "audio_output.hpp"
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -41,7 +40,7 @@ public:
     // Render thread: drive blocks manually when no device stream exists.
     void pump_offline(double dt);
 
-    bool has_device() const { return stream_.has_value(); }
+    bool has_device() const;
     bool active() const { return plan_ && !plan_->block_order.empty(); }
     bool enable_device = true;  // tests/headless force the offline pump
 
@@ -83,8 +82,7 @@ private:
     std::vector<std::unique_ptr<Ring>>    rings_;
     std::vector<std::unique_ptr<Snap>>    snaps_;
     std::vector<std::unique_ptr<EvQueue>> queues_;
-    std::string dac_out_key_;
+    std::vector<std::string> dac_out_keys_;  // ALL dacs sum into the device
     std::unordered_map<std::string, PortValue> store_;  // block-region values
-    double                     t_ = 0.0;
-    std::optional<AudioOutput> stream_;
+    double t_ = 0.0;
 };

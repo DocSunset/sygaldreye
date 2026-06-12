@@ -6,33 +6,14 @@
 #define MLOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 
 struct MicCapture::Impl {
-    AAudioStream* stream   = nullptr;
-    MicCallback   callback;
-    bool          is_i16   = false;   // AAudio format is a REQUEST; device may
-    std::vector<float> conv;          // deliver I16 regardless — convert here
+    AAudioStream* stream = nullptr;
+    bool          is_i16 = false;     // AAudio format is a REQUEST; device may
+    std::vector<int16_t> i16buf;      // deliver I16 regardless — convert here
 };
 
-static aaudio_data_callback_result_t data_callback(
-    AAudioStream*, void* user, void* audio_data, int32_t frames)
-{
-    static int logged = 0;
-    if (logged < 3) { MLOG("mic_capture: callback delivering %d frames", frames); ++logged; }
-    auto* impl = static_cast<MicCapture::Impl*>(user);
-    if (impl->is_i16) {
-        impl->conv.resize(size_t(frames));
-        const int16_t* in = static_cast<const int16_t*>(audio_data);
-        for (int i = 0; i < frames; ++i) impl->conv[size_t(i)] = float(in[i]) / 32768.f;
-        impl->callback(impl->conv.data(), frames);
-    } else {
-        impl->callback(static_cast<const float*>(audio_data), frames);
-    }
-    return AAUDIO_CALLBACK_RESULT_CONTINUE;
-}
-
-std::optional<MicCapture> MicCapture::create(MicCallback cb, int sample_rate)
+std::optional<MicCapture> MicCapture::create(int sample_rate)
 {
     auto* impl = new Impl{};
-    impl->callback = std::move(cb);
 
     AAudioStreamBuilder* builder = nullptr;
     if (AAudio_createStreamBuilder(&builder) != AAUDIO_OK) { delete impl; return {}; }
@@ -41,10 +22,10 @@ std::optional<MicCapture> MicCapture::create(MicCallback cb, int sample_rate)
     AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
     AAudioStreamBuilder_setChannelCount(builder, 1);
     AAudioStreamBuilder_setSampleRate(builder, sample_rate);
-    // LOW_LATENCY input contends with the system mic path on Quest and
-    // intermittently delivers nothing; default/shared mode is reliable.
+    // No data callback: pull mode (see header). NONE mode: LOW_LATENCY
+    // input contends with the system mic path on Quest and intermittently
+    // delivers nothing.
     AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_NONE);
-    AAudioStreamBuilder_setDataCallback(builder, data_callback, impl);
 
     aaudio_result_t r = AAudioStreamBuilder_openStream(builder, &impl->stream);
     AAudioStreamBuilder_delete(builder);
@@ -56,9 +37,9 @@ std::optional<MicCapture> MicCapture::create(MicCallback cb, int sample_rate)
     }
     aaudio_format_t fmt = AAudioStream_getFormat(impl->stream);
     impl->is_i16 = (fmt == AAUDIO_FORMAT_PCM_I16);
-    MLOG("mic_capture: input stream open at %d Hz, format %s (requested float)",
+    MLOG("mic_capture: pull-mode input open at %d Hz, format %s",
          AAudioStream_getSampleRate(impl->stream),
-         impl->is_i16 ? "I16 → converting" : "FLOAT");
+         impl->is_i16 ? "I16 -> converting" : "FLOAT");
     return MicCapture{impl};
 }
 
@@ -67,16 +48,29 @@ void MicCapture::start() {
     if (r != AAUDIO_OK)
         MLOG("mic_capture: requestStart failed: %s", AAudio_convertResultToText(r));
 }
+
 void MicCapture::stop() {
     AAudioStream_requestStop(impl_->stream);
-    // requestStop is async. Wait until callbacks have actually ceased:
-    // closing (then freeing the callback's captures) with the stream
-    // still running is a use-after-free — device heap-corruption crash
-    // ~15 s after a graph swap removed the mic (2026-06-12).
+    // requestStop is async; wait so close() never races a device thread.
     aaudio_stream_state_t st = AAudioStream_getState(impl_->stream);
     for (int i = 0; i < 10 && st != AAUDIO_STREAM_STATE_STOPPED &&
                     st != AAUDIO_STREAM_STATE_CLOSED; ++i)
         AAudioStream_waitForStateChange(impl_->stream, st, &st, 100'000'000);
+}
+
+int MicCapture::read(float* dst, int max_frames) {
+    if (!impl_ || !impl_->stream || max_frames <= 0) return 0;
+    if (!impl_->is_i16) {
+        aaudio_result_t n = AAudioStream_read(impl_->stream, dst, max_frames, 0);
+        return n > 0 ? n : 0;
+    }
+    impl_->i16buf.resize(std::size_t(max_frames));
+    aaudio_result_t n = AAudioStream_read(impl_->stream, impl_->i16buf.data(),
+                                          max_frames, 0);
+    if (n <= 0) return 0;
+    for (int i = 0; i < n; ++i)
+        dst[i] = float(impl_->i16buf[std::size_t(i)]) / 32768.f;
+    return n;
 }
 
 MicCapture::MicCapture(Impl* impl) : impl_{impl} {}

@@ -1,5 +1,6 @@
 // Copyright 2026 Travis West
 #include "wav_player.hpp"
+#include "audio_engine.hpp"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -57,60 +58,37 @@ bool read_wav(const std::string& path, std::vector<float>& mono48k) {
 }
 } // namespace
 
-void WavPlayerNode::ensure_stream() {
-    if (out_) return;
-    auto cb = [this](float* out, int frames) {
-        float g = gain_.load(std::memory_order_relaxed);
-        auto clip = std::atomic_load(&clip_);
-        size_t pos = clip_pos_.load(std::memory_order_relaxed);
-        float bf = bip_freq_.load(std::memory_order_relaxed);
-        int   bn = bip_frames_.load(std::memory_order_relaxed);
-        for (int i = 0; i < frames; ++i) {
-            float s = 0.f;
-            if (clip && pos < clip->size()) s += (*clip)[pos++] * g;
-            if (bn > 0) {
-                float env = float(bn) / 4000.f;
-                bip_phase_ += bf / 48000.f;
-                bip_phase_ -= std::floor(bip_phase_);
-                s += 0.25f * env * std::sin(bip_phase_ * 6.2832f);
-                --bn;
-            }
-            out[i * 2] = out[i * 2 + 1] = s;
-        }
-        clip_pos_.store(pos, std::memory_order_relaxed);
-        bip_frames_.store(bn, std::memory_order_relaxed);
-    };
-    auto stream = AudioOutput::create(cb, 48000);
-    if (!stream) { std::fprintf(stderr, "wav_player: stream failed\n"); return; }
-    out_ = std::make_unique<AudioOutput>(std::move(*stream));
-    out_->start();
-}
-
-bool WavPlayerNode::load_wav(const std::string& path) {
-    auto clip = std::make_shared<std::vector<float>>();
-    if (!read_wav(path, *clip)) return false;
-    std::atomic_store(&clip_, clip);
-    clip_pos_.store(0);
-    return true;
-}
-
-void WavPlayerNode::operator()(double) {
-    ensure_stream();
-    gain_.store(inputs.gain.value, std::memory_order_relaxed);
-
+// An engine tap: playback mixes in at the SINGLE process audio engine
+// (Pd model) — this node owns no hardware. playing is a best-effort
+// estimate from the clip length.
+void WavPlayerNode::operator()(double time_s) {
     if (inputs.seq.value != prev_seq_) {
         prev_seq_ = inputs.seq.value;
-        if (!inputs.file.value.empty() && !load_wav(inputs.file.value))
+        std::vector<float> clip;
+        if (!inputs.file.value.empty() && read_wav(inputs.file.value, clip)) {
+            float g = inputs.gain.value;
+            if (g != 1.f) for (float& s : clip) s *= g;
+            playing_until_ = time_s + double(clip.size()) / 48000.0;
+            AudioEngine::instance().play(std::move(clip));
+        } else if (!inputs.file.value.empty()) {
             std::fprintf(stderr, "wav_player: failed to load %s\n",
                          inputs.file.value.c_str());
+        }
     }
     if (inputs.bip.value > 0.f && prev_bip_ == 0.f) {
-        bip_freq_.store(inputs.bip.value > 0.75f ? 1100.f : 700.f);
-        bip_frames_.store(4000);  // ~83 ms
+        // Short sine bip (~83 ms), decaying envelope.
+        float freq = inputs.bip.value > 0.75f ? 1100.f : 700.f;
+        std::vector<float> bip(4000);
+        float phase = 0.f;
+        for (size_t i = 0; i < bip.size(); ++i) {
+            float env = float(bip.size() - i) / float(bip.size());
+            phase += freq / 48000.f;
+            phase -= std::floor(phase);
+            bip[i] = 0.25f * env * std::sin(phase * 6.2832f);
+        }
+        AudioEngine::instance().play(std::move(bip));
     }
     prev_bip_ = inputs.bip.value;
 
-    auto clip = std::atomic_load(&clip_);
-    outputs.playing.value =
-        (clip && clip_pos_.load() < clip->size()) ? 1.f : 0.f;
+    outputs.playing.value = (time_s < playing_until_) ? 1.f : 0.f;
 }

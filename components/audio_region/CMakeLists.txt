@@ -1,6 +1,6 @@
 add_library(audio_region STATIC audio_region.cpp)
 target_include_directories(audio_region PUBLIC .)
-target_link_libraries(audio_region PUBLIC signal_graph audio_output port_schema_reader)
+target_link_libraries(audio_region PUBLIC signal_graph audio_engine port_schema_reader)
 target_compile_options(audio_region PRIVATE -Wall -Wextra)
 
 if(NOT CMAKE_CROSSCOMPILING)

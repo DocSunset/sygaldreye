@@ -1,15 +1,12 @@
 // Copyright 2026 Travis West
 #pragma once
-#include "audio_output.hpp"
 #include "sygaldry_endpoints.hpp"
-#include <atomic>
-#include <memory>
 #include <string>
 #include <string_view>
-#include <vector>
 
 // Plays WAV files (TTS replies pushed to /play) and short UI bips through
-// its own AAudio stream. file/seq arrive as param edits; bip is a trigger
+// THE process audio engine — it owns no hardware (Pd model: one stream
+// owner per process). file/seq arrive as param edits; bip is a trigger
 // input wired from speech_to_text.bip.
 struct WavPlayerNode {
     static consteval std::string_view name() { return "wav_player"; }
@@ -28,16 +25,6 @@ struct WavPlayerNode {
     void operator()(double);
 
 private:
-    void ensure_stream();
-    bool load_wav(const std::string& path);
-
-    std::unique_ptr<AudioOutput> out_;
-    // Audio-thread state: swapped in under a generation counter.
-    std::shared_ptr<std::vector<float>> clip_;   // mono 48k
-    std::atomic<size_t> clip_pos_{0};
-    std::atomic<float>  gain_{0.8f};
-    std::atomic<float>  bip_freq_{0.f};
-    std::atomic<int>    bip_frames_{0};
-    float prev_seq_ = 0.f, prev_bip_ = 0.f;
-    float bip_phase_ = 0.f;  // audio-thread only
+    float  prev_seq_ = 0.f, prev_bip_ = 0.f;
+    double playing_until_ = 0.0;
 };

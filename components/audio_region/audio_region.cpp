@@ -1,10 +1,33 @@
 // Copyright 2026 Travis West
 #include "audio_region.hpp"
+#include "audio_engine.hpp"
 #include <algorithm>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
 #include <optional>
+
+// Block-scheduler tracing: SYGALDREYE_BLOCK_DEBUG=1 on host;
+// `adb shell setprop debug.sygaldreye.blk 1` on device.
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <sys/system_properties.h>
+static bool blk_debug() {
+    static const bool on = [] {
+        char v[PROP_VALUE_MAX] = {};
+        __system_property_get("debug.sygaldreye.blk", v);
+        return v[0] == '1';
+    }();
+    return on;
+}
+#define BLKLOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
+#else
+static bool blk_debug() {
+    static const bool on = std::getenv("SYGALDREYE_BLOCK_DEBUG") != nullptr;
+    return on;
+}
+#define BLKLOG(...) std::fprintf(stderr, __VA_ARGS__)
+#endif
 
 namespace {
 constexpr int    kRate    = 48000;
@@ -22,21 +45,19 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
     snaps_.clear();
     queues_.clear();
     store_.clear();
-    dac_out_key_.clear();
+    dac_out_keys_.clear();
 
     if (!g.plan) g.plan = build_plan(g);
     wire_plan(g);   // idempotent; migrated instances need fresh src pointers
     graph_ = &g;
     plan_  = g.plan.get();
 
-    if (plan_->block_order.empty()) {
-        stream_.reset();
-        return;
-    }
+    // The ENGINE owns the device stream; it persists across every graph —
+    // an empty block region just renders silence. No churn, ever.
+    if (plan_->block_order.empty()) return;
     for (std::size_t i : plan_->block_order)
-        if (std::string_view{g.nodes[i].desc->type_name} == "dac" &&
-            dac_out_key_.empty())
-            dac_out_key_ = g.nodes[i].id + ".out";
+        if (std::string_view{g.nodes[i].desc->type_name} == "dac")
+            dac_out_keys_.push_back(g.nodes[i].id + ".out");
 
     // Instantiate the canonical mappings the plan declared at crossings.
     std::unordered_map<std::string, const NodeInstance*> by_id;
@@ -73,15 +94,18 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
         }
     }
 
-    if (!stream_ && enable_device) {
-        stream_ = AudioOutput::create(
-            [this](float* out, int frames) { render_block(out, frames); }, kRate);
-        if (stream_) stream_->start();
-    }
-    if (std::getenv("SYGALDREYE_BLOCK_DEBUG"))
-        std::fprintf(stderr, "[reb] block=%zu stream=%d latches=%zu snaps=%zu\n",
-                     plan_->block_order.size(), int(stream_.has_value()),
-                     latches_.size(), snaps_.size());
+    auto& engine = AudioEngine::instance();
+    engine.enable_device = enable_device;
+    engine.ensure_output(
+        [this](float* out, int frames) { render_block(out, frames); });
+    if (blk_debug())
+        BLKLOG("[reb] block=%zu device=%d latches=%zu snaps=%zu",
+               plan_->block_order.size(), int(engine.has_device()),
+               latches_.size(), snaps_.size());
+}
+
+bool AudioRegion::has_device() const {
+    return AudioEngine::instance().has_device();
 }
 
 // The block scheduler: the same plan subset, the same primitives, a
@@ -89,36 +113,31 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
 void AudioRegion::render_block(float* out, int frames) {
     std::memset(out, 0, std::size_t(frames) * 2 * sizeof(float));
     std::unique_lock<std::mutex> lock(plan_mutex_, std::try_to_lock);
-    static const bool dbg_pre = std::getenv("SYGALDREYE_BLOCK_DEBUG") != nullptr;
     static int dbg_calls = 0;
-    if (dbg_pre && (++dbg_calls % 188) == 0)
-        std::fprintf(stderr, "[blk-pre] call=%d lock=%d plan=%d block=%zu\n",
-                     dbg_calls, int(lock.owns_lock()), int(plan_ != nullptr),
-                     plan_ ? plan_->block_order.size() : std::size_t(0));
+    if (blk_debug() && (++dbg_calls % 188) == 0)
+        BLKLOG("[blk-pre] call=%d lock=%d plan=%d block=%zu",
+               dbg_calls, int(lock.owns_lock()), int(plan_ != nullptr),
+               plan_ ? plan_->block_order.size() : std::size_t(0));
     if (!lock.owns_lock() || !plan_ || plan_->block_order.empty()) return;
 
-    // SYGALDREYE_BLOCK_DEBUG=1: one status line per ~second of audio.
-    static const bool dbg = std::getenv("SYGALDREYE_BLOCK_DEBUG") != nullptr;
     static int dbg_count = 0;
-    bool dbg_now = dbg && (++dbg_count % 188 == 0);
+    bool dbg_now = blk_debug() && (++dbg_count % 188 == 0);
     if (dbg_now) {
-        std::fprintf(stderr, "[blk] t=%.1f frames=%d order=%zu store=%zu "
-                     "latches=%zu snaps=%zu\n",
-                     t_, frames, plan_->block_order.size(), store_.size(),
-                     latches_.size(), snaps_.size());
-        for (auto& s : snaps_)
-            std::fprintf(stderr, "[blk]   snap %s=%g\n", s->from_key.c_str(),
-                         s->value.load());
+        BLKLOG("[blk] t=%.1f frames=%d order=%zu store=%zu latches=%zu snaps=%zu",
+               t_, frames, plan_->block_order.size(), store_.size(),
+               latches_.size(), snaps_.size());
         for (auto& l : latches_)
-            std::fprintf(stderr, "[blk]   latch ->%s.%s set=%d\n",
-                         l->to.id.c_str(), l->edge->to_port.c_str(), int(l->set));
+            BLKLOG("[blk]   latch ->%s.%s set=%d", l->to.id.c_str(),
+                   l->edge->to_port.c_str(), int(l->set));
         for (std::size_t idx : plan_->block_order) {
             auto& n = graph_->nodes[idx];
             auto it = store_.find(n.id + ".audio");
-            std::fprintf(stderr, "[blk]   node %s audio=%s\n", n.id.c_str(),
-                         it == store_.end() ? "(none)" :
-                         (std::get_if<AudioBuffer>(&it->second)
-                              ? "buf" : "other"));
+            float peak = 0.f;
+            if (it != store_.end())
+                if (auto* a = std::get_if<AudioBuffer>(&it->second))
+                    for (int i = 0; i < std::min(a->frames * a->channels, 256); ++i)
+                        peak = std::max(peak, std::abs(a->data[i]));
+            BLKLOG("[blk]   node %s peak=%g", n.id.c_str(), double(peak));
         }
     }
 
@@ -162,18 +181,22 @@ void AudioRegion::render_block(float* out, int frames) {
             if (const PortValue* src = resolve_applier(d.applier, store_))
                 d.prev = *src;
 
-    // Deliver the dac's gained output to the device (mono duplicates to
-    // both ears; stereo passes through interleaved).
-    if (auto it = store_.find(dac_out_key_); it != store_.end())
-        if (auto* a = std::get_if<AudioBuffer>(&it->second)) {
-            int n = std::min(frames, a->frames);
-            if (a->channels >= 2) {
-                std::memcpy(out, a->data, std::size_t(n) * 2 * sizeof(float));
-            } else {
-                for (int i = 0; i < n; ++i)
-                    out[i * 2] = out[i * 2 + 1] = a->data[i];
+    // Deliver EVERY dac's gained output to the device, summed — multiple
+    // dacs sum-mix like Pd (mono duplicates to both ears; stereo adds
+    // interleaved).
+    for (const auto& key : dac_out_keys_)
+        if (auto it = store_.find(key); it != store_.end())
+            if (auto* a = std::get_if<AudioBuffer>(&it->second)) {
+                int n = std::min(frames, a->frames);
+                if (a->channels >= 2) {
+                    for (int i = 0; i < n * 2; ++i) out[i] += a->data[i];
+                } else {
+                    for (int i = 0; i < n; ++i) {
+                        out[i * 2]     += a->data[i];
+                        out[i * 2 + 1] += a->data[i];
+                    }
+                }
             }
-        }
 
     // Crossing mappings: ring pushes + scalar snapshots.
     for (auto& r : rings_) {
@@ -252,22 +275,15 @@ void AudioRegion::capture_latches(const Graph& g) {
 }
 
 void AudioRegion::pump_offline(double dt) {
+    auto& engine = AudioEngine::instance();
     // Zombie-stream recovery: a disconnected device stream never calls
     // back again, which silently stalls the whole block region. Recreate.
-    if (stream_ && stream_->dead()) {
-        std::lock_guard<std::mutex> lock(plan_mutex_);
-        stream_.reset();
-        if (enable_device) {
-            stream_ = AudioOutput::create(
-                [this](float* o, int f) { render_block(o, f); }, kRate);
-            if (stream_) stream_->start();
-        }
-    }
+    engine.recover_if_dead();
     static int dbg_pump = 0;
-    if (std::getenv("SYGALDREYE_BLOCK_DEBUG") && (++dbg_pump % 600) == 0)
-        std::fprintf(stderr, "[pump] stream=%d active=%d\n",
-                     int(stream_.has_value()), int(active()));
-    if (stream_ || !active()) return;
+    if (blk_debug() && (++dbg_pump % 600) == 0)
+        BLKLOG("[pump] device=%d active=%d",
+               int(engine.has_device()), int(active()));
+    if (engine.has_device() || !active()) return;
     int frames = std::clamp(int(dt * kRate), 0, 4800);
     if (frames == 0) return;
     static thread_local std::vector<float> buf;

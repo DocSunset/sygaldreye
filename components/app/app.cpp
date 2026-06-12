@@ -1,6 +1,7 @@
 #include <android/log.h>
 #include <android_native_app_glue.h>
 #include <openxr/openxr.h>
+#include <time.h>
 #include "renderer.hpp"
 #include "xr_session.hpp"
 #include "frame_loop.hpp"
@@ -231,14 +232,18 @@ void android_main(struct android_app* app) {
     acquire_multicast_lock(app);
 
     AppState state;
-    state.xrInstance = xr_create_instance(app);
-    state.xrSystemId = xr_get_system(state.xrInstance);
+    app->userData  = &state;
+    app->onAppCmd  = onAppCmd;
+
+    // EGL and the core come up FIRST and never depend on XR: a launch with
+    // the headset un-worn or controllers asleep used to leave a zombie
+    // process (loader init / xrGetSystem fail when the form factor is
+    // unavailable, everything cascaded). Now the peer is fully alive —
+    // HTTP, graph, offline audio — and XR attaches whenever the headset
+    // becomes available.
     auto binding = state.renderer.init();
     if (!binding) { LOGE("renderer init failed"); return; }
-    state.xrSession.create(state.xrInstance, state.xrSystemId, &binding->xr_binding);
-    state.renderer.create_swapchains(state.xrInstance, state.xrSystemId, state.xrSession.get());
     state.text_mesh_.init();
-    state.input_.create(state.xrInstance, state.xrSession.get());
 
     register_device_nodes(state.core_.registry);
 
@@ -275,8 +280,41 @@ void android_main(struct android_app* app) {
         state.core_.fulfil_screenshot(w, h);
     };
 
-    app->userData  = &state;
-    app->onAppCmd  = onAppCmd;
+    // Drive the graph without an XR session (waiting for the headset, or
+    // doffed mid-run): same core service as a frame, minus input/render.
+    auto offline_tick = [&state]() {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        double now = double(ts.tv_sec) + double(ts.tv_nsec) * 1e-9;
+        state.core_.begin_frame();
+        state.core_.pump_contexts(1.f);
+        state.core_.tick(now);
+        state.core_.collect_edits();
+    };
+
+    // ── XR attach: poll until the runtime and headset are available ─────
+    int xr_wait_ticks = 0;
+    while (!app->destroyRequested) {
+        if (state.xrInstance == XR_NULL_HANDLE)
+            state.xrInstance = xr_create_instance(app);
+        if (state.xrInstance != XR_NULL_HANDLE) {
+            state.xrSystemId = xr_get_system(state.xrInstance);
+            if (state.xrSystemId != XR_NULL_SYSTEM_ID) break;
+        }
+        if (xr_wait_ticks++ % 30 == 0)
+            LOG("waiting for XR (headset worn? runtime up?) — peer is live meanwhile");
+        int events;
+        android_poll_source* source;
+        if (ALooper_pollOnce(33, nullptr, &events,
+                             reinterpret_cast<void**>(&source)) >= 0 && source)
+            source->process(app, source);
+        offline_tick();
+    }
+    if (app->destroyRequested) { LOG("android_main: exiting (pre-XR)"); return; }
+
+    state.xrSession.create(state.xrInstance, state.xrSystemId, &binding->xr_binding);
+    state.renderer.create_swapchains(state.xrInstance, state.xrSystemId, state.xrSession.get());
+    state.input_.create(state.xrInstance, state.xrSession.get());
 
     while (!app->destroyRequested && !state.xrSession.should_quit()) {
         int         events;
@@ -289,6 +327,10 @@ void android_main(struct android_app* app) {
         if (!state.xrSession.poll_events()) {
             LOGE("poll_events failed — exiting loop");
             break;
+        }
+        if (!state.xrSession.session_running()) {
+            // Doffed / session idle: the peer stays fully alive.
+            offline_tick();
         }
         if (state.xrSession.session_running()) {
             state.frame_loop_.run_frame(state.xrSession.get(), [&](XrTime t) -> FrameLayers {

@@ -1,0 +1,7 @@
+add_library(audio_engine STATIC audio_engine.cpp)
+target_include_directories(audio_engine PUBLIC .)
+target_link_libraries(audio_engine PUBLIC audio_output)
+if(CMAKE_CROSSCOMPILING)
+    target_link_libraries(audio_engine PUBLIC mic_capture)
+endif()
+target_compile_options(audio_engine PRIVATE -Wall -Wextra)

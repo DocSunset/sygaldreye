@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 
+
 static constexpr float kSpeedOfSound = 343.0f;
 
 HrtfSpatializer::HrtfSpatializer(SpatializerParams const& p)
@@ -94,6 +95,7 @@ void HrtfSpatializer::process(float const* mono_in, float* stereo_out, int frame
     float dist_gain = 1.0f / std::max(pos.distance_m, 1.0f);
     float delay_samples = (params_.head_radius_m / kSpeedOfSound) * params_.sample_rate
                         * (pos.azimuth + std::sin(pos.azimuth));
+
     // Positive azimuth = source right → left ear is contralateral (delayed)
     bool source_right = pos.azimuth > 0.0f;
 

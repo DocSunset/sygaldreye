@@ -2,6 +2,7 @@
 #include "spatialize_node.hpp"
 #include <cmath>
 
+
 void SpatializeNode::operator()(double) {
     const AudioBuffer& in = inputs.audio.value;
     int n = (in.data && in.frames > 0) ? in.frames : 0;
@@ -17,7 +18,9 @@ void SpatializeNode::operator()(double) {
         sp_.process(in.data, buf_.data(), n);
         if (inputs.gain.value != 1.f)
             for (auto& s : buf_) s *= inputs.gain.value;
+
     }
+
 
     float sl = 0.f, sr = 0.f;
     for (int i = 0; i < n; ++i) {
