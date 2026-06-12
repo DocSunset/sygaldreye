@@ -2,6 +2,61 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-06-12 — the runtime grows up (two-day arc, f531b66..3bcd613)
+
+The execution model:
+- Endpoints v6 phases A+B: one `endpoints` struct, shapes in/normalled_in/
+  cv_in/out/event_*, edges as literal pointers (connect/output_ptr, ABI v6),
+  persisted-only serialization. Audio combiners (mix/dac/spatialize)
+  MIGRATED; compat slots carry legacy-producer audio/mesh into v6
+  consumers. Remaining clusters + values-map death queued.
+- Text edges: PortValue carries std::string; transcripts/prompts flow as
+  values. Subgraph presets take params ({"freq":880} works); inline
+  subgraphs round-trip.
+- Span payload: rank-≤2 float views as values. First lift: scatter →
+  mesh_instances = THE FOREST (screenshot-verified; 70-trunk grove live
+  on-device). Conformability design ratified incl. named axes
+  (channels=map, time=scan), planar audio, per-kernel stamped lifting —
+  kanban/backlog/conformability.md.
+- Kernel extraction: synth_core/kernels.hpp (per-sample, dt-based, no
+  absolute time); ugen shells loop kernels.
+- FREEZER POSTPONED (ratified): until v6 complete + values map dead +
+  spans/conformability settle.
+
+Audio:
+- AudioEngine singleton (ratified Pd model): ONE owner of audio hardware;
+  output stream persists across graphs; ALL dacs sum; mic is a
+  shared-ring tap (callback mode — Quest starves pull-reads); /play mixes
+  engine-side, graph-independent; wav_player owns no stream.
+- THE two-day silence mystery solved: uninitialized Eigen port values
+  (port<T> now defaults via endpoint_default — zero vecs, identity quats).
+  Also fixed en route: metro epoch trap (region migration changes a
+  node's clock), AAudio teardown races (stop now waits), disconnect
+  recovery, spatialize NaN/near-field guards, stale-view drone
+  (wire_plan silences unwired legacy audio inputs; v6 makes it
+  structural). Full mic-included playground verified 3/3 fresh boots.
+
+Speech (native, kanban/backlog/native_speech_nodes.md):
+- stt_whisper (whisper.cpp vendored, host+NDK): PTT contract, transcript
+  as text edge, warm context, audio_ctx scaled to take (77 s → ~5 s class
+  on Quest). tts_local (sherpa-onnx, warm, MALE piper voice, voice is an
+  audio EDGE). ROUND-TRIP GATE: tts speaks, whisper transcribes it.
+  On-device voice loop verified live with Travis (caption panel in VR).
+  Browser/wasm rung pending. Quest mic only delivers when WORN.
+
+Ops/robustness:
+- XR-optional launch: EGL+core+HTTP before XR; offline tick when doffed;
+  `setprop debug.oculus.guardian_pause 1` clears the no-controller gate.
+  Launches always succeed; peer drivable with the headset on a desk.
+- GET /plan (executor observability), /models upload (>3 MB POSTs still
+  die — use adb push to the external files dir), MG_MAX_RECV_SIZE raised.
+- Probing protocol (hard-won): always echo POST responses; missing
+  /values keys ≠ zero. See block_swap_poison.md for the cautionary tale.
+
+Open near-term: conformability lifting executor, editor decomposition
+slices, device plugin dlopen crash, renders-only-when-doffed (sleep/wake
+workaround), Steam Audio, JACK, bridge text mirroring across peers.
+
 ## 2026-06-10 — Slice 1 in progress
 
 Done:
