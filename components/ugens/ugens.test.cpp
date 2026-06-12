@@ -74,10 +74,10 @@ TEST(Multichannel, ProcessorsAdaptPerChannelState) {
         "edges":[{"from":"a.audio","to":"pack.in1"},
                  {"from":"b.audio","to":"pack.in2"},
                  {"from":"pack.audio","to":"lp.audio"},
-                 {"from":"lp.audio","to":"un.audio"}]})");
+                 {"from":"lp.audio_out","to":"un.audio"}]})");
     ASSERT_TRUE(f.g);
     for (int i = 0; i < 5; ++i) f.frame();
-    const AudioBuffer* filtered = f.audio("lp.audio");
+    const AudioBuffer* filtered = f.audio("lp.audio_out");
     ASSERT_TRUE(filtered);
     EXPECT_EQ(filtered->channels, 2);
     EXPECT_GT(rms(*f.audio("un.out1"), 0), 0.4f);

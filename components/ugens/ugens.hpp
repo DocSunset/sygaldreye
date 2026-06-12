@@ -44,6 +44,30 @@ inline float at(const AudioBuffer& b, int frame, int c) {
     return b.data[std::size_t(frame) * std::size_t(chans(b)) +
                   std::size_t(c % chans(b))];
 }
+
+// The conformability stamp (conformability.md): one kernel instance per
+// channel (map axis), each scanning its frames (time axis). prepare runs
+// once per kernel per block (coefficient pushes); tick is the per-sample
+// kernel call. This replaces every hand-written processor shell.
+template<typename K>
+struct Lift {
+    std::vector<K>     kernels;
+    std::vector<float> buf;
+    template<typename Prepare, typename Tick>
+    AudioBuffer run(const AudioBuffer& in, Prepare&& prepare, Tick&& tick) {
+        int n  = (in.data && in.frames > 0) ? in.frames : 0;
+        int ch = chans(in);
+        bool fresh = int(kernels.size()) != ch;
+        if (fresh) kernels.assign(std::size_t(ch), K{});
+        for (auto& k : kernels) prepare(k, fresh);
+        buf.resize(std::size_t(n) * std::size_t(ch));
+        for (int i = 0; i < n; ++i)
+            for (int c = 0; c < ch; ++c)
+                buf[std::size_t(i) * std::size_t(ch) + std::size_t(c)] =
+                    tick(kernels[std::size_t(c)], at(in, i, c));
+        return {buf.data(), n, ch, in.sample_rate};
+    }
+};
 } // namespace ugen_detail
 
 // White (color 0) → pink (color 1) noise source. Mono.
@@ -221,45 +245,36 @@ private:
 // Biquad filter, per-channel state. mode: 0 LP, 1 HP, 2 BP.
 struct BiquadNode {
     static consteval std::string_view name() { return "biquad"; }
-    struct inputs {
-        port<"audio", AudioBuffer> audio;
-        slider<"freq", "Hz", float, fp(20.f), fp(20000.f), fp(1000.f)> freq;
-        slider<"q",    "",   float, fp(0.3f), fp(20.f),    fp(0.707f)> q;
-        slider<"mode", "",   float, fp(0.f),  fp(2.f),     fp(0.f)>    mode;
-    } inputs;
-    struct outputs { port<"audio", AudioBuffer> audio; } outputs;
+    // v6 + lifted: the kernel is synth::BiquadFilter; the channel/frame
+    // plumbing is the Lift stamp. mode: 0 LP, 1 HP, 2 BP.
+    struct endpoints {
+        in<AudioBuffer> audio;
+        normalled_in<float, fp(20.f), fp(20000.f), fp(1000.f)> freq;
+        normalled_in<float, fp(0.3f), fp(20.f),    fp(0.707f)> q;
+        normalled_in<float, fp(0.f),  fp(2.f),     fp(0.f)>    mode;
+        out<AudioBuffer> audio_out;
+    } endpoints;
     void operator()(double) {
-        const AudioBuffer& in = inputs.audio.value;
-        int n  = in.data ? in.frames : 0;
-        int ch = ugen_detail::chans(in);
-        if (int(filters_.size()) != ch) {
-            filters_.assign(std::size_t(ch), synth::BiquadFilter{});
-            coeffs_stale_ = true;
+        float fr = endpoints.freq.get(), qq = endpoints.q.get();
+        int   m  = int(endpoints.mode.get() + 0.5f);
+        bool changed = fr != freq_ || qq != q_ || m != mode_;
+        if (changed) {
+            freq_ = fr; q_ = qq; mode_ = m;
+            co_ = m == 1 ? synth::high_pass(fr, qq, 48000.f)
+                : m == 2 ? synth::band_pass(fr, qq, 48000.f)
+                         : synth::low_pass(fr, qq, 48000.f);
         }
-        int m = int(inputs.mode.value + 0.5f);
-        if (inputs.freq.value != freq_ || inputs.q.value != q_ || m != mode_ ||
-            coeffs_stale_) {
-            freq_ = inputs.freq.value; q_ = inputs.q.value; mode_ = m;
-            coeffs_stale_ = false;
-            synth::BiquadCoeffs co =
-                m == 1 ? synth::high_pass(freq_, q_, 48000.f)
-              : m == 2 ? synth::band_pass(freq_, q_, 48000.f)
-                       : synth::low_pass(freq_, q_, 48000.f);
-            for (auto& f : filters_) f.set_coeffs(co);
-        }
-        buf_.resize(std::size_t(n) * std::size_t(ch));
-        for (int i = 0; i < n; ++i)
-            for (int c = 0; c < ch; ++c)
-                buf_[std::size_t(i) * std::size_t(ch) + std::size_t(c)] =
-                    filters_[std::size_t(c)].tick(ugen_detail::at(in, i, c));
-        outputs.audio.value = AudioBuffer{buf_.data(), n, ch, in.sample_rate};
+        endpoints.audio_out.value = lift_.run(endpoints.audio.get(),
+            [&](synth::BiquadFilter& k, bool fresh) {
+                if (changed || fresh) k.set_coeffs(co_);
+            },
+            [](synth::BiquadFilter& k, float x) { return k.tick(x); });
     }
 private:
-    std::vector<float> buf_;
-    std::vector<synth::BiquadFilter> filters_;
-    float freq_ = 0.f, q_ = 0.f;
+    ugen_detail::Lift<synth::BiquadFilter> lift_;
+    synth::BiquadCoeffs co_{};
+    float freq_ = -1.f, q_ = -1.f;
     int   mode_ = -1;
-    bool  coeffs_stale_ = true;  // also set when the channel count grows
 };
 
 // Sample-accurate delay with feedback, per-channel lines.
