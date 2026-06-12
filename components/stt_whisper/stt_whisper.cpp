@@ -2,6 +2,7 @@
 #include "stt_whisper.hpp"
 #include "worker.hpp"
 #include "whisper.h"
+#include <algorithm>
 #include <cstdio>
 
 SttWhisperNode::~SttWhisperNode() {
@@ -61,10 +62,18 @@ void SttWhisperNode::operator()(double) {
             std::string out;
             if (sh->ctx && take->size() > 16000 / 4) {  // ≥0.25 s
                 auto wp = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-                wp.n_threads        = 3;
+                wp.n_threads        = 4;
                 wp.print_progress   = false;
                 wp.print_realtime   = false;
                 wp.no_timestamps    = true;
+                // Whisper pads every take to a 30 s encoder window; shrink
+                // the encoder context to the take's real length (measured
+                // 77 s → target seconds for a 3 s take on Quest). +128
+                // frames of headroom, floor 192 to stay coherent.
+                wp.audio_ctx = std::clamp(
+                    int(double(take->size()) / (16000.0 * 30.0) * 1500.0) + 128,
+                    192, 1500);
+                wp.temperature_inc = 0.0f;  // greedy only, no retry ladder
                 if (whisper_full(sh->ctx, wp, take->data(),
                                  int(take->size())) == 0) {
                     int n = whisper_full_n_segments(sh->ctx);

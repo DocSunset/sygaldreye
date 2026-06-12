@@ -148,6 +148,25 @@ void wire_plan(Graph& g) {
         for (const auto& p : s.inputs)
             n.desc->connect(n.data, p.name.c_str(), nullptr);
     }
+    // Legacy nodes hold stale AudioBuffer VIEWS the same way: a mix node
+    // migrated across an edit kept re-summing a deleted producer's freed
+    // buffer (Travis's "drone", 2026-06-12). Silence every audio input
+    // that has no incoming edge; appliers refill the connected ones on
+    // the next block.
+    for (auto& n : g.nodes) {
+        if (n.desc->version >= 6 && n.desc->connect) continue;  // v6 handled above
+        if (!n.desc->set_audio_in) continue;
+        PortSchema s = parse_port_schema(n.desc->port_schema);
+        for (const auto& p : s.inputs) {
+            if (p.kind != "audio") continue;
+            bool wired = false;
+            for (const auto& e : g.edges)
+                if (e.to_node == n.id && e.to_port == p.name &&
+                    by_id.count(e.from_node)) { wired = true; break; }
+            if (!wired)
+                n.desc->set_audio_in(n.data, p.name.c_str(), nullptr, 0, 1, 48000);
+        }
+    }
     for (const Edge* e : g.plan->wires) {
         auto f = by_id.find(e->from_node), t = by_id.find(e->to_node);
         if (f == by_id.end() || t == by_id.end()) continue;
