@@ -115,6 +115,11 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
         if (back[ei]) {
             plan->delays.push_back(DelayMapping{EdgeApplier{&e}, std::nullopt, rf});
             plan->delayed[t->second].push_back(&plan->delays.back());
+        } else if (g.nodes[f->second].desc->output_ptr &&
+                   g.nodes[t->second].desc->connect) {
+            // endpoints v6 both sides: a literal pointer, wired once.
+            plan->wires.push_back(&e);
+            dag_edges.push_back(e);
         } else {
             plan->appliers[t->second].push_back(EdgeApplier{&e});
             dag_edges.push_back(e);
@@ -127,6 +132,27 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
         else                                     plan->order.push_back(i);
     }
     return plan;
+}
+
+void wire_plan(Graph& g) {
+    if (!g.plan) return;
+    std::unordered_map<std::string, NodeInstance*> by_id;
+    for (auto& n : g.nodes) by_id[n.id] = &n;
+    // Reset first: migrated instances may hold src pointers into producers
+    // the swap just destroyed.
+    for (auto& n : g.nodes) {
+        if (!n.desc->connect) continue;
+        PortSchema s = parse_port_schema(n.desc->port_schema);
+        for (const auto& p : s.inputs)
+            n.desc->connect(n.data, p.name.c_str(), nullptr);
+    }
+    for (const Edge* e : g.plan->wires) {
+        auto f = by_id.find(e->from_node), t = by_id.find(e->to_node);
+        if (f == by_id.end() || t == by_id.end()) continue;
+        const void* src = f->second->desc->output_ptr(f->second->data,
+                                                      e->from_port.c_str());
+        if (src) t->second->desc->connect(t->second->data, e->to_port.c_str(), src);
+    }
 }
 
 std::vector<const Edge*> cycle_mappings(const Graph& g) {

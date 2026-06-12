@@ -51,9 +51,18 @@ struct TickPlan {
     std::vector<std::vector<DelayMapping*>>  delayed;       // per target node
     std::deque<DelayMapping>                 delays;        // owned; stable addresses
     std::vector<Crossing>                    crossings;
+    // endpoints v6: same-region non-delayed edges between v6-capable nodes
+    // become literal pointers (consumer src → producer storage), wired once
+    // by wire_plan. No applier, no per-tick copy.
+    std::vector<const Edge*>                 wires;
 };
 
 std::unique_ptr<TickPlan> build_plan(const Graph& g);
+
+// endpoints v6: reset every v6 input's src, then point plan.wires at their
+// producers' storage. Call after build_plan, post-migration (migrated
+// instances carry STALE src pointers into destroyed producers otherwise).
+void wire_plan(Graph& g);
 
 // Which edges are currently mediated by an auto-inserted z⁻¹? (editor /
 // serialization visibility; recomputed, never persisted)

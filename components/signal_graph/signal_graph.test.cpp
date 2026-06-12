@@ -649,3 +649,55 @@ TEST(PortTypeLegality, IllegalEdgeRejectsGraphLoudly) {
         "edges":[{"from":"a.count","to":"b.step"}]})", reg);
     EXPECT_TRUE(ok != nullptr);
 }
+
+// ── endpoints v6: literal pointer wiring through the executor ────────────────
+
+struct V6Src {
+    static consteval std::string_view name() { return "v6_src"; }
+    struct endpoints { out<float> sig; } endpoints;
+    void operator()(double t) { endpoints.sig.value = static_cast<float>(t); }
+};
+struct V6Dst {
+    static consteval std::string_view name() { return "v6_dst"; }
+    struct endpoints {
+        in<float, fp(-1.f)> sig;
+        out<float>          echo;
+    } endpoints;
+    void operator()(double) { endpoints.echo.value = endpoints.sig.get(); }
+};
+
+TEST(EndpointsV6Executor, WiresAreLiteralPointersAndResetOnSwap) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<V6Src>());
+    reg.register_builtin(make_descriptor<V6Dst>());
+    auto g = parse_graph(R"({"nodes":[
+        {"id":"a","type":"v6_src"},{"id":"b","type":"v6_dst"}],
+        "edges":[{"from":"a.sig","to":"b.sig"}]})", reg);
+    ASSERT_TRUE(g);
+    tick_graph(*g, 1.5);
+
+    V6Src* a = nullptr; V6Dst* b = nullptr;
+    for (auto& n : g->nodes) {
+        if (n.id == "a") a = static_cast<V6Src*>(n.data);
+        if (n.id == "b") b = static_cast<V6Dst*>(n.data);
+    }
+    ASSERT_TRUE(a && b);
+    // the consumer reads the producer's storage DIRECTLY
+    EXPECT_EQ(b->endpoints.sig.src, &a->endpoints.sig.value);
+    EXPECT_FLOAT_EQ(b->endpoints.echo.value, 1.5f);
+
+    // swap to a graph WITHOUT the edge: the migrated instance must not
+    // keep a stale pointer — it falls back to the compile-time default.
+    auto g2 = parse_graph(R"({"nodes":[
+        {"id":"a","type":"v6_src"},{"id":"b","type":"v6_dst"}],
+        "edges":[]})", reg);
+    ASSERT_TRUE(g2);
+    migrate_graph(*g2, *g);
+    tick_graph(*g2, 2.0);
+    V6Dst* b2 = nullptr;
+    for (auto& n : g2->nodes) if (n.id == "b") b2 = static_cast<V6Dst*>(n.data);
+    ASSERT_TRUE(b2);
+    EXPECT_EQ(b2, b);                            // same migrated instance
+    EXPECT_EQ(b2->endpoints.sig.src, nullptr);   // wire_plan reset it
+    EXPECT_FLOAT_EQ(b2->endpoints.echo.value, -1.f);
+}

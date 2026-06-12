@@ -112,7 +112,7 @@ const PortValue* resolve_applier(EdgeApplier& a,
 
 void tick_graph(Graph& g, double time_s) {
     g.draw_calls.clear();
-    if (!g.plan) g.plan = build_plan(g);
+    if (!g.plan) { g.plan = build_plan(g); wire_plan(g); }
     TickPlan& plan = *g.plan;
 
     for (std::size_t idx : plan.order) {

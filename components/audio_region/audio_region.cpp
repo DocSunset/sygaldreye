@@ -23,6 +23,7 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
     dac_out_key_.clear();
 
     if (!g.plan) g.plan = build_plan(g);
+    wire_plan(g);   // idempotent; migrated instances need fresh src pointers
     graph_ = &g;
     plan_  = g.plan.get();
 
