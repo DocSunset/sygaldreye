@@ -64,7 +64,7 @@ struct Lift {
         for (int i = 0; i < n; ++i)
             for (int c = 0; c < ch; ++c)
                 buf[std::size_t(i) * std::size_t(ch) + std::size_t(c)] =
-                    tick(kernels[std::size_t(c)], at(in, i, c));
+                    tick(kernels[std::size_t(c)], at(in, i, c), i, c);
         return {buf.data(), n, ch, in.sample_rate};
     }
 };
@@ -135,74 +135,65 @@ private:
 // multichannel gate yields a multichannel envelope.
 struct AdsrNode {
     static consteval std::string_view name() { return "adsr"; }
-    struct inputs {
-        port<"gate", AudioBuffer> gate;
-        slider<"attack",  "s", float, fp(0.001f), fp(2.f), fp(0.01f)> attack;
-        slider<"decay",   "s", float, fp(0.001f), fp(2.f), fp(0.1f)>  decay;
-        slider<"sustain", "",  float, fp(0.f),    fp(1.f), fp(0.7f)>  sustain;
-        slider<"release", "s", float, fp(0.001f), fp(4.f), fp(0.2f)>  release;
-    } inputs;
-    struct outputs { port<"audio", AudioBuffer> audio; } outputs;
+    // CV-style: the gate IS an audio signal (threshold 0.5); per-channel
+    // envelopes — a multichannel gate yields a multichannel envelope.
+    struct endpoints {
+        in<AudioBuffer> gate;
+        normalled_in<float, fp(0.001f), fp(2.f), fp(0.01f)> attack;
+        normalled_in<float, fp(0.001f), fp(2.f), fp(0.1f)>  decay;
+        normalled_in<float, fp(0.f),    fp(1.f), fp(0.7f)>  sustain;
+        normalled_in<float, fp(0.001f), fp(4.f), fp(0.2f)>  release;
+        out<AudioBuffer> audio_out;
+    } endpoints;
+    struct GateEnv {
+        synth::Adsr env;
+        bool        prev = false;
+    };
     void operator()(double) {
-        const AudioBuffer& gate = inputs.gate.value;
-        int n  = gate.data ? gate.frames : 0;
-        int ch = ugen_detail::chans(gate);
-        if (int(envs_.size()) != ch) {
-            envs_.assign(std::size_t(ch), synth::Adsr{});
-            prev_.assign(std::size_t(ch), 0);
-        }
-        for (auto& e : envs_) {
-            e.attack_s      = inputs.attack.value;
-            e.decay_s       = inputs.decay.value;
-            e.sustain_level = inputs.sustain.value;
-            e.release_s     = inputs.release.value;
-        }
-        buf_.resize(std::size_t(n) * std::size_t(ch));
-        for (int i = 0; i < n; ++i)
-            for (int c = 0; c < ch; ++c) {
-                bool g = ugen_detail::at(gate, i, c) > 0.5f;
-                if (g && !prev_[std::size_t(c)]) envs_[std::size_t(c)].gate_on();
-                if (!g && prev_[std::size_t(c)]) envs_[std::size_t(c)].gate_off();
-                prev_[std::size_t(c)] = g;
-                buf_[std::size_t(i) * std::size_t(ch) + std::size_t(c)] =
-                    envs_[std::size_t(c)].tick();
-            }
-        outputs.audio.value = AudioBuffer{buf_.data(), n, ch, gate.sample_rate};
+        float a = endpoints.attack.get(), d = endpoints.decay.get();
+        float su = endpoints.sustain.get(), r = endpoints.release.get();
+        endpoints.audio_out.value = lift_.run(endpoints.gate.get(),
+            [&](GateEnv& k, bool) {
+                k.env.attack_s = a; k.env.decay_s = d;
+                k.env.sustain_level = su; k.env.release_s = r;
+            },
+            [](GateEnv& k, float x, int, int) {
+                bool g = x > 0.5f;
+                if (g && !k.prev) k.env.gate_on();
+                if (!g && k.prev) k.env.gate_off();
+                k.prev = g;
+                return k.env.tick();
+            });
     }
 private:
-    std::vector<float>       buf_;
-    std::vector<synth::Adsr> envs_;
-    std::vector<char>        prev_;
+    ugen_detail::Lift<GateEnv> lift_;
 };
 
 // Multiply audio by a scalar gain and (optionally) an audio-rate envelope
 // (mono env broadcasts; otherwise channel-wise).
 struct VcaNode {
     static consteval std::string_view name() { return "vca"; }
-    struct inputs {
-        port<"audio", AudioBuffer> audio;
-        port<"env",   AudioBuffer> env;
-        slider<"gain", "", float, fp(0.f), fp(4.f), fp(1.f)> gain;
-    } inputs;
-    struct outputs { port<"audio", AudioBuffer> audio; } outputs;
+    struct endpoints {
+        in<AudioBuffer> audio;
+        in<AudioBuffer> env;     // mono broadcasts; otherwise channel-wise
+        normalled_in<float, fp(0.f), fp(4.f), fp(1.f)> gain;
+        out<AudioBuffer> audio_out;
+    } endpoints;
+    struct Stateless {};
     void operator()(double) {
-        const AudioBuffer& in = inputs.audio.value;
-        int n  = in.data ? in.frames : 0;
-        int ch = ugen_detail::chans(in);
-        buf_.resize(std::size_t(n) * std::size_t(ch));
-        const AudioBuffer& e = inputs.env.value;
-        for (int i = 0; i < n; ++i)
-            for (int c = 0; c < ch; ++c) {
-                float g = inputs.gain.value;
+        const AudioBuffer e = endpoints.env.get();
+        float gain = endpoints.gain.get();
+        endpoints.audio_out.value = lift_.run(endpoints.audio.get(),
+            [](Stateless&, bool) {},
+            [&](Stateless&, float x, int i, int c) {
+                float g = gain;
                 if (e.data && e.frames > 0)
                     g *= ugen_detail::at(e, std::min(i, e.frames - 1), c);
-                buf_[std::size_t(i) * std::size_t(ch) + std::size_t(c)] =
-                    ugen_detail::at(in, i, c) * g;
-            }
-        outputs.audio.value = AudioBuffer{buf_.data(), n, ch, in.sample_rate};
+                return x * g;
+            });
     }
 private:
-    std::vector<float> buf_;
+    ugen_detail::Lift<Stateless> lift_;
 };
 
 // Sum up to four sources channel-wise (mono inputs broadcast; output
@@ -268,7 +259,7 @@ struct BiquadNode {
             [&](synth::BiquadFilter& k, bool fresh) {
                 if (changed || fresh) k.set_coeffs(co_);
             },
-            [](synth::BiquadFilter& k, float x) { return k.tick(x); });
+            [](synth::BiquadFilter& k, float x, int, int) { return k.tick(x); });
     }
 private:
     ugen_detail::Lift<synth::BiquadFilter> lift_;
@@ -280,88 +271,71 @@ private:
 // Sample-accurate delay with feedback, per-channel lines.
 struct DelayNode {
     static consteval std::string_view name() { return "delay"; }
-    struct inputs {
-        port<"audio", AudioBuffer> audio;
-        slider<"time",     "s", float, fp(0.001f), fp(2.f),   fp(0.25f)> time;
-        slider<"feedback", "",  float, fp(0.f),    fp(0.98f), fp(0.4f)>  feedback;
-        slider<"wet",      "",  float, fp(0.f),    fp(1.f),   fp(0.5f)>  wet;
-    } inputs;
-    struct outputs { port<"audio", AudioBuffer> audio; } outputs;
+    struct endpoints {
+        in<AudioBuffer> audio;
+        normalled_in<float, fp(0.001f), fp(2.f),   fp(0.25f)> time;
+        normalled_in<float, fp(0.f),    fp(0.98f), fp(0.4f)>  feedback;
+        normalled_in<float, fp(0.f),    fp(1.f),   fp(0.5f)>  wet;
+        out<AudioBuffer> audio_out;
+    } endpoints;
     static constexpr int kLen = 96000;
     void operator()(double) {
-        const AudioBuffer& in = inputs.audio.value;
-        int n  = in.data ? in.frames : 0;
-        int ch = ugen_detail::chans(in);
-        if (int(lines_.size()) != ch) lines_.assign(std::size_t(ch), {});
-        for (auto& l : lines_) l.prepare(kLen);
-        buf_.resize(std::size_t(n) * std::size_t(ch));
-        int d = std::clamp(int(inputs.time.value * 48000.f), 1, kLen - 1);
-        for (int i = 0; i < n; ++i)
-            for (int c = 0; c < ch; ++c) {
-                float dry  = ugen_detail::at(in, i, c);
-                float echo = lines_[std::size_t(c)].tick(dry, d,
-                                                         inputs.feedback.value);
-                buf_[std::size_t(i) * std::size_t(ch) + std::size_t(c)] =
-                    dry * (1.f - inputs.wet.value) + echo * inputs.wet.value;
-            }
-        outputs.audio.value = AudioBuffer{buf_.data(), n, ch, in.sample_rate};
+        int   d  = std::clamp(int(endpoints.time.get() * 48000.f), 1, kLen - 1);
+        float fb = endpoints.feedback.get(), wet = endpoints.wet.get();
+        endpoints.audio_out.value = lift_.run(endpoints.audio.get(),
+            [](synth::DelayLine& k, bool) { k.prepare(kLen); },
+            [&](synth::DelayLine& k, float x, int, int) {
+                float echo = k.tick(x, d, fb);
+                return x * (1.f - wet) + echo * wet;
+            });
     }
 private:
-    std::vector<synth::DelayLine> lines_;
-    std::vector<float> buf_;
+    ugen_detail::Lift<synth::DelayLine> lift_;
 };
 
 // tanh waveshaper (stateless — channel count passes straight through).
 struct ShaperNode {
     static consteval std::string_view name() { return "shaper"; }
-    struct inputs {
-        port<"audio", AudioBuffer> audio;
-        slider<"drive", "", float, fp(0.1f), fp(20.f), fp(2.f)> drive;
-    } inputs;
-    struct outputs { port<"audio", AudioBuffer> audio; } outputs;
+    struct endpoints {
+        in<AudioBuffer> audio;
+        normalled_in<float, fp(0.1f), fp(20.f), fp(2.f)> drive;
+        out<AudioBuffer> audio_out;
+    } endpoints;
+    struct Stateless {};
     void operator()(double) {
-        const AudioBuffer& in = inputs.audio.value;
-        int ch = ugen_detail::chans(in);
-        std::size_t samples = in.data ? std::size_t(in.frames) * std::size_t(ch) : 0;
-        buf_.resize(samples);
-        float d = inputs.drive.value, norm = std::tanh(d);
-        for (std::size_t i = 0; i < samples; ++i)
-            buf_[i] = std::tanh(in.data[i] * d) / norm;
-        outputs.audio.value = AudioBuffer{buf_.data(), in.data ? in.frames : 0,
-                                          ch, in.sample_rate};
+        float d = endpoints.drive.get(), norm = std::tanh(d);
+        endpoints.audio_out.value = lift_.run(endpoints.audio.get(),
+            [](Stateless&, bool) {},
+            [&](Stateless&, float x, int, int) { return std::tanh(x * d) / norm; });
     }
 private:
-    std::vector<float> buf_;
+    ugen_detail::Lift<Stateless> lift_;
 };
 
 // Sample & hold, per-channel held values on a shared clock.
 struct SampleHoldNode {
     static consteval std::string_view name() { return "sample_hold"; }
-    struct inputs {
-        port<"audio", AudioBuffer> audio;
-        slider<"rate", "Hz", float, fp(0.5f), fp(2000.f), fp(20.f)> rate;
-    } inputs;
-    struct outputs { port<"audio", AudioBuffer> audio; } outputs;
+    struct endpoints {
+        in<AudioBuffer> audio;
+        normalled_in<float, fp(0.5f), fp(2000.f), fp(20.f)> rate;
+        out<AudioBuffer> audio_out;
+    } endpoints;
     void operator()(double) {
-        const AudioBuffer& in = inputs.audio.value;
-        int n  = in.data ? in.frames : 0;
-        int ch = ugen_detail::chans(in);
-        if (int(held_.size()) != ch) held_.assign(std::size_t(ch), {});
-        buf_.resize(std::size_t(n) * std::size_t(ch));
-        float period = 48000.f / std::max(0.5f, inputs.rate.value);
-        for (int i = 0; i < n; ++i) {
-            bool sample = (++count_ >= period);
-            if (sample) count_ = 0.f;
-            for (int c = 0; c < ch; ++c)
-                buf_[std::size_t(i) * std::size_t(ch) + std::size_t(c)] =
-                    held_[std::size_t(c)].tick(ugen_detail::at(in, i, c), sample);
-        }
-        outputs.audio.value = AudioBuffer{buf_.data(), n, ch, in.sample_rate};
+        float period = 48000.f / std::max(0.5f, endpoints.rate.get());
+        endpoints.audio_out.value = lift_.run(endpoints.audio.get(),
+            [](synth::SampleHold&, bool) {},
+            [&](synth::SampleHold& k, float x, int, int c) {
+                if (c == 0) {                      // shared clock: once per frame
+                    sample_now_ = (++count_ >= period);
+                    if (sample_now_) count_ = 0.f;
+                }
+                return k.tick(x, sample_now_);
+            });
     }
 private:
-    std::vector<float> buf_;
-    std::vector<synth::SampleHold> held_;
+    ugen_detail::Lift<synth::SampleHold> lift_;
     float count_ = 0.f;
+    bool  sample_now_ = false;
 };
 
 // Scalar slew limiter: de-zippers latched params (units per second).

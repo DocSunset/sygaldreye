@@ -29,4 +29,4 @@ what disappears is the hand-written buffer/channel/dt plumbing.
 
 ## Status
 - [x] rung 1: Lift<K> stamp (ugen_detail) + BiquadNode v6+lifted; ugens tests green. CONVENTION: processor in=audio, out=audio_out (matches combiners).
-- [ ] rung 2: delay, shaper, sample_hold, vca, adsr (NOTE: vca out-rename cascades into ALL presets + playground jsons — script it)
+- [x] rung 2: vca, delay, shaper, sample_hold, adsr all v6+lifted; rename cascade scripted through all presets + scene jsons; device replay verified (bell/rain/dac levels healthy through fully-lifted chains).

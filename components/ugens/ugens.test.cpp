@@ -95,7 +95,7 @@ TEST(Adsr, GateSignalDrivesEnvelope) {
     float peak = 0.f, trough = 1.f;
     for (int i = 0; i < 90; ++i) {   // 1.5 s: three gate cycles
         f.frame();
-        const AudioBuffer* env = f.audio("env.audio");
+        const AudioBuffer* env = f.audio("env.audio_out");
         ASSERT_TRUE(env);
         if (i > 30) {                // past the first cycle
             float r = rms(*env, 0);
