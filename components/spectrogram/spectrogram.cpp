@@ -44,7 +44,7 @@ SpectrogramNode::~SpectrogramNode() {
 }
 
 void SpectrogramNode::ensure_gl() {
-    int want = std::max(64, int(inputs.columns.value));
+    int want = std::max(64, int(endpoints.columns.get()));
     if (tex_ && want == width_) return;
     if (tex_) glDeleteTextures(1, &tex_);
     width_ = want;
@@ -63,10 +63,10 @@ void SpectrogramNode::ensure_gl() {
 
 void SpectrogramNode::operator()(double) {
     ensure_gl();
-    const AudioBuffer& in = inputs.audio.value;
+    const AudioBuffer& in = endpoints.audio.get();
     if (in.data && in.frames > 0) {
         int stride = std::max(1, in.channels);
-        int ch     = std::clamp(int(inputs.channel.value), 0, stride - 1);
+        int ch     = std::clamp(int(endpoints.channel.get()), 0, stride - 1);
         for (int i = 0; i < in.frames; ++i)
             accum_.push_back(in.data[std::size_t(i) * std::size_t(stride) +
                                      std::size_t(ch)]);
@@ -79,7 +79,7 @@ void SpectrogramNode::operator()(double) {
         for (int i = 0; i < kFft; ++i)
             buf[std::size_t(i)] = accum_[std::size_t(i)] * window_[std::size_t(i)];
         fft(buf);
-        float gain = inputs.gain.value;
+        float gain = endpoints.gain.get();
         for (int b = 0; b < kFft / 2; ++b) {
             float mag = std::abs(buf[std::size_t(b)]) * (2.f / kFft);
             float v   = std::log10(1.f + gain * 9.f * mag);  // 0..~1
@@ -93,5 +93,5 @@ void SpectrogramNode::operator()(double) {
     }
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    outputs.texture.value = GpuTexture{tex_, width_, kFft / 2, GL_R8, GL_LINEAR};
+    endpoints.texture.value = GpuTexture{tex_, width_, kFft / 2, GL_R8, GL_LINEAR};
 }

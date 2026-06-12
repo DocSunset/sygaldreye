@@ -8,13 +8,10 @@ class MicInputNode {
 public:
     static consteval std::string_view name() { return "mic_input"; }
 
-    struct inputs {
-        slider<"gain", "", float, fp(0.f), fp(10.f), fp(1.f)> gain;
-    } inputs;
-
-    struct outputs {
-        port<"audio_out", AudioBuffer> audio_out;
-    } outputs;
+    struct endpoints {
+        normalled_in<float, fp(0.f), fp(10.f), fp(1.f)> gain;
+        out<AudioBuffer> audio_out;
+    } endpoints;
 
     MicInputNode();
     ~MicInputNode();

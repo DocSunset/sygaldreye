@@ -53,20 +53,20 @@ void PokeStickNode::ensure_gl() {
 }
 
 void PokeStickNode::operator()(double) {
-    Eigen::Vector3f pos = inputs.pos.value;
-    Eigen::Quaternionf rot = inputs.rot.value.normalized();
-    float len = inputs.length.value, rad = inputs.radius.value;
+    Eigen::Vector3f pos = endpoints.pos.get();
+    Eigen::Quaternionf rot = endpoints.rot.get().normalized();
+    float len = endpoints.length.get(), rad = endpoints.radius.get();
 
-    outputs.tip_pos.value = pos + rot * Eigen::Vector3f(0.f, 0.f, -len);
+    endpoints.tip_pos.value = pos + rot * Eigen::Vector3f(0.f, 0.f, -len);
 
     // Box centered halfway along the stick, pointing down controller -Z.
     Eigen::Affine3f model = Eigen::Translation3f(pos) * rot *
                             Eigen::Translation3f(0.f, 0.f, -len * 0.5f) *
                             Eigen::Scaling(rad, rad, len * 0.5f);
     Eigen::Matrix4f m = model.matrix();
-    bool active = inputs.active.value > 0.5f;
+    bool active = endpoints.active.get() > 0.5f;
 
-    outputs.render.value = [this, m, active](const Eigen::Matrix4f& vp) {
+    endpoints.render.value = [this, m, active](const Eigen::Matrix4f& vp) {
         ensure_gl();
         Eigen::Matrix4f mvp = vp * m;
         glUseProgram(program_);

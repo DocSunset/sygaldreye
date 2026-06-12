@@ -7,9 +7,9 @@
 #include <cstdio>
 
 void SamplePlayerNode::operator()(double time_s) {
-    if (inputs.seq.value != prev_seq_) {
-        prev_seq_ = inputs.seq.value;
-        std::string path = inputs.file.value;
+    if (endpoints.seq.get() != prev_seq_) {
+        prev_seq_ = endpoints.seq.get();
+        std::string path = endpoints.file.get();
         auto sh = sh_;
         auto load = [path, sh] {
             auto clip = std::make_shared<std::vector<float>>();
@@ -36,11 +36,11 @@ void SamplePlayerNode::operator()(double time_s) {
             pos_  = 0;
         }
     }
-    if (inputs.bip.value > 0.f && prev_bip_ == 0.f) {
-        bip_freq_   = inputs.bip.value > 0.75f ? 1100.f : 700.f;
+    if (endpoints.bip.get() > 0.f && prev_bip_ == 0.f) {
+        bip_freq_   = endpoints.bip.get() > 0.75f ? 1100.f : 700.f;
         bip_frames_ = 4000;  // ~83 ms
     }
-    prev_bip_ = inputs.bip.value;
+    prev_bip_ = endpoints.bip.get();
 
     double dt = (prev_t_ > 0.0) ? time_s - prev_t_ : 1.0 / 60.0;
     prev_t_ = time_s;
@@ -49,7 +49,7 @@ void SamplePlayerNode::operator()(double time_s) {
     buf_.assign(std::size_t(n), 0.f);
     for (int i = 0; i < n; ++i) {
         float s = 0.f;
-        if (clip_ && pos_ < clip_->size()) s += (*clip_)[pos_++] * inputs.gain.value;
+        if (clip_ && pos_ < clip_->size()) s += (*clip_)[pos_++] * endpoints.gain.get();
         if (bip_frames_ > 0) {
             float env = float(bip_frames_) / 4000.f;
             bip_phase_ += bip_freq_ / 48000.f;
@@ -59,6 +59,6 @@ void SamplePlayerNode::operator()(double time_s) {
         }
         buf_[std::size_t(i)] = s;
     }
-    outputs.audio.value   = AudioBuffer{buf_.data(), n, 1, 48000};
-    outputs.playing.value = (clip_ && pos_ < clip_->size()) ? 1.f : 0.f;
+    endpoints.audio.value   = AudioBuffer{buf_.data(), n, 1, 48000};
+    endpoints.playing.value = (clip_ && pos_ < clip_->size()) ? 1.f : 0.f;
 }

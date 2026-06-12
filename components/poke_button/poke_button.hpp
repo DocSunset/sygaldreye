@@ -13,20 +13,17 @@ struct PokeButtonNode {
     static consteval std::string_view name() { return "poke_button"; }
     static consteval std::string_view source_header() { return "components/poke_button/poke_button.hpp"; }
 
-    struct inputs {
-        port<"tip", Eigen::Vector3f> tip;     // probe point (stick tip)
-        slider<"press", "", float, fp(0.f), fp(1.f), fp(0.f)> press;
-        slider<"x", "m", float, fp(-10.f), fp(10.f), fp(0.f)>   x;
-        slider<"y", "m", float, fp(-10.f), fp(10.f), fp(1.2f)>  y;
-        slider<"z", "m", float, fp(-10.f), fp(10.f), fp(-0.5f)> z;
-        slider<"size", "m", float, fp(0.01f), fp(0.5f), fp(0.06f)> size;
-    } inputs;
-
-    struct outputs {
-        bang<"pressed">     pressed;  // tip inside AND press rising
-        port<"hover", float> hover;   // 1 while the tip is inside
-        port<"render", DrawFn> render;
-    } outputs;
+    struct endpoints {
+        in<Eigen::Vector3f> tip;              // probe point (stick tip)
+        normalled_in<float, fp(0.f),   fp(1.f),  fp(0.f)>    press;
+        normalled_in<float, fp(-10.f), fp(10.f), fp(0.f)>    x;
+        normalled_in<float, fp(-10.f), fp(10.f), fp(1.2f)>   y;
+        normalled_in<float, fp(-10.f), fp(10.f), fp(-0.5f)>  z;
+        normalled_in<float, fp(0.01f), fp(0.5f), fp(0.06f)>  size;
+        event_out pressed;            // tip inside AND press rising
+        out<float>  hover;            // 1 while the tip is inside
+        out<DrawFn> render;
+    } endpoints;
 
     void operator()(double time_s);
 

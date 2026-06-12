@@ -12,15 +12,13 @@ struct WavPlayerNode {
     static consteval std::string_view name() { return "wav_player"; }
     static consteval std::string_view source_header() { return "components/wav_player/wav_player.hpp"; }
 
-    struct inputs {
-        ::text<"file"> file;
-        slider<"seq", "", float, fp(0.f), fp(1e9f), fp(0.f)> seq;   // change → (re)play file
-        slider<"bip", "", float, fp(0.f), fp(1.f),  fp(0.f)> bip;   // >0 → beep (1=hi, 0.5=lo)
-        slider<"gain","", float, fp(0.f), fp(2.f),  fp(0.8f)> gain;
-    } inputs;
-    struct outputs {
-        port<"playing", float> playing;
-    } outputs;
+    struct endpoints {
+        normalled_in<std::string> file;
+        normalled_in<float, fp(0.f), fp(1e9f), fp(0.f)> seq;   // change → (re)play file
+        normalled_in<float, fp(0.f), fp(1.f),  fp(0.f)> bip;   // >0 → beep (1=hi, 0.5=lo)
+        normalled_in<float, fp(0.f), fp(2.f),  fp(0.8f)> gain;
+        out<float> playing;
+    } endpoints;
 
     void operator()(double);
 

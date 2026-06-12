@@ -17,17 +17,14 @@ struct SamplePlayerNode {
     static consteval std::string_view name() { return "sample_player"; }
     static consteval std::string_view source_header() { return "components/sample_player/sample_player.hpp"; }
 
-    struct inputs {
-        ::text<"file"> file;
-        slider<"seq",  "", float, fp(0.f), fp(1e9f), fp(0.f)> seq;  // change → (re)play
-        slider<"bip",  "", float, fp(0.f), fp(1.f),  fp(0.f)> bip;  // >0 → beep (1=hi, .5=lo)
-        slider<"gain", "", float, fp(0.f), fp(2.f),  fp(0.8f)> gain;
-    } inputs;
-
-    struct outputs {
-        port<"audio",   AudioBuffer> audio;
-        port<"playing", float>       playing;
-    } outputs;
+    struct endpoints {
+        normalled_in<std::string> file;
+        normalled_in<float, fp(0.f), fp(1e9f), fp(0.f)> seq;  // change → (re)play
+        normalled_in<float, fp(0.f), fp(1.f),  fp(0.f)> bip;  // >0 → beep (1=hi, .5=lo)
+        normalled_in<float, fp(0.f), fp(2.f),  fp(0.8f)> gain;
+        out<AudioBuffer> audio;
+        out<float>       playing;
+    } endpoints;
 
     void operator()(double time_s);
 

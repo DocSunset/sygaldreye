@@ -53,19 +53,19 @@ void PokeButtonNode::ensure_gl() {
 }
 
 void PokeButtonNode::operator()(double) {
-    Eigen::Vector3f pos{inputs.x.value, inputs.y.value, inputs.z.value};
-    float half = inputs.size.value * 0.5f;
-    Eigen::Vector3f d = inputs.tip.value - pos;
+    Eigen::Vector3f pos{endpoints.x.get(), endpoints.y.get(), endpoints.z.get()};
+    float half = endpoints.size.get() * 0.5f;
+    Eigen::Vector3f d = endpoints.tip.get() - pos;
     bool inside = std::abs(d.x()) < half && std::abs(d.y()) < half &&
                   std::abs(d.z()) < half;
 
-    bool press = inputs.press.value > 0.5f;
-    outputs.pressed.triggered = inside && press && !prev_press_;
+    bool press = endpoints.press.get() > 0.5f;
+    endpoints.pressed.triggered = inside && press && !prev_press_;
     prev_press_ = press;
-    outputs.hover.value = inside ? 1.f : 0.f;
+    endpoints.hover.value = inside ? 1.f : 0.f;
 
     bool lit = inside && press;
-    outputs.render.value = [this, pos, half, inside, lit](const Eigen::Matrix4f& vp) {
+    endpoints.render.value = [this, pos, half, inside, lit](const Eigen::Matrix4f& vp) {
         ensure_gl();
         Eigen::Matrix4f m = Eigen::Matrix4f::Identity();
         m(0, 0) = m(1, 1) = m(2, 2) = half;

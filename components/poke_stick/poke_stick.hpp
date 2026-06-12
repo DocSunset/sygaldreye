@@ -11,18 +11,15 @@ class PokeStickNode {
 public:
     static consteval std::string_view name() { return "poke_stick"; }
 
-    struct inputs {
-        port<"pos", Eigen::Vector3f>    pos;
-        port<"rot", Eigen::Quaternionf> rot;
-        slider<"length", "m", float, fp(0.05f), fp(0.5f), fp(0.15f)> length;
-        slider<"radius", "m", float, fp(0.002f), fp(0.02f), fp(0.005f)> radius;
-        slider<"active", "", float, fp(0.f), fp(1.f), fp(0.f)> active;
-    } inputs;
-
-    struct outputs {
-        port<"tip_pos", Eigen::Vector3f> tip_pos;
-        port<"render",  DrawFn>          render;
-    } outputs;
+    struct endpoints {
+        in<Eigen::Vector3f>    pos;
+        in<Eigen::Quaternionf> rot;
+        normalled_in<float, fp(0.05f),  fp(0.5f),  fp(0.15f)>  length;
+        normalled_in<float, fp(0.002f), fp(0.02f), fp(0.005f)> radius;
+        normalled_in<float, fp(0.f),    fp(1.f),   fp(0.f)>    active;
+        out<Eigen::Vector3f> tip_pos;
+        out<DrawFn>          render;
+    } endpoints;
 
     void operator()(double time_s);
 

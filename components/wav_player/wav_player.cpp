@@ -62,22 +62,22 @@ bool read_wav(const std::string& path, std::vector<float>& mono48k) {
 // (Pd model) — this node owns no hardware. playing is a best-effort
 // estimate from the clip length.
 void WavPlayerNode::operator()(double time_s) {
-    if (inputs.seq.value != prev_seq_) {
-        prev_seq_ = inputs.seq.value;
+    if (endpoints.seq.get() != prev_seq_) {
+        prev_seq_ = endpoints.seq.get();
         std::vector<float> clip;
-        if (!inputs.file.value.empty() && read_wav(inputs.file.value, clip)) {
-            float g = inputs.gain.value;
+        if (!endpoints.file.get().empty() && read_wav(endpoints.file.get(), clip)) {
+            float g = endpoints.gain.get();
             if (g != 1.f) for (float& s : clip) s *= g;
             playing_until_ = time_s + double(clip.size()) / 48000.0;
             AudioEngine::instance().play(std::move(clip));
-        } else if (!inputs.file.value.empty()) {
+        } else if (!endpoints.file.get().empty()) {
             std::fprintf(stderr, "wav_player: failed to load %s\n",
-                         inputs.file.value.c_str());
+                         endpoints.file.get().c_str());
         }
     }
-    if (inputs.bip.value > 0.f && prev_bip_ == 0.f) {
+    if (endpoints.bip.get() > 0.f && prev_bip_ == 0.f) {
         // Short sine bip (~83 ms), decaying envelope.
-        float freq = inputs.bip.value > 0.75f ? 1100.f : 700.f;
+        float freq = endpoints.bip.get() > 0.75f ? 1100.f : 700.f;
         std::vector<float> bip(4000);
         float phase = 0.f;
         for (size_t i = 0; i < bip.size(); ++i) {
@@ -88,7 +88,7 @@ void WavPlayerNode::operator()(double time_s) {
         }
         AudioEngine::instance().play(std::move(bip));
     }
-    prev_bip_ = inputs.bip.value;
+    prev_bip_ = endpoints.bip.get();
 
-    outputs.playing.value = (time_s < playing_until_) ? 1.f : 0.f;
+    endpoints.playing.value = (time_s < playing_until_) ? 1.f : 0.f;
 }

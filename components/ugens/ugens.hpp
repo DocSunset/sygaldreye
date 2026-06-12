@@ -341,17 +341,17 @@ private:
 // Scalar slew limiter: de-zippers latched params (units per second).
 struct SlewNode {
     static consteval std::string_view name() { return "slew"; }
-    struct inputs {
-        slider<"target", "", float, fp(-20000.f), fp(20000.f), fp(0.f)>   target;
-        slider<"rate", "/s", float, fp(0.01f),    fp(100000.f), fp(10.f)> rate;
-    } inputs;
-    struct outputs { port<"out", float> out; } outputs;
+    struct endpoints {
+        normalled_in<float, fp(-20000.f), fp(20000.f),  fp(0.f)>  target;
+        normalled_in<float, fp(0.01f),    fp(100000.f), fp(10.f)> rate;
+        ::out<float> out;   // ::-qualified: the field name shadows the shape
+    } endpoints;
     void operator()(double t) {
         double dt = (prev_t_ > 0.0) ? t - prev_t_ : 1.0 / 60.0;
         prev_t_ = t;
         if (dt <= 0.0 || dt > 0.1) dt = 1.0 / 60.0;
-        outputs.out.value = k_.tick(inputs.target.value,
-                                    inputs.rate.value * float(dt));
+        endpoints.out.value = k_.tick(endpoints.target.get(),
+                                      endpoints.rate.get() * float(dt));
     }
 private:
     double      prev_t_ = 0.0;

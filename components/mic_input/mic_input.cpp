@@ -14,8 +14,8 @@ MicInputNode::~MicInputNode() { AudioEngine::instance().remove_input_tap(); }
 void MicInputNode::operator()(double /*time_s*/) {
     tick_buf_.resize(kMaxTickFrames);
     int n = AudioEngine::instance().read_input(tick_buf_.data(), kMaxTickFrames);
-    if (n == 0) { outputs.audio_out.value = {}; return; }
-    float gain = inputs.gain.value;
+    if (n == 0) { endpoints.audio_out.value = {}; return; }
+    float gain = endpoints.gain.get();
     for (int i = 0; i < n; ++i) tick_buf_[std::size_t(i)] *= gain;
-    outputs.audio_out.value = {tick_buf_.data(), n, 1, 48000};
+    endpoints.audio_out.value = {tick_buf_.data(), n, 1, 48000};
 }

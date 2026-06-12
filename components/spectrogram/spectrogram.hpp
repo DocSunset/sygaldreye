@@ -17,16 +17,13 @@ struct SpectrogramNode {
     static constexpr int kFft  = 512;   // bins = 256
     static constexpr int kHop  = 256;
 
-    struct inputs {
-        port<"audio", AudioBuffer> audio;
-        slider<"gain",    "", float, fp(0.1f), fp(100.f), fp(8.f)>   gain;
-        slider<"columns", "", float, fp(64.f), fp(1024.f), fp(256.f)> columns;
-        slider<"channel", "", float, fp(0.f),  fp(7.f),    fp(0.f)>   channel;
-    } inputs;
-
-    struct outputs {
-        port<"texture", GpuTexture> texture;
-    } outputs;
+    struct endpoints {
+        in<AudioBuffer> audio;
+        normalled_in<float, fp(0.1f), fp(100.f),  fp(8.f)>   gain;
+        normalled_in<float, fp(64.f), fp(1024.f), fp(256.f)> columns;
+        normalled_in<float, fp(0.f),  fp(7.f),    fp(0.f)>   channel;
+        out<GpuTexture> texture;
+    } endpoints;
 
     SpectrogramNode();
     ~SpectrogramNode();
