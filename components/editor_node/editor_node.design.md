@@ -7,7 +7,9 @@ The graph editor as a node in the graph it edits. Wraps VrEditor.
 ## Ports
 - Inputs: left/right pos (vec3) + rot (quat), trigger_left/right,
   grip_right, thumb_x/y (sliders) — normally edge-fed from hand nodes.
-- Outputs: render (DrawFn).
+- Outputs: render (DrawFn); wires (Span, N×10 {from.xyz, to.xyz, rgba})
+  — wire geometry as data, rendered by the `wire_mesh` node
+  (decomposition slice 1).
 - Sources: `set_context(graph, registry)` — platform-injected each frame
   before tick (see edge_executor design for the ABI-context replacement).
 - Destinations: `take_edit()` — platform collects new-graph JSON after

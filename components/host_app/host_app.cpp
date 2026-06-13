@@ -1,48 +1,50 @@
 // Copyright 2026 Travis West
 #include "host_app.hpp"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+#include <GLES3/gl3.h>
+
+#include "aurora_curtain.hpp"
+#include "chladni.hpp"
+#include "claude_tmux.hpp"
+#include "cube_node.hpp"
+#include "dac_node.hpp"
+#include "editor_node.hpp"
 #include "eyeballs_node_abi.hpp"
 #include "fly_camera.hpp"
 #include "fly_camera_node.hpp"
+#include "glsl_effect.hpp"
 #include "hand_node.hpp"
-#include "editor_node.hpp"
-#include "spawner_node.hpp"
-#include "math_nodes.hpp"
-#include "stt_whisper.hpp"
-#include "tts_local.hpp"
-#include "net_nodes.hpp"
-#include "ui_nodes.hpp"
-#include "water_surface.hpp"
-#include "sky_dome.hpp"
-#include "star_field.hpp"
-#include "sun_light.hpp"
-#include "cube_node.hpp"
 #include "lissajous.hpp"
-#include "aurora_curtain.hpp"
-#include "chladni.hpp"
-#include "terrain_generator.hpp"
+#include "math_nodes.hpp"
+#include "mesh_nodes.hpp"
+#include "net_nodes.hpp"
+#include "osc_node.hpp"
 #include "particle_system.hpp"
-#include "reaction_diffusion.hpp"
+#include "poke_button.hpp"
+#include "poke_stick.hpp"
 #include "rd_gpu.hpp"
 #include "rd_renderer.hpp"
+#include "reaction_diffusion.hpp"
 #include "render_nodes.hpp"
-#include "glsl_effect.hpp"
-#include "mesh_nodes.hpp"
-#include "claude_tmux.hpp"
-#include "trigger_edge.hpp"
-#include "text_label.hpp"
-#include "poke_stick.hpp"
-#include "poke_button.hpp"
-#include "spectrogram.hpp"
-#include "osc_node.hpp"
-#include "dac_node.hpp"
-#include "ugens.hpp"
-#include "spatialize_node.hpp"
 #include "sample_player.hpp"
+#include "sky_dome.hpp"
+#include "spatialize_node.hpp"
+#include "spawner_node.hpp"
+#include "spectrogram.hpp"
+#include "star_field.hpp"
+#include "stb_image_write.h"
+#include "stt_whisper.hpp"
+#include "sun_light.hpp"
+#include "terrain_generator.hpp"
+#include "text_label.hpp"
+#include "trigger_edge.hpp"
+#include "tts_local.hpp"
 #include "tts_node.hpp"
+#include "ugens.hpp"
+#include "ui_nodes.hpp"
+#include "water_surface.hpp"
 #include "whisper_node.hpp"
-#include <GLES3/gl3.h>
+#include "wire_mesh.hpp"
 
 namespace {
 // The platform graph: interaction rig wired by edges + a starter scene.
@@ -52,6 +54,7 @@ constexpr const char* kDefaultGraph = R"({
         {"id":"hand_l","type":"hand","params":{"x":-0.25}},
         {"id":"hand_r","type":"hand","params":{"x":0.25}},
         {"id":"editor","type":"editor","params":{}},
+        {"id":"wires","type":"wire_mesh","params":{}},
         {"id":"sky","type":"sky_dome","params":{}},
         {"id":"water","type":"water_surface","params":{}},
         {"id":"sun","type":"sun_light","params":{}},
@@ -69,16 +72,18 @@ constexpr const char* kDefaultGraph = R"({
         {"from":"hand_r.trigger","to":"editor.trigger_right"},
         {"from":"hand_r.grip","to":"editor.grip_right"},
         {"from":"hand_l.thumb_x","to":"editor.thumb_x"},
-        {"from":"hand_l.thumb_y","to":"editor.thumb_y"}
+        {"from":"hand_l.thumb_y","to":"editor.thumb_y"},
+        {"from":"editor.wires","to":"wires.wires"}
     ]
 })";
-} // namespace
+}  // namespace
 
 void HostApp::init(int http_port) {
     auto& reg = core_.registry;
     reg.register_builtin(make_descriptor<FlyCameraNode>());
     reg.register_builtin(make_descriptor<HandNode>());
     reg.register_builtin(make_descriptor<EditorNode>());
+    reg.register_builtin(make_descriptor<WireMeshNode>());
     reg.register_builtin(make_descriptor<SpawnerNode>());
     reg.register_builtin(make_descriptor<LfoNode>());
     reg.register_builtin(make_descriptor<SttWhisperNode>());
@@ -167,10 +172,10 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<WhisperNode>());
 
     PeerCore::Config cfg;
-    cfg.http_port          = http_port;
+    cfg.http_port = http_port;
     cfg.default_graph_json = kDefaultGraph;
-    cfg.data_dir           = "/tmp";
-    cfg.graphs_dir         = "assets/graphs";
+    cfg.data_dir = "/tmp";
+    cfg.graphs_dir = "assets/graphs";
     core_.init(cfg);
 }
 

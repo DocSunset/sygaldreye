@@ -191,10 +191,6 @@ TEST_F(HttpTest, BroadcastEventReceivedBySseClient) {
 }
 
 TEST_F(HttpTest, GetPaletteListsType) {
-    static EyeballsNodeDescriptor stub{};
-    stub.version   = EYEBALLS_ABI_VERSION;
-    stub.type_name = "palette_test_node";
-
     server_.add_route("GET", "/palette",
         [](std::string_view) -> std::string {
             return R"(["palette_test_node"])";

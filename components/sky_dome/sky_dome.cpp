@@ -21,7 +21,6 @@ SkyDome SkyDome::create(SkyParams const& p) {
 // first tick: graph nodes are default-constructed, never via create().
 void SkyDome::init_gl() {
     SkyDome& d = *this;
-    SkyParams const& p = params_;
     d.dome_mesh_ = SphereMesh::create(make_sphere(32, 16));
 
     auto sky = GlProgram::build(sky_dome_shaders::DOME_VERT, sky_dome_shaders::DOME_FRAG);
