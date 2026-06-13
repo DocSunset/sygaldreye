@@ -1,4 +1,4 @@
-# Sygaldreyes
+# Sygaldreye
 
 WORK IN PROGRESS!
 
