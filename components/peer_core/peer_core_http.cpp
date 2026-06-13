@@ -225,6 +225,7 @@ void PeerCore::install_routes() {
         return s + "]}";
     });
     http_.add_route("GET", "/values", [this](std::string_view) -> std::string {
+        probe("");   // force a fresh frame-coherent snapshot
         std::lock_guard<std::mutex> lock(values_mutex_);
         std::string out = "{";
         bool first = true;

@@ -155,10 +155,11 @@ void frame() {
     g.audio.pump_offline(dt);
 
     Eigen::Matrix4f pv;
-    auto it = g.active->values.find("camera.pv");
-    if (it != g.active->values.end() &&
-        std::holds_alternative<Eigen::Matrix4f>(it->second)) {
-        pv = std::get<Eigen::Matrix4f>(it->second);
+    std::optional<PortValue> v;
+    for (const auto& n : g.active->nodes)
+        if (n.id == "camera") { v = read_output(n, "pv", "mat4"); break; }
+    if (v && std::holds_alternative<Eigen::Matrix4f>(*v)) {
+        pv = std::get<Eigen::Matrix4f>(*v);
     } else {
         FlyCamera fallback{};
         pv = fallback.proj(aspect) * fallback.view();

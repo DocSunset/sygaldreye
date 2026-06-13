@@ -99,7 +99,7 @@ TEST(HotReload, ParamsCarryAcrossDescriptorChange) {
         reg1);
     ASSERT_TRUE(g1);
     tick_graph(*g1, 0.0);
-    EXPECT_DOUBLE_EQ(std::get<double>(g1->values.at("h.v")), 7.0);  // v1: ×1
+    EXPECT_DOUBLE_EQ(std::get<double>(snapshot_values(*g1).at("h.v")), 7.0);  // v1: ×1
 
     // What POST /plugins does: serialize the live graph, re-parse through
     // the new registry, migrate.
@@ -107,7 +107,7 @@ TEST(HotReload, ParamsCarryAcrossDescriptorChange) {
     ASSERT_TRUE(g2);
     migrate_graph(*g2, *g1);
     tick_graph(*g2, 0.0);
-    EXPECT_DOUBLE_EQ(std::get<double>(g2->values.at("h.v")), 14.0);  // v2: ×2, gain carried
+    EXPECT_DOUBLE_EQ(std::get<double>(snapshot_values(*g2).at("h.v")), 14.0);  // v2: ×2, gain carried
 }
 #endif
 

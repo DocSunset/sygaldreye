@@ -192,9 +192,9 @@ void HostApp::frame(int width, int height, double time_s) {
 
     // The graph decides the view: camera.pv, if a camera node exists.
     Eigen::Matrix4f pv;
-    auto it = g->values.find("camera.pv");
-    if (it != g->values.end() && std::holds_alternative<Eigen::Matrix4f>(it->second)) {
-        pv = std::get<Eigen::Matrix4f>(it->second);
+    auto v = core_.read_node_output("camera", "pv", "mat4");
+    if (v && std::holds_alternative<Eigen::Matrix4f>(*v)) {
+        pv = std::get<Eigen::Matrix4f>(*v);
     } else {
         FlyCamera fallback{};
         pv = fallback.proj(aspect) * fallback.view();

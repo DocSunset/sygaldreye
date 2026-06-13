@@ -1,6 +1,7 @@
 // Copyright 2025 Travis West
 #include "subgraph_node.hpp"
 #include "signal_graph_plan.hpp"
+#include "port_schema_reader.hpp"
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -36,9 +37,18 @@ void SubgraphNode::operator()(double t) {
 }
 
 void SubgraphNode::push_outlets(EyeballsOutputCtx* ctx) const {
+    // Pull-only path (phase D): read the inner node's owned storage typed
+    // by its schema kind — there is no inner values map.
     for (const auto& decl : inner_->outlets) {
-        auto it = inner_->values.find(decl.node + "." + decl.port);
-        if (it == inner_->values.end()) continue;
+        auto it = std::find_if(inner_->nodes.begin(), inner_->nodes.end(),
+                               [&](const NodeInstance& n) { return n.id == decl.node; });
+        if (it == inner_->nodes.end()) continue;
+        std::string kind = "unknown";
+        PortSchema schema = parse_port_schema(it->desc->port_schema);
+        for (const auto& p : schema.outputs)
+            if (p.name == decl.port) { kind = p.kind; break; }
+        auto v = read_output(*it, decl.port, kind);
+        if (!v) continue;
         const char* nm = decl.name.c_str();
         std::visit([&](const auto& val) {
             using T = std::decay_t<decltype(val)>;
@@ -68,8 +78,15 @@ void SubgraphNode::push_outlets(EyeballsOutputCtx* ctx) const {
                 if (ctx->emit_mesh)
                     ctx->emit_mesh(ctx->store, ctx->node_id, nm,
                                    static_cast<const void*>(&val));
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                if (ctx->emit_text)
+                    ctx->emit_text(ctx->store, ctx->node_id, nm, val.c_str());
+            } else if constexpr (std::is_same_v<T, Span>) {
+                if (ctx->emit_span)
+                    ctx->emit_span(ctx->store, ctx->node_id, nm,
+                                   val.data, val.rows, val.cols);
             }
-        }, it->second);
+        }, *v);
     }
 }
 

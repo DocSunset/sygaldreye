@@ -51,7 +51,6 @@ struct Graph {
     std::vector<Edge>                            edges;
     std::vector<InletDecl>                       inlets;
     std::vector<OutletDecl>                      outlets;
-    std::unordered_map<std::string, PortValue>   values;      // "node_id.port_name" → typed value
     std::vector<DrawFn>                          draw_calls;  // cleared each tick
     std::vector<SubgraphDescriptorPtr>           owned_descriptors;
     // Resolved edge references, z⁻¹ delay mappings, region split, and
@@ -86,6 +85,11 @@ void migrate_graph(Graph& fresh, Graph& old);
 
 // Runs one evaluation step on all nodes in insertion order.
 void tick_graph(Graph& g, double time_s);
+
+// Pull observability (endpoints_v6 phase D): one frame-coherent sweep of
+// every node's outputs into a fresh map. Execution never builds this —
+// it exists only when an observer asks (HTTP /values, probes, tests).
+std::unordered_map<std::string, PortValue> snapshot_values(const Graph& g);
 
 // Strips whitespace outside string literals (standard JSON → the compact
 // form the mini-parsers expect).

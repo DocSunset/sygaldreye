@@ -19,6 +19,11 @@ struct HostApp {
     std::optional<PortValue> probe(const std::string& key) {
         return core_.probe(key);
     }
+    std::optional<PortValue> read_node_output(const std::string& id,
+                                              const std::string& port,
+                                              const std::string& kind) {
+        return core_.read_node_output(id, port, kind);
+    }
     bool quit_requested() const { return core_.quit_requested(); }
 
 private:

@@ -89,6 +89,17 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
     plan->appliers.resize(g.nodes.size());
     plan->slot_appliers.resize(g.nodes.size());
     plan->delayed.resize(g.nodes.size());
+    plan->draw_consumed.assign(g.nodes.size(), 0);
+    auto make_applier = [&](const Edge& e, std::size_t from_i) {
+        return EdgeApplier{&e, &g.nodes[from_i],
+                           out_kind(g.nodes[from_i], e.from_port)};
+    };
+    for (const auto& e : g.edges) {
+        auto f = idx.find(e.from_node);
+        if (f != idx.end() &&
+            out_kind(g.nodes[f->second], e.from_port) == "draw_call")
+            plan->draw_consumed[f->second] = 1;
+    }
 
     std::vector<Edge> dag_edges;
     for (std::size_t ei = 0; ei < g.edges.size(); ++ei) {
@@ -111,27 +122,23 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
             // consumer's src points at; everything else is an ordinary
             // applier. Mappings into the block region (latch) apply
             // themselves on the audio thread.
+            // Frame-side delivery is the MAPPING's job (audio_region
+            // publish applies scalars/events to the consumer directly;
+            // rings fill the plan-owned slot the consumer's src points at).
             if (rt == Rate::Frame) {
                 std::string kind = out_kind(g.nodes[f->second], e.from_port);
-                if (g.nodes[t->second].desc->connect &&
-                    (kind == "audio" || kind == "mesh")) {
-                    TickPlan::SlotApplier sa{EdgeApplier{&e}, nullptr, nullptr};
-                    if (kind == "audio") {
-                        plan->audio_slots.emplace_back();
-                        sa.audio = &plan->audio_slots.back();
-                    } else {
-                        plan->mesh_slots.emplace_back();
-                        sa.mesh = &plan->mesh_slots.back();
-                    }
+                if (g.nodes[t->second].desc->connect && kind == "audio") {
+                    TickPlan::SlotApplier sa{make_applier(e, f->second), nullptr};
+                    plan->audio_slots.emplace_back();
+                    sa.audio = &plan->audio_slots.back();
                     plan->slot_appliers[t->second].push_back(sa);
-                } else {
-                    plan->appliers[t->second].push_back(EdgeApplier{&e});
                 }
             }
             continue;
         }
         if (back[ei]) {
-            plan->delays.push_back(DelayMapping{EdgeApplier{&e}, std::nullopt, rf});
+            plan->delays.push_back(DelayMapping{make_applier(e, f->second),
+                                                std::nullopt, rf});
             plan->delayed[t->second].push_back(&plan->delays.back());
         } else if (g.nodes[f->second].desc->version >= 6 &&
                    g.nodes[t->second].desc->version >= 6 &&
@@ -144,7 +151,7 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
             plan->wires.push_back(&e);
             dag_edges.push_back(e);
         } else {
-            plan->appliers[t->second].push_back(EdgeApplier{&e});
+            plan->appliers[t->second].push_back(make_applier(e, f->second));
             dag_edges.push_back(e);
         }
     }
@@ -174,8 +181,7 @@ void wire_plan(Graph& g) {
         for (auto& sa : g.plan->slot_appliers[i])
             g.nodes[i].desc->connect(
                 g.nodes[i].data, sa.applier.edge->to_port.c_str(),
-                sa.audio ? static_cast<const void*>(sa.audio)
-                         : static_cast<const void*>(sa.mesh));
+                static_cast<const void*>(sa.audio));
     for (const Edge* e : g.plan->wires) {
         auto f = by_id.find(e->from_node), t = by_id.find(e->to_node);
         if (f == by_id.end() || t == by_id.end()) continue;

@@ -174,8 +174,9 @@ TEST(SignalGraph, TickGraphPropagatesTopoOrder) {
     tick_graph(*g, 0.0);
 
     // After tick: value store should have a.val = 42.0
-    ASSERT_NE(g->values.find("a.val"), g->values.end());
-    EXPECT_NEAR(std::get<double>(g->values["a.val"]), 42.0, 1e-6);
+    auto vals = snapshot_values(*g);
+    ASSERT_NE(vals.find("a.val"), vals.end());
+    EXPECT_NEAR(std::get<double>(vals["a.val"]), 42.0, 1e-6);
 
     // Consumer node's input should have been set to 42
     auto* consumer = static_cast<ConsumerNode*>(g->nodes[0].data);
@@ -295,8 +296,9 @@ TEST(SignalGraph, InlineSubgraphEndToEnd) {
 
     tick_graph(*g, 0.0);
 
-    auto it = g->values.find("sub.out");
-    ASSERT_NE(it, g->values.end());
+    auto vals = snapshot_values(*g);
+    auto it = vals.find("sub.out");
+    ASSERT_NE(it, vals.end());
     EXPECT_NEAR(std::get<double>(it->second), 42.0, 1e-6);
 }
 
@@ -442,11 +444,12 @@ TEST(SubgraphInlets, RegistryJsonInjectionFansOut) {
     ASSERT_TRUE(g);
     tick_graph(*g, 0.0);  // src.count=5 published; tw sees stale/no inlet yet
     tick_graph(*g, 0.0);  // tw receives 5 → both counters step by 5
-    auto n1 = g->values.find("tw.n1");
-    ASSERT_NE(n1, g->values.end());
+    auto vals = snapshot_values(*g);
+    auto n1 = vals.find("tw.n1");
+    ASSERT_NE(n1, vals.end());
     EXPECT_GE(std::get<double>(n1->second), 5.0);
-    auto n2 = g->values.find("tw.n2");
-    ASSERT_NE(n2, g->values.end());
+    auto n2 = vals.find("tw.n2");
+    ASSERT_NE(n2, vals.end());
     EXPECT_GE(std::get<double>(n2->second), 5.0);
 }
 
@@ -486,13 +489,13 @@ TEST(MigrateGraph, RegistrySubgraphInstanceStateAdopted) {
     auto g1 = parse_graph(R"({"nodes":[{"id":"s","type":"one_counter","params":{}}],"edges":[]})", reg);
     ASSERT_TRUE(g1);
     for (int i = 0; i < 4; ++i) tick_graph(*g1, 0.0);
-    double before = std::get<double>(g1->values.at("s.n"));
+    double before = std::get<double>(snapshot_values(*g1).at("s.n"));
     EXPECT_GE(before, 4.0);
 
     auto g2 = parse_graph(R"({"nodes":[{"id":"s","type":"one_counter","params":{}}],"edges":[]})", reg);
     migrate_graph(*g2, *g1);  // same registry descriptor → inner graph adopted
     tick_graph(*g2, 0.0);
-    EXPECT_GE(std::get<double>(g2->values.at("s.n")), before + 1.0);
+    EXPECT_GE(std::get<double>(snapshot_values(*g2).at("s.n")), before + 1.0);
 }
 
 TEST(SubgraphInlets, NestedTwoLevelsForwards) {
@@ -519,8 +522,9 @@ TEST(SubgraphInlets, NestedTwoLevelsForwards) {
     tick_graph(*g, 0.0);
     tick_graph(*g, 0.0);
     tick_graph(*g, 0.0);
-    auto it = g->values.find("o.nn");
-    ASSERT_NE(it, g->values.end());
+    auto vals = snapshot_values(*g);
+    auto it = vals.find("o.nn");
+    ASSERT_NE(it, vals.end());
     EXPECT_GE(std::get<double>(it->second), 7.0);  // step=7 reached two levels deep
 }
 
@@ -751,8 +755,9 @@ TEST(TextEdges, TextFlowsThroughAnEdge) {
     for (auto& n : g->nodes) if (n.id == "b") b = static_cast<TextSinkNode*>(n.data);
     ASSERT_TRUE(b);
     EXPECT_EQ(b->endpoints.in.get(), "hello!");
-    auto it = g->values.find("a.text");
-    ASSERT_NE(it, g->values.end());
+    auto vals = snapshot_values(*g);
+    auto it = vals.find("a.text");
+    ASSERT_NE(it, vals.end());
     EXPECT_EQ(std::get<std::string>(it->second), "hello!");
 }
 
@@ -779,8 +784,9 @@ TEST(SubgraphInletParams, ParamsSetDefaultsAndRoundTrip) {
     auto g = parse_graph(json, reg);
     ASSERT_TRUE(g);
     tick_graph(*g, 0.0);
-    auto it = g->values.find("sub.out");
-    ASSERT_NE(it, g->values.end());
+    auto vals = snapshot_values(*g);
+    auto it = vals.find("sub.out");
+    ASSERT_NE(it, vals.end());
     EXPECT_NEAR(std::get<double>(it->second), 6.0, 1e-6);   // 3 * 2
 
     // round-trip: serialize captures the param default, reparse applies it
@@ -789,7 +795,8 @@ TEST(SubgraphInletParams, ParamsSetDefaultsAndRoundTrip) {
     auto g2 = parse_graph(s, reg);
     ASSERT_TRUE(g2);
     tick_graph(*g2, 0.0);
-    auto it2 = g2->values.find("sub.out");
-    ASSERT_NE(it2, g2->values.end());
+    auto vals2 = snapshot_values(*g2);
+    auto it2 = vals2.find("sub.out");
+    ASSERT_NE(it2, vals2.end());
     EXPECT_NEAR(std::get<double>(it2->second), 6.0, 1e-6);
 }

@@ -49,7 +49,14 @@ struct PeerCore {
     // ── any thread ───────────────────────────────────────────────────────
     void queue_param(std::string node_id, std::string params_json);
     void queue_edit(std::string graph_json);
+    // Pull observability (phase D): probe blocks until the next frame
+    // boundary publishes a fresh snapshot. HTTP threads only — the render
+    // thread reads node storage via read_node_output instead.
     std::optional<PortValue> probe(const std::string& key);
+    // Direct typed read of a node's output storage (render thread).
+    std::optional<PortValue> read_node_output(const std::string& node_id,
+                                              const std::string& port,
+                                              const std::string& kind);
     bool quit_requested() const { return quit_.load(); }
 
     // Net mapping, consumer side: connect to another peer's /ws, fetch its
@@ -77,6 +84,9 @@ private:
     EventQueue<std::string>                         edit_events_;
 
     std::mutex                                 values_mutex_;
+    std::condition_variable                    values_cv_;
+    bool                                       values_requested_ = false;
+    std::uint64_t                              values_gen_ = 0;
     std::unordered_map<std::string, PortValue> values_snapshot_;
 
     std::mutex              shot_mutex_;

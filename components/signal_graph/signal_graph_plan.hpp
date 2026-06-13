@@ -17,11 +17,13 @@
 // narrowed: a node with audio IN but no audio OUT — spectrogram — pins
 // render via its other ports and consumes the stream through a ring.)
 
-// One resolved connection: a slot in the owning region's store → the
-// target node. Resolution is lazy, then cached (slots are stable).
+// One resolved connection: the PRODUCER's owned storage → the target
+// node. Resolved at plan build; read_output() does the typed read.
+// (Phase D: there is no values map — references go to node storage.)
 struct EdgeApplier {
-    const Edge*      edge;
-    const PortValue* src = nullptr;
+    const Edge*         edge;
+    const NodeInstance* from = nullptr;   // producer instance
+    std::string         kind;             // producer port kind
 };
 
 // A cycle-closing edge: applies last tick's captured value (z⁻¹).
@@ -55,18 +57,18 @@ struct TickPlan {
     // become literal pointers (consumer src → producer storage), wired once
     // by wire_plan. No applier, no per-tick copy.
     std::vector<const Edge*>                 wires;
-    // Region-crossing stream edges into a v6 consumer: the mapping (ring)
-    // publishes into the frame store; a slot applier copies that value into
-    // a PLAN-OWNED typed slot the consumer's src points at — "cross-region
-    // consumers point at the MAPPING's slot", literally. deque: stable
-    // addresses.
+    // Per node: does some edge consume its draw output? (consumed nodes
+    // skip the global draw pass; precomputed — no store lookups)
+    std::vector<char>                        draw_consumed;
+    // Region-crossing audio edges into a v6 consumer: the ring mapping
+    // drains into a PLAN-OWNED slot the consumer's src points at —
+    // "cross-region consumers point at the MAPPING's slot", literally.
+    // deque: stable addresses.
     struct SlotApplier {
         EdgeApplier  applier;
-        AudioBuffer* audio = nullptr;   // exactly one of these is set,
-        MeshPtr*     mesh  = nullptr;   // by the edge's payload kind
+        AudioBuffer* audio = nullptr;
     };
     std::deque<AudioBuffer>                  audio_slots;
-    std::deque<MeshPtr>                      mesh_slots;
     std::vector<std::vector<SlotApplier>>    slot_appliers;  // per target node
 };
 
@@ -84,9 +86,13 @@ std::vector<const Edge*> cycle_mappings(const Graph& g);
 // Shared executor primitives (one implementation for every scheduler —
 // render, block, subgraph, net proxies).
 void apply_value(const NodeInstance& n, const char* port, const PortValue& value);
-// Output context whose emit callbacks write into `store`.
+// Output context whose emit callbacks write into `store` (observability
+// sweeps and tests; execution never touches a store).
 EyeballsOutputCtx output_ctx(std::unordered_map<std::string, PortValue>* store,
                              const char* node_id);
-// Lazy by-ref resolution of an applier against a region's store.
-const PortValue* resolve_applier(EdgeApplier& a,
-                                 const std::unordered_map<std::string, PortValue>& store);
+// Typed read of an applier's producer storage (output_ptr + kind).
+std::optional<PortValue> read_output(const EdgeApplier& a);
+// Typed read of an arbitrary output port (crossing endpoints, probes).
+std::optional<PortValue> read_output(const NodeInstance& n,
+                                     const std::string& port,
+                                     const std::string& kind);

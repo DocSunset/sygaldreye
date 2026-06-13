@@ -96,8 +96,9 @@ TEST(AudioRegion, SnapshotPublishesBlockScalars) {
                  {"from":"d.level","to":"k.value"}]})");
     ASSERT_TRUE(f.g);
     for (int i = 0; i < 5; ++i) f.frame();
-    auto it = f.g->values.find("d.level");
-    ASSERT_NE(it, f.g->values.end());
+    auto vals = snapshot_values(*f.g);
+    auto it = vals.find("d.level");
+    ASSERT_NE(it, vals.end());
     EXPECT_GT(std::get<double>(it->second), 0.1);  // sine at amp 1 → RMS ≈ 0.7
 }
 
@@ -121,8 +122,9 @@ TEST(AudioRegion, AudioOutletSubgraphJoinsBlockRegion) {
     ASSERT_TRUE(fx.g);
     EXPECT_EQ(fx.g->plan->block_order.size(), 2u);  // minisynth + dac
     for (int i = 0; i < 5; ++i) fx.frame();
-    auto it = fx.g->values.find("d.level");
-    ASSERT_NE(it, fx.g->values.end());
+    auto vals = snapshot_values(*fx.g);
+    auto it = vals.find("d.level");
+    ASSERT_NE(it, vals.end());
     EXPECT_GT(std::get<double>(it->second), 0.1);   // inner osc audible at the dac
 }
 

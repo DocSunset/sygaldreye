@@ -2,6 +2,7 @@
 #include "signal_graph.hpp"
 #include "signal_graph_plan.hpp"
 #include <cstring>
+#include <optional>
 
 // ── shared executor primitives (every scheduler uses these) ────────────────
 
@@ -108,16 +109,34 @@ EyeballsOutputCtx output_ctx(std::unordered_map<std::string, PortValue>* store,
     return ctx;
 }
 
-// Lazy reference resolution: the store slot exists once the producer first
-// emits; afterwards the cached pointer is a true by-ref edge (slots are
-// stable — entries are never erased from region stores).
-const PortValue* resolve_applier(EdgeApplier& a,
-                                 const std::unordered_map<std::string, PortValue>& store) {
-    if (!a.src) {
-        auto it = store.find(a.edge->from_node + "." + a.edge->from_port);
-        if (it != store.end()) a.src = &it->second;
-    }
-    return a.src;
+// Typed read of a producer's owned storage — the by-ref edge primitive.
+// Kinds mirror detail::v6_kind; scalar outs are float by convention.
+std::optional<PortValue> read_output(const NodeInstance& n,
+                                     const std::string& port,
+                                     const std::string& kind) {
+    if (!n.desc->output_ptr) return std::nullopt;
+    const void* p = n.desc->output_ptr(n.data, port.c_str());
+    if (!p) return std::nullopt;
+    if (kind == "scalar")   return PortValue{double(*static_cast<const float*>(p))};
+    if (kind == "bang")     return PortValue{*static_cast<const bool*>(p) ? 1.0 : 0.0};
+    if (kind == "bool")     return PortValue{*static_cast<const bool*>(p) ? 1.0 : 0.0};
+    if (kind == "vec2")     return PortValue{*static_cast<const Eigen::Vector2f*>(p)};
+    if (kind == "vec3")     return PortValue{*static_cast<const Eigen::Vector3f*>(p)};
+    if (kind == "vec4")     return PortValue{*static_cast<const Eigen::Vector4f*>(p)};
+    if (kind == "quat")     return PortValue{*static_cast<const Eigen::Quaternionf*>(p)};
+    if (kind == "mat4")     return PortValue{*static_cast<const Eigen::Matrix4f*>(p)};
+    if (kind == "texture")  return PortValue{*static_cast<const GpuTexture*>(p)};
+    if (kind == "audio")    return PortValue{*static_cast<const AudioBuffer*>(p)};
+    if (kind == "mesh")     return PortValue{*static_cast<const MeshPtr*>(p)};
+    if (kind == "draw_call")return PortValue{*static_cast<const DrawFn*>(p)};
+    if (kind == "text")     return PortValue{*static_cast<const std::string*>(p)};
+    if (kind == "span")     return PortValue{*static_cast<const Span*>(p)};
+    return std::nullopt;
+}
+
+std::optional<PortValue> read_output(const EdgeApplier& a) {
+    if (!a.from) return std::nullopt;
+    return read_output(*a.from, a.edge->from_port, a.kind);
 }
 
 // ── the render (frame) scheduler ────────────────────────────────────────────
@@ -130,15 +149,8 @@ void tick_graph(Graph& g, double time_s) {
     for (std::size_t idx : plan.order) {
         auto& n = g.nodes[idx];
 
-        for (auto& sa : plan.slot_appliers[idx])
-            if (const PortValue* src = resolve_applier(sa.applier, g.values)) {
-                if (sa.audio)
-                    if (auto* ab = std::get_if<AudioBuffer>(src)) *sa.audio = *ab;
-                if (sa.mesh)
-                    if (auto* m = std::get_if<MeshPtr>(src)) *sa.mesh = *m;
-            }
         for (auto& a : plan.appliers[idx])
-            if (const PortValue* src = resolve_applier(a, g.values))
+            if (auto src = read_output(a))
                 apply_value(n, a.edge->to_port.c_str(), *src);
         for (auto* d : plan.delayed[idx])
             if (d->prev)
@@ -146,28 +158,11 @@ void tick_graph(Graph& g, double time_s) {
 
         if (n.desc->process) n.desc->process(n.data, time_s);
 
-        if (n.desc->push_outputs) {
-            EyeballsOutputCtx ctx = output_ctx(&g.values, n.id.c_str());
-            n.desc->push_outputs(n.data, &ctx);
-        }
-
-        if (n.desc->push_draw_calls) {
-            // A node whose draw output feeds an edge is consumed by that
-            // consumer (render_target etc.) and skips the global pass.
-            bool consumed = false;
-            for (const auto& e : g.edges) {
-                if (e.from_node != n.id) continue;
-                auto it = g.values.find(e.from_node + "." + e.from_port);
-                if (it != g.values.end() &&
-                    std::holds_alternative<DrawFn>(it->second)) {
-                    consumed = true;
-                    break;
-                }
-            }
-            if (!consumed) {
-                DrawCallCtx ctx{n.id, &g.draw_calls};
-                n.desc->push_draw_calls(n.data, &ctx);
-            }
+        // A node whose draw output feeds an edge is consumed by that
+        // consumer (render_target etc.) and skips the global pass.
+        if (n.desc->push_draw_calls && !plan.draw_consumed[idx]) {
+            DrawCallCtx ctx{n.id, &g.draw_calls};
+            n.desc->push_draw_calls(n.data, &ctx);
         }
     }
 
@@ -175,6 +170,18 @@ void tick_graph(Graph& g, double time_s) {
     // its own at block end).
     for (auto& d : plan.delays)
         if (d.region == port_types::Rate::Frame)
-            if (const PortValue* src = resolve_applier(d.applier, g.values))
+            if (auto src = read_output(d.applier))
                 d.prev = *src;
+}
+
+// Pull observability: one frame-coherent sweep of every node's outputs.
+// Execution never builds this — it exists only when someone asks.
+std::unordered_map<std::string, PortValue> snapshot_values(const Graph& g) {
+    std::unordered_map<std::string, PortValue> out;
+    for (const auto& n : g.nodes)
+        if (n.desc->push_outputs) {
+            EyeballsOutputCtx ctx = output_ctx(&out, n.id.c_str());
+            n.desc->push_outputs(n.data, &ctx);
+        }
+    return out;
 }

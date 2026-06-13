@@ -12,11 +12,11 @@ void apply_fps_input(void* window, HostApp& app, float dt) {
     constexpr float kSens  = 0.003f;     // rad/pixel
 
     FlyCamera cam{};
-    if (auto p = app.probe("camera.pos"))
+    if (auto p = app.read_node_output("camera", "pos", "vec3"))
         cam.pos = std::get<Eigen::Vector3f>(*p);
-    if (auto y = app.probe("camera.yaw_out"))
+    if (auto y = app.read_node_output("camera", "yaw_out", "scalar"))
         cam.yaw = float(std::get<double>(*y));
-    if (auto p = app.probe("camera.pitch_out"))
+    if (auto p = app.read_node_output("camera", "pitch_out", "scalar"))
         cam.pitch = float(std::get<double>(*p));
 
     float fwd = 0.f, side = 0.f, up = 0.f;

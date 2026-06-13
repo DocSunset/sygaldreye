@@ -33,9 +33,11 @@ public:
     }
     void rebuild_unlocked(Graph& g);  // call while holding pause_blocks()
 
-    // Render thread, BEFORE tick_graph: rings + snapshots → g.values.
+    // Render thread, BEFORE tick_graph: rings → consumer slots,
+    // snapshots/events → consumer params (no values map — phase D).
     void publish(Graph& g);
-    // Render thread, AFTER tick_graph: capture latch sources from g.values.
+    // Render thread, AFTER tick_graph: capture latch/queue sources from
+    // the frame producers' owned storage.
     void capture_latches(const Graph& g);
     // Render thread: drive blocks manually when no device stream exists.
     void pump_offline(double dt);
@@ -49,13 +51,17 @@ private:
 
     struct Latch {                       // frame → block, any payload
         const Edge*  edge;
+        NodeInstance from;               // frame producer (copy)
+        std::string  kind;               // producer port kind
         NodeInstance to;                 // block node (copy)
         std::mutex   m;                  // audio side try_locks; a miss
         PortValue    value;              // keeps last block's value
         bool         set = false;
     };
     struct Ring {                        // block → frame audio
-        std::string         from_key;
+        NodeInstance        from;        // block producer (copy)
+        std::string         port;
+        AudioBuffer*        slot = nullptr;  // plan-owned consumer slot
         std::vector<float>  buf;         // SPSC ring (interleaved samples)
         std::atomic<size_t> head{0}, tail{0};
         std::vector<float>  drained;     // frame-side view storage
@@ -63,13 +69,16 @@ private:
         int                 sample_rate = 48000;
     };
     struct Snap {                        // block → frame scalar
-        std::string         from_key;
+        const Edge*         edge;
+        NodeInstance        from;        // block producer (copy)
+        NodeInstance        to;          // frame consumer (copy)
         std::atomic<double> value{0.0};
     };
     struct EvQueue {                     // events across the boundary:
         const Edge*      edge;           // counted, never dropped, each
-        NodeInstance     to;             // delivered for exactly one
-        std::string      from_key;       // tick/block on the far side
+        NodeInstance     from;           // producer (copy)
+        std::string      kind;           // producer port kind
+        NodeInstance     to;             // consumer (copy)
         std::atomic<int> pending{0};
         bool             applied_high = false;  // consumer side only
         bool             into_block   = false;
@@ -82,8 +91,7 @@ private:
     std::vector<std::unique_ptr<Ring>>    rings_;
     std::vector<std::unique_ptr<Snap>>    snaps_;
     std::vector<std::unique_ptr<EvQueue>> queues_;
-    std::vector<std::string> dac_out_keys_;  // ALL dacs sum into the device
-    std::unordered_map<std::string, PortValue> store_;  // block-region values
+    std::vector<NodeInstance> dacs_;     // ALL dacs sum into the device
     double t_ = 0.0;
     // Debug tracing is written here by the CALLBACK (snprintf into
     // preallocated storage, no syscalls) and flushed by the render thread.

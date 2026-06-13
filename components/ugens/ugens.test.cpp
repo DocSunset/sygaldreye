@@ -24,10 +24,12 @@ struct Fixture {
         g = parse_graph(json, reg);
     }
     void frame() { t += 1.0 / 60.0; tick_graph(*g, t); }
+    std::unordered_map<std::string, PortValue> vals;
     const AudioBuffer* audio(const char* key) {
-        auto it = g->values.find(key);
-        return it == g->values.end() ? nullptr
-                                     : std::get_if<AudioBuffer>(&it->second);
+        vals = snapshot_values(*g);
+        auto it = vals.find(key);
+        return it == vals.end() ? nullptr
+                                : std::get_if<AudioBuffer>(&it->second);
     }
 };
 
@@ -128,8 +130,9 @@ TEST(EndpointsV6Combiners, DeletedProducerLeavesNoStaleDrone) {
     migrate_graph(*g2, *f.g);          // the SAME mix instance survives
     tick_graph(*g2, f.t += 1.0 / 60.0);
     tick_graph(*g2, f.t += 1.0 / 60.0);
-    auto it = g2->values.find("m.audio");
-    ASSERT_NE(it, g2->values.end());
+    auto vals2 = snapshot_values(*g2);
+    auto it = vals2.find("m.audio");
+    ASSERT_NE(it, vals2.end());
     const AudioBuffer* after = std::get_if<AudioBuffer>(&it->second);
     ASSERT_TRUE(after);
     EXPECT_EQ(after->frames, 0);       // unconnected in<T> = absent, not stale

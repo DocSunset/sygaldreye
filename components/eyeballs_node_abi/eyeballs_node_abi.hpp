@@ -311,6 +311,10 @@ const EyeballsNodeDescriptor* make_descriptor() {
                     using F = std::remove_cvref_t<decltype(f)>;
                     if constexpr (V6Output<F>) {
                         if (nm == std::string_view(port)) out = &f.value;
+                    } else if constexpr (V6EventOut<F>) {
+                        // events expose their flag: readers see exactly the
+                        // tick the producer fired (recomputed per tick)
+                        if (nm == std::string_view(port)) out = &f.triggered;
                     }
                 });
             return out;

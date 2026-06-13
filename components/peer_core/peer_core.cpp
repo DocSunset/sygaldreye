@@ -1,5 +1,6 @@
 // Copyright 2026 Travis West
 #include "peer_core.hpp"
+#include <chrono>
 #include "editor_node.hpp"
 #include "spawner_node.hpp"
 #include "fly_camera_node.hpp"
@@ -91,9 +92,23 @@ void PeerCore::tick(double time_s) {
     tick_graph(*active_, time_s);
     audio_.capture_latches(*active_);  // frame control → block
     audio_.pump_offline(dt);           // no device? blocks run here
+    bool hosted_active;
     {
-        std::lock_guard<std::mutex> lock(values_mutex_);
-        values_snapshot_ = active_->values;
+        std::lock_guard<std::mutex> lock(hosted_mutex_);
+        hosted_active = !hosted_.empty();
+    }
+    {
+        // Pull observability: build a frame-coherent snapshot only when an
+        // observer asked since the last one. Zero cost unobserved. Hosted
+        // bridge nodes are STANDING observers (their outputs mirror to the
+        // remote peer every tick).
+        std::unique_lock<std::mutex> lock(values_mutex_);
+        if (values_requested_ || hosted_active) {
+            values_snapshot_ = snapshot_values(*active_);
+            values_requested_ = false;
+            ++values_gen_;
+            values_cv_.notify_all();
+        }
     }
     push_remote_outs();
 }
@@ -116,10 +131,24 @@ void PeerCore::queue_edit(std::string graph_json) {
 }
 
 std::optional<PortValue> PeerCore::probe(const std::string& key) {
-    std::lock_guard<std::mutex> lock(values_mutex_);
+    std::unique_lock<std::mutex> lock(values_mutex_);
+    std::uint64_t want = values_gen_ + 1;
+    values_requested_ = true;
+    values_cv_.wait_for(lock, std::chrono::milliseconds(250),
+                        [&] { return values_gen_ >= want; });
     auto it = values_snapshot_.find(key);
     if (it == values_snapshot_.end()) return std::nullopt;
     return it->second;
+}
+
+std::optional<PortValue> PeerCore::read_node_output(const std::string& node_id,
+                                                    const std::string& port,
+                                                    const std::string& kind) {
+    std::lock_guard<std::mutex> lock(graph_mutex_);
+    if (!active_) return std::nullopt;
+    for (const auto& n : active_->nodes)
+        if (n.id == node_id) return read_output(n, port, kind);
+    return std::nullopt;
 }
 
 void PeerCore::fulfil_screenshot(int width, int height) {

@@ -170,9 +170,10 @@ TEST_F(RealNodesTest, EdgePropagationSkyToWater) {
     tick_graph(*g, 0.0);
 
     // The value store should contain a scalar for the sky's output
-    ASSERT_GT(g->values.count("sky.sun_elevation_out"), 0u)
+    auto vals = snapshot_values(*g);
+    ASSERT_GT(vals.count("sky.sun_elevation_out"), 0u)
         << "sky.sun_elevation_out not in value store after tick";
-    auto& v = g->values.at("sky.sun_elevation_out");
+    auto& v = vals.at("sky.sun_elevation_out");
     EXPECT_TRUE(std::holds_alternative<double>(v))
         << "Expected double in value store for sun_elevation_out";
     // The value should be within the slider range [-1, 1]
