@@ -598,3 +598,25 @@ Stale-instance trap struck TWICE more (old binary on 8930 masquerading
 as fresh → phantom 'parse failed'). pkill -9 '[s]pectator' + port-free
 check before EVERY launch; sh/agent/launch.sh for backgrounding (bare
 '&' children die with the tool shell).
+
+## 2026-06-12 (editor decomposition begun — slice 1: wires as graph content)
+
+1. WIRE_MESH NODE: editor publishes wire endpoints as an N×10 span
+   {from.xyz, to.xyz, rgba}; wire_mesh tessellates the beziers and
+   draws GL_LINES with per-vertex color. Wire *look* is now a node you
+   can swap live; VrEditor::draw lost the wire pass (PrimBatch line
+   runs deleted).
+2. DEVICE EDITOR UNIFIED: app.cpp's embedded VrEditor is GONE. The
+   device default graph carries ctl_l/ctl_r (controller sources) →
+   editor → wires, identical shape to host. peer_core's pump_contexts
+   already injected editor context generically, so the shell shrank by
+   ~40 lines. CONSEQUENCE: a pushed scene must include the editor rig
+   (ctl_l, ctl_r, editor, wires + edges) or the device loses editing
+   until the next push — editor is content now, not chrome.
+3. Verified: host screenshot shows kind-colored beziers between hand
+   cards and editor + grey editor.wires→wires wire; device /values
+   shows editor.wires span[11x10], both render DrawFns live. In-headset
+   interaction check pending (Travis).
+
+Next slices (vr_editor_decomposition.md): hover labels, sliders via
+structured edit ops, cards+palette via lifting, gestures, delete VrEditor.
