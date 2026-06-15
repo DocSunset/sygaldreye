@@ -6,18 +6,20 @@
 
 #include "sygaldry_endpoints.hpp"
 
-// The audio device, as a node: one dac per peer owns the output stream
-// (edge_executor.design.md — advertised = available). Everything reachable
-// upstream of a dac through audio edges forms the BLOCK region, ticked by
-// the audio callback. The dac itself just gains its input into an owned
-// stereo-ready buffer; the audio_region scheduler delivers `out` to the
-// device (or to the offline pump when no device exists).
+// The audio output bus, as a node. Everything reachable upstream of a dac
+// through audio edges forms the BLOCK region, ticked by the audio callback.
+// The dac gains its input into an owned stereo-ready buffer and meters RMS;
+// it does NOT own the hardware. AudioEngine owns the one AudioOutput stream,
+// and audio_region SUMS every dac's `audio_out` into it (multiple dacs
+// sum-mix, Pd-style: mono duplicated to both ears, stereo added) — or drives
+// the offline pump when no device exists.
 //
-// KERNEL-EXTRACTION / CONFORMABILITY EXCEPTION: the dac is a resource
-// holder (it owns the output stream), so it is never lifted — lifting a
-// subgraph containing one is an error (conformability.md). Its per-sample
-// loop is a gain + RMS reduction over an already-shaped buffer, not a
-// liftable kernel.
+// KERNEL-EXTRACTION / CONFORMABILITY EXCEPTION: dac is the region's output
+// terminal, not a per-sample Lift kernel. conformability.md lists it among
+// the non-lifted boundary nodes — replicating a dac is meaningless (there is
+// one device), and the meaningful multi-dac semantics, summing, already lives
+// in audio_region. Its per-sample body is a gain + an RMS reduction (a
+// reduce, not element-wise) regardless.
 struct DacNode {
     static consteval std::string_view name() { return "dac"; }
     static consteval std::string_view source_header() { return "components/dac_node/dac_node.hpp"; }
