@@ -1,5 +1,7 @@
 add_library(synth_core STATIC synth_core.cpp)
 target_include_directories(synth_core PUBLIC .)
+# block_shell.hpp (generator shell) returns AudioBuffer.
+target_link_libraries(synth_core PUBLIC sygaldry_endpoints)
 target_compile_options(synth_core PRIVATE -Wall -Wextra)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)
