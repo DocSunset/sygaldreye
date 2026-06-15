@@ -52,7 +52,31 @@ kernels; conformability lifts them; ugens are born endpoints-v6 here
 - [x] plan written
 - [x] step 1 (kernels + tests: PinkNoise, DelayLine, SampleHold, Slew, GrainVoice in synth_core/kernels.hpp; 5 unit tests)
 - [x] step 2 (noise/delay/sample_hold/slew/grain_cloud shells loop kernels; osc_node already kernel-shaped; ugens.test green)
-- [>] step 3 (v6 migration of ugens) DEFERRED: legacy producers
-      (lfo, controllers) into v6 in<T> stream inputs are dead edges —
-      needs the whole-cluster move, scheduled with phase C proper.
+- [x] step 3 (v6 migration of ugens) — done with phase C: every node is
+      one endpoints struct; legacy producers gone. (kanban/done/endpoints_v6.md)
 - [x] step 4 (host tests green, android clean, device replay alive — NOTE: hit the swap-poison bug en route, see kanban/backlog/block_swap_poison.md; kernels exonerated)
+
+## Completion (2026-06-14, task #57)
+Both halves of the lift now have a compile-time stamp, no hand-written
+block loops outside documented exceptions:
+- PROCESSORS: ugen_detail::Lift<K> — one kernel instance per channel
+  (map axis) scanning frames (time axis). biquad/vca/delay/shaper/adsr/
+  sample_hold.
+- GENERATORS: synth::Gen (synth_core/block_shell.hpp) — the symmetric
+  partner; the source authors a per-sample body, the shell owns dt→frame
+  clamping + the mono AudioBuffer. noise/perc/grain_cloud migrated; osc
+  now uses synth::Phasor + synth::Gen (dropped its inline phase/loop —
+  this also makes saw/square/tri wrap per-sample, fixing a latent
+  block-end-only wrap; sine output unchanged).
+- EXCEPTIONS (documented in-source): metro (time/event node — per-sample
+  gate-edge timestamps, no kernel to lift), spatialize (axis-consuming
+  mono→stereo HRTF, whole-block; Steam Audio v2 pending), dac (resource
+  holder; never lifted — conformability.md).
+- Guards: ugens.test Generators.ShellsProduceSoundThroughGenerate (noise/
+  perc/grain_cloud RMS); existing synth_core kernel tests; 32/32 host
+  suites + android clean.
+
+Remaining (deferred to #58/#59, NOT this task): the channel-vs-time
+disambiguation by NAMED AXIS (today Lift maps channels and scans frames
+by position/convention; named axes from #58 make scan-vs-map explicit)
+and lifting generators over param-arrays (#59).

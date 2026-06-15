@@ -1,11 +1,14 @@
 // Copyright 2026 Travis West
 #include "ugens.hpp"
-#include "osc_node.hpp"
+
+#include <gtest/gtest.h>
+
+#include <cmath>
+
 #include "component_registry.hpp"
 #include "eyeballs_node_abi.hpp"
+#include "osc_node.hpp"
 #include "signal_graph.hpp"
-#include <gtest/gtest.h>
-#include <cmath>
 
 namespace {
 struct Fixture {
@@ -21,15 +24,20 @@ struct Fixture {
         reg.register_builtin(make_descriptor<AdsrNode>());
         reg.register_builtin(make_descriptor<VcaNode>());
         reg.register_builtin(make_descriptor<MixNode>());
+        reg.register_builtin(make_descriptor<NoiseNode>());
+        reg.register_builtin(make_descriptor<PercNode>());
+        reg.register_builtin(make_descriptor<GrainCloudNode>());
         g = parse_graph(json, reg);
     }
-    void frame() { t += 1.0 / 60.0; tick_graph(*g, t); }
+    void frame() {
+        t += 1.0 / 60.0;
+        tick_graph(*g, t);
+    }
     std::unordered_map<std::string, PortValue> vals;
     const AudioBuffer* audio(const char* key) {
         vals = snapshot_values(*g);
         auto it = vals.find(key);
-        return it == vals.end() ? nullptr
-                                : std::get_if<AudioBuffer>(&it->second);
+        return it == vals.end() ? nullptr : std::get_if<AudioBuffer>(&it->second);
     }
 };
 
@@ -41,7 +49,7 @@ float rms(const AudioBuffer& b, int c) {
     }
     return b.frames ? std::sqrt(s / float(b.frames)) : 0.f;
 }
-} // namespace
+}  // namespace
 
 TEST(Multichannel, PackCarriesChannelsAndUnpackPeelsThem) {
     Fixture f(R"({"nodes":[
@@ -95,18 +103,40 @@ TEST(Adsr, GateSignalDrivesEnvelope) {
         "edges":[{"from":"clk.gate_out","to":"env.gate"}]})");
     ASSERT_TRUE(f.g);
     float peak = 0.f, trough = 1.f;
-    for (int i = 0; i < 90; ++i) {   // 1.5 s: three gate cycles
+    for (int i = 0; i < 90; ++i) {  // 1.5 s: three gate cycles
         f.frame();
         const AudioBuffer* env = f.audio("env.audio_out");
         ASSERT_TRUE(env);
-        if (i > 30) {                // past the first cycle
+        if (i > 30) {  // past the first cycle
             float r = rms(*env, 0);
-            peak    = std::max(peak, r);
-            trough  = std::min(trough, r);
+            peak = std::max(peak, r);
+            trough = std::min(trough, r);
         }
     }
     EXPECT_GT(peak, 0.5f);    // sustained near sustain level while gated
     EXPECT_LT(trough, 0.1f);  // released between gates
+}
+
+TEST(Generators, ShellsProduceSoundThroughGenerate) {
+    // Guards the kernel_extraction.md generator-shell rewrite: noise, perc
+    // (gate-held), and grain_cloud all emit non-silent mono audio through
+    // synth::Gen::generate.
+    Fixture f(R"({"nodes":[
+        {"id":"nz","type":"noise","params":{"amp":0.5,"color":0}},
+        {"id":"pc","type":"perc","params":{"gate":1,"attack":0.005,"sustain":0.8}},
+        {"id":"gc","type":"grain_cloud","params":{"rate":800,"amp":0.8,"decay":0.05}}]
+        ,"edges":[]})");
+    ASSERT_TRUE(f.g);
+    float nz_rms = 0.f, pc_peak = 0.f, gc_rms = 0.f;
+    for (int i = 0; i < 30; ++i) {  // 0.5 s: perc attacks to sustain
+        f.frame();
+        nz_rms = std::max(nz_rms, rms(*f.audio("nz.audio"), 0));
+        pc_peak = std::max(pc_peak, rms(*f.audio("pc.audio"), 0));
+        gc_rms = std::max(gc_rms, rms(*f.audio("gc.audio"), 0));
+    }
+    EXPECT_GT(nz_rms, 0.1f);   // white noise at amp 0.5
+    EXPECT_GT(pc_peak, 0.3f);  // envelope reaches the sustain plateau
+    EXPECT_GT(gc_rms, 0.01f);  // stochastic grains fire and sum
 }
 
 TEST(EndpointsV6Combiners, DeletedProducerLeavesNoStaleDrone) {
@@ -121,13 +151,15 @@ TEST(EndpointsV6Combiners, DeletedProducerLeavesNoStaleDrone) {
     for (int i = 0; i < 5; ++i) f.frame();
     const AudioBuffer* live = f.audio("m.audio");
     ASSERT_TRUE(live);
-    EXPECT_GT(rms(*live, 0), 0.4f);   // slot path delivers legacy audio
+    EXPECT_GT(rms(*live, 0), 0.4f);  // slot path delivers legacy audio
 
-    auto g2 = parse_graph(R"({"nodes":[
+    auto g2 = parse_graph(
+        R"({"nodes":[
         {"id":"m","type":"mix","params":{}}],
-        "edges":[]})", f.reg);
+        "edges":[]})",
+        f.reg);
     ASSERT_TRUE(g2);
-    migrate_graph(*g2, *f.g);          // the SAME mix instance survives
+    migrate_graph(*g2, *f.g);  // the SAME mix instance survives
     tick_graph(*g2, f.t += 1.0 / 60.0);
     tick_graph(*g2, f.t += 1.0 / 60.0);
     auto vals2 = snapshot_values(*g2);
@@ -135,5 +167,5 @@ TEST(EndpointsV6Combiners, DeletedProducerLeavesNoStaleDrone) {
     ASSERT_NE(it, vals2.end());
     const AudioBuffer* after = std::get_if<AudioBuffer>(&it->second);
     ASSERT_TRUE(after);
-    EXPECT_EQ(after->frames, 0);       // unconnected in<T> = absent, not stale
+    EXPECT_EQ(after->frames, 0);  // unconnected in<T> = absent, not stale
 }

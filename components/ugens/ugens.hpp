@@ -1,13 +1,15 @@
 // Copyright 2026 Travis West
 #pragma once
-#include "sygaldry_endpoints.hpp"
-#include "synth_core.hpp"
-#include "kernels.hpp"
-#include "biquad_filter.hpp"
 #include <algorithm>
 #include <cmath>
 #include <string_view>
 #include <vector>
+
+#include "biquad_filter.hpp"
+#include "block_shell.hpp"
+#include "kernels.hpp"
+#include "sygaldry_endpoints.hpp"
+#include "synth_core.hpp"
 
 // The audio unit generators (ugen_decomposition.md phase 1+).
 //
@@ -22,40 +24,26 @@
 // processors produce exactly their input's frame count.
 
 namespace ugen_detail {
-constexpr float kRate = 48000.f;
-
-struct Gen {  // generator boilerplate: elapsed frames, clamped
-    std::vector<float> buf;
-    double prev_t = 0.0;
-    int frames(double t) {
-        double dt = (prev_t > 0.0) ? t - prev_t : 1.0 / 60.0;
-        prev_t = t;
-        if (dt <= 0.0 || dt > 0.1) dt = 1.0 / 60.0;
-        int n = std::clamp(int(dt * kRate), 0, 4800);
-        buf.resize(std::size_t(n));
-        return n;
-    }
-};
+using synth::Gen;  // generator block shell (synth_core/block_shell.hpp)
 
 inline int chans(const AudioBuffer& b) { return std::max(1, b.channels); }
 // Sample of channel c, wrapping into the buffer's own channel count
 // (mono broadcasts, mismatches wrap).
 inline float at(const AudioBuffer& b, int frame, int c) {
-    return b.data[std::size_t(frame) * std::size_t(chans(b)) +
-                  std::size_t(c % chans(b))];
+    return b.data[std::size_t(frame) * std::size_t(chans(b)) + std::size_t(c % chans(b))];
 }
 
 // The conformability stamp (conformability.md): one kernel instance per
 // channel (map axis), each scanning its frames (time axis). prepare runs
 // once per kernel per block (coefficient pushes); tick is the per-sample
 // kernel call. This replaces every hand-written processor shell.
-template<typename K>
+template <typename K>
 struct Lift {
-    std::vector<K>     kernels;
+    std::vector<K> kernels;
     std::vector<float> buf;
-    template<typename Prepare, typename Tick>
+    template <typename Prepare, typename Tick>
     AudioBuffer run(const AudioBuffer& in, Prepare&& prepare, Tick&& tick) {
-        int n  = (in.data && in.frames > 0) ? in.frames : 0;
+        int n = (in.data && in.frames > 0) ? in.frames : 0;
         int ch = chans(in);
         bool fresh = int(kernels.size()) != ch;
         if (fresh) kernels.assign(std::size_t(ch), K{});
@@ -68,23 +56,21 @@ struct Lift {
         return {buf.data(), n, ch, in.sample_rate};
     }
 };
-} // namespace ugen_detail
+}  // namespace ugen_detail
 
 // White (color 0) → pink (color 1) noise source. Mono.
 struct NoiseNode {
     static consteval std::string_view name() { return "noise"; }
     struct endpoints {
         normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> amp;
-        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)>  color;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> color;
         out<AudioBuffer> audio;
     } endpoints;
     void operator()(double t) {
-        int n = g_.frames(t);
         float a = endpoints.amp.get(), c = endpoints.color.get();
-        for (int i = 0; i < n; ++i)
-            g_.buf[std::size_t(i)] = a * k_.tick(c);
-        endpoints.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
+        endpoints.audio.value = g_.generate(t, [&] { return a * k_.tick(c); });
     }
+
 private:
     ugen_detail::Gen g_;
     synth::PinkNoise k_;
@@ -96,34 +82,33 @@ struct PercNode {
     static consteval std::string_view name() { return "perc"; }
     struct endpoints {
         event_in trigger;
-        normalled_in<float, fp(0.f),    fp(1.f), fp(0.f)>    gate;
-        normalled_in<float, fp(0.001f), fp(2.f), fp(0.01f)>  attack;
-        normalled_in<float, fp(0.001f), fp(2.f), fp(0.1f)>   decay;
-        normalled_in<float, fp(0.f),    fp(1.f), fp(0.7f)>   sustain;
-        normalled_in<float, fp(0.001f), fp(4.f), fp(0.2f)>   release;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> gate;
+        normalled_in<float, fp(0.001f), fp(2.f), fp(0.01f)> attack;
+        normalled_in<float, fp(0.001f), fp(2.f), fp(0.1f)> decay;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.7f)> sustain;
+        normalled_in<float, fp(0.001f), fp(4.f), fp(0.2f)> release;
         out<AudioBuffer> audio;
-        out<float>       level;
+        out<float> level;
     } endpoints;
     void operator()(double t) {
-        env_.attack_s      = endpoints.attack.get();
-        env_.decay_s       = endpoints.decay.get();
+        env_.attack_s = endpoints.attack.get();
+        env_.decay_s = endpoints.decay.get();
         env_.sustain_level = endpoints.sustain.get();
-        env_.release_s     = endpoints.release.get();
+        env_.release_s = endpoints.release.get();
         bool gate = endpoints.gate.get() > 0.5f;
         bool trig = endpoints.trigger.triggered;
         if (trig || (gate && !prev_gate_)) env_.gate_on();
         if (!gate && prev_gate_ && !trig) env_.gate_off();
         if (trig && !gate) auto_release_ = true;
         prev_gate_ = gate;
-        int n = g_.frames(t);
-        for (int i = 0; i < n; ++i) g_.buf[std::size_t(i)] = env_.tick();
+        endpoints.audio.value = g_.generate(t, [&] { return env_.tick(); });
         if (auto_release_ && env_.stage == synth::Adsr::Stage::Sustain) {
             env_.gate_off();
             auto_release_ = false;
         }
-        endpoints.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
         endpoints.level.value = env_.envelope;
     }
+
 private:
     ugen_detail::Gen g_;
     synth::Adsr env_;
@@ -140,22 +125,25 @@ struct AdsrNode {
     struct endpoints {
         in<AudioBuffer> gate;
         normalled_in<float, fp(0.001f), fp(2.f), fp(0.01f)> attack;
-        normalled_in<float, fp(0.001f), fp(2.f), fp(0.1f)>  decay;
-        normalled_in<float, fp(0.f),    fp(1.f), fp(0.7f)>  sustain;
-        normalled_in<float, fp(0.001f), fp(4.f), fp(0.2f)>  release;
+        normalled_in<float, fp(0.001f), fp(2.f), fp(0.1f)> decay;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.7f)> sustain;
+        normalled_in<float, fp(0.001f), fp(4.f), fp(0.2f)> release;
         out<AudioBuffer> audio_out;
     } endpoints;
     struct GateEnv {
         synth::Adsr env;
-        bool        prev = false;
+        bool prev = false;
     };
     void operator()(double) {
         float a = endpoints.attack.get(), d = endpoints.decay.get();
         float su = endpoints.sustain.get(), r = endpoints.release.get();
-        endpoints.audio_out.value = lift_.run(endpoints.gate.get(),
+        endpoints.audio_out.value = lift_.run(
+            endpoints.gate.get(),
             [&](GateEnv& k, bool) {
-                k.env.attack_s = a; k.env.decay_s = d;
-                k.env.sustain_level = su; k.env.release_s = r;
+                k.env.attack_s = a;
+                k.env.decay_s = d;
+                k.env.sustain_level = su;
+                k.env.release_s = r;
             },
             [](GateEnv& k, float x, int, int) {
                 bool g = x > 0.5f;
@@ -165,6 +153,7 @@ struct AdsrNode {
                 return k.env.tick();
             });
     }
+
 private:
     ugen_detail::Lift<GateEnv> lift_;
 };
@@ -175,7 +164,7 @@ struct VcaNode {
     static consteval std::string_view name() { return "vca"; }
     struct endpoints {
         in<AudioBuffer> audio;
-        in<AudioBuffer> env;     // mono broadcasts; otherwise channel-wise
+        in<AudioBuffer> env;  // mono broadcasts; otherwise channel-wise
         normalled_in<float, fp(0.f), fp(4.f), fp(1.f)> gain;
         out<AudioBuffer> audio_out;
     } endpoints;
@@ -183,15 +172,16 @@ struct VcaNode {
     void operator()(double) {
         const AudioBuffer e = endpoints.env.get();
         float gain = endpoints.gain.get();
-        endpoints.audio_out.value = lift_.run(endpoints.audio.get(),
+        endpoints.audio_out.value = lift_.run(
+            endpoints.audio.get(),
             [](Stateless&, bool) {},
             [&](Stateless&, float x, int i, int c) {
                 float g = gain;
-                if (e.data && e.frames > 0)
-                    g *= ugen_detail::at(e, std::min(i, e.frames - 1), c);
+                if (e.data && e.frames > 0) g *= ugen_detail::at(e, std::min(i, e.frames - 1), c);
                 return x * g;
             });
     }
+
 private:
     ugen_detail::Lift<Stateless> lift_;
 };
@@ -208,15 +198,15 @@ struct MixNode {
         out<AudioBuffer> audio;
     } endpoints;
     void operator()(double) {
-        const AudioBuffer bufs[4] = {endpoints.in1.get(), endpoints.in2.get(),
-                                     endpoints.in3.get(), endpoints.in4.get()};
-        float gains[4] = {endpoints.g1.get(), endpoints.g2.get(),
-                          endpoints.g3.get(), endpoints.g4.get()};
+        const AudioBuffer bufs[4] = {
+            endpoints.in1.get(), endpoints.in2.get(), endpoints.in3.get(), endpoints.in4.get()};
+        float gains[4] = {
+            endpoints.g1.get(), endpoints.g2.get(), endpoints.g3.get(), endpoints.g4.get()};
         int n = 0, ch = 1, rate = 48000;
         for (const auto& b : bufs)
             if (b.data && b.frames > 0) {
-                n    = std::max(n, b.frames);
-                ch   = std::max(ch, ugen_detail::chans(b));
+                n = std::max(n, b.frames);
+                ch = std::max(ch, ugen_detail::chans(b));
                 rate = b.sample_rate;
             }
         buf_.assign(std::size_t(n) * std::size_t(ch), 0.f);
@@ -229,6 +219,7 @@ struct MixNode {
         }
         endpoints.audio.value = AudioBuffer{buf_.data(), n, ch, rate};
     }
+
 private:
     std::vector<float> buf_;
 };
@@ -241,31 +232,35 @@ struct BiquadNode {
     struct endpoints {
         in<AudioBuffer> audio;
         normalled_in<float, fp(20.f), fp(20000.f), fp(1000.f)> freq;
-        normalled_in<float, fp(0.3f), fp(20.f),    fp(0.707f)> q;
-        normalled_in<float, fp(0.f),  fp(2.f),     fp(0.f)>    mode;
+        normalled_in<float, fp(0.3f), fp(20.f), fp(0.707f)> q;
+        normalled_in<float, fp(0.f), fp(2.f), fp(0.f)> mode;
         out<AudioBuffer> audio_out;
     } endpoints;
     void operator()(double) {
         float fr = endpoints.freq.get(), qq = endpoints.q.get();
-        int   m  = int(endpoints.mode.get() + 0.5f);
+        int m = int(endpoints.mode.get() + 0.5f);
         bool changed = fr != freq_ || qq != q_ || m != mode_;
         if (changed) {
-            freq_ = fr; q_ = qq; mode_ = m;
-            co_ = m == 1 ? synth::high_pass(fr, qq, 48000.f)
-                : m == 2 ? synth::band_pass(fr, qq, 48000.f)
-                         : synth::low_pass(fr, qq, 48000.f);
+            freq_ = fr;
+            q_ = qq;
+            mode_ = m;
+            co_ = m == 1   ? synth::high_pass(fr, qq, 48000.f)
+                  : m == 2 ? synth::band_pass(fr, qq, 48000.f)
+                           : synth::low_pass(fr, qq, 48000.f);
         }
-        endpoints.audio_out.value = lift_.run(endpoints.audio.get(),
+        endpoints.audio_out.value = lift_.run(
+            endpoints.audio.get(),
             [&](synth::BiquadFilter& k, bool fresh) {
                 if (changed || fresh) k.set_coeffs(co_);
             },
             [](synth::BiquadFilter& k, float x, int, int) { return k.tick(x); });
     }
+
 private:
     ugen_detail::Lift<synth::BiquadFilter> lift_;
     synth::BiquadCoeffs co_{};
     float freq_ = -1.f, q_ = -1.f;
-    int   mode_ = -1;
+    int mode_ = -1;
 };
 
 // Sample-accurate delay with feedback, per-channel lines.
@@ -273,22 +268,24 @@ struct DelayNode {
     static consteval std::string_view name() { return "delay"; }
     struct endpoints {
         in<AudioBuffer> audio;
-        normalled_in<float, fp(0.001f), fp(2.f),   fp(0.25f)> time;
-        normalled_in<float, fp(0.f),    fp(0.98f), fp(0.4f)>  feedback;
-        normalled_in<float, fp(0.f),    fp(1.f),   fp(0.5f)>  wet;
+        normalled_in<float, fp(0.001f), fp(2.f), fp(0.25f)> time;
+        normalled_in<float, fp(0.f), fp(0.98f), fp(0.4f)> feedback;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> wet;
         out<AudioBuffer> audio_out;
     } endpoints;
     static constexpr int kLen = 96000;
     void operator()(double) {
-        int   d  = std::clamp(int(endpoints.time.get() * 48000.f), 1, kLen - 1);
+        int d = std::clamp(int(endpoints.time.get() * 48000.f), 1, kLen - 1);
         float fb = endpoints.feedback.get(), wet = endpoints.wet.get();
-        endpoints.audio_out.value = lift_.run(endpoints.audio.get(),
+        endpoints.audio_out.value = lift_.run(
+            endpoints.audio.get(),
             [](synth::DelayLine& k, bool) { k.prepare(kLen); },
             [&](synth::DelayLine& k, float x, int, int) {
                 float echo = k.tick(x, d, fb);
                 return x * (1.f - wet) + echo * wet;
             });
     }
+
 private:
     ugen_detail::Lift<synth::DelayLine> lift_;
 };
@@ -304,10 +301,12 @@ struct ShaperNode {
     struct Stateless {};
     void operator()(double) {
         float d = endpoints.drive.get(), norm = std::tanh(d);
-        endpoints.audio_out.value = lift_.run(endpoints.audio.get(),
+        endpoints.audio_out.value = lift_.run(
+            endpoints.audio.get(),
             [](Stateless&, bool) {},
             [&](Stateless&, float x, int, int) { return std::tanh(x * d) / norm; });
     }
+
 private:
     ugen_detail::Lift<Stateless> lift_;
 };
@@ -322,51 +321,59 @@ struct SampleHoldNode {
     } endpoints;
     void operator()(double) {
         float period = 48000.f / std::max(0.5f, endpoints.rate.get());
-        endpoints.audio_out.value = lift_.run(endpoints.audio.get(),
+        endpoints.audio_out.value = lift_.run(
+            endpoints.audio.get(),
             [](synth::SampleHold&, bool) {},
             [&](synth::SampleHold& k, float x, int, int c) {
-                if (c == 0) {                      // shared clock: once per frame
+                if (c == 0) {  // shared clock: once per frame
                     sample_now_ = (++count_ >= period);
                     if (sample_now_) count_ = 0.f;
                 }
                 return k.tick(x, sample_now_);
             });
     }
+
 private:
     ugen_detail::Lift<synth::SampleHold> lift_;
     float count_ = 0.f;
-    bool  sample_now_ = false;
+    bool sample_now_ = false;
 };
 
 // Scalar slew limiter: de-zippers latched params (units per second).
 struct SlewNode {
     static consteval std::string_view name() { return "slew"; }
     struct endpoints {
-        normalled_in<float, fp(-20000.f), fp(20000.f),  fp(0.f)>  target;
-        normalled_in<float, fp(0.01f),    fp(100000.f), fp(10.f)> rate;
-        ::out<float> out;   // ::-qualified: the field name shadows the shape
+        normalled_in<float, fp(-20000.f), fp(20000.f), fp(0.f)> target;
+        normalled_in<float, fp(0.01f), fp(100000.f), fp(10.f)> rate;
+        ::out<float> out;  // ::-qualified: the field name shadows the shape
     } endpoints;
     void operator()(double t) {
         double dt = (prev_t_ > 0.0) ? t - prev_t_ : 1.0 / 60.0;
         prev_t_ = t;
         if (dt <= 0.0 || dt > 0.1) dt = 1.0 / 60.0;
-        endpoints.out.value = k_.tick(endpoints.target.get(),
-                                      endpoints.rate.get() * float(dt));
+        endpoints.out.value = k_.tick(endpoints.target.get(), endpoints.rate.get() * float(dt));
     }
+
 private:
-    double      prev_t_ = 0.0;
+    double prev_t_ = 0.0;
     synth::Slew k_;
 };
 
 // Bang clock: fires `rate` times per second. `gate_out` is the audio-rate
 // square gate (width × duty) for the CV adsr.
+//
+// KERNEL-EXTRACTION EXCEPTION (kernel_extraction.md): metro is a time/event
+// node, not a per-sample DSP kernel — it derives bang/event_out and a gate
+// whose edges fall at specific per-sample timestamps within the block. It
+// uses Gen::frames() for sizing but writes the gate buffer by hand rather
+// than through generate(): there is no per-sample kernel to lift.
 struct MetroNode {
     static consteval std::string_view name() { return "metro"; }
     struct endpoints {
-        normalled_in<float, fp(0.f), fp(50.f), fp(1.f)>  rate;
-        normalled_in<float, fp(0.f), fp(1.f),  fp(0.5f)> duty;
-        out<float>       bang_out;
-        event_out        fire;
+        normalled_in<float, fp(0.f), fp(50.f), fp(1.f)> rate;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> duty;
+        out<float> bang_out;
+        event_out fire;
         out<AudioBuffer> gate_out;
     } endpoints;
     void operator()(double t) {
@@ -379,7 +386,7 @@ struct MetroNode {
             // means t's EPOCH changed under us (region migration between
             // XR and stream clocks) — resync or never fire again.
             if (next_ == 0.0 || next_ > t + 1.0 / double(r)) {
-                next_       = t;
+                next_ = t;
                 gate_until_ = -1.0;
             }
             if (t >= next_) {
@@ -396,6 +403,7 @@ struct MetroNode {
         }
         endpoints.gate_out.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
     }
+
 private:
     ugen_detail::Gen g_;
     double next_ = 0.0, gate_until_ = -1.0;
@@ -405,39 +413,36 @@ private:
 struct GrainCloudNode {
     static consteval std::string_view name() { return "grain_cloud"; }
     struct endpoints {
-        normalled_in<float, fp(0.f),    fp(2000.f),  fp(100.f)>  rate;
-        normalled_in<float, fp(50.f),   fp(12000.f), fp(3000.f)> freq;
-        normalled_in<float, fp(0.f),    fp(1.f),     fp(0.5f)>   spread;
-        normalled_in<float, fp(0.001f), fp(0.5f),    fp(0.02f)>  decay;
-        normalled_in<float, fp(0.f),    fp(1.f),     fp(0.f)>    texture;
-        normalled_in<float, fp(0.f),    fp(1.f),     fp(0.5f)>   amp;
+        normalled_in<float, fp(0.f), fp(2000.f), fp(100.f)> rate;
+        normalled_in<float, fp(50.f), fp(12000.f), fp(3000.f)> freq;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> spread;
+        normalled_in<float, fp(0.001f), fp(0.5f), fp(0.02f)> decay;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> texture;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> amp;
         out<AudioBuffer> audio;
     } endpoints;
     void operator()(double t) {
-        int n = g_.frames(t);
-        float p_spawn = endpoints.rate.get() / ugen_detail::kRate;
-        float k = 1.f - 1.f / (endpoints.decay.get() * ugen_detail::kRate);
+        float p_spawn = endpoints.rate.get() / synth::kSampleRate;
+        float k = 1.f - 1.f / (endpoints.decay.get() * synth::kSampleRate);
         float freq = endpoints.freq.get(), spread = endpoints.spread.get();
         float texture = endpoints.texture.get(), amp = endpoints.amp.get();
-        for (int i = 0; i < n; ++i) {
+        endpoints.audio.value = g_.generate(t, [&] {
             if (synth::white_noise(rng_) * 0.5f + 0.5f < p_spawn) {
                 float r = synth::white_noise(rng_);
-                voices_[next_voice_++ % kVoices].strike(
-                    freq * (1.f + spread * r * 0.8f));
+                voices_[next_voice_++ % kVoices].strike(freq * (1.f + spread * r * 0.8f));
             }
             float sum = 0.f;
-            for (auto& v : voices_)
-                sum += v.tick(texture, k, rng_, float(ugen_detail::kRate));
-            g_.buf[std::size_t(i)] = amp * sum * 0.5f;
-        }
-        endpoints.audio.value = AudioBuffer{g_.buf.data(), n, 1, 48000};
+            for (auto& v : voices_) sum += v.tick(texture, k, rng_, synth::kSampleRate);
+            return amp * sum * 0.5f;
+        });
     }
+
 private:
     static constexpr int kVoices = 16;
     ugen_detail::Gen g_;
     synth::GrainVoice voices_[kVoices];
     uint32_t rng_ = 0x2468ace1u;
-    int      next_voice_ = 0;
+    int next_voice_ = 0;
 };
 // Concatenate up to four sources' channel lists into one multichannel
 // edge (Max's mc.pack~; Pd-style channel concatenation).
@@ -448,14 +453,14 @@ struct McPackNode {
         out<AudioBuffer> audio;
     } endpoints;
     void operator()(double) {
-        const AudioBuffer bufs[4] = {endpoints.in1.get(), endpoints.in2.get(),
-                                     endpoints.in3.get(), endpoints.in4.get()};
+        const AudioBuffer bufs[4] = {
+            endpoints.in1.get(), endpoints.in2.get(), endpoints.in3.get(), endpoints.in4.get()};
         const AudioBuffer* ins[4] = {&bufs[0], &bufs[1], &bufs[2], &bufs[3]};
         int n = 0, ch = 0, rate = 48000;
         for (auto* b : ins)
             if (b->data && b->frames > 0) {
-                n    = std::max(n, b->frames);
-                ch  += ugen_detail::chans(*b);
+                n = std::max(n, b->frames);
+                ch += ugen_detail::chans(*b);
                 rate = b->sample_rate;
             }
         int out_ch = std::max(1, ch);
@@ -466,12 +471,13 @@ struct McPackNode {
             int bch = ugen_detail::chans(*b);
             for (int i = 0; i < std::min(n, b->frames); ++i)
                 for (int c = 0; c < bch; ++c)
-                    buf_[std::size_t(i) * std::size_t(out_ch) +
-                         std::size_t(base + c)] = ugen_detail::at(*b, i, c);
+                    buf_[std::size_t(i) * std::size_t(out_ch) + std::size_t(base + c)] =
+                        ugen_detail::at(*b, i, c);
             base += bch;
         }
         endpoints.audio.value = AudioBuffer{buf_.data(), n, out_ch, rate};
     }
+
 private:
     std::vector<float> buf_;
 };
@@ -485,14 +491,13 @@ struct McUnpackNode {
     } endpoints;
     void operator()(double) {
         const AudioBuffer in = endpoints.audio.get();
-        int n  = in.data ? in.frames : 0;
+        int n = in.data ? in.frames : 0;
         int ch = ugen_detail::chans(in);
         auto peel = [&](auto& out, int c) {
             auto& buf = bufs_[std::size_t(c)];
             if (c < ch && n > 0) {
                 buf.resize(std::size_t(n));
-                for (int i = 0; i < n; ++i)
-                    buf[std::size_t(i)] = ugen_detail::at(in, i, c);
+                for (int i = 0; i < n; ++i) buf[std::size_t(i)] = ugen_detail::at(in, i, c);
                 out.value = AudioBuffer{buf.data(), n, 1, in.sample_rate};
             } else {
                 out.value = AudioBuffer{};
@@ -503,7 +508,7 @@ struct McUnpackNode {
         peel(endpoints.out3, 2);
         peel(endpoints.out4, 3);
     }
+
 private:
     std::vector<float> bufs_[4];
 };
-
