@@ -3,3 +3,4 @@ worktree
 .claude/worktrees/
 .venv-melotts
 assets/models/
+.claude/scheduled_tasks.lock
