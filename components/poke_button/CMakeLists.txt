@@ -1,4 +1,11 @@
 add_library(poke_button STATIC poke_button.cpp)
 target_include_directories(poke_button PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(poke_button PUBLIC sygaldry_endpoints)
-target_compile_options(poke_button PRIVATE -Wall -Wextra)
+target_link_libraries(poke_button PUBLIC tri_mesh render_payloads sygaldry_endpoints)
+target_compile_options(poke_button PRIVATE -Wall -Wextra -Werror)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(poke_button_test poke_button.test.cpp)
+    target_link_libraries(poke_button_test PRIVATE poke_button GTest::gtest_main)
+    target_compile_options(poke_button_test PRIVATE -Wall -Wextra)
+endif()

@@ -15,7 +15,7 @@ if(NOT CMAKE_CROSSCOMPILING)
             integration_real_nodes_gtest
             host_gl_context signal_graph component_registry eyeballs_node_abi
             port_schema_reader water_surface sky_dome lissajous chladni
-            reaction_diffusion)
+            reaction_diffusion mesh_nodes tree_generator subgraph_node)
         target_compile_options(integration_real_nodes_test PRIVATE -Wall -Wextra)
     endif()
 endif()

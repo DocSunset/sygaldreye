@@ -4,13 +4,14 @@
 // graph (advertisement = capability = placement), apply forwarded inputs,
 // mirror outputs back every frame. Consumer side: connect_peer registers
 // proxy descriptors. The evaluator can't tell a proxy from a local node.
+#include <array>
+#include <cstdio>
+#include <cstdlib>
+#include <optional>
+
 #include "peer_core.hpp"
 #include "port_schema_reader.hpp"
 #include "signal_graph_plan.hpp"
-#include <array>
-#include <optional>
-#include <cstdio>
-#include <cstdlib>
 
 namespace {
 
@@ -30,21 +31,26 @@ std::string_view find_object(std::string_view json, std::string_view key) {
     p += needle.size() - 1;
     int depth = 0;
     for (auto i = p; i < json.size(); ++i) {
-        if (json[i] == '{') ++depth;
-        else if (json[i] == '}' && --depth == 0) return json.substr(p, i - p + 1);
+        if (json[i] == '{')
+            ++depth;
+        else if (json[i] == '}' && --depth == 0)
+            return json.substr(p, i - p + 1);
     }
     return {};
 }
 
 // Insert a node entry into a serialized graph (same surgery as spawner).
-std::string insert_node(std::string json, const std::string& id,
-                        const std::string& type, std::string_view params) {
+std::string insert_node(
+    std::string json, const std::string& id, const std::string& type, std::string_view params) {
     auto epos = json.find("\"edges\"");
-    auto pos  = (epos == std::string::npos) ? json.rfind(']') : json.rfind(']', epos);
+    auto pos = (epos == std::string::npos) ? json.rfind(']') : json.rfind(']', epos);
     if (pos == std::string::npos) return json;
     std::string entry = (pos > 0 && json[pos - 1] != '[') ? "," : "";
     entry += "{\"id\":\"" + id + "\",\"type\":\"" + type + "\"";
-    if (!params.empty()) { entry += ",\"params\":"; entry += params; }
+    if (!params.empty()) {
+        entry += ",\"params\":";
+        entry += params;
+    }
     entry += "}";
     json.insert(pos, entry);
     return json;
@@ -60,11 +66,17 @@ std::string remove_node_entry(std::string json, const std::string& id) {
     int depth = 0;
     std::size_t end = start;
     for (std::size_t i = start; i < json.size(); ++i) {
-        if (json[i] == '{') ++depth;
-        else if (json[i] == '}' && --depth == 0) { end = i; break; }
+        if (json[i] == '{')
+            ++depth;
+        else if (json[i] == '}' && --depth == 0) {
+            end = i;
+            break;
+        }
     }
-    if (start > 0 && json[start - 1] == ',') --start;
-    else if (end + 1 < json.size() && json[end + 1] == ',') ++end;
+    if (start > 0 && json[start - 1] == ',')
+        --start;
+    else if (end + 1 < json.size() && json[end + 1] == ',')
+        ++end;
     json.erase(start, end - start + 1);
     return json;
 }
@@ -92,23 +104,34 @@ void append_value(std::string& out, const PortValue& val) {
         std::snprintf(buf, sizeof(buf), "[%g,%g]", double(v.x()), double(v.y()));
     } else if (std::holds_alternative<Eigen::Vector3f>(val)) {
         auto& v = std::get<Eigen::Vector3f>(val);
-        std::snprintf(buf, sizeof(buf), "[%g,%g,%g]",
-                      double(v.x()), double(v.y()), double(v.z()));
+        std::snprintf(buf, sizeof(buf), "[%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()));
     } else if (std::holds_alternative<Eigen::Vector4f>(val)) {
         auto& v = std::get<Eigen::Vector4f>(val);
-        std::snprintf(buf, sizeof(buf), "[%g,%g,%g,%g]",
-                      double(v.x()), double(v.y()), double(v.z()), double(v.w()));
+        std::snprintf(
+            buf,
+            sizeof(buf),
+            "[%g,%g,%g,%g]",
+            double(v.x()),
+            double(v.y()),
+            double(v.z()),
+            double(v.w()));
     } else if (std::holds_alternative<Eigen::Quaternionf>(val)) {
         auto& v = std::get<Eigen::Quaternionf>(val);
-        std::snprintf(buf, sizeof(buf), "[%g,%g,%g,%g]",
-                      double(v.x()), double(v.y()), double(v.z()), double(v.w()));
+        std::snprintf(
+            buf,
+            sizeof(buf),
+            "[%g,%g,%g,%g]",
+            double(v.x()),
+            double(v.y()),
+            double(v.z()),
+            double(v.w()));
     } else {
         return;  // textures/draw calls/meshes/audio don't mirror (v1)
     }
     out += buf;
 }
 
-} // namespace
+}  // namespace
 
 std::string PeerCore::handle_ws(unsigned long conn_id, std::string_view msg) {
     auto op = find_string(msg, "op");
@@ -138,8 +161,8 @@ std::string PeerCore::handle_ws(unsigned long conn_id, std::string_view msg) {
         }
         std::lock_guard<std::mutex> lock(graph_mutex_);
         if (active_)
-            queue_edit(insert_node(serialize_graph(*active_), uid, type,
-                                   find_object(msg, "params")));
+            queue_edit(
+                insert_node(serialize_graph(*active_), uid, type, find_object(msg, "params")));
     } else if (op == "set") {
         remote_sets_.push({uid, std::string(find_object(msg, "params"))});
     } else if (op == "despawn") {
@@ -167,13 +190,17 @@ void PeerCore::apply_remote_sets() {
                 auto pos = params.find(needle);
                 if (pos == std::string::npos) continue;
                 int cnt = 0;
-                auto f = parse_floats(
-                    std::string_view(params).substr(pos + needle.size() - 1), &cnt);
+                auto f =
+                    parse_floats(std::string_view(params).substr(pos + needle.size() - 1), &cnt);
                 std::optional<PortValue> v;
-                if (p.kind == "vec2")      v = Eigen::Vector2f{f[0], f[1]};
-                else if (p.kind == "vec3") v = Eigen::Vector3f{f[0], f[1], f[2]};
-                else if (p.kind == "vec4") v = Eigen::Vector4f{f[0], f[1], f[2], f[3]};
-                else if (p.kind == "quat") v = Eigen::Quaternionf{f[3], f[0], f[1], f[2]};
+                if (p.kind == "vec2")
+                    v = Eigen::Vector2f{f[0], f[1]};
+                else if (p.kind == "vec3")
+                    v = Eigen::Vector3f{f[0], f[1], f[2]};
+                else if (p.kind == "vec4")
+                    v = Eigen::Vector4f{f[0], f[1], f[2], f[3]};
+                else if (p.kind == "quat")
+                    v = Eigen::Quaternionf{f[3], f[0], f[1], f[2]};
                 if (v) apply_value(n, p.name.c_str(), *v);
             }
             break;
@@ -203,8 +230,7 @@ void PeerCore::push_remote_outs() {
             vals += "\"" + key.substr(prefix.size()) + "\":" + entry;
         }
         if (vals.empty()) continue;
-        http_.ws_send(conn, R"({"op":"out","id":")" + uid + R"(","values":{)" +
-                                vals + "}}");
+        http_.ws_send(conn, R"({"op":"out","id":")" + uid + R"(","values":{)" + vals + "}}");
     }
 }
 
@@ -218,8 +244,8 @@ int PeerCore::connect_peer(const std::string& ws_url) {
     if (!peer->fetch_types()) return 0;
     int count = 0;
     for (const auto& t : peer->types()) {
-        auto rd = std::make_unique<RemoteDescriptor>(peer.get(), t.type + "@" + alias,
-                                                     t.type, t.schema);
+        auto rd =
+            std::make_unique<RemoteDescriptor>(peer.get(), t.type + "@" + alias, t.type, t.schema);
         registry.register_builtin(rd->descriptor());
         remote_types_.push_back(std::move(rd));
         ++count;

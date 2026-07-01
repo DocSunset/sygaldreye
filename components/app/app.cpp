@@ -9,14 +9,24 @@
 #include <string_view>
 
 #include "aurora_curtain.hpp"
+#include "card_labels_mesh.hpp"
+#include "card_mesh.hpp"
+#include "card_widgets_mesh.hpp"
 #include "chladni.hpp"
+#include "color_mesh.hpp"
 #include "cube_node.hpp"
 #include "dac_node.hpp"
-#include "editor_node.hpp"
+#include "dwell_delete.hpp"
+#include "edit_sink.hpp"
+#include "editor_default_graph.hpp"
+#include "editor_wires.hpp"
 #include "eyeballs_node_abi.hpp"
+#include "flat_shader.hpp"
 #include "fly_camera_node.hpp"
 #include "frame_loop.hpp"
+#include "graph_source.hpp"
 #include "hand_node.hpp"
+#include "handle_picker.hpp"
 #include "input.hpp"
 #include "lissajous.hpp"
 #include "math_nodes.hpp"
@@ -25,6 +35,8 @@
 #include "mic_input.hpp"
 #include "net_nodes.hpp"
 #include "osc_node.hpp"
+#include "palette.hpp"
+#include "palette_mesh.hpp"
 #include "particle_system.hpp"
 #include "peer_core.hpp"
 #include "poke_button.hpp"
@@ -32,25 +44,34 @@
 #include "ptt_gate.hpp"
 #include "rd_gpu.hpp"
 #include "reaction_diffusion.hpp"
+#include "render_region.hpp"
+#include "render_region_nodes.hpp"
 #include "renderer.hpp"
 #include "renderer_node.hpp"
+#include "rubber_band_controller.hpp"
 #include "sample_player.hpp"
 #include "scene.hpp"
 #include "sky_dome.hpp"
+#include "slider_drag.hpp"
 #include "spatialize_node.hpp"
 #include "spawner_node.hpp"
 #include "spectrogram.hpp"
 #include "speech_to_text.hpp"
+#include "sprite.hpp"
 #include "star_field.hpp"
 #include "stt_whisper.hpp"
 #include "sun_light.hpp"
 #include "terrain_generator.hpp"
 #include "text_label.hpp"
+#include "tree_generator_node.hpp"
 #include "trigger_edge.hpp"
 #include "ugens.hpp"
 #include "ui_nodes.hpp"
+#include "undo_node.hpp"
+#include "vertex_color_mesh.hpp"
 #include "water_surface.hpp"
 #include "wav_player.hpp"
+#include "wire_drag.hpp"
 #include "wire_mesh.hpp"
 #include "xr_session.hpp"
 #include "xr_sources.hpp"
@@ -135,7 +156,7 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<RightControllerNode>());
     reg.register_builtin(make_descriptor<Lissajous>());
     reg.register_builtin(make_descriptor<Chladni>());
-    reg.register_builtin(make_descriptor<TerrainRenderer>());
+    reg.register_builtin(make_descriptor<Terrain>());
     reg.register_builtin(make_descriptor<ParticleSystem>());
     reg.register_builtin(make_descriptor<ReactionDiffusion>());
     reg.register_builtin(make_descriptor<RendererNode>());
@@ -160,12 +181,22 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<Join3Node>());
     reg.register_builtin(make_descriptor<UdpSendNode>());
     reg.register_builtin(make_descriptor<UdpRecvNode>());
-    reg.register_builtin(make_descriptor<UiSliderNode>());
-    reg.register_builtin(make_descriptor<UiButtonNode>());
-    reg.register_builtin(make_descriptor<UiPaneNode>());
     reg.register_builtin(make_descriptor<HandNode>());
     reg.register_builtin(make_descriptor<FlyCameraNode>());
     reg.register_builtin(make_descriptor<SpawnerNode>());
+    reg.register_builtin(make_descriptor<GraphSourceNode>());
+    reg.register_builtin(make_descriptor<EditSinkNode>());
+    reg.register_builtin(make_descriptor<CardMeshNode>());
+    reg.register_builtin(make_descriptor<CardWidgetsMeshNode>());
+    reg.register_builtin(make_descriptor<CardLabelsMeshNode>());
+    reg.register_builtin(make_descriptor<EditorWiresNode>());
+    reg.register_builtin(make_descriptor<HandlePickerNode>());
+    reg.register_builtin(make_descriptor<WireDragNode>());
+    reg.register_builtin(make_descriptor<SliderDragNode>());
+    reg.register_builtin(make_descriptor<DwellDeleteNode>());
+    reg.register_builtin(make_descriptor<UndoNode>());
+    reg.register_builtin(make_descriptor<PaletteNode>());
+    reg.register_builtin(make_descriptor<PaletteMeshNode>());
     reg.register_builtin(make_descriptor<AuroraCurtainNode>());
     reg.register_builtin(make_descriptor<WavPlayerNode>());
     reg.register_builtin(make_descriptor<OscNode>());
@@ -175,12 +206,25 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<VcaNode>());
     reg.register_builtin(make_descriptor<MixNode>());
     reg.register_builtin(make_descriptor<ScatterNode>());
+    reg.register_builtin(make_descriptor<SeedsNode>());
+    reg.register_builtin(make_descriptor<RenderHeadNode>());
+    reg.register_builtin(make_descriptor<DrawNode>());
+    reg.register_builtin(make_descriptor<ForestDrawNode>());
+    reg.register_builtin(make_descriptor<TreeGeneratorNode>());
+    reg.register_builtin(make_descriptor<ColorMeshNode>());
+    reg.register_builtin(make_descriptor<VertexColorMeshNode>());
+    reg.register_builtin(make_descriptor<SpriteNode>());
+    reg.register_builtin(make_descriptor<PokeStickNode>());
+    reg.register_builtin(make_descriptor<PokeButtonNode>());
+    reg.register_builtin(make_descriptor<UiSliderNode>());
+    reg.register_builtin(make_descriptor<UiButtonNode>());
+    reg.register_builtin(make_descriptor<UiPaneNode>());
+    reg.register_builtin(make_descriptor<RubberBandController>());
+    reg.register_builtin(make_descriptor<FlatMeshNode>());
     reg.register_builtin(make_descriptor<MeshGridNode>());
     reg.register_builtin(make_descriptor<MeshSphereNode>());
     reg.register_builtin(make_descriptor<MeshBoxNode>());
     reg.register_builtin(make_descriptor<MeshCylinderNode>());
-    reg.register_builtin(make_descriptor<MeshRenderNode>());
-    reg.register_builtin(make_descriptor<MeshInstancesNode>());
     reg.register_builtin(make_descriptor<BiquadNode>());
     reg.register_builtin(make_descriptor<DelayNode>());
     reg.register_builtin(make_descriptor<ShaperNode>());
@@ -194,10 +238,9 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<SpatializeNode>());
     reg.register_builtin(make_descriptor<SamplePlayerNode>());
     reg.register_builtin(make_descriptor<SpectrogramNode>());
-    reg.register_builtin(make_descriptor<PokeStickNode>());
-    reg.register_builtin(make_descriptor<PokeButtonNode>());
-    reg.register_builtin(make_descriptor<EditorNode>());
     reg.register_builtin(make_descriptor<WireMeshNode>());
+    // The card subgraph the editor lifts over the live graph (keyed by id).
+    reg.register_subgraph("card", editor_default_graph::kEditorCardSubgraph);
 }
 
 // Pump XR source nodes with current frame's live pose/input data.
@@ -242,6 +285,27 @@ static void pump_xr_sources(AppState& state, double /*time_sec*/) {
                 th_r.y(),
                 state.input_.button1_pressed(Hand::RIGHT),
                 state.input_.button2_pressed(Hand::RIGHT));
+        } else if (type == "hand") {
+            // Quest interim: feed the source-agnostic `hand` nodes the same XR
+            // state as the controllers (hand_l = left, hand_r = right) so
+            // editor.json's hand wiring is live in-headset. The proper fix —
+            // node-ify xr-land so controller nodes self-read in their tick and
+            // this pump disappears — is kanban/backlog/xr_subsystem_nodes.md.
+            bool right = n.id == "hand_r";
+            auto hp = right ? rh : lh;
+            XrPosef p = hp ? hp->pose : XrPosef{{0, 0, 0, 1}, {0, 0, 0}};
+            auto& e = static_cast<HandNode*>(n.data)->endpoints;
+            e.x.fallback = p.position.x;
+            e.y.fallback = p.position.y;
+            e.z.fallback = p.position.z;
+            e.qx.fallback = p.orientation.x;
+            e.qy.fallback = p.orientation.y;
+            e.qz.fallback = p.orientation.z;
+            e.qw.fallback = p.orientation.w;
+            e.trigger_in.fallback = (right ? trigger_right : trigger_left) ? 1.f : 0.f;
+            e.grip_in.fallback = right ? grip_r : grip_l;
+            e.thumb_x_in.fallback = (right ? th_r : th_l).x();
+            e.thumb_y_in.fallback = (right ? th_r : th_l).y();
         }
     }
 }
@@ -270,35 +334,16 @@ void android_main(struct android_app* app) {
 
     PeerCore::Config cfg;
     cfg.http_port = 8080;
-    cfg.default_graph_json = R"({
-        "nodes":[
-            {"id":"sky","type":"sky_dome","params":{}},
-            {"id":"water","type":"water_surface","params":{}},
-            {"id":"head","type":"head_pose","params":{}},
-            {"id":"renderer","type":"renderer","params":{}},
-            {"id":"sun","type":"sun_light","params":{}},
-            {"id":"cube","type":"cube","params":{}},
-            {"id":"ctl_l","type":"left_controller","params":{}},
-            {"id":"ctl_r","type":"right_controller","params":{}},
-            {"id":"editor","type":"editor","params":{}},
-            {"id":"wires","type":"wire_mesh","params":{}}
-        ],
-        "edges":[
-            {"from":"sky.sun_elevation_out","to":"water.sun_intensity"},
-            {"from":"ctl_l.pos","to":"editor.left_pos"},
-            {"from":"ctl_l.rot","to":"editor.left_rot"},
-            {"from":"ctl_r.pos","to":"editor.right_pos"},
-            {"from":"ctl_r.rot","to":"editor.right_rot"},
-            {"from":"ctl_l.trigger","to":"editor.trigger_left"},
-            {"from":"ctl_r.trigger","to":"editor.trigger_right"},
-            {"from":"ctl_r.grip","to":"editor.grip_right"},
-            {"from":"ctl_l.thumbstick_x","to":"editor.thumb_x"},
-            {"from":"ctl_l.thumbstick_y","to":"editor.thumb_y"},
-            {"from":"editor.wires","to":"wires.wires"}
-        ]
-    })";
+    cfg.default_graph_json = editor_default_graph::kEditorGraph;
     cfg.data_dir = app->activity->internalDataPath;
     cfg.graphs_dir = std::string(app->activity->internalDataPath) + "/graphs";
+    // Drop render_region's pointer-keyed caches when a retired graph is
+    // destructed (reused ShaderData/TriMeshData addresses would otherwise
+    // resolve to a freed node's program/geometry). begin_frame's swap runs on
+    // the render thread with a current GL context.
+    state.core_.on_graph_swapped = [](const Graph*) {
+        RenderRegion::instance().notify_graph_swap();
+    };
     state.core_.init(cfg);
 
     MdnsAdvertiser mdns_advertiser;
@@ -318,6 +363,7 @@ void android_main(struct android_app* app) {
         double now = double(ts.tv_sec) + double(ts.tv_nsec) * 1e-9;
         state.core_.begin_frame();
         state.core_.pump_contexts(1.f);
+        RenderRegion::instance().begin_frame();
         state.core_.tick(now);
         state.core_.collect_edits();
     };
@@ -387,6 +433,7 @@ void android_main(struct android_app* app) {
                 // by controller sources); edits flow through the core's
                 // queue mapping like any other node's.
                 pump_xr_sources(state, time_sec);
+                RenderRegion::instance().begin_frame();
                 state.core_.tick(time_sec);
                 state.core_.collect_edits();
 
@@ -401,9 +448,7 @@ void android_main(struct android_app* app) {
                     state.xrSession.worldSpace_(),
                     t,
                     [&](const Eigen::Matrix4f& proj, const Eigen::Matrix4f& view) {
-                        const Eigen::Matrix4f pv = proj * view;
-                        if (Graph* g = state.core_.graph())
-                            for (auto& call : g->draw_calls) call(pv);
+                        RenderRegion::instance().issue(view, proj, time_sec);
                     });
                 if (!ok) {
                     return {};

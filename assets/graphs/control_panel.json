@@ -10,8 +10,21 @@
     {"name":"a","node":"s1","port":"value"},
     {"name":"b","node":"s2","port":"value"}],
   "nodes":[
+    {"id":"head","type":"render_head","params":{}},
     {"id":"bg","type":"ui_pane","params":{"y":1.2,"width":0.5,"height":0.3}},
     {"id":"s1","type":"ui_slider","params":{"y":1.27,"min":0.3,"max":3,"init":1}},
-    {"id":"s2","type":"ui_slider","params":{"y":1.13,"min":0,"max":1,"init":0.2}}],
-  "edges":[]
+    {"id":"s2","type":"ui_slider","params":{"y":1.13,"min":0,"max":1,"init":0.2}},
+    {"id":"d_bg","type":"draw","params":{}},
+    {"id":"d_s1","type":"draw","params":{}},
+    {"id":"d_s2","type":"draw","params":{}}],
+  "edges":[
+    {"from":"head.frame","to":"d_bg.seq_in"},
+    {"from":"bg.mesh","to":"d_bg.mesh"},
+    {"from":"bg.surface","to":"d_bg.surface"},
+    {"from":"d_bg.seq_out","to":"d_s1.seq_in"},
+    {"from":"s1.mesh","to":"d_s1.mesh"},
+    {"from":"s1.surface","to":"d_s1.surface"},
+    {"from":"d_s1.seq_out","to":"d_s2.seq_in"},
+    {"from":"s2.mesh","to":"d_s2.mesh"},
+    {"from":"s2.surface","to":"d_s2.surface"}]
 }

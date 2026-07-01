@@ -16,6 +16,7 @@
 struct SamplePlayerNode {
     static consteval std::string_view name() { return "sample_player"; }
     static consteval std::string_view source_header() { return "components/sample_player/sample_player.hpp"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
 
     struct endpoints {
         normalled_in<std::string> file;

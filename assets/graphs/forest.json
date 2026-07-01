@@ -1,0 +1,18 @@
+{
+  "nodes":[
+    {"id":"head","type":"render_head","params":{}},
+    {"id":"sky","type":"sky_dome","params":{}},
+    {"id":"sky_d","type":"draw","params":{}},
+    {"id":"seeds","type":"seeds","params":{"count":24,"base":1,"step":1}},
+    {"id":"tree","type":"tree_generator","params":{"height":4,"spread":14}},
+    {"id":"bark","type":"color_mesh","params":{"r":0.35,"g":0.24,"b":0.12}},
+    {"id":"forest","type":"forest_draw","params":{}}
+  ],
+  "edges":[
+    {"from":"sky.surface","to":"sky_d.surface"},
+    {"from":"sky.mesh","to":"sky_d.mesh"},
+    {"from":"seeds.seeds","to":"tree.seed"},
+    {"from":"tree.mesh","to":"forest.meshes"},
+    {"from":"bark.surface","to":"forest.surface"}
+  ]
+}

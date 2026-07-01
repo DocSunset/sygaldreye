@@ -1,0 +1,3 @@
+add_library(render_payloads INTERFACE)
+target_include_directories(render_payloads INTERFACE .)
+target_link_libraries(render_payloads INTERFACE sygaldry_endpoints gpu_texture tri_mesh)

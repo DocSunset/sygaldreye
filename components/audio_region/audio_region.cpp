@@ -1,11 +1,13 @@
 // Copyright 2026 Travis West
 #include "audio_region.hpp"
-#include "audio_engine.hpp"
+
 #include <algorithm>
-#include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <optional>
+
+#include "audio_engine.hpp"
 
 // Block-scheduler tracing: SYGALDREYE_BLOCK_DEBUG=1 on host;
 // `adb shell setprop debug.sygaldreye.blk 1` on device.
@@ -30,9 +32,9 @@ static bool blk_debug() {
 #endif
 
 namespace {
-constexpr int    kRate    = 48000;
+constexpr int kRate = 48000;
 constexpr size_t kRingCap = 48000 * 2;  // 2 s per crossing edge
-} // namespace
+}  // namespace
 
 void AudioRegion::rebuild(Graph& g) {
     std::lock_guard<std::mutex> lock(plan_mutex_);
@@ -47,16 +49,15 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
     dacs_.clear();
 
     if (!g.plan) g.plan = build_plan(g);
-    wire_plan(g);   // idempotent; migrated instances need fresh src pointers
+    wire_plan(g);  // idempotent; migrated instances need fresh src pointers
     graph_ = &g;
-    plan_  = g.plan.get();
+    plan_ = g.plan.get();
 
     // The ENGINE owns the device stream; it persists across every graph —
     // an empty block region just renders silence. No churn, ever.
     if (plan_->block_order.empty()) return;
     for (std::size_t i : plan_->block_order)
-        if (std::string_view{g.nodes[i].desc->type_name} == "dac")
-            dacs_.push_back(g.nodes[i]);
+        if (std::string_view{g.nodes[i].desc->type_name} == "dac") dacs_.push_back(g.nodes[i]);
 
     // Instantiate the canonical mappings the plan declared at crossings.
     std::unordered_map<std::string, const NodeInstance*> by_id;
@@ -70,7 +71,7 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
             l->edge = c.edge;
             l->from = *f->second;
             l->kind = c.payload_kind;
-            l->to   = *t->second;
+            l->to = *t->second;
             latches_.push_back(std::move(l));
         } else if (c.mapping == "ring") {
             auto r = std::make_unique<Ring>();
@@ -86,15 +87,14 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
             auto s = std::make_unique<Snap>();
             s->edge = c.edge;
             s->from = *f->second;
-            s->to   = *t->second;
+            s->to = *t->second;
             snaps_.push_back(std::move(s));
-        }
-        else if (c.mapping == "queue") {
+        } else if (c.mapping == "queue") {
             auto q = std::make_unique<EvQueue>();
-            q->edge       = c.edge;
-            q->from       = *f->second;
-            q->kind       = c.payload_kind;
-            q->to         = *t->second;
+            q->edge = c.edge;
+            q->from = *f->second;
+            q->kind = c.payload_kind;
+            q->to = *t->second;
             q->into_block = c.to_region == port_types::Rate::Block;
             queues_.push_back(std::move(q));
         }
@@ -102,17 +102,17 @@ void AudioRegion::rebuild_unlocked(Graph& g) {
 
     auto& engine = AudioEngine::instance();
     engine.enable_device = enable_device;
-    engine.ensure_output(
-        [this](float* out, int frames) { render_block(out, frames); });
+    engine.ensure_output([this](float* out, int frames) { render_block(out, frames); });
     if (blk_debug())
-        BLKLOG("[reb] block=%zu device=%d latches=%zu snaps=%zu",
-               plan_->block_order.size(), int(engine.has_device()),
-               latches_.size(), snaps_.size());
+        BLKLOG(
+            "[reb] block=%zu device=%d latches=%zu snaps=%zu",
+            plan_->block_order.size(),
+            int(engine.has_device()),
+            latches_.size(),
+            snaps_.size());
 }
 
-bool AudioRegion::has_device() const {
-    return AudioEngine::instance().has_device();
-}
+bool AudioRegion::has_device() const { return AudioEngine::instance().has_device(); }
 
 // The block scheduler: the same plan subset, the same primitives, a
 // block-local store, block cadence.
@@ -124,13 +124,18 @@ void AudioRegion::render_block(float* out, int frames) {
     // Debug snapshot: snprintf into preallocated storage only — NEVER log
     // from this thread (the syscalls blew the callback deadline; audible).
     static int dbg_count = 0;
-    bool dbg_now = blk_debug() && (++dbg_count % 188 == 0) &&
-                   !dbg_ready_.load(std::memory_order_relaxed);
+    bool dbg_now =
+        blk_debug() && (++dbg_count % 188 == 0) && !dbg_ready_.load(std::memory_order_relaxed);
     if (dbg_now) {
-        int off = std::snprintf(dbg_buf_, sizeof(dbg_buf_),
-               "[blk] t=%.1f frames=%d order=%zu latches=%zu snaps=%zu",
-               t_, frames, plan_->block_order.size(),
-               latches_.size(), snaps_.size());
+        int off = std::snprintf(
+            dbg_buf_,
+            sizeof(dbg_buf_),
+            "[blk] t=%.1f frames=%d order=%zu latches=%zu snaps=%zu",
+            t_,
+            frames,
+            plan_->block_order.size(),
+            latches_.size(),
+            snaps_.size());
         for (std::size_t idx : plan_->block_order) {
             auto& n = graph_->nodes[idx];
             // v6 convention: generators emit 'audio', processors/dac
@@ -143,9 +148,12 @@ void AudioRegion::render_block(float* out, int frames) {
                     for (int i = 0; i < std::min(a->frames * a->channels, 256); ++i)
                         peak = std::max(peak, std::abs(a->data[i]));
             if (off < int(sizeof(dbg_buf_)))
-                off += std::snprintf(dbg_buf_ + off, sizeof(dbg_buf_) - off,
-                                     "\n[blk]   node %s peak=%g",
-                                     n.id.c_str(), double(peak));
+                off += std::snprintf(
+                    dbg_buf_ + off,
+                    sizeof(dbg_buf_) - off,
+                    "\n[blk]   node %s peak=%g",
+                    n.id.c_str(),
+                    double(peak));
         }
         dbg_ready_.store(true, std::memory_order_release);
     }
@@ -174,37 +182,43 @@ void AudioRegion::render_block(float* out, int frames) {
     for (std::size_t idx : plan_->block_order) {
         auto& n = graph_->nodes[idx];
         for (auto& a : plan_->appliers[idx])
-            if (auto src = read_output(a))
-                apply_value(n, a.edge->to_port.c_str(), *src);
+            if (auto src = read_output(a)) apply_value(n, a.edge->to_port.c_str(), *src);
         for (auto* d : plan_->delayed[idx])
-            if (d->prev)
-                apply_value(n, d->applier.edge->to_port.c_str(), *d->prev);
+            if (d->prev) apply_value(n, d->applier.edge->to_port.c_str(), *d->prev);
         if (n.desc->process) n.desc->process(n.data, t_);
     }
     for (auto& d : plan_->delays)
         if (d.region == port_types::Rate::Block)
-            if (auto src = read_output(d.applier))
-                d.prev = *src;
+            if (auto src = read_output(d.applier)) d.prev = *src;
 
     // Deliver EVERY dac's gained output to the device, summed — multiple
-    // dacs sum-mix like Pd (mono duplicates to both ears; stereo adds
-    // interleaved).
+    // dacs sum-mix like Pd. THE single interleave point: dac audio is planar
+    // (channel-major) internally; here it de-planarizes into the device's
+    // interleaved stereo stream (mono duplicates to both ears).
     for (const auto& dac : dacs_)
         if (dac.desc->output_ptr)
-            if (auto* a = static_cast<const AudioBuffer*>(
-                    dac.desc->output_ptr(dac.data, "audio_out"))) {
+            if (auto* a =
+                    static_cast<const AudioBuffer*>(dac.desc->output_ptr(dac.data, "audio_out"))) {
                 int n = std::min(frames, a->frames);
                 if (a->channels >= 2) {
-                    for (int i = 0; i < n * 2; ++i) out[i] += a->data[i];
+                    const float* r = a->data + a->frames;  // planar ch 1 block
+                    for (int i = 0; i < n; ++i) {
+                        out[i * 2] += a->data[i];
+                        out[i * 2 + 1] += r[i];
+                    }
                 } else {
                     for (int i = 0; i < n; ++i) {
-                        out[i * 2]     += a->data[i];
+                        out[i * 2] += a->data[i];
                         out[i * 2 + 1] += a->data[i];
                     }
                 }
             }
 
-    // Crossing mappings: ring pushes + scalar snapshots.
+    // Crossing mappings: ring pushes + scalar snapshots. The ring is a flat
+    // FIFO — it concatenates blocks, which only stays valid for channel-flat
+    // (mono) audio at the block→frame crossing (scopes/STT/spectrogram all
+    // read mono). A multichannel ring crossing would need boundary interleave
+    // like the device above; none exists today.
     for (auto& r : rings_) {
         if (!r->from.desc->output_ptr) continue;
         auto* a = static_cast<const AudioBuffer*>(
@@ -225,8 +239,7 @@ void AudioRegion::render_block(float* out, int frames) {
     }
     for (auto& s : snaps_)
         if (auto v = read_output(s->from, s->edge->from_port, "scalar"))
-            if (auto* d = std::get_if<double>(&*v))
-                s->value.store(*d, std::memory_order_relaxed);
+            if (auto* d = std::get_if<double>(&*v)) s->value.store(*d, std::memory_order_relaxed);
     for (auto& q : queues_)
         if (!q->into_block)
             if (auto v = read_output(q->from, q->edge->from_port, q->kind))
@@ -247,13 +260,11 @@ void AudioRegion::publish(Graph&) {
         int ch = std::max(1, r->channels.load(std::memory_order_relaxed));
         // Trim to whole frames so consumers never see a ragged tail.
         int frames = int(r->drained.size()) / ch;
-        if (r->slot)
-            *r->slot = AudioBuffer{r->drained.data(), frames, ch,
-                                   r->sample_rate};
+        if (r->slot) *r->slot = AudioBuffer{r->drained.data(), frames, ch, r->sample_rate};
     }
     for (auto& s : snaps_)
-        apply_value(s->to, s->edge->to_port.c_str(),
-                    PortValue{s->value.load(std::memory_order_relaxed)});
+        apply_value(
+            s->to, s->edge->to_port.c_str(), PortValue{s->value.load(std::memory_order_relaxed)});
     for (auto& q : queues_) {
         if (q->into_block) continue;
         if (q->pending.load(std::memory_order_acquire) > 0) {
@@ -279,7 +290,7 @@ void AudioRegion::capture_latches(const Graph&) {
         if (!v) continue;
         std::lock_guard<std::mutex> lock(l->m);
         l->value = std::move(*v);
-        l->set   = true;
+        l->set = true;
     }
 }
 
@@ -296,8 +307,7 @@ void AudioRegion::pump_offline(double dt) {
     engine.recover_input();
     static int dbg_pump = 0;
     if (blk_debug() && (++dbg_pump % 600) == 0)
-        BLKLOG("[pump] device=%d active=%d",
-               int(engine.has_device()), int(active()));
+        BLKLOG("[pump] device=%d active=%d", int(engine.has_device()), int(active()));
     if (engine.has_device() || !active()) return;
     int frames = std::clamp(int(dt * kRate), 0, 4800);
     if (frames == 0) return;

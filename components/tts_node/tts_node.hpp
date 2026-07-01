@@ -14,6 +14,7 @@
 struct TtsNode {
     static consteval std::string_view name() { return "tts"; }
     static consteval std::string_view source_header() { return "components/tts_node/tts_node.hpp"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
 
     struct endpoints {
         normalled_in<std::string> message;

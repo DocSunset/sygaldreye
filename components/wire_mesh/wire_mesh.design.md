@@ -10,20 +10,18 @@ from the editor; wire *appearance* lives here, swappable live.
 - Inputs: —
 - Outputs: —
 - Sources: `wires` — `in<Span>`, N×10 rows of `{from.xyz, to.xyz, rgba}`,
-  produced by `editor.wires` (or anything else shaped like it).
-- Destinations: `render` — `out<DrawFn>`, collected by the shell's draw
-  pass like every visual node.
-- Temporal couplings: the DrawFn runs after the tick on the GL thread;
-  vertices are copied/tessellated at tick so the producer's span may be
-  rewritten freely.
+  produced by `editor_wires` (or anything else shaped like it).
+- Destinations: `surface` + `mesh` — `out<Surface>`/`out<Mesh>`, consumed
+  by a `draw` node and rendered by `render_region` (render-as-nodes).
+- Temporal couplings: geometry is tessellated at tick; render_region draws
+  the mesh after the tick on the GL thread.
 - Intended seams: row layout is the contract; alternative wire renderers
   (tubes, glow) replace this node without touching the editor.
 
 ## Requirements
 
-- Zero allocation in the draw path (vertex buffer reused, GL_STREAM_DRAW).
-- Lazy GL init inside the DrawFn (GL context exists only on the render
-  thread).
+- Geometry rebuilt each frame from the wires span; GL lives in
+  render_region (no GL in this node).
 
 ## Allowed dependencies
 

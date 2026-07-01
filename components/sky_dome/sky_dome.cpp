@@ -1,115 +1,120 @@
 // Copyright 2025 Travis West
 #include "sky_dome.hpp"
-#include "sky_dome_shaders.hpp"
-#include "gl_program.hpp"
-#include "sphere_geometry.hpp"
-#include "log.hpp"
+
 #include <cmath>
 
-#define TAG "sky_dome"
-#define LOGE(...) LOG_E(TAG, __VA_ARGS__)
-#define LOG(...)  LOG_I(TAG, __VA_ARGS__)
+#include "sphere_geometry.hpp"
+#include "tri_mesh.hpp"
 
-SkyDome SkyDome::create(SkyParams const& p) {
-    SkyDome d;
-    d.params_ = p;
-    d.init_gl();
-    return d;
+namespace {
+
+// Dome at a large finite radius (kDomeRadius, inside the 1000 far plane) with
+// ordinary depth. This is order-independent: the sky depth-sorts behind closer
+// geometry whether it draws before or after. vPos is the (unscaled) direction
+// for the gradient; normalize() makes the radius cancel.
+constexpr const char* kVert = R"(#version 300 es
+layout(location=0) in vec3 aPos;
+out vec3 vPos;
+uniform mat4 uMVP;
+void main() {
+    vPos = aPos;
+    gl_Position = uMVP * vec4(aPos, 1.0);
+}
+)";
+
+// Procedural sky gradient (horizon→zenith from sun elevation) + sun disc/glow.
+// Override path dropped — always procedural (single user, no callers used it).
+constexpr const char* kFrag = R"(#version 300 es
+precision mediump float;
+in vec3 vPos;
+out vec4 fragColor;
+uniform vec3  uBodyDir;       // sun direction (unit)
+uniform vec4  uBodyColor;     // rgb=sun color, a=disc alpha
+uniform float uBodyCos;       // cos(angular radius)
+uniform float uSunElevation;  // -1..+1
+
+vec3 sky_horizon(float elev) {
+    float day  = clamp(elev * 2.0, 0.0, 1.0);
+    float dusk = clamp(1.0 - abs(elev) * 3.5, 0.0, 1.0);
+    dusk = dusk * dusk;
+    vec3 h = mix(vec3(0.02, 0.03, 0.07), vec3(0.62, 0.78, 0.96), day);
+    return mix(h, vec3(1.00, 0.38, 0.08), dusk);
+}
+vec3 sky_zenith(float elev) {
+    float day  = clamp(elev * 2.0, 0.0, 1.0);
+    float dusk = clamp(1.0 - abs(elev) * 4.0, 0.0, 1.0);
+    dusk = dusk * dusk;
+    vec3 z = mix(vec3(0.01, 0.01, 0.04), vec3(0.10, 0.22, 0.65), day);
+    return mix(z, vec3(0.20, 0.10, 0.28), dusk * 0.7);
+}
+void main() {
+    vec3  dir = normalize(vPos);
+    float t   = clamp(dir.y * 2.0, 0.0, 1.0);
+    vec4 horizon = vec4(sky_horizon(uSunElevation), 1.0);
+    vec4 zenith  = vec4(sky_zenith(uSunElevation),  1.0);
+    fragColor = mix(horizon, zenith, t * t);
+
+    vec3  sunDir = normalize(uBodyDir);
+    float cosA   = dot(dir, sunDir);
+    float disc   = smoothstep(uBodyCos - 0.002, uBodyCos + 0.002, cosA);
+    float glow   = clamp((cosA - (uBodyCos - 0.08)) / 0.08, 0.0, 1.0);
+    glow = glow * glow * (1.0 - disc) * 0.35;
+    float dayFactor = clamp(uSunElevation * 3.0 + 0.5, 0.0, 1.0);
+    fragColor.rgb = mix(fragColor.rgb, uBodyColor.rgb, (disc + glow) * uBodyColor.a * dayFactor);
+}
+)";
+
+constexpr float kDomeRadius = 900.0f;  // inside the 1000 far plane
+
+MeshPtr make_dome() {
+    SphereGeometry g = make_sphere(32, 16);
+    auto m = std::make_shared<TriMeshData>();
+    m->vertices.reserve(g.vertices.size());
+    for (auto const& v : g.vertices) {
+        TriVertex t;
+        t.position = v.position * kDomeRadius;
+        t.normal = v.normal;
+        t.color = Eigen::Vector4f(1.f, 1.f, 1.f, 1.f);
+        m->vertices.push_back(t);
+    }
+    m->indices.reserve(g.indices.size());
+    for (uint16_t i : g.indices) m->indices.push_back(static_cast<uint32_t>(i));
+    return m;
 }
 
-// Builds GL programs/meshes from params_. Called by create() and lazily on
-// first tick: graph nodes are default-constructed, never via create().
-void SkyDome::init_gl() {
-    SkyDome& d = *this;
-    d.dome_mesh_ = SphereMesh::create(make_sphere(32, 16));
-
-    auto sky = GlProgram::build(sky_dome_shaders::DOME_VERT, sky_dome_shaders::DOME_FRAG);
-    if (!sky) { LOGE("sky shader build failed"); return; }
-    d.sky_prog_        = std::make_unique<GlProgram>(std::move(*sky));
-    d.vp_loc_          = d.sky_prog_->uniform_location("uVP");
-    d.body_dir_loc_    = d.sky_prog_->uniform_location("uBodyDir");
-    d.body_color_loc_  = d.sky_prog_->uniform_location("uBodyColor");
-    d.body_cos_loc_    = d.sky_prog_->uniform_location("uBodyCos");
-    d.sun_elev_loc_    = d.sky_prog_->uniform_location("uSunElevation");
-    d.use_override_loc_= d.sky_prog_->uniform_location("uUseOverride");
-    d.horizon_loc_     = d.sky_prog_->uniform_location("uHorizon");
-    d.zenith_loc_      = d.sky_prog_->uniform_location("uZenith");
-
-}
-
-void SkyDome::set_params(SkyParams const& p) { params_ = p; }
+}  // namespace
 
 void SkyDome::operator()(double /*time_s*/) {
-    if (!sky_prog_) init_gl();
-    // Sync params from input ports
-    params_.sun_elevation = endpoints.sun_elevation.get();
-    params_.radius        = endpoints.radius.get();
-    endpoints.render.value  = [this](const Eigen::Matrix4f& vp) { draw(vp); };
+    if (!dome_) dome_ = make_dome();
+    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
 
-    // Publish scalar outputs for downstream wiring
     const float el = endpoints.sun_elevation.get();
-    constexpr float az = 0.0f;  // no azimuth input yet; default to 0
+    constexpr float az = 0.0f;  // no azimuth input yet
+    // to_sun: direction from the ground toward the sun (used for the disc).
+    const Eigen::Vector3f to_sun{
+        std::cos(el) * std::sin(az), std::sin(el), std::cos(el) * std::cos(az)};
+
+    Mesh m;
+    m.geometry = dome_;
+    m.mode = Primitive::Triangles;
+    endpoints.mesh.value = std::move(m);
+
+    Surface s;
+    s.shader = shader_;
+    s.depth_test = true;  // far geometry — depth-sorts behind everything closer
+    s.depth_write = true;
+    s.cull_back = false;  // viewed from inside the dome; render the inner wall
+    s.uniforms.push_back({"uBodyDir", to_sun.normalized().eval()});  // disc at the sun
+    s.uniforms.push_back({"uBodyColor", Eigen::Vector4f(1.f, 0.98f, 0.85f, 1.f)});
+    s.uniforms.push_back({"uBodyCos", std::cos(0.012f)});
+    s.uniforms.push_back({"uSunElevation", el});
+    endpoints.surface.value = std::move(s);
+
     endpoints.sun_elevation_out.value = el;
-    endpoints.sun_azimuth_out.value   = az;
-    endpoints.sun_dir.value = Eigen::Vector3f{
-        std::cos(el) * std::sin(az),
-        std::sin(el),
-        std::cos(el) * std::cos(az)
-    };
-    endpoints.sun_color.value = Eigen::Vector4f{1.f, 0.95f, 0.8f, 1.f};
-}
-
-void SkyDome::draw(Eigen::Matrix4f const& vp) const {
-    if (!sky_prog_) { LOGE("sky_prog_ is null, skipping draw"); return; }
-    static bool once = false;
-    if (!once) { once = true; LOG("sky_dome first draw: sun_elevation=%.2f", params_.sun_elevation); }
-    glDisable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
-
-    sky_prog_->use();
-    GlProgram::uniform(vp_loc_, vp);
-    glUniform3fv(body_dir_loc_,   1, params_.body_dir.normalized().eval().data());
-    glUniform4fv(body_color_loc_, 1, params_.body_color.data());
-    glUniform1f (body_cos_loc_,   std::cos(params_.body_angular_radius));
-    glUniform1f (sun_elev_loc_,   params_.sun_elevation);
-    glUniform1i (use_override_loc_, params_.use_color_override ? 1 : 0);
-    glUniform4fv(horizon_loc_,    1, params_.horizon_color.data());
-    glUniform4fv(zenith_loc_,     1, params_.zenith_color.data());
-    dome_mesh_.draw();
-
-
-    glDepthMask(GL_TRUE);
-    glEnable(GL_DEPTH_TEST);
-}
-
-SkyDome::~SkyDome() = default;
-
-SkyDome::SkyDome(SkyDome&& src) noexcept
-    : dome_mesh_(std::move(src.dome_mesh_)),
-      sky_prog_(std::move(src.sky_prog_)),
-      vp_loc_(src.vp_loc_),
-      body_dir_loc_(src.body_dir_loc_),
-      body_color_loc_(src.body_color_loc_),
-      body_cos_loc_(src.body_cos_loc_),
-      sun_elev_loc_(src.sun_elev_loc_),
-      use_override_loc_(src.use_override_loc_),
-      horizon_loc_(src.horizon_loc_),
-      zenith_loc_(src.zenith_loc_),
-      params_(src.params_) {}
-
-SkyDome& SkyDome::operator=(SkyDome&& src) noexcept {
-    if (this != &src) {
-        dome_mesh_        = std::move(src.dome_mesh_);
-        sky_prog_         = std::move(src.sky_prog_);
-        vp_loc_           = src.vp_loc_;
-        body_dir_loc_     = src.body_dir_loc_;
-        body_color_loc_   = src.body_color_loc_;
-        body_cos_loc_     = src.body_cos_loc_;
-        sun_elev_loc_     = src.sun_elev_loc_;
-        use_override_loc_ = src.use_override_loc_;
-        horizon_loc_      = src.horizon_loc_;
-        zenith_loc_       = src.zenith_loc_;
-        params_           = src.params_;
-    }
-    return *this;
+    endpoints.sun_azimuth_out.value = az;
+    // sun_dir output is the light-travel direction (downward) — what lighting
+    // shaders consume as uSunDir (lightDir = -uSunDir). Matches the lit nodes'
+    // downward defaults.
+    endpoints.sun_dir.value = -to_sun;
+    endpoints.sun_color.value = Eigen::Vector4f(1.f, 0.95f, 0.8f, 1.f);
 }

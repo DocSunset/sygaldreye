@@ -14,13 +14,16 @@ because every feature implemented per-shell drifted (the /screenshot and
   `registry` population + `init(Config)` from the shell; frame phases
   `begin_frame` / `pump_contexts` / `tick` / `collect_edits` /
   `fulfil_screenshot` called by the shell's loop on the render thread.
-- Outputs: `graph()` (active graph: draw_calls, values), `probe`,
+- Outputs: `graph()` (active graph: nodes, values), `probe`,
   `quit_requested`.
 - Sources: HTTP requests (mongoose thread) — the full control surface:
   /graph /palette /plugins /param /values /camera /controller /play
   /screenshot /meta-graph /quit. Identical on every peer.
-- Destinations: editor/spawner/fly_camera context seams (pump_contexts);
-  "speaker" node receives /play params.
+- Destinations: graph_source/edit_sink/editor/spawner/fly_camera context
+  seams (pump_contexts); "speaker" node receives /play params. The meta
+  seam (graph_source reads the live graph, edit_sink owns the edit queue)
+  is the decomposed editor's replacement for the editor monolith's
+  set_context; collect_edits applies structured ops via apply_edit_op.
 - Temporal couplings: fulfil_screenshot must run where the eye/frame
   image is readable (host: after draw; device: renderer post-resolve).
   begin_frame must precede tick (swap+params before processing).
@@ -40,7 +43,8 @@ because every feature implemented per-shell drifted (the /screenshot and
 ## Allowed dependencies
 
 component_registry, signal_graph, subgraph_node, http_server,
-event_queue, editor_node, spawner_node, fly_camera_node, GLES3.
+event_queue, editor_node, spawner_node, graph_source, edit_sink,
+fly_camera_node, GLES3.
 (stbi_write_png is extern — exactly one shell TU provides the
 implementation.)
 

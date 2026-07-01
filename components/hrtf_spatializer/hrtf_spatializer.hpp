@@ -1,24 +1,26 @@
 #pragma once
+#include <array>
+#include <atomic>
 #include <biquad_filter.hpp>
 #include <Eigen/Core>
-#include <atomic>
-#include <array>
 
 struct SpatializerParams {
     float head_radius_m = 0.0875f;
-    float sample_rate   = 48000.0f;
+    float sample_rate = 48000.0f;
 };
 
 class HrtfSpatializer {
 public:
     explicit HrtfSpatializer(SpatializerParams const& = {});
     void set_position(Eigen::Vector3f direction, float distance_m);
+    // stereo_out is PLANAR: frames left samples, then frames right samples.
+    // Accumulates (+=), so the caller zeroes the 2*frames buffer first.
     void process(float const* mono_in, float* stereo_out, int frames);
 
 private:
     struct PositionState {
-        float azimuth    = 0.0f;
-        float elevation  = 0.0f;
+        float azimuth = 0.0f;
+        float elevation = 0.0f;
         float distance_m = 1.0f;
     };
 
@@ -35,15 +37,15 @@ private:
     int delay_write_ = 0;
 
     // Filters
-    synth::BiquadFilter shelf_filter_;    // ILD low-shelf on contralateral
-    synth::BiquadFilter absorb_filter_;   // air absorption LP
-    synth::BiquadFilter notch_l_;         // pinna notch, left
-    synth::BiquadFilter notch_r_;         // pinna notch, right
+    synth::BiquadFilter shelf_filter_;   // ILD low-shelf on contralateral
+    synth::BiquadFilter absorb_filter_;  // air absorption LP
+    synth::BiquadFilter notch_l_;        // pinna notch, left
+    synth::BiquadFilter notch_r_;        // pinna notch, right
 
     // Cached state to detect when coefficients need updating
-    float prev_azimuth_   = 1e9f;
+    float prev_azimuth_ = 1e9f;
     float prev_elevation_ = 1e9f;
-    float prev_distance_  = 1e9f;
+    float prev_distance_ = 1e9f;
 
     void update_coeffs(PositionState const& p);
     float read_delayed(float delay_samples) const;

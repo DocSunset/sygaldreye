@@ -1,18 +1,20 @@
 // Copyright 2026 Travis West
 #include "wire_mesh.hpp"
 
-#include <GLES3/gl3.h>
+#include <memory>
 
-#include <cstdio>
 #include <Eigen/Core>
+
+#include "tri_mesh.hpp"
 
 namespace {
 constexpr int kBezierSegs = 14;
 
+// Unlit per-vertex color, drawn as GL_LINES. uMVP injected by render_region.
 constexpr const char* kVert = R"(#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;
-layout(location=1) in vec4 aColor;
+layout(location=2) in vec4 aColor;
 uniform mat4 uMVP;
 out vec4 vColor;
 void main() {
@@ -20,84 +22,58 @@ void main() {
     gl_Position = uMVP * vec4(aPos, 1.0);
 }
 )";
-
 constexpr const char* kFrag = R"(#version 300 es
 precision mediump float;
 in vec4 vColor;
 out vec4 fragColor;
 void main() { fragColor = vColor; }
 )";
+
+TriVertex line_vertex(const Eigen::Vector3f& p, const float* c) {
+    TriVertex v;
+    v.position = p;
+    v.normal   = Eigen::Vector3f::Zero();
+    v.color    = Eigen::Vector4f(c[0], c[1], c[2], c[3]);
+    return v;
+}
 }  // namespace
 
 void WireMeshNode::operator()(double) {
-    // Tessellate at tick so the draw only streams vertices. Copy out of the
-    // producer's span: the draw runs after the tick.
-    Span s = endpoints.wires.get();
-    verts_.clear();
+    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+
+    // Tessellate the span into GL_LINES vertex pairs (rebuilt each frame).
+    auto data = std::make_shared<TriMeshData>();
+    Span s    = endpoints.wires.get();
     if (s.data && s.cols == 10) {
         for (int r = 0; r < s.rows; ++r) {
-            const float* row = s.data + std::size_t(r) * 10;
+            const float*    row = s.data + std::size_t(r) * 10;
             Eigen::Vector3f p0{row[0], row[1], row[2]};
             Eigen::Vector3f p3{row[3], row[4], row[5]};
-            const float* c = row + 6;
+            const float*    c  = row + 6;
             // Control points lean toward the viewer (cards face +Z).
-            Eigen::Vector3f p1 = p0 + Eigen::Vector3f{0, 0, -0.1f};
-            Eigen::Vector3f p2 = p3 + Eigen::Vector3f{0, 0, -0.1f};
+            Eigen::Vector3f p1   = p0 + Eigen::Vector3f{0, 0, -0.1f};
+            Eigen::Vector3f p2   = p3 + Eigen::Vector3f{0, 0, -0.1f};
             Eigen::Vector3f prev = p0;
             for (int i = 1; i <= kBezierSegs; ++i) {
-                float t = float(i) / float(kBezierSegs);
-                float t2 = t * t, t3 = t2 * t;
-                float u = 1.f - t, u2 = u * u, u3 = u2 * u;
+                float           t = float(i) / float(kBezierSegs);
+                float           t2 = t * t, t3 = t2 * t;
+                float           u = 1.f - t, u2 = u * u, u3 = u2 * u;
                 Eigen::Vector3f p = u3 * p0 + 3.f * u2 * t * p1 + 3.f * u * t2 * p2 + t3 * p3;
-                verts_.insert(
-                    verts_.end(),
-                    {prev.x(),
-                     prev.y(),
-                     prev.z(),
-                     c[0],
-                     c[1],
-                     c[2],
-                     c[3],
-                     p.x(),
-                     p.y(),
-                     p.z(),
-                     c[0],
-                     c[1],
-                     c[2],
-                     c[3]});
+                data->vertices.push_back(line_vertex(prev, c));  // GL_LINES pair
+                data->vertices.push_back(line_vertex(p, c));
                 prev = p;
             }
         }
     }
 
-    endpoints.render.value = [this](const Eigen::Matrix4f& pv) {
-        if (verts_.empty()) return;
-        if (!prog_) {
-            auto p = GlProgram::build(kVert, kFrag);
-            if (!p) {
-                std::fprintf(stderr, "wire_mesh: shader failed\n");
-                return;
-            }
-            prog_ = std::make_unique<GlProgram>(std::move(*p));
-            glGenVertexArrays(1, &vao_);
-            glGenBuffers(1, &vbo_);
-        }
-        glBindVertexArray(vao_);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-        glBufferData(
-            GL_ARRAY_BUFFER,
-            GLsizeiptr(verts_.size() * sizeof(float)),
-            verts_.data(),
-            GL_STREAM_DRAW);
-        constexpr GLsizei stride = 7 * sizeof(float);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(
-            1, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<const void*>(3 * sizeof(float)));
-        prog_->use();
-        GlProgram::uniform(prog_->uniform_location("uMVP"), pv);
-        glDrawArrays(GL_LINES, 0, GLsizei(verts_.size() / 7));
-        glBindVertexArray(0);
-    };
+    Mesh m;
+    m.geometry = std::move(data);  // no indices → draw_arrays(GL_LINES)
+    m.mode     = Primitive::Lines;
+    m.dynamic  = true;
+    endpoints.mesh.value = std::move(m);
+
+    Surface surf;
+    surf.shader    = shader_;
+    surf.cull_back = false;  // lines
+    endpoints.surface.value = std::move(surf);
 }

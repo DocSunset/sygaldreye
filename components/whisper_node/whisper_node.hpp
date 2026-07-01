@@ -16,6 +16,7 @@
 struct WhisperNode {
     static consteval std::string_view name() { return "whisper_stt"; }
     static consteval std::string_view source_header() { return "components/whisper_node/whisper_node.hpp"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
 
     struct endpoints {
         normalled_in<std::string> file;

@@ -1,12 +1,12 @@
 #pragma once
-#include <Eigen/Core>
-#include <GLES3/gl3.h>
 #include <memory>
 #include <string_view>
 #include <vector>
-#include "sygaldry_endpoints.hpp"
 
-struct GlProgram;
+#include <Eigen/Core>
+
+#include "render_payloads.hpp"  // Surface, Mesh, Shader, InstanceAttr
+#include "sygaldry_endpoints.hpp"
 
 struct Particle {
     Eigen::Vector3f position;
@@ -20,16 +20,24 @@ struct EmitterParams {
     Eigen::Vector3f origin;
     Eigen::Vector3f velocity_min, velocity_max;
     Eigen::Vector4f color_start, color_end;
-    float size_start, size_end;
-    float lifetime_min, lifetime_max;
-    float emit_rate;
+    float           size_start, size_end;
+    float           lifetime_min, lifetime_max;
+    float           emit_rate;
 };
 
+// particle_system: the pool simulation stays a node; the DRAW leaves. Each
+// tick it emits a Mesh (a unit quad + per-instance aOffset/aSize/aColor Spans
+// from the live pool) + a camera-facing, blended particle Surface. The shared
+// instanced-draw strategy in render_region does the rest — no GL here.
 class ParticleSystem {
-public:
-    static consteval std::string_view name()          { return "particle_system"; }
-    static consteval std::string_view source_header() { return "components/particle_system/particle_system.hpp"; }
-    static consteval std::string_view source_cpp()    { return "components/particle_system/particle_system.cpp"; }
+   public:
+    static consteval std::string_view name() { return "particle_system"; }
+    static consteval std::string_view source_header() {
+        return "components/particle_system/particle_system.hpp";
+    }
+    static consteval std::string_view source_cpp() {
+        return "components/particle_system/particle_system.cpp";
+    }
 
     struct endpoints {
         normalled_in<float, fp(0.f), fp(500.f), fp(50.f)> emit_rate;
@@ -46,28 +54,17 @@ public:
         normalled_in<float, fp(0.f), fp(1.f), fp(1.f)> r;
         normalled_in<float, fp(0.f), fp(1.f), fp(0.75f)> g;
         normalled_in<float, fp(0.f), fp(1.f), fp(0.3f)> b;
-    
-        ::out<DrawFn> render;
+        ::out<Surface> surface;
+        ::out<Mesh>    mesh;
     } endpoints;
 
     explicit ParticleSystem(int capacity = 1000);
-    ~ParticleSystem();
-    ParticleSystem(const ParticleSystem&) = delete;
-    ParticleSystem& operator=(const ParticleSystem&) = delete;
-    ParticleSystem(ParticleSystem&&) noexcept;
-    ParticleSystem& operator=(ParticleSystem&&) noexcept;
-
 
     void set_emitter(EmitterParams const&);
     void update(float dt, Eigen::Vector3f gravity = {0.f, -9.8f, 0.f});
     void operator()(double time_s);
-    void draw(Eigen::Matrix4f const& vp,
-              Eigen::Vector3f camera_right,
-              Eigen::Vector3f camera_up) const;
 
-private:
-    void create_gl_resources();
-    void destroy_gl_resources();
+   private:
     void emit_one(float t);
 
     std::vector<Particle> pool_;
@@ -75,15 +72,10 @@ private:
     int                   next_dead_  = 0;
     float                 emit_accum_ = 0.f;
     EmitterParams         params_{};
-
-    std::unique_ptr<GlProgram> prog_;
-    GLuint vao_      = 0;
-    GLuint quad_vbo_ = 0;
-    GLuint inst_vbo_ = 0;
-    GLint  loc_vp_    = -1;
-    GLint  loc_right_ = -1;
-    GLint  loc_up_    = -1;
-
-    mutable std::vector<float> inst_buf_;
     double                prev_time_ = -1.0;
+
+    // Per-instance attribute buffers (packed from live particles each frame).
+    std::vector<float> positions_, sizes_, colors_;
+    MeshPtr            quad_;
+    Shader             shader_;
 };

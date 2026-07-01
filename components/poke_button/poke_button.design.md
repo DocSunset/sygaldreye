@@ -10,19 +10,23 @@ spawner makes the graph grow itself with zero editor C++.
 - Inputs: `tip` (vec3, the probe — a poke_stick tip); `press` (0/1,
   trigger); `x`/`y`/`z`/`size` (placement, declarative params).
 - Outputs: `pressed` (bang — tip inside AND press rising); `hover`
-  (1 while inside); `render` (draw_call — blue idle, light-blue hover,
-  gold fire).
+  (1 while inside); `surface`+`mesh` (Mesh+Surface for a `draw` node —
+  unlit uniform-color box; blue idle, light-blue hover, gold fire).
+- Destinations: `surface`/`mesh` feed a `draw` node; `pressed`/`hover`
+  feed any scalar/bang consumer (spawner.trigger).
 - Intended seams: collision shape is an axis-aligned cube v1; richer
   shapes become sibling nodes, not options.
 
 ## Requirements
 
-- Constructor cheap/GL-free; GL lazily inside the DrawFn (render thread).
-- Self-contained GL so it ships as a plugin (SYGALDREYE_PLUGIN export).
+- ABI v8: render is a declarative Mesh+Surface, never GL. Process is pure;
+  GL lives only in render_region.
+- Self-contained so it ships as a plugin (SYGALDREYE_PLUGIN export).
 
 ## Allowed dependencies
 
-sygaldry_endpoints, eyeballs_node_abi (plugin export only), Eigen, GLES3.
+sygaldry_endpoints, render_payloads, tri_mesh, eyeballs_node_abi (plugin
+export only), Eigen.
 
 ## Owning package
 

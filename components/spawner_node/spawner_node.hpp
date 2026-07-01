@@ -14,6 +14,7 @@
 struct SpawnerNode {
     static consteval std::string_view name() { return "spawner"; }
     static consteval std::string_view source_header() { return "components/spawner_node/spawner_node.hpp"; }
+    static constexpr int lift_kind() { return EYEBALLS_LIFT_RESOURCE_HOLDER; }
 
     struct endpoints {
         normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> trigger;

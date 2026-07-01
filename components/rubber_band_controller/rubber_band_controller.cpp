@@ -2,101 +2,135 @@
 #include "rubber_band_controller.hpp"
 
 #include <Eigen/Geometry>
-#include <string>
+#include <memory>
+#include <span>
 
-#include "gl_program.hpp"
+#include "cylinder_mesh.hpp"
 #include "grab_detector.hpp"
 #include "sphere_geometry.hpp"
+#include "tri_mesh.hpp"
 
 namespace {
 
-constexpr float kSphereRadius  = 0.025F;
-constexpr float kBandRadius    = 0.005F;
+constexpr float kSphereRadius = 0.025F;
+constexpr float kBandRadius = 0.005F;
 constexpr float kDefaultOffset = 0.1F;
-constexpr float kLabelScale    = 0.004F;
-constexpr int   kSphereSlices  = 16;
-constexpr int   kSphereLat     = 8;
-constexpr int   kCylSlices     = 12;
+constexpr int kSphereLon = 16;
+constexpr int kSphereLat = 8;
+constexpr int kCylSlices = 12;
 
-Eigen::Matrix4f sphere_model(Eigen::Vector3f pos) // NOLINT(misc-use-internal-linkage)
-{
+// Lit, per-vertex-color program — spheres read as 3D. render_region injects
+// uMVP + uViewPos. Geometry is world-space (no model matrix in the shader).
+constexpr const char* kVert = R"(#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNormal;
+layout(location=2) in vec4 aColor;
+uniform mat4 uMVP;
+out vec3 vNormal;
+out vec4 vColor;
+void main() { vNormal = aNormal; vColor = aColor; gl_Position = uMVP * vec4(aPos, 1.0); }
+)";
+constexpr const char* kFrag = R"(#version 300 es
+precision mediump float;
+in vec3 vNormal;
+in vec4 vColor;
+out vec4 fragColor;
+void main() {
+    float d = max(dot(normalize(vNormal), normalize(vec3(0.3, 0.8, 0.5))), 0.0);
+    fragColor = vec4(vColor.rgb * (0.3 + 0.7 * d), vColor.a);
+}
+)";
+
+void append(
+    TriMeshData& m,
+    const SphereGeometry& geo,
+    const Eigen::Matrix4f& model,
+    const Eigen::Vector4f& color) {
+    Eigen::Matrix3f nrm = model.topLeftCorner<3, 3>().inverse().transpose();
+    uint32_t base = uint32_t(m.vertices.size());
+    for (const auto& v : geo.vertices)
+        m.vertices.push_back(
+            {(model * v.position.homogeneous()).head<3>(), (nrm * v.normal).normalized(), color});
+    for (uint16_t i : geo.indices) m.indices.push_back(base + i);
+}
+
+void append(
+    TriMeshData& m,
+    const TriMeshData& geo,
+    const Eigen::Matrix4f& model,
+    const Eigen::Vector4f& color) {
+    Eigen::Matrix3f nrm = model.topLeftCorner<3, 3>().inverse().transpose();
+    uint32_t base = uint32_t(m.vertices.size());
+    for (const auto& v : geo.vertices)
+        m.vertices.push_back(
+            {(model * v.position.homogeneous()).head<3>(), (nrm * v.normal).normalized(), color});
+    for (uint32_t i : geo.indices) m.indices.push_back(base + i);
+}
+
+Eigen::Matrix4f sphere_model(Eigen::Vector3f pos) {
     return (Eigen::Translation3f(pos) * Eigen::Scaling(kSphereRadius)).matrix();
 }
 
-} // namespace
+}  // namespace
 
-RubberBandController RubberBandController::create(
-    Eigen::Vector3f anchor_pos,
-    std::function<std::string(Eigen::Vector3f)> label_fn)
-{
-    RubberBandController rbc{};
+void RubberBandController::operator()(double) {
+    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
 
-    rbc.sphere_mesh_.emplace(SphereMesh::create(make_sphere(kSphereSlices, kSphereLat)));
-    rbc.cylinder_mesh_.emplace(CylinderMesh::create(kCylSlices));
-    rbc.rgba_shader_.create();
-    rbc.text_mesh_.init();
+    const Eigen::Vector3f anchor{
+        endpoints.anchor_x.get(), endpoints.anchor_y.get(), endpoints.anchor_z.get()};
+    if (!seeded_) {
+        targets_[0].position = anchor;
+        targets_[0].radius = kSphereRadius;
+        targets_[1].position = anchor + Eigen::Vector3f{0.f, kDefaultOffset, 0.f};
+        targets_[1].radius = kSphereRadius;
+        seeded_ = true;
+    }
 
-    rbc.targets_[0].position = anchor_pos;
-    rbc.targets_[0].radius   = kSphereRadius;
-    rbc.targets_[1].position = anchor_pos + Eigen::Vector3f{0.0F, kDefaultOffset, 0.0F};
-    rbc.targets_[1].radius   = kSphereRadius;
+    std::array<HandState, 2> hands{};
+    hands[0].position = endpoints.left_pos.get();
+    hands[0].valid = endpoints.left_pos.src != nullptr;
+    hands[0].grip_pressed = endpoints.left_grip.get() > 0.5f;
+    hands[1].position = endpoints.right_pos.get();
+    hands[1].valid = endpoints.right_pos.src != nullptr;
+    hands[1].grip_pressed = endpoints.right_grip.get() > 0.5f;
 
-    rbc.label_fn_ = label_fn ? std::move(label_fn)
-                              : [](Eigen::Vector3f off) { return std::to_string(off.norm()); };
-
-    return rbc;
-}
-
-void RubberBandController::update(std::span<const HandState> hands)
-{
     const Eigen::Vector3f prev_anchor = targets_[0].position;
-    update_grabs(hands, std::span<GrabTarget>(targets_));
+    update_grabs(std::span<const HandState>(hands), std::span<GrabTarget>(targets_));
+    auto follow = [&](int t) {
+        if (targets_[t].grabbed && targets_[t].grabbing_hand >= 0)
+            targets_[t].position =
+                hands[size_t(targets_[t].grabbing_hand)].position + targets_[t].grab_offset;
+    };
+    follow(0);
+    if (targets_[0].grabbed && !targets_[1].grabbed)
+        targets_[1].position += targets_[0].position - prev_anchor;  // anchor drags both
+    follow(1);
 
-    if (targets_[0].grabbed && targets_[0].grabbing_hand >= 0 &&
-        targets_[0].grabbing_hand < static_cast<int>(hands.size())) {
-        const auto& hand = hands[static_cast<size_t>(targets_[0].grabbing_hand)];
-        targets_[0].position = hand.position + targets_[0].grab_offset;
-        if (!targets_[1].grabbed) {
-            targets_[1].position += targets_[0].position - prev_anchor;
-        }
-    }
-    if (targets_[1].grabbed && targets_[1].grabbing_hand >= 0 &&
-        targets_[1].grabbing_hand < static_cast<int>(hands.size())) {
-        const auto& hand = hands[static_cast<size_t>(targets_[1].grabbing_hand)];
-        targets_[1].position = hand.position + targets_[1].grab_offset;
-    }
+    endpoints.offset.value = targets_[1].position - targets_[0].position;
+
+    static const SphereGeometry sphere = make_sphere(kSphereLon, kSphereLat);
+    static const MeshPtr cyl = make_cylinder(kCylSlices);
+    auto out = std::make_shared<TriMeshData>();
+    append(*out, sphere, sphere_model(targets_[0].position), {1.f, 0.8f, 0.f, 1.f});
+    append(*out, sphere, sphere_model(targets_[1].position), {0.2f, 0.6f, 1.f, 1.f});
+    append(
+        *out,
+        *cyl,
+        cylinder_transform(targets_[0].position, targets_[1].position, kBandRadius),
+        {0.9f, 0.2f, 0.2f, 1.f});
+
+    Mesh m;
+    m.geometry = out;
+    m.dynamic = true;
+    endpoints.mesh.value = std::move(m);
+
+    Surface s;
+    s.shader = shader_;
+    endpoints.surface.value = std::move(s);
 }
 
-void RubberBandController::draw(const Eigen::Matrix4f& view_proj) const
-{
-    const Eigen::Vector3f& anchor  = targets_[0].position;
-    const Eigen::Vector3f& control = targets_[1].position;
-
-    rgba_shader_.use();
-
-    rgba_shader_.set_mvp(view_proj * sphere_model(anchor));
-    rgba_shader_.set_color({1.0F, 0.8F, 0.0F, 0.8F});
-    sphere_mesh_->draw();
-
-    rgba_shader_.set_mvp(view_proj * sphere_model(control));
-    rgba_shader_.set_color({0.2F, 0.6F, 1.0F, 1.0F});
-    sphere_mesh_->draw();
-
-    rgba_shader_.set_mvp(view_proj * cylinder_transform(anchor, control, kBandRadius));
-    rgba_shader_.set_color({0.9F, 0.2F, 0.2F, 1.0F});
-    cylinder_mesh_->draw();
-
-    const Eigen::Matrix4f label_mvp =
-        view_proj *
-        (Eigen::Translation3f(anchor + Eigen::Vector3f{0.0F, -(kSphereRadius * 2.0F), 0.0F}) *
-         Eigen::Scaling(kLabelScale))
-            .matrix();
-    text_mesh_.draw(label_fn_(offset()), label_mvp);
-}
-
-Eigen::Vector3f RubberBandController::offset() const
-{
-    return targets_[1].position - targets_[0].position;
-}
-
-RubberBandController::~RubberBandController() = default;
+#ifdef SYGALDREYE_PLUGIN
+#include "eyeballs_node_abi.hpp"
+EYEBALLS_EXPORT_NODE(RubberBandController)
+#endif

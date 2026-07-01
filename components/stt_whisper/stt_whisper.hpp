@@ -17,6 +17,7 @@ class SttWhisperNode {
 public:
     static consteval std::string_view name()          { return "stt_whisper"; }
     static consteval std::string_view source_header() { return "components/stt_whisper/stt_whisper.hpp"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
 
     struct endpoints {
         in<AudioBuffer> audio_in;

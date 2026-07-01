@@ -12,6 +12,7 @@
 
 struct UdpSendNode {
     static consteval std::string_view name() { return "udp_send"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
     struct endpoints {
         normalled_in<float, fp(-1e6f),  fp(1e6f),   fp(0.f)>    in;
         normalled_in<float, fp(0.f),    fp(127.f),  fp(0.f)>    channel;
@@ -28,6 +29,7 @@ private:
 
 struct UdpRecvNode {
     static consteval std::string_view name() { return "udp_recv"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
     struct endpoints {
         normalled_in<float, fp(0.f),    fp(127.f),  fp(0.f)>    channel;
         normalled_in<float, fp(1024.f), fp(65535.f),fp(9100.f)> port;

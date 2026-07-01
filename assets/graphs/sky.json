@@ -6,7 +6,14 @@
               {"name":"sun_elevation_out","node":"grad","port":"sun_elevation_out"}],
   "nodes":[
     {"id":"grad","type":"sky_dome","params":{}},
-    {"id":"stars","type":"star_field","params":{}}
+    {"id":"sky_d","type":"draw","params":{}},
+    {"id":"stars","type":"star_field","params":{}},
+    {"id":"stars_d","type":"draw","params":{}}
   ],
-  "edges":[]
+  "edges":[
+    {"from":"grad.surface","to":"sky_d.surface"},
+    {"from":"grad.mesh","to":"sky_d.mesh"},
+    {"from":"stars.surface","to":"stars_d.surface"},
+    {"from":"stars.mesh","to":"stars_d.mesh"}
+  ]
 }

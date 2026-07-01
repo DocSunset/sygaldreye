@@ -96,61 +96,6 @@ MeshDisplaceNode::~MeshDisplaceNode() {
     if (fbo_) glDeleteFramebuffers(1, &fbo_);
 }
 
-// ── mesh_render ─────────────────────────────────────────────────────────────
-
-namespace {
-constexpr const char* kVert = R"(#version 300 es
-precision highp float;
-layout(location=0) in vec3 aPos;
-layout(location=1) in vec3 aNormal;
-layout(location=2) in vec4 aColor;
-uniform mat4 uMVP;
-uniform vec3 uOffset;
-out vec3 vNormal;
-out vec4 vColor;
-void main() {
-    vNormal = aNormal;
-    vColor  = aColor;
-    gl_Position = uMVP * vec4(aPos + uOffset, 1.0);
-}
-)";
-constexpr const char* kFrag = R"(#version 300 es
-precision mediump float;
-in vec3 vNormal;
-in vec4 vColor;
-uniform vec3 uLightDir;
-out vec4 fragColor;
-void main() {
-    float diff = max(dot(normalize(vNormal), normalize(-uLightDir)), 0.0);
-    fragColor = vec4(vColor.rgb * (0.25 + 0.75 * diff), vColor.a);
-}
-)";
-} // namespace
-
-void MeshRenderNode::operator()(double) {
-    held_ = endpoints.mesh.get();
-    endpoints.render.value = [this](const Eigen::Matrix4f& pv) {
-        if (!held_) return;
-        if (!prog_) {
-            auto p = GlProgram::build(kVert, kFrag);
-            if (!p) { std::fprintf(stderr, "mesh_render: shader failed\n"); return; }
-            prog_ = std::make_unique<GlProgram>(std::move(*p));
-        }
-        if (uploaded_ != held_.get()) {
-            if (uploaded_ == nullptr) gpu_ = TriMesh::create(*held_);
-            else gpu_.update(*held_);
-            uploaded_ = held_.get();
-        }
-        prog_->use();
-        GlProgram::uniform(prog_->uniform_location("uMVP"), pv);
-        glUniform3f(prog_->uniform_location("uOffset"),
-                    endpoints.x.get(), endpoints.y.get(), endpoints.z.get());
-        Eigen::Vector3f ld = endpoints.light_dir.get();
-        glUniform3f(prog_->uniform_location("uLightDir"), ld.x(), ld.y(), ld.z());
-        gpu_.draw();
-    };
-}
-
 // ── generators ──────────────────────────────────────────────────────────────
 
 void MeshSphereNode::operator()(double) {
@@ -300,30 +245,13 @@ void ScatterNode::operator()(double) {
     endpoints.positions.value = Span{pts_.data(), n, 3};
 }
 
-void MeshInstancesNode::operator()(double) {
-    held_ = endpoints.mesh.get();
-    Span p = endpoints.positions.get();
-    held_pts_.assign(p.data, p.data + (p.cols == 3 ? std::size_t(p.rows) * 3 : 0));
-    endpoints.render.value = [this](const Eigen::Matrix4f& pv) {
-        if (!held_ || held_pts_.empty()) return;
-        if (!prog_) {
-            auto pr = GlProgram::build(kVert, kFrag);
-            if (!pr) { std::fprintf(stderr, "mesh_instances: shader failed\n"); return; }
-            prog_ = std::make_unique<GlProgram>(std::move(*pr));
-        }
-        if (uploaded_ != held_.get()) {
-            if (uploaded_ == nullptr) gpu_ = TriMesh::create(*held_);
-            else gpu_.update(*held_);
-            uploaded_ = held_.get();
-        }
-        prog_->use();
-        GlProgram::uniform(prog_->uniform_location("uMVP"), pv);
-        const auto ld = endpoints.light_dir.get();
-        glUniform3f(prog_->uniform_location("uLightDir"), ld.x(), ld.y(), ld.z());
-        int off = prog_->uniform_location("uOffset");
-        for (std::size_t i = 0; i + 2 < held_pts_.size(); i += 3) {
-            glUniform3f(off, held_pts_[i], held_pts_[i + 1], held_pts_[i + 2]);
-            gpu_.draw();
-        }
-    };
+void SeedsNode::operator()(double) {
+    int   n = std::max(1, int(endpoints.count.get()));
+    float b = endpoints.base.get(), s = endpoints.step.get();
+    if (n != n_ || b != base_ || s != step_) {
+        vals_.resize(std::size_t(n));
+        for (int i = 0; i < n; ++i) vals_[std::size_t(i)] = b + float(i) * s;
+        n_ = n; base_ = b; step_ = s;
+    }
+    endpoints.seeds.value = Span{vals_.data(), n, 1};
 }

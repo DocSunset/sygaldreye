@@ -2,7 +2,6 @@
 #pragma once
 #include "eyeballs_node_abi.hpp"
 #include "tri_mesh.hpp"
-#include "gl_program.hpp"
 #include "sygaldry_endpoints.hpp"
 #include <Eigen/Core>
 #include <memory>
@@ -44,24 +43,6 @@ private:
     GLuint fbo_ = 0;
     std::vector<unsigned char> pixels_;
     int tw_ = 0, th_ = 0;
-};
-
-struct MeshRenderNode {
-    static consteval std::string_view name() { return "mesh_render"; }
-    static consteval std::string_view source_header() { return "components/mesh_nodes/mesh_nodes.hpp"; }
-    struct endpoints {
-        in<MeshPtr> mesh;
-        normalled_in<float, fp(-100.f), fp(100.f), fp(0.f)> x, y, z;
-        normalled_in<Eigen::Vector3f> light_dir;
-        out<DrawFn> render;
-    } endpoints;
-    MeshRenderNode() { endpoints.light_dir.fallback = {-0.4f, -0.8f, -0.3f}; }
-    void operator()(double);
-private:
-    std::unique_ptr<GlProgram> prog_;
-    TriMesh gpu_;
-    const TriMeshData* uploaded_ = nullptr;
-    MeshPtr held_;
 };
 
 // ── generators ──────────────────────────────────────────────────────────────
@@ -160,23 +141,25 @@ private:
     float r_ = -1.f, s_ = -1.f, y_ = -1e9f;
 };
 
-// One mesh drawn at every row of an N×3 span — the ratified forest
-// acceptance, "lift the draw" route. Manual lifting until the
-// conformability executor takes over.
-struct MeshInstancesNode {
-    static consteval std::string_view name() { return "mesh_instances"; }
+// N distinct seed values as an N×1 Span — the forest's seed source
+// (conformability.md route 1). Lift a tree_generator over this and the
+// executor makes N DISTINCT trees, one per seed. base + i*step keeps the
+// seeds (hence the trees) distinct.
+struct SeedsNode {
+    static consteval std::string_view name() { return "seeds"; }
     struct endpoints {
-        in<MeshPtr> mesh;
-        in<Span>    positions;
-        normalled_in<Eigen::Vector3f> light_dir;
-        out<DrawFn> render;
+        normalled_in<float, fp(1.f),   fp(2000.f), fp(8.f)>  count;
+        normalled_in<float, fp(0.f),   fp(1000.f), fp(1.f)>  base;
+        normalled_in<float, fp(0.001f), fp(100.f), fp(1.f)>  step;
+        out<Span> seeds;
     } endpoints;
-    MeshInstancesNode() { endpoints.light_dir.fallback = {0.4f, 0.8f, 0.3f}; }
     void operator()(double);
 private:
-    MeshPtr held_;
-    std::vector<float> held_pts_;   // copy: draw runs after the tick
-    std::unique_ptr<GlProgram> prog_;
-    TriMesh gpu_;
-    const TriMeshData* uploaded_ = nullptr;
+    std::vector<float> vals_;
+    int   n_ = -1;
+    float base_ = -1e9f, step_ = -1e9f;
 };
+
+// mesh_instances + mesh_render retired: color_mesh (geometry + an N×3
+// positions Span) does single and instanced draws on the render-as-nodes
+// path — "lift the draw" falls out of Span rank, no per-row GL loop.

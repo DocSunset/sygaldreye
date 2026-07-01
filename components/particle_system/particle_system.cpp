@@ -1,76 +1,77 @@
 #include "particle_system.hpp"
-#include "gl_program.hpp"
-#include "particle_system_shader.hpp"
-#include "log.hpp"
+
 #include <algorithm>
 #include <cstdlib>
 
-#define TAG "particle_system"
-#define LOGE(...) LOG_E(TAG, __VA_ARGS__)
+#include "tri_mesh.hpp"
 
-static float rand_range(float lo, float hi) {
+namespace {
+
+float rand_range(float lo, float hi) {
     return lo + (hi - lo) * (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX));
 }
 
+// Camera-facing quad, per-instance offset/size/color. uMVP + uCameraRight/Up
+// injected by render_region.
+constexpr const char* kVert = R"(#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos;     // quad corner [-0.5,0.5]
+in vec3  aOffset;                    // per-instance world position
+in float aSize;
+in vec4  aColor;
+uniform mat4 uMVP;
+uniform vec3 uCameraRight;
+uniform vec3 uCameraUp;
+out vec2 vUV;
+out vec4 vColor;
+void main() {
+    vUV = aPos.xy + 0.5;
+    vColor = aColor;
+    vec3 world = aOffset + (aPos.x * aSize) * uCameraRight + (aPos.y * aSize) * uCameraUp;
+    gl_Position = uMVP * vec4(world, 1.0);
+}
+)";
+constexpr const char* kFrag = R"(#version 300 es
+precision mediump float;
+in vec2 vUV;
+in vec4 vColor;
+out vec4 fragColor;
+void main() {
+    float d = length(vUV - 0.5) * 2.0;
+    float a = smoothstep(1.0, 0.0, d);
+    fragColor = vec4(vColor.rgb, vColor.a * a);
+}
+)";
+
+MeshPtr make_quad() {
+    auto m = std::make_shared<TriMeshData>();
+    auto v = [](float x, float y) {
+        TriVertex t;
+        t.position = Eigen::Vector3f(x, y, 0.f);
+        t.normal   = Eigen::Vector3f(0.f, 0.f, 1.f);
+        t.color    = Eigen::Vector4f(1.f, 1.f, 1.f, 1.f);
+        return t;
+    };
+    m->vertices = {v(-0.5f, -0.5f), v(0.5f, -0.5f), v(0.5f, 0.5f), v(-0.5f, 0.5f)};
+    m->indices  = {0, 1, 2, 0, 2, 3};
+    return m;
+}
+
+}  // namespace
+
 ParticleSystem::ParticleSystem(int capacity)
-    : pool_(static_cast<size_t>(capacity)), capacity_(capacity),
-      inst_buf_(static_cast<size_t>(capacity) * 8) {
-    create_gl_resources();
-}
-
-ParticleSystem::~ParticleSystem() { destroy_gl_resources(); }
-
-ParticleSystem::ParticleSystem(ParticleSystem&&) noexcept = default;
-ParticleSystem& ParticleSystem::operator=(ParticleSystem&&) noexcept = default;
-
-void ParticleSystem::create_gl_resources() {
-    auto result = GlProgram::build(particle_system_shader::VERT, particle_system_shader::FRAG);
-    if (!result) { LOGE("shader build failed"); return; }
-    prog_ = std::make_unique<GlProgram>(std::move(*result));
-    loc_vp_    = prog_->uniform_location("uVP");
-    loc_right_ = prog_->uniform_location("uRight");
-    loc_up_    = prog_->uniform_location("uUp");
-
-    static constexpr float kQuad[] = { -1.f,-1.f, 1.f,-1.f, -1.f,1.f, 1.f,1.f };
-
-    glGenVertexArrays(1, &vao_);
-    glBindVertexArray(vao_);
-
-    glGenBuffers(1, &quad_vbo_);
-    glBindBuffer(GL_ARRAY_BUFFER, quad_vbo_);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(kQuad), kQuad, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-
-    glGenBuffers(1, &inst_vbo_);
-    glBindBuffer(GL_ARRAY_BUFFER, inst_vbo_);
-    // 8 floats per instance: pos(3) + size(1) + color(4)
-    glBufferData(GL_ARRAY_BUFFER, capacity_ * 8 * static_cast<int>(sizeof(float)),
-                 nullptr, GL_DYNAMIC_DRAW);
-    constexpr GLsizei stride = 8 * sizeof(float);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(0));
-    glVertexAttribDivisor(1, 1);
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(3 * sizeof(float)));
-    glVertexAttribDivisor(2, 1);
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(4 * sizeof(float)));
-    glVertexAttribDivisor(3, 1);
-
-    glBindVertexArray(0);
-}
-
-void ParticleSystem::destroy_gl_resources() {
-    if (vao_)      { glDeleteVertexArrays(1, &vao_);  vao_ = 0; }
-    if (quad_vbo_) { glDeleteBuffers(1, &quad_vbo_);  quad_vbo_ = 0; }
-    if (inst_vbo_) { glDeleteBuffers(1, &inst_vbo_);  inst_vbo_ = 0; }
-}
+    : pool_(static_cast<size_t>(capacity)),
+      capacity_(capacity),
+      positions_(static_cast<size_t>(capacity) * 3),
+      sizes_(static_cast<size_t>(capacity)),
+      colors_(static_cast<size_t>(capacity) * 4) {}
 
 void ParticleSystem::set_emitter(EmitterParams const& p) { params_ = p; }
 
 void ParticleSystem::operator()(double time_s) {
-    if (!prog_) create_gl_resources();  // constructed off render thread (HTTP parse)
+    if (!quad_) quad_ = make_quad();
+    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+
     params_.emit_rate    = endpoints.emit_rate.get();
     params_.lifetime_min = endpoints.lifetime_min.get();
     params_.lifetime_max = endpoints.lifetime_max.get();
@@ -79,26 +80,50 @@ void ParticleSystem::operator()(double time_s) {
     params_.origin       = {endpoints.emit_x.get(), endpoints.emit_y.get(), endpoints.emit_z.get()};
     float up = endpoints.vel_up.get(), sp = endpoints.vel_spread.get();
     params_.velocity_min = {-sp, up * 0.6f, -sp};
-    params_.velocity_max = { sp, up,         sp};
+    params_.velocity_max = {sp, up, sp};
     params_.color_start  = {endpoints.r.get(), endpoints.g.get(), endpoints.b.get(), 1.f};
     params_.color_end    = {endpoints.r.get(), endpoints.g.get(), endpoints.b.get(), 0.f};
-    float dt = (prev_time_ < 0.0) ? 0.0f : static_cast<float>(time_s - prev_time_);
-    prev_time_ = time_s;
+    float dt             = (prev_time_ < 0.0) ? 0.0f : static_cast<float>(time_s - prev_time_);
+    prev_time_           = time_s;
     if (dt > 0.f) update(dt, {0.f, endpoints.gravity_y.get(), 0.f});
-    endpoints.render.value = [this](const Eigen::Matrix4f& vp) {
-        // Camera right and up derived from view matrix rows
-        Eigen::Vector3f right = vp.row(0).head<3>().normalized();
-        Eigen::Vector3f up    = vp.row(1).head<3>().normalized();
-        draw(vp, right, up);
-    };
+
+    // Pack live particles into per-instance attribute buffers.
+    int live = 0;
+    for (auto const& p : pool_) {
+        if (p.life <= 0.f) continue;
+        positions_[static_cast<size_t>(live) * 3 + 0] = p.position.x();
+        positions_[static_cast<size_t>(live) * 3 + 1] = p.position.y();
+        positions_[static_cast<size_t>(live) * 3 + 2] = p.position.z();
+        sizes_[static_cast<size_t>(live)]             = p.size;
+        colors_[static_cast<size_t>(live) * 4 + 0]    = p.color.x();
+        colors_[static_cast<size_t>(live) * 4 + 1]    = p.color.y();
+        colors_[static_cast<size_t>(live) * 4 + 2]    = p.color.z();
+        colors_[static_cast<size_t>(live) * 4 + 3]    = p.color.w();
+        ++live;
+    }
+
+    Mesh m;
+    m.geometry = quad_;
+    m.mode     = Primitive::Triangles;
+    m.instances.push_back({"aOffset", Span{positions_.data(), live, 3, Axis::Item, Axis::Cell}});
+    m.instances.push_back({"aSize", Span{sizes_.data(), live, 1, Axis::Item, Axis::Cell}});
+    m.instances.push_back({"aColor", Span{colors_.data(), live, 4, Axis::Item, Axis::Cell}});
+    endpoints.mesh.value = std::move(m);
+
+    Surface s;
+    s.shader      = shader_;
+    s.blend       = true;
+    s.depth_write = false;
+    s.cull_back   = false;
+    endpoints.surface.value = std::move(s);
 }
 
 void ParticleSystem::emit_one(float lifetime) {
     Particle& p = pool_[static_cast<size_t>(next_dead_ % capacity_)];
     p.position  = params_.origin;
-    p.velocity  = { rand_range(params_.velocity_min.x(), params_.velocity_max.x()),
-                    rand_range(params_.velocity_min.y(), params_.velocity_max.y()),
-                    rand_range(params_.velocity_min.z(), params_.velocity_max.z()) };
+    p.velocity  = {rand_range(params_.velocity_min.x(), params_.velocity_max.x()),
+                   rand_range(params_.velocity_min.y(), params_.velocity_max.y()),
+                   rand_range(params_.velocity_min.z(), params_.velocity_max.z())};
     p.color     = params_.color_start;
     p.size      = params_.size_start;
     p.life      = lifetime;
@@ -120,36 +145,7 @@ void ParticleSystem::update(float dt, Eigen::Vector3f gravity) {
         if (p.life > 0.f) {
             float t = 1.f - p.life / std::max(params_.lifetime_max, 1e-6f);
             p.color = params_.color_start + t * (params_.color_end - params_.color_start);
-            p.size  = params_.size_start  + t * (params_.size_end  - params_.size_start);
+            p.size  = params_.size_start + t * (params_.size_end - params_.size_start);
         }
     }
-}
-
-void ParticleSystem::draw(Eigen::Matrix4f const& vp,
-                          Eigen::Vector3f camera_right,
-                          Eigen::Vector3f camera_up) const {
-    if (!prog_) return;
-    int live = 0;
-    for (auto const& p : pool_) {
-        if (p.life <= 0.f) continue;
-        float* d = inst_buf_.data() + static_cast<size_t>(live) * 8;
-        d[0]=p.position.x(); d[1]=p.position.y(); d[2]=p.position.z();
-        d[3]=p.size;
-        d[4]=p.color.x(); d[5]=p.color.y(); d[6]=p.color.z(); d[7]=p.color.w();
-        ++live;
-    }
-    if (live == 0) return;
-
-    prog_->use();
-    GlProgram::uniform(loc_vp_, vp);
-    glUniform3fv(loc_right_, 1, camera_right.data());
-    glUniform3fv(loc_up_,    1, camera_up.data());
-
-    glBindBuffer(GL_ARRAY_BUFFER, inst_vbo_);
-    glBufferSubData(GL_ARRAY_BUFFER, 0,
-                    live * 8 * static_cast<int>(sizeof(float)), inst_buf_.data());
-
-    glBindVertexArray(vao_);
-    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, live);
-    glBindVertexArray(0);
 }

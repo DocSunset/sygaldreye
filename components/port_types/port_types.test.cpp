@@ -1,5 +1,6 @@
 // Copyright 2026 Travis West
 #include "port_types.hpp"
+
 #include <gtest/gtest.h>
 
 using namespace port_types;
@@ -7,12 +8,12 @@ using namespace port_types;
 TEST(PortTypes, EqualKindsAreTrueEdges) {
     EXPECT_TRUE(connection_legal("scalar", "scalar"));
     EXPECT_EQ(boundary_mapping("scalar", "scalar"), "");
-    EXPECT_EQ(boundary_mapping("draw_call", "draw_call"), "");
+    EXPECT_EQ(boundary_mapping("mesh", "mesh"), "");
 }
 
 TEST(PortTypes, MismatchedKindsAreIllegal) {
-    EXPECT_FALSE(connection_legal("draw_call", "audio"));
-    EXPECT_EQ(boundary_mapping("draw_call", "audio"), std::nullopt);
+    EXPECT_FALSE(connection_legal("mesh", "audio"));
+    EXPECT_EQ(boundary_mapping("mesh", "audio"), std::nullopt);
     EXPECT_FALSE(connection_legal("scalar", "vec3"));
 }
 

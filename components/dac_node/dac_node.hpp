@@ -23,6 +23,7 @@
 struct DacNode {
     static consteval std::string_view name() { return "dac"; }
     static consteval std::string_view source_header() { return "components/dac_node/dac_node.hpp"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
 
     // endpoints v6: an unconnected audio input is structurally silent.
     struct endpoints {

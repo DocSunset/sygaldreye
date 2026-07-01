@@ -8,6 +8,10 @@
 #include <string>
 #include <string_view>
 
+// PARKED: offscreen leg. Out of the build and unregistered in both shells
+// while DrawFn is retired (ABI v8); its GpuTexture input is produced only by
+// the parked offscreen render targets. Revived on render_region FBO passes.
+//
 // A live-codable fullscreen shader pass: texture in, texture out, fragment
 // code in a text param. The param supplies the body of
 //     vec4 effect(vec2 uv)

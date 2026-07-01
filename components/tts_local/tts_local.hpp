@@ -20,6 +20,7 @@ class TtsLocalNode {
 public:
     static consteval std::string_view name()          { return "tts_local"; }
     static consteval std::string_view source_header() { return "components/tts_local/tts_local.hpp"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
 
     struct endpoints {
         normalled_in<std::string> message;

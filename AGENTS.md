@@ -100,7 +100,7 @@ Architectural evolution should be documented in `adr.md`.
 
 # Workflow
 
-Work items are located in the `kanban` directory, one markdown file per work item.
+Work items are located in the `kanban` directory, one markdown file per work item. Move items to develop when you are developing them. If the item requires human review, move it to review when it is done. If it does not require human participation in the review process, move it to done when you are done working on it.
 
 # Remember
 

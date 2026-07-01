@@ -14,6 +14,8 @@ Graph::~Graph() {
     for (auto& n : nodes) {
         if (n.desc && n.desc->destroy) n.desc->destroy(n.data);
     }
+    for (auto& [k, li] : lifted_store)
+        if (li.desc && li.desc->destroy && li.data) li.desc->destroy(li.data);
 }
 
 static std::string_view find_string(std::string_view json, std::string_view key) {
@@ -223,6 +225,8 @@ std::unique_ptr<Graph> parse_graph(const std::string& raw_json, const ComponentR
         }
     }
 
+    g->lift_key = std::string(find_string(json, "lift_key"));
+
     return g;
 }
 
@@ -237,9 +241,10 @@ std::unique_ptr<Graph> clone_graph(const Graph& src) {
         }
         g->nodes.push_back({n.desc, data, n.id});
     }
-    g->edges   = src.edges;
-    g->inlets  = src.inlets;
-    g->outlets = src.outlets;
+    g->edges    = src.edges;
+    g->inlets   = src.inlets;
+    g->outlets  = src.outlets;
+    g->lift_key = src.lift_key;
     if (!src.owned_descriptors.empty())
         std::fprintf(stderr, "clone_graph: src has owned_descriptors; not cloned\n");
     return g;
@@ -326,6 +331,9 @@ std::string serialize_graph(const Graph& g) {
             out += "\",\"port\":\""; out += d.port; out += "\"}";
         }
         out += ']';
+    }
+    if (!g.lift_key.empty()) {
+        out += ",\"lift_key\":\""; out += g.lift_key; out += '"';
     }
     out += '}';
     return out;

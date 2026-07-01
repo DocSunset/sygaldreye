@@ -9,10 +9,10 @@ only for the Android registry until APKs ship asset graphs.
 ## Ports
 - Inputs: r,g,b, x_offset, phase, freq, speed, alt_base, alt_height,
   ripple_amp, depth (all sliders, all patchable).
-- Outputs: render (DrawFn).
+- Outputs: surface + mesh (render-as-nodes), consumed by a `draw` node.
 - Sources/Destinations: none beyond edges.
-- Temporal couplings: ripple animates from tick time; GL (shader + grid
-  via GlGeometry) initialized lazily on first tick on the render thread.
+- Temporal couplings: ripple animates from tick time; GL lives in
+  render_region, which draws the emitted mesh.
 - Intended seams: per-curtain shader program is private; if N-curtain
   scenes ever profile poorly, share the program via a static cache without
   touching the node interface.

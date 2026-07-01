@@ -1,20 +1,23 @@
 // Copyright 2025 Travis West
 #include "component_registry.hpp"
+
+#include <dlfcn.h>
+
+#include <cstdio>
+
 #include "signal_graph.hpp"
 #include "subgraph_node.hpp"
-#include <cstdio>
-#include <dlfcn.h>
 
 #ifdef __ANDROID__
 #include <android/log.h>
-#define LOG(...)  __android_log_print(ANDROID_LOG_INFO,  "eyeballs", __VA_ARGS__)
+#define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
 #else
-#define LOG(fmt, ...)  std::fprintf(stdout, "[INFO]  " fmt "\n", ##__VA_ARGS__)
+#define LOG(fmt, ...) std::fprintf(stdout, "[INFO]  " fmt "\n", ##__VA_ARGS__)
 #define LOGE(fmt, ...) std::fprintf(stderr, "[ERROR] " fmt "\n", ##__VA_ARGS__)
 #endif
 
-using DescriptorFn = const EyeballsNodeDescriptor*(*)();
+using DescriptorFn = const EyeballsNodeDescriptor* (*)();
 
 void ComponentRegistry::register_builtin(const EyeballsNodeDescriptor* desc) {
     if (!desc || !desc->type_name) return;
@@ -34,21 +37,32 @@ bool ComponentRegistry::load_subgraph_json(const std::string& path) {
     std::fread(contents.data(), 1, static_cast<std::size_t>(sz), f);
     std::fclose(f);
 
+    // A subgraph declares an external interface (inlets/outlets). A .json with
+    // neither is a SCENE (e.g. editor.json), meant to be POSTed, not a node
+    // type — skip it silently so scene files can live beside subgraph plugins
+    // and so load order (which references which) never matters.
+    if (contents.find("\"inlets\"") == std::string::npos &&
+        contents.find("\"outlets\"") == std::string::npos)
+        return false;
+
     // Derive type name from file stem.
     std::size_t slash = path.find_last_of("/\\");
     std::string stem = (slash == std::string::npos) ? path : path.substr(slash + 1);
     // Strip ".json" suffix (5 chars).
     std::string type_name = stem.substr(0, stem.size() - 5);
+    return register_subgraph(type_name, contents);
+}
 
-    auto graph = parse_graph(contents, *this);
+bool ComponentRegistry::register_subgraph(const std::string& type_name, const std::string& json) {
+    auto graph = parse_graph(json, *this);
     if (!graph) {
-        LOGE("component_registry: failed to parse subgraph JSON %s", path.c_str());
+        LOGE("component_registry: failed to parse subgraph '%s'", type_name.c_str());
         return false;
     }
     SubgraphDescriptorPtr desc(new SubgraphDescriptor(std::move(graph), type_name));
     register_builtin(desc->descriptor());
     subgraph_descriptors_.push_back(std::move(desc));
-    LOG("component_registry: registered subgraph '%s' from %s", type_name.c_str(), path.c_str());
+    LOG("component_registry: registered subgraph '%s'", type_name.c_str());
     return true;
 }
 

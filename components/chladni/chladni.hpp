@@ -1,51 +1,35 @@
 // Copyright 2025 Travis West
 #pragma once
-#include "tri_mesh.hpp"
-#include "gl_program.hpp"
-#include "sygaldry_endpoints.hpp"
-#include "visual_node.hpp"
-#include <Eigen/Core>
 #include <memory>
 #include <string_view>
 
-struct ChladniParams {
-    int   grid_n   = 256;
-    int   mode_m   = 3;
-    int   mode_n   = 4;
-    float omega    = 1.0f;
-    Eigen::Vector4f node_color  = {0.95f, 0.90f, 0.75f, 1.0f}; // sand/cream
-    Eigen::Vector4f anti_color  = {0.05f, 0.08f, 0.18f, 1.0f}; // dark blue
-};
+#include <Eigen/Core>
 
-class Chladni : public VisualNode<Chladni> {
-public:
-    static consteval std::string_view name()          { return "chladni"; }
+#include "render_payloads.hpp"  // Surface, Mesh, Shader
+#include "sygaldry_endpoints.hpp"
+#include "tri_mesh.hpp"
+
+// chladni: a flat plate whose per-vertex colors trace a morphing Chladni nodal
+// pattern (unlit — the pattern IS the color). Positions/indices are built once;
+// only colors change each frame, so render_region re-uploads vertices into a
+// reused buffer. GL lives in render_region.
+class Chladni {
+   public:
+    static consteval std::string_view name() { return "chladni"; }
     static consteval std::string_view source_header() { return "components/chladni/chladni.hpp"; }
-    static consteval std::string_view source_cpp()    { return "components/chladni/chladni.cpp"; }
+    static consteval std::string_view source_cpp() { return "components/chladni/chladni.cpp"; }
 
     struct endpoints {
         normalled_in<float, fp(0.0f), fp(20.0f), fp(1.0f)> omega;
-    
-        ::out<DrawFn> render;
+        ::out<Surface> surface;
+        ::out<Mesh>    mesh;
     } endpoints;
 
+    void operator()(double time_s);
 
-    Chladni() = default;
-
-    static Chladni create(ChladniParams const&);
-    bool gl_ready() const { return prog_ != nullptr; }
-    void init_gl();
-    void sync_params();
-    void update(float time_s);
-    void draw(Eigen::Matrix4f const& mvp) const;
-
-private:
-    struct RawTag {};
-    explicit Chladni(RawTag) {}
-    static Chladni create_default();
-    ChladniParams params_;
-    TriMeshData   data_;
-    TriMesh       mesh_;
-    std::unique_ptr<GlProgram> prog_;
-    GLint mvp_loc_ = -1;
+   private:
+    void init();
+    std::shared_ptr<TriMeshData> data_;
+    Shader                       shader_;
+    int                          n_ = 200;
 };

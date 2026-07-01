@@ -7,6 +7,8 @@
 
 #include <GLES3/gl3.h>
 
+// PARKED: offscreen leg. Out of the build and unregistered in both shells
+// while DrawFn is retired (ABI v8); revived on render_region FBO passes.
 class RDRenderer {
 public:
     static consteval std::string_view name()          { return "rd_renderer"; }
