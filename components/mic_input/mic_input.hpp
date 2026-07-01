@@ -7,6 +7,7 @@
 class MicInputNode {
 public:
     static consteval std::string_view name() { return "mic_input"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
 
     struct endpoints {
         normalled_in<float, fp(0.f), fp(10.f), fp(1.f)> gain;

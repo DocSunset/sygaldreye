@@ -4,92 +4,104 @@
 #include <GLES3/gl3.h>
 
 #include "aurora_curtain.hpp"
+#include "card_labels_mesh.hpp"
+#include "card_mesh.hpp"
+#include "card_widgets_mesh.hpp"
 #include "chladni.hpp"
 #include "claude_tmux.hpp"
+#include "color_mesh.hpp"
 #include "cube_node.hpp"
 #include "dac_node.hpp"
-#include "editor_node.hpp"
+#include "dwell_delete.hpp"
+#include "edit_sink.hpp"
+#include "editor_default_graph.hpp"
+#include "editor_wires.hpp"
 #include "eyeballs_node_abi.hpp"
+#include "flat_shader.hpp"
 #include "fly_camera.hpp"
 #include "fly_camera_node.hpp"
-#include "glsl_effect.hpp"
+#include "graph_source.hpp"
 #include "hand_node.hpp"
+#include "handle_picker.hpp"
 #include "lissajous.hpp"
 #include "math_nodes.hpp"
 #include "mesh_nodes.hpp"
 #include "net_nodes.hpp"
 #include "osc_node.hpp"
+#include "palette.hpp"
+#include "palette_mesh.hpp"
 #include "particle_system.hpp"
 #include "poke_button.hpp"
 #include "poke_stick.hpp"
 #include "rd_gpu.hpp"
-#include "rd_renderer.hpp"
 #include "reaction_diffusion.hpp"
-#include "render_nodes.hpp"
+#include "render_region.hpp"
+#include "render_region_nodes.hpp"
+#include "rubber_band_controller.hpp"
 #include "sample_player.hpp"
 #include "sky_dome.hpp"
+#include "slider_drag.hpp"
 #include "spatialize_node.hpp"
 #include "spawner_node.hpp"
 #include "spectrogram.hpp"
+#include "sprite.hpp"
 #include "star_field.hpp"
 #include "stb_image_write.h"
 #include "stt_whisper.hpp"
 #include "sun_light.hpp"
 #include "terrain_generator.hpp"
 #include "text_label.hpp"
+#include "tree_generator_node.hpp"
 #include "trigger_edge.hpp"
 #include "tts_local.hpp"
 #include "tts_node.hpp"
 #include "ugens.hpp"
 #include "ui_nodes.hpp"
+#include "undo_node.hpp"
+#include "vertex_color_mesh.hpp"
 #include "water_surface.hpp"
 #include "whisper_node.hpp"
+#include "wire_drag.hpp"
 #include "wire_mesh.hpp"
-
-namespace {
-// The platform graph: interaction rig wired by edges + a starter scene.
-constexpr const char* kDefaultGraph = R"({
-    "nodes":[
-        {"id":"camera","type":"fly_camera","params":{}},
-        {"id":"hand_l","type":"hand","params":{"x":-0.25}},
-        {"id":"hand_r","type":"hand","params":{"x":0.25}},
-        {"id":"editor","type":"editor","params":{}},
-        {"id":"wires","type":"wire_mesh","params":{}},
-        {"id":"sky","type":"sky_dome","params":{}},
-        {"id":"water","type":"water_surface","params":{}},
-        {"id":"sun","type":"sun_light","params":{}},
-        {"id":"cube","type":"cube","params":{}},
-        {"id":"stt","type":"whisper_stt","params":{"target_node":"claude"}},
-        {"id":"claude","type":"claude_tmux","params":{}},
-        {"id":"speak","type":"tts","params":{"play_url":"http://192.168.0.18:8080/play"}}
-    ],
-    "edges":[
-        {"from":"hand_l.pos","to":"editor.left_pos"},
-        {"from":"hand_l.rot","to":"editor.left_rot"},
-        {"from":"hand_r.pos","to":"editor.right_pos"},
-        {"from":"hand_r.rot","to":"editor.right_rot"},
-        {"from":"hand_l.trigger","to":"editor.trigger_left"},
-        {"from":"hand_r.trigger","to":"editor.trigger_right"},
-        {"from":"hand_r.grip","to":"editor.grip_right"},
-        {"from":"hand_l.thumb_x","to":"editor.thumb_x"},
-        {"from":"hand_l.thumb_y","to":"editor.thumb_y"},
-        {"from":"editor.wires","to":"wires.wires"}
-    ]
-})";
-}  // namespace
 
 void HostApp::init(int http_port) {
     auto& reg = core_.registry;
     reg.register_builtin(make_descriptor<FlyCameraNode>());
     reg.register_builtin(make_descriptor<HandNode>());
-    reg.register_builtin(make_descriptor<EditorNode>());
     reg.register_builtin(make_descriptor<WireMeshNode>());
     reg.register_builtin(make_descriptor<SpawnerNode>());
+    reg.register_builtin(make_descriptor<GraphSourceNode>());
+    reg.register_builtin(make_descriptor<EditSinkNode>());
+    reg.register_builtin(make_descriptor<CardMeshNode>());
+    reg.register_builtin(make_descriptor<CardWidgetsMeshNode>());
+    reg.register_builtin(make_descriptor<CardLabelsMeshNode>());
+    reg.register_builtin(make_descriptor<EditorWiresNode>());
+    reg.register_builtin(make_descriptor<HandlePickerNode>());
+    reg.register_builtin(make_descriptor<WireDragNode>());
+    reg.register_builtin(make_descriptor<SliderDragNode>());
+    reg.register_builtin(make_descriptor<DwellDeleteNode>());
+    reg.register_builtin(make_descriptor<UndoNode>());
+    reg.register_builtin(make_descriptor<PaletteNode>());
+    reg.register_builtin(make_descriptor<PaletteMeshNode>());
     reg.register_builtin(make_descriptor<LfoNode>());
     reg.register_builtin(make_descriptor<SttWhisperNode>());
     reg.register_builtin(make_descriptor<TtsLocalNode>());
     reg.register_builtin(make_descriptor<ScatterNode>());
-    reg.register_builtin(make_descriptor<MeshInstancesNode>());
+    reg.register_builtin(make_descriptor<SeedsNode>());
+    reg.register_builtin(make_descriptor<RenderHeadNode>());
+    reg.register_builtin(make_descriptor<DrawNode>());
+    reg.register_builtin(make_descriptor<ForestDrawNode>());
+    reg.register_builtin(make_descriptor<TreeGeneratorNode>());
+    reg.register_builtin(make_descriptor<ColorMeshNode>());
+    reg.register_builtin(make_descriptor<VertexColorMeshNode>());
+    reg.register_builtin(make_descriptor<SpriteNode>());
+    reg.register_builtin(make_descriptor<PokeStickNode>());
+    reg.register_builtin(make_descriptor<PokeButtonNode>());
+    reg.register_builtin(make_descriptor<UiSliderNode>());
+    reg.register_builtin(make_descriptor<UiButtonNode>());
+    reg.register_builtin(make_descriptor<UiPaneNode>());
+    reg.register_builtin(make_descriptor<RubberBandController>());
+    reg.register_builtin(make_descriptor<FlatMeshNode>());
     reg.register_builtin(make_descriptor<ScaleNode>());
     reg.register_builtin(make_descriptor<AddNode>());
     reg.register_builtin(make_descriptor<MulNode>());
@@ -103,9 +115,6 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<HsvColorNode>());
     reg.register_builtin(make_descriptor<TimeNode>());
     reg.register_builtin(make_descriptor<ClaudeTmuxNode>());
-    reg.register_builtin(make_descriptor<UiSliderNode>());
-    reg.register_builtin(make_descriptor<UiButtonNode>());
-    reg.register_builtin(make_descriptor<UiPaneNode>());
     reg.register_builtin(make_descriptor<UdpSendNode>());
     reg.register_builtin(make_descriptor<UdpRecvNode>());
     reg.register_builtin(make_descriptor<WaterSurface>());
@@ -116,17 +125,12 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<Lissajous>());
     reg.register_builtin(make_descriptor<AuroraCurtainNode>());
     reg.register_builtin(make_descriptor<Chladni>());
-    reg.register_builtin(make_descriptor<TerrainRenderer>());
+    reg.register_builtin(make_descriptor<Terrain>());
     reg.register_builtin(make_descriptor<ParticleSystem>());
     reg.register_builtin(make_descriptor<ReactionDiffusion>());
     reg.register_builtin(make_descriptor<RdGpu>());
-    reg.register_builtin(make_descriptor<RDRenderer>());
-    reg.register_builtin(make_descriptor<RenderTargetNode>());
-    reg.register_builtin(make_descriptor<TextureViewNode>());
-    reg.register_builtin(make_descriptor<GlslEffectNode>());
     reg.register_builtin(make_descriptor<MeshGridNode>());
     reg.register_builtin(make_descriptor<MeshDisplaceNode>());
-    reg.register_builtin(make_descriptor<MeshRenderNode>());
     reg.register_builtin(make_descriptor<MeshSphereNode>());
     reg.register_builtin(make_descriptor<MeshBoxNode>());
     reg.register_builtin(make_descriptor<MeshCylinderNode>());
@@ -147,8 +151,6 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<MatMulNode>());
     reg.register_builtin(make_descriptor<TriggerEdge>());
     reg.register_builtin(make_descriptor<TextLabelNode>());
-    reg.register_builtin(make_descriptor<PokeStickNode>());
-    reg.register_builtin(make_descriptor<PokeButtonNode>());
     reg.register_builtin(make_descriptor<SpectrogramNode>());
     reg.register_builtin(make_descriptor<OscNode>());
     reg.register_builtin(make_descriptor<DacNode>());
@@ -171,11 +173,21 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<TtsNode>());
     reg.register_builtin(make_descriptor<WhisperNode>());
 
+    // The card subgraph the editor lifts over the live graph (keyed by id).
+    // Registered from the embedded definition so the default editor graph
+    // parses identically on both shells, independent of the filesystem scan.
+    reg.register_subgraph("card", editor_default_graph::kEditorCardSubgraph);
+
     PeerCore::Config cfg;
     cfg.http_port = http_port;
-    cfg.default_graph_json = kDefaultGraph;
+    cfg.default_graph_json = editor_default_graph::kEditorGraph;
     cfg.data_dir = "/tmp";
     cfg.graphs_dir = "assets/graphs";
+    // Drop render_region's pointer-keyed caches when a retired graph (and its
+    // ShaderData/TriMeshData) is destructed, so reused addresses can't resolve
+    // to a freed node's program/geometry. Runs on the render thread (current
+    // GL context) inside begin_frame's swap.
+    core_.on_graph_swapped = [](const Graph*) { RenderRegion::instance().notify_graph_swap(); };
     core_.init(cfg);
 }
 
@@ -189,22 +201,27 @@ void HostApp::frame(int width, int height, double time_s) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
+    RenderRegion::instance().begin_frame();
     core_.tick(time_s);
     core_.collect_edits();
 
     Graph* g = core_.graph();
     if (!g) return;
 
-    // The graph decides the view: camera.pv, if a camera node exists.
-    Eigen::Matrix4f pv;
-    auto v = core_.read_node_output("camera", "pv", "mat4");
-    if (v && std::holds_alternative<Eigen::Matrix4f>(*v)) {
-        pv = std::get<Eigen::Matrix4f>(*v);
+    // The graph decides the view: camera.view/proj, if a camera node exists.
+    Eigen::Matrix4f view, proj;
+    auto vv = core_.read_node_output("camera", "view", "mat4");
+    auto pp = core_.read_node_output("camera", "proj", "mat4");
+    if (vv && pp && std::holds_alternative<Eigen::Matrix4f>(*vv) &&
+        std::holds_alternative<Eigen::Matrix4f>(*pp)) {
+        view = std::get<Eigen::Matrix4f>(*vv);
+        proj = std::get<Eigen::Matrix4f>(*pp);
     } else {
         FlyCamera fallback{};
-        pv = fallback.proj(aspect) * fallback.view();
+        proj = fallback.proj(aspect);
+        view = fallback.view();
     }
-    for (auto& call : g->draw_calls) call(pv);
+    RenderRegion::instance().issue(view, proj, time_s);
 
     core_.fulfil_screenshot(width, height);
 }

@@ -2,6 +2,164 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-06-15 — S6 + DrawFn retirement DONE (branch `lifting-editor-drawfn`)
+
+The arc closes. Both shells now BOOT the node-based editor (`editor.json`'s
+graph, embedded in `peer_core/editor_default_graph.hpp`; the `card` subgraph
+registered from its embedded definition). The VrEditor/EditorNode monolith is
+DELETED, and with it `vr_editor`, `editor_node`, `vr_panel`, `ray_selector`,
+`rgba_shader`, the GL `text_mesh` class (glyph layer kept), and the dead
+`ui_nodes`/`poke_*`/`control_panel.json` + `rubber_band_controller` cluster
+(grab/tethered/cylinder). In-headset verification was WAIVED — the goal was the
+architecture (graph-native editor, no DrawFn), and it renders headless.
+
+**DrawFn is gone (ABI v8).** The typedef, `Graph::draw_calls`, the PortValue
+arm, the ABI fn pointers (`emit_drawfn`/`push_draw_calls`/`set_drawfn_in`) +
+`DrawCallCtx`, and both shells' draw loops are deleted. `is_drawable` is gone;
+every port is wirable. `grep -rn DrawFn components/` now shows only
+`scene_snapshot`'s unrelated `SnapshotDrawFn` and the PARKED offscreen nodes.
+
+**Parked (out of build, sources kept, annotated):** `render_nodes`,
+`rd_renderer`, `glsl_effect` — they ride DrawFn; revived on render_region FBO
+passes (the DEFERRED offscreen leg). `rd_gpu` stays (resource-holder).
+
+Host gtest 43/43 PASS; Quest cross-compile (`libeyeballs.so`) green.
+
+## 2026-06-15 — editor decomposition Part II (S3 gestures + S5 internals DONE; monolith kept; branch `lifting-editor-drawfn`)
+
+`editor.json` now FULLY reproduces the monolith's appearance + edits. The old
+VrEditor/EditorNode monolith stays LIVE, registered, and default (the gating
+rule — deletion S6 is user-gated after in-headset verification).
+
+1. SHARED LAYOUT: `editor_layout` ports the monolith's card/handle/slider
+   world-space layout (default grid, 0.018 m row pitch, scalar→slider) into
+   ONE tested function with identity (node id + port name) attached. Identity
+   resolution = gesture nodes read this layout off the graph they observe (no
+   text-array payload — the simpler/general option (b) the plan allows).
+2. GESTURE NODES (S3), each a resource-holder fed controller-pose edges,
+   emitting edit ops via a `GestureContext` (graph + edit queue + shared
+   position overrides + sorted types) injected in pump_contexts:
+   handle_picker (hover label), wire_drag (grip FSM → add_edge / card-move
+   override), slider_drag (tip-x → set_param), dwell_delete (grip dwell →
+   remove_node/edge), undo_node (thumb flick → restore), palette (poke →
+   add_node + paging). graph_source now shares wire_drag's overrides.
+3. CARD INTERNALS + PALETTE RENDER (S5): card_widgets_mesh (handles + sliders
+   as vertex-colour geometry), card_labels_mesh (id labels as glyph mesh),
+   editor_wires (edges → wire span), palette_mesh (panel + type rows) — the
+   rendering DUAL of the gestures, all reading the same editor_layout.
+4. Fixed undo: frame-diff was overwritten by param drift; now snapshots on a
+   STRUCTURAL change (node/edge add/remove), the monolith's undo_json_ rule.
+
+Verified headless (spectator): editor.json renders cards WITH handles,
+sliders, labels, wires, AND the palette. Each edit gesture driven through the
+live /controller path produces the right edit (connect add0.out→mul0.a;
+slider set a≈+917; dwell remove victim; palette spawn add; undo 7→6 nodes),
+mirrored by editor_integration round-trip tests. Monolith default graph still
+renders identically.
+
+Host: 47/47 test binaries PASS (+editor_layout, wire_drag, slider_drag,
+dwell_delete, undo_node, palette, handle_picker, card_widgets_mesh,
+card_labels_mesh, editor_wires, palette_mesh, editor_integration). Quest
+cross-compile green. DrawFn surface untouched (Part III not started).
+
+REMAINING: S6 deletion of the monolith (user-gated, after in-headset check).
+
+## 2026-06-15 — editor decomposition Part II (S1/S2/S4 partial; branch `lifting-editor-drawfn`)
+
+Built on Part I's lifting core. The old VrEditor/EditorNode monolith stays
+LIVE and registered (gating rule) — these are the decomposed pieces beside it.
+
+1. META SEAM (S1): `graph_source` (resource-holder; reads the live graph,
+   publishes keys/positions/count Spans — replaces EditorNode::set_context)
+   and `edit_sink` (text edit-ops → the edit queue). Wired generically in
+   pump_contexts alongside the still-live editor/spawner seams. Registered
+   in both shells.
+2. STRUCTURED EDIT OPS (S2): `apply_edit_op` (signal_graph_edit.cpp) moves
+   the editor's whole-graph string surgery into a tested op vocabulary
+   (add/remove node/edge, set_param); collect_edits routes through it (full
+   graphs pass through). edit_sink test covers the vocabulary.
+3. KEYED-BY-ID SUBGRAPH LIFT (the rung-3 acceptance): the L1 lift keyed on
+   the lifted cell; extended with a SEPARATE key source so a card keys on a
+   stable id, not its moving position. Graph.lift_key (JSON top-level) →
+   SubgraphDescriptor → LiftGroup.key_source. Fixed a lift-selection bug:
+   a span into the lift_key port is excess-rank too and stole the lift when
+   listed first (cards stacked at origin) — build_plan now skips it.
+4. CARD SUBGRAPH (S4): `card_mesh` (quad at a vec3 position) + `card.json`
+   (lift_key=id) + `editor.json` (graph_source → lifted card subgraph keyed
+   by id → forest_draw). Spectator screenshot: 6 nodes → 6 cards, each at
+   its own grid position. THE VISUAL rung-3 acceptance for keyed subgraph
+   lifting. Registry now skips scene .json (no inlets/outlets) as plugins.
+
+Host tests green (35 binaries; signal_graph 38, integration 11/8, +graph_source
+3, +edit_sink 6, +card_mesh 2). Quest cross-compile green.
+
+NOT YET (monolith kept): S3 gesture nodes (handle_picker/wire_drag/
+slider_drag/dwell_delete/undo_node/palette), S5 card labels+handles+sliders
+in the subgraph, S6 deletion. editor.json renders cards but has no
+interaction/palette/labels yet — it does NOT yet reproduce the editor.
+
+## 2026-06-15 — DrawFn migration leg (R0–R4 done; branch `render-as-nodes`)
+
+Plan: `~/.claude/plans/synthetic-sprouting-lantern.md`; progress detail in
+`planning/render_as_nodes.md`. Goal: migrate every DrawFn producer onto the
+render-as-nodes path, then delete DrawFn. **Every visual-content producer is
+now migrated**; editor rendering + offscreen + teardown remain.
+
+- **R0 render_region capabilities**: uTime, uViewPos, GpuTexture + CPU-image
+  (`ImageTex`) uniforms, `cull_front`, `additive` blend, and dynamic geometry
+  (persistent slots reused via `update_verts` when topology is stable).
+- **R1 mesh producers**: new `vertex_color_mesh` (lit per-vertex, wireable
+  sun); `terrain` is now a geometry generator; `sky_dome`, `water_surface`
+  (shader-side Gerstner waves), `wire_mesh`, `lissajous` (LineStrip), `cube`.
+- **R2 instanced**: `particle_system` (sim stays; per-instance pos/size/color
+  Spans), `star_field` (Points via gl_VertexID).
+- **R3 effects**: `chladni`, `reaction_diffusion` (CPU sims → dynamic
+  vertex-color), `aurora_curtain` (additive).
+- **R4 text**: CPU-image atlas path + a `glyph::` layer; `text_label` MSDF.
+- **Deleted**: `app_snapshot` (legacy snapshot tool), `mesh_render` +
+  `mesh_instances` (redundant with `color_mesh`), `visual_node`,
+  `particle_system_shader`.
+- **Green**: host suite 32 PASS; Quest `libeyeballs.so` + on-device tests
+  cross-compile clean. Each producer screenshot-verified headless.
+- **Fixed**: sky `sun_dir` sign (light-travel direction) for graph-native
+  lighting. **Known**: live graph-swap can leave stale render_region cache
+  (fresh load correct) — invalidation is an R6 item.
+- **Remaining**: R5 editor rendering (vr_editor/editor_node/poke_*/vr_panel/
+  ray_selector), R6 draw-order chain + cache invalidation, R7 offscreen
+  passes + **delete DrawFn**.
+
+## 2026-06-15 — render-as-nodes (#59 render half; branch `render-as-nodes`)
+
+Ratified with Travis then built overnight: drawing leaves C++ nodes the way
+audio output left them in #58. Plan: `planning/render_as_nodes.md`.
+
+- **#58 planar audio** committed as the branch baseline.
+- **Payloads** (`render_payloads`): `Surface` (program + uniforms + pipeline)
+  and `Mesh` (geometry + per-instance attribute Spans + Primitive) in the
+  `PortValue` variant. No `DrawDesc` — a draw is the node plus its wiring.
+- **`render_region`**: the GL boundary, the `audio_region` of graphics. Draw
+  nodes enqueue (Mesh, Surface); it owns all GPU resources (program +
+  geometry caches over `GlProgram`/`GlGeometry`) and is the ONLY place that
+  says GL. `host_app` + `app` (Quest) drive begin_frame/issue alongside the
+  legacy `DrawFn` path (bridge).
+- **Nodes**: `draw` (the render endpoint, the `dac` of rendering),
+  `render_head`, `color_mesh` (first shader-specific node → Surface+Mesh).
+- **Instancing falls out of Span rank**: `color_mesh` fed an N×3 positions
+  Span draws N instances (one `glDrawElementsInstanced`); unwired → one at
+  the origin. Same node draws a cube or a forest. Effectively decomposes
+  `mesh_instances`.
+- **Camera-facing sprites** (`sprite` node): a quad + facing shader, alpha
+  blended, instanced over a positions Span — decomposes the billboard /
+  particle / star case. `render_region` injects uCameraRight/uCameraUp.
+- **Verified headless** (host EGL + screenshot): single cube, 80-box forest,
+  a colored grove (ground + 50 instanced trunks + 50 instanced foliage, 3
+  materials, multi-draw), and 160 blended camera-facing sprites. Quest
+  cross-compile clean (`libeyeballs.so`).
+- **Still ahead**: glyph/text + the remaining `DrawFn` producers
+  (sky/water/terrain/reaction-diffusion/…), delete the bridge + `DrawFn`,
+  event-chain draw ordering, and the non-GPU rung-3 executor (subgraph
+  clones / CPU cell-map). Then editor decomposition (#60).
+
 ## 2026-06-12 — the runtime grows up (two-day arc, f531b66..3bcd613)
 
 The execution model:

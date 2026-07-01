@@ -1,10 +1,12 @@
 // Copyright 2025 Travis West
 #include "subgraph_node.hpp"
-#include "signal_graph.hpp"
+
+#include <gtest/gtest.h>
+
 #include "component_registry.hpp"
 #include "eyeballs_node_abi.hpp"
+#include "signal_graph.hpp"
 #include "sygaldry_endpoints.hpp"
-#include <gtest/gtest.h>
 
 // GainNode: scalar input "in", scalar output "out" = in * 2.
 struct GainNode {
@@ -15,17 +17,6 @@ struct GainNode {
     } endpoints;
     void operator()(double) { endpoints.out.value = endpoints.in.get() * 2.0f; }
 };
-
-// DrawNode: emits a draw call.
-struct SgDrawNode {
-    static consteval std::string_view name() { return "sg_draw"; }
-    static bool drawn;
-    struct endpoints { ::out<DrawFn> render; } endpoints;
-    void operator()(double) {
-        endpoints.render.value = [](const Eigen::Matrix4f&) { SgDrawNode::drawn = true; };
-    }
-};
-bool SgDrawNode::drawn = false;
 
 static std::unique_ptr<Graph> make_gain_graph(ComponentRegistry& reg) {
     static auto desc = make_descriptor<GainNode>();
@@ -63,7 +54,7 @@ TEST(SubgraphNode, OutletEmission) {
 
     std::unordered_map<std::string, PortValue> store;
     EyeballsOutputCtx ctx{};
-    ctx.store   = &store;
+    ctx.store = &store;
     ctx.node_id = "sub";
     ctx.emit_scalar = [](void* s, const char* nid, const char* port, double v) {
         auto& m = *static_cast<std::unordered_map<std::string, PortValue>*>(s);
@@ -74,27 +65,6 @@ TEST(SubgraphNode, OutletEmission) {
     auto it = store.find("sub.level");
     ASSERT_NE(it, store.end());
     EXPECT_NEAR(std::get<double>(it->second), 1.0, 1e-6);  // 0.5 * 2
-}
-
-TEST(SubgraphNode, DrawCallForwarding) {
-    ComponentRegistry reg;
-    static auto desc = make_descriptor<SgDrawNode>();
-    reg.register_builtin(desc);
-    const char* json = R"({"nodes":[{"id":"d","type":"sg_draw","params":{}}],"edges":[]})";
-    auto inner = parse_graph(json, reg);
-    ASSERT_NE(inner, nullptr);
-
-    SubgraphNode sn(std::move(inner));
-    sn(0.0);
-
-    std::vector<DrawFn> calls;
-    DrawCallCtx ctx{"sub", &calls};
-    sn.push_draw_calls_to(&ctx);
-    ASSERT_EQ(calls.size(), 1u);
-
-    SgDrawNode::drawn = false;
-    calls[0](Eigen::Matrix4f::Identity());
-    EXPECT_TRUE(SgDrawNode::drawn);
 }
 
 TEST(SubgraphNode, CloneIndependence) {
@@ -129,19 +99,20 @@ TEST(SubgraphNode, V6WiresForwardToInnerStorage) {
     ComponentRegistry reg;
     static auto desc = make_descriptor<V6ThruNode>();
     reg.register_builtin(desc);
-    auto inner = parse_graph(R"({
+    auto inner = parse_graph(
+        R"({
         "nodes":[{"id":"t","type":"v6_thru","params":{}}],
         "edges":[],
         "inlets":[{"name":"gain","node":"t","port":"in"}],
         "outlets":[{"name":"level","node":"t","port":"out"}]
-    })", reg);
+    })",
+        reg);
     ASSERT_NE(inner, nullptr);
     auto* thru = static_cast<V6ThruNode*>(inner->nodes[0].data);
 
     SubgraphNode sn(std::move(inner));
     // outlet_ptr returns the INNER node's storage address
-    EXPECT_EQ(sn.outlet_ptr("level"),
-              static_cast<const void*>(&thru->endpoints.out.value));
+    EXPECT_EQ(sn.outlet_ptr("level"), static_cast<const void*>(&thru->endpoints.out.value));
     // connect_inlet points the inner input at an outer producer
     float outer = 3.f;
     EXPECT_EQ(sn.connect_inlet("gain", &outer), 1);

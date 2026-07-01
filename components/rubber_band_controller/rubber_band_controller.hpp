@@ -1,42 +1,46 @@
+// Copyright 2025 Travis West
 #pragma once
-#include <Eigen/Core>
 #include <array>
-#include <functional>
-#include <optional>
-#include <span>
-#include <string>
+#include <Eigen/Core>
+#include <memory>
+#include <string_view>
 
-#include "cylinder_mesh.hpp"
 #include "grab_target.hpp"
-#include "rgba_shader.hpp"
-#include "sphere_mesh.hpp"
-#include "text_mesh.hpp"
+#include "render_payloads.hpp"  // Mesh, Surface, Shader
+#include "sygaldry_endpoints.hpp"
 
-struct HandState;
-
+// A composited VR widget as a graph node: a fixed anchor sphere connected by
+// a rubber-band cylinder to a freely draggable control sphere. Two hand poses
+// + grips arrive through edges; grab detection runs internally; the offset
+// vector and a declarative Mesh+Surface (both spheres + the band, one mesh)
+// flow out. GL lives only in render_region (ABI v8). The label that the old
+// GL widget drew is dropped — text is a text_label node's job now.
 struct RubberBandController {
-    static RubberBandController create(
-        Eigen::Vector3f anchor_pos,
-        std::function<std::string(Eigen::Vector3f)> label_fn = {});
+    static consteval std::string_view name() { return "rubber_band"; }
+    static consteval std::string_view source_header() {
+        return "components/rubber_band_controller/rubber_band_controller.hpp";
+    }
+    static consteval std::string_view source_cpp() {
+        return "components/rubber_band_controller/rubber_band_controller.cpp";
+    }
 
-    void update(std::span<const HandState> hands);
-    void draw(const Eigen::Matrix4f& view_proj) const;
+    struct endpoints {
+        ::in<Eigen::Vector3f> left_pos;
+        ::in<Eigen::Vector3f> right_pos;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> left_grip;
+        normalled_in<float, fp(0.f), fp(1.f), fp(0.f)> right_grip;
+        normalled_in<float, fp(-5.f), fp(5.f), fp(0.f)> anchor_x;
+        normalled_in<float, fp(-5.f), fp(5.f), fp(1.2f)> anchor_y;
+        normalled_in<float, fp(-5.f), fp(5.f), fp(-0.6f)> anchor_z;
+        ::out<Eigen::Vector3f> offset;  // anchor → control
+        ::out<Surface> surface;
+        ::out<Mesh> mesh;
+    } endpoints;
 
-    [[nodiscard]] Eigen::Vector3f offset() const;
-
-    ~RubberBandController();
-    RubberBandController(const RubberBandController&)              = delete;
-    RubberBandController& operator=(const RubberBandController&)   = delete;
-    RubberBandController(RubberBandController&&) noexcept          = default;
-    RubberBandController& operator=(RubberBandController&&) noexcept = default;
+    void operator()(double time_s);
 
 private:
-    RubberBandController() = default;
-
-    std::array<GrabTarget, 2>                    targets_{};
-    std::optional<SphereMesh>                    sphere_mesh_{};
-    std::optional<CylinderMesh>                  cylinder_mesh_{};
-    RgbaShader                                   rgba_shader_{};
-    TextMesh                                     text_mesh_{};
-    std::function<std::string(Eigen::Vector3f)>  label_fn_{};
+    std::array<GrabTarget, 2> targets_{};
+    bool seeded_ = false;
+    Shader shader_;
 };

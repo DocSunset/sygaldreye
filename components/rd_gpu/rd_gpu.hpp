@@ -9,6 +9,7 @@
 // Call init() once after the GL context is available.
 struct RdGpu {
     static consteval std::string_view name() { return "rd_gpu"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
 
     struct endpoints {
         normalled_in<float, fp(0.f), fp(0.1f), fp(0.055f)> feed;

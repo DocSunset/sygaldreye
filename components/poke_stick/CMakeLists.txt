@@ -1,4 +1,11 @@
 add_library(poke_stick STATIC poke_stick.cpp)
 target_include_directories(poke_stick PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(poke_stick PUBLIC sygaldry_endpoints)
-target_compile_options(poke_stick PRIVATE -Wall -Wextra)
+target_link_libraries(poke_stick PUBLIC tri_mesh render_payloads sygaldry_endpoints)
+target_compile_options(poke_stick PRIVATE -Wall -Wextra -Werror)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(poke_stick_test poke_stick.test.cpp)
+    target_link_libraries(poke_stick_test PRIVATE poke_stick GTest::gtest_main)
+    target_compile_options(poke_stick_test PRIVATE -Wall -Wextra)
+endif()

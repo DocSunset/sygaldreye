@@ -1,5 +1,6 @@
 // Copyright 2026 Travis West
 #include "spatialize_node.hpp"
+
 #include <cmath>
 
 void SpatializeNode::operator()(double) {
@@ -20,11 +21,11 @@ void SpatializeNode::operator()(double) {
     }
 
     float sl = 0.f, sr = 0.f;
-    for (int i = 0; i < n; ++i) {
-        sl += buf_[std::size_t(i) * 2]     * buf_[std::size_t(i) * 2];
-        sr += buf_[std::size_t(i) * 2 + 1] * buf_[std::size_t(i) * 2 + 1];
+    for (int i = 0; i < n; ++i) {  // planar: [L block][R block]
+        sl += buf_[std::size_t(i)] * buf_[std::size_t(i)];
+        sr += buf_[std::size_t(n) + std::size_t(i)] * buf_[std::size_t(n) + std::size_t(i)];
     }
-    endpoints.level_l.value   = n ? std::sqrt(sl / float(n)) : 0.f;
-    endpoints.level_r.value   = n ? std::sqrt(sr / float(n)) : 0.f;
+    endpoints.level_l.value = n ? std::sqrt(sl / float(n)) : 0.f;
+    endpoints.level_r.value = n ? std::sqrt(sr / float(n)) : 0.f;
     endpoints.audio_out.value = AudioBuffer{buf_.data(), n, 2, in.sample_rate};
 }

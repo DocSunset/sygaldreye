@@ -23,6 +23,10 @@ public:
     void draw_arrays(GLenum mode, GLsizei count) const;
     void draw_elements(GLenum mode, GLsizei count) const;
 
+    // VAO handle, so a caller (render_region) can attach per-instance
+    // attribute buffers (divisor 1) for instanced draws and tear them down.
+    [[nodiscard]] GLuint vao() const { return vao_; }
+
     GlGeometry() = default;
     ~GlGeometry();
     GlGeometry(const GlGeometry&) = delete;

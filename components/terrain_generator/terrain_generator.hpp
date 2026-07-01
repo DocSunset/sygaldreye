@@ -1,16 +1,17 @@
+// Copyright 2025 Travis West
 #pragma once
 #include <array>
-#include <Eigen/Core>
-#include "tri_mesh.hpp"
-#include "light.hpp"
-#include "material.hpp"
-#include "gl_program.hpp"
-#include "sygaldry_endpoints.hpp"
 #include <memory>
 #include <string_view>
 
+#include <Eigen/Core>
+
+#include "render_payloads.hpp"  // MeshPtr
+#include "sygaldry_endpoints.hpp"
+#include "tri_mesh.hpp"
+
 struct TerrainBand {
-    float           threshold; // normalized height [0,1]
+    float           threshold;  // normalized height [0,1]
     Eigen::Vector3f color;
 };
 
@@ -24,7 +25,7 @@ struct TerrainParams {
     float gain           = 0.5f;
     float noise_offset_x = 0.0f;
     float noise_offset_z = 0.0f;
-    // Semantic color bands (sorted by threshold ascending)
+    // Semantic color bands (sorted by threshold ascending), baked per vertex.
     std::array<TerrainBand, 5> bands = {{
         {0.18f, {0.08f, 0.18f, 0.38f}},  // deep water
         {0.28f, {0.76f, 0.70f, 0.50f}},  // sand
@@ -32,21 +33,22 @@ struct TerrainParams {
         {0.75f, {0.50f, 0.44f, 0.38f}},  // rock
         {1.00f, {0.95f, 0.95f, 1.00f}},  // snow
     }};
-    Light    sun      = {LightType::Directional,
-                         {-0.4f, -0.9f, -0.2f},
-                         {1.0f, 0.95f, 0.85f}, 1.2f};
-    Material material = {{0.06f, 0.08f, 0.10f},
-                         {0.80f, 0.80f, 0.80f},
-                         {0.15f, 0.15f, 0.15f}, 16.0f};
 };
 
 TriMeshData generate_terrain(TerrainParams const&);
 
-class TerrainRenderer {
-public:
-    static consteval std::string_view name()          { return "terrain"; }
-    static consteval std::string_view source_header() { return "components/terrain_generator/terrain_generator.hpp"; }
-    static consteval std::string_view source_cpp()    { return "components/terrain_generator/terrain_generator.cpp"; }
+// terrain: a geometry generator. Builds a heightmap mesh with per-vertex band
+// colors + face normals and emits it as a MeshPtr. Lighting/drawing belong to
+// vertex_color_mesh + draw downstream — GL left this node (render-as-nodes).
+class Terrain {
+   public:
+    static consteval std::string_view name() { return "terrain"; }
+    static consteval std::string_view source_header() {
+        return "components/terrain_generator/terrain_generator.hpp";
+    }
+    static consteval std::string_view source_cpp() {
+        return "components/terrain_generator/terrain_generator.cpp";
+    }
 
     struct endpoints {
         normalled_in<float, fp(0.f), fp(100.f), fp(20.f)> height_scale;
@@ -54,39 +56,13 @@ public:
         normalled_in<float, fp(0.1f), fp(1.f), fp(0.5f)> gain;
         normalled_in<float, fp(-100.f), fp(100.f), fp(0.f)> noise_offset_x;
         normalled_in<float, fp(-100.f), fp(100.f), fp(0.f)> noise_offset_z;
-        normalled_in<float, fp(0.f), fp(5.f), fp(1.2f)> sun_intensity;
-    
-        ::out<DrawFn> render;
+        ::out<MeshPtr> mesh;
     } endpoints;
 
-    static TerrainRenderer create(TerrainParams const&);
-
-    TerrainRenderer() = default;
-    ~TerrainRenderer() = default;
-    TerrainRenderer(TerrainRenderer const&) = delete;
-    TerrainRenderer& operator=(TerrainRenderer const&) = delete;
-    TerrainRenderer(TerrainRenderer&&) noexcept = default;
-    TerrainRenderer& operator=(TerrainRenderer&&) noexcept = default;
-
-
-    void set_sun(Light const& sun);
     void operator()(double time_s);
-    void draw(Eigen::Matrix4f const& mvp,
-              Eigen::Matrix4f const& model,
-              Eigen::Vector3f const& view_pos) const;
 
-private:
-    TerrainParams              params_;
-    TriMesh                    mesh_;
-    std::unique_ptr<GlProgram> prog_;
-    GLint mvp_loc_      = -1;
-    GLint model_loc_    = -1;
-    GLint view_pos_loc_ = -1;
-    GLint sun_dir_loc_  = -1;
-    GLint sun_col_loc_  = -1;
-    GLint sun_int_loc_  = -1;
-    GLint mat_amb_loc_  = -1;
-    GLint mat_dif_loc_  = -1;
-    GLint mat_spe_loc_  = -1;
-    GLint mat_shi_loc_  = -1;
+   private:
+    TerrainParams params_;
+    MeshPtr       mesh_;
+    bool          generated_ = false;
 };

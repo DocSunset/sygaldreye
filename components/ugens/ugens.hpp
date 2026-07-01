@@ -13,10 +13,10 @@
 
 // The audio unit generators (ugen_decomposition.md phase 1+).
 //
-// MULTICHANNEL, Pd-style: an audio edge carries any number of interleaved
-// channels, decided by what's wired (AudioBuffer.channels). Processors
-// adapt transparently — per-channel state grows to match the input; a
-// mono side-input broadcasts; mismatched counts wrap (c % channels).
+// MULTICHANNEL, Pd-style: an audio edge carries any number of PLANAR
+// (channel-major) channels, decided by what's wired (AudioBuffer.channels).
+// Processors adapt transparently — per-channel state grows to match the
+// input; a mono side-input broadcasts; mismatched counts wrap (c % channels).
 // Generators are mono; mc_pack concatenates channel lists and mc_unpack
 // peels them when explicit decomposition is wanted.
 //
@@ -28,9 +28,10 @@ using synth::Gen;  // generator block shell (synth_core/block_shell.hpp)
 
 inline int chans(const AudioBuffer& b) { return std::max(1, b.channels); }
 // Sample of channel c, wrapping into the buffer's own channel count
-// (mono broadcasts, mismatches wrap).
+// (mono broadcasts, mismatches wrap). PLANAR: each channel is contiguous,
+// so channel c starts at c*frames.
 inline float at(const AudioBuffer& b, int frame, int c) {
-    return b.data[std::size_t(frame) * std::size_t(chans(b)) + std::size_t(c % chans(b))];
+    return b.data[std::size_t(c % chans(b)) * std::size_t(b.frames) + std::size_t(frame)];
 }
 
 // The conformability stamp (conformability.md): one kernel instance per
@@ -49,9 +50,9 @@ struct Lift {
         if (fresh) kernels.assign(std::size_t(ch), K{});
         for (auto& k : kernels) prepare(k, fresh);
         buf.resize(std::size_t(n) * std::size_t(ch));
-        for (int i = 0; i < n; ++i)
-            for (int c = 0; c < ch; ++c)
-                buf[std::size_t(i) * std::size_t(ch) + std::size_t(c)] =
+        for (int c = 0; c < ch; ++c)
+            for (int i = 0; i < n; ++i)  // planar: scan channel c's frames
+                buf[std::size_t(c) * std::size_t(n) + std::size_t(i)] =
                     tick(kernels[std::size_t(c)], at(in, i, c), i, c);
         return {buf.data(), n, ch, in.sample_rate};
     }
@@ -212,9 +213,9 @@ struct MixNode {
         buf_.assign(std::size_t(n) * std::size_t(ch), 0.f);
         for (int s = 0; s < 4; ++s) {
             if (!bufs[s].data) continue;
-            for (int i = 0; i < std::min(n, bufs[s].frames); ++i)
-                for (int c = 0; c < ch; ++c)
-                    buf_[std::size_t(i) * std::size_t(ch) + std::size_t(c)] +=
+            for (int c = 0; c < ch; ++c)
+                for (int i = 0; i < std::min(n, bufs[s].frames); ++i)
+                    buf_[std::size_t(c) * std::size_t(n) + std::size_t(i)] +=
                         ugen_detail::at(bufs[s], i, c) * gains[s];
         }
         endpoints.audio.value = AudioBuffer{buf_.data(), n, ch, rate};
@@ -320,23 +321,30 @@ struct SampleHoldNode {
         out<AudioBuffer> audio_out;
     } endpoints;
     void operator()(double) {
+        const AudioBuffer in = endpoints.audio.get();
+        int n = (in.data && in.frames > 0) ? in.frames : 0;
         float period = 48000.f / std::max(0.5f, endpoints.rate.get());
+        // The clock is a time-axis scan shared by every channel: compute the
+        // per-frame sample mask once, then map S&H across channels (planar
+        // channel-outer iteration must not reach across channels per frame).
+        mask_.resize(std::size_t(n));
+        for (int i = 0; i < n; ++i) {
+            bool s = (++count_ >= period);
+            if (s) count_ = 0.f;
+            mask_[std::size_t(i)] = s ? 1 : 0;
+        }
         endpoints.audio_out.value = lift_.run(
-            endpoints.audio.get(),
+            in,
             [](synth::SampleHold&, bool) {},
-            [&](synth::SampleHold& k, float x, int, int c) {
-                if (c == 0) {  // shared clock: once per frame
-                    sample_now_ = (++count_ >= period);
-                    if (sample_now_) count_ = 0.f;
-                }
-                return k.tick(x, sample_now_);
+            [&](synth::SampleHold& k, float x, int i, int) {
+                return k.tick(x, mask_[std::size_t(i)] != 0);
             });
     }
 
 private:
     ugen_detail::Lift<synth::SampleHold> lift_;
+    std::vector<char> mask_;
     float count_ = 0.f;
-    bool sample_now_ = false;
 };
 
 // Scalar slew limiter: de-zippers latched params (units per second).
@@ -465,13 +473,13 @@ struct McPackNode {
             }
         int out_ch = std::max(1, ch);
         buf_.assign(std::size_t(n) * std::size_t(out_ch), 0.f);
-        int base = 0;
+        int base = 0;  // planar: each input's channels become contiguous blocks
         for (auto* b : ins) {
             if (!b->data || b->frames <= 0) continue;
             int bch = ugen_detail::chans(*b);
-            for (int i = 0; i < std::min(n, b->frames); ++i)
-                for (int c = 0; c < bch; ++c)
-                    buf_[std::size_t(i) * std::size_t(out_ch) + std::size_t(base + c)] =
+            for (int c = 0; c < bch; ++c)
+                for (int i = 0; i < std::min(n, b->frames); ++i)
+                    buf_[std::size_t(base + c) * std::size_t(n) + std::size_t(i)] =
                         ugen_detail::at(*b, i, c);
             base += bch;
         }

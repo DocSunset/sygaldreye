@@ -1,11 +1,12 @@
 // Copyright 2025 Travis West
-#include "subgraph_node.hpp"
-#include "port_schema_reader.hpp"
 #include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <utility>
+
+#include "port_schema_reader.hpp"
+#include "subgraph_node.hpp"
 
 // C function pointers cannot capture, and create() takes no argument. To give
 // each subgraph type a distinct create() that knows its own template, we hand
@@ -26,7 +27,9 @@ void* create_in_slot(int slot) {
 }
 
 template <int Slot>
-void* create_trampoline() { return create_in_slot(Slot); }
+void* create_trampoline() {
+    return create_in_slot(Slot);
+}
 
 template <int... Is>
 constexpr auto make_trampoline_table(std::integer_sequence<int, Is...>) {
@@ -38,18 +41,21 @@ const auto g_trampolines =
 
 int claim_slot(SubgraphDescriptor* d) {
     for (int i = 0; i < kMaxSubgraphTypes; ++i)
-        if (!g_slots[i]) { g_slots[i] = d; return i; }
+        if (!g_slots[i]) {
+            g_slots[i] = d;
+            return i;
+        }
     return -1;
 }
 
-} // namespace
+}  // namespace
 
 // Inlet/outlet kinds derive from the inner port they forward to/from —
 // a subgraph's type is the composition of its parts' types. Region
 // inference, edge legality, and editor wire colors all read this, so an
 // audio-outlet subgraph joins the block region like any synth node.
-static std::string port_entry(const Graph& g, const std::string& node,
-                              const std::string& port, bool output) {
+static std::string port_entry(
+    const Graph& g, const std::string& node, const std::string& port, bool output) {
     for (const auto& n : g.nodes) {
         if (n.id != node || !n.desc) continue;
         PortSchema schema = parse_port_schema(n.desc->port_schema);
@@ -58,14 +64,23 @@ static std::string port_entry(const Graph& g, const std::string& node,
                 char buf[64];
                 std::string s = "\"kind\":\"" + p.kind + "\"";
                 if (p.kind == "scalar") {
-                    std::snprintf(buf, sizeof(buf), ",\"min\":%g,\"max\":%g",
-                                  double(p.min), double(p.max));
+                    std::snprintf(
+                        buf, sizeof(buf), ",\"min\":%g,\"max\":%g", double(p.min), double(p.max));
                     s += buf;
                 }
                 return s;
             }
     }
     return "\"kind\":\"unknown\"";
+}
+
+// A subgraph is a resource-holder (unliftable) if any inner node is one —
+// lifting it would replicate the device/stream it contains. Recurses through
+// nested subgraphs (their descriptor already carries the inferred kind).
+static bool contains_resource_holder(const Graph& g) {
+    for (const auto& n : g.nodes)
+        if (n.desc && n.desc->lift_kind == EYEBALLS_LIFT_RESOURCE_HOLDER) return true;
+    return false;
 }
 
 static std::string build_port_schema(const Graph& g) {
@@ -87,24 +102,27 @@ static std::string build_port_schema(const Graph& g) {
     return s;
 }
 
-SubgraphDescriptor::SubgraphDescriptor(std::unique_ptr<Graph> graph_template,
-                                       std::string type_name)
+SubgraphDescriptor::SubgraphDescriptor(std::unique_ptr<Graph> graph_template, std::string type_name)
     : graph_template_(std::move(graph_template)),
       type_name_(std::move(type_name)),
-      port_schema_(build_port_schema(*graph_template_)) {
+      port_schema_(build_port_schema(*graph_template_)),
+      lift_key_(graph_template_->lift_key) {
     slot_ = claim_slot(this);
 
-    desc_.version     = EYEBALLS_ABI_VERSION;
-    desc_.type_name   = type_name_.c_str();
+    desc_.version = EYEBALLS_ABI_VERSION;
+    desc_.type_name = type_name_.c_str();
     desc_.port_schema = port_schema_.c_str();
-    desc_.create      = (slot_ >= 0) ? g_trampolines[slot_] : nullptr;
+    desc_.lift_kind = contains_resource_holder(*graph_template_) ? EYEBALLS_LIFT_RESOURCE_HOLDER
+                                                                 : EYEBALLS_LIFT_STATEFUL;
+    // Keyed identity: a lifted card subgraph keys on the Span feeding this
+    // inlet (graph_source.keys), not the lifted cell — so a dragged card
+    // keeps its lifted state across a reorder/edit.
+    desc_.lift_key = lift_key_.empty() ? nullptr : lift_key_.c_str();
+    desc_.create = (slot_ >= 0) ? g_trampolines[slot_] : nullptr;
     desc_.destroy = [](void* p) { delete static_cast<SubgraphNode*>(p); };
     desc_.process = [](void* p, double t) { (*static_cast<SubgraphNode*>(p))(t); };
     desc_.push_outputs = [](void* p, EyeballsOutputCtx* ctx) {
         static_cast<SubgraphNode*>(p)->push_outlets(ctx);
-    };
-    desc_.push_draw_calls = [](void* p, void* ctx) {
-        static_cast<SubgraphNode*>(p)->push_draw_calls_to(static_cast<DrawCallCtx*>(ctx));
     };
     // Inlet-params: {"type":"chime_synth_g","params":{"freq":880}} works —
     // presets are parametric abstractions (inlet_defaults.md rung 1).
@@ -133,21 +151,24 @@ SubgraphDescriptor::SubgraphDescriptor(std::unique_ptr<Graph> graph_template,
             port, PortValue{Eigen::Matrix4f{Eigen::Map<const Eigen::Matrix4f>(c16)}});
     };
     desc_.set_quat_in = [](void* p, const char* port, float x, float y, float z, float w) {
-        static_cast<SubgraphNode*>(p)->cache_inlet(
-            port, PortValue{Eigen::Quaternionf{w, x, y, z}});
+        static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{Eigen::Quaternionf{w, x, y, z}});
     };
-    desc_.set_texture_in = [](void* p, const char* port, unsigned int id, int w, int h,
-                              unsigned int fmt, unsigned int filt) {
-        static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{GpuTexture{id, w, h, fmt, filt}});
+    desc_.set_texture_in = [](void* p,
+                              const char* port,
+                              unsigned int id,
+                              int w,
+                              int h,
+                              unsigned int fmt,
+                              unsigned int filt) {
+        static_cast<SubgraphNode*>(p)->cache_inlet(
+            port, PortValue{GpuTexture{id, w, h, fmt, filt}});
     };
     desc_.set_audio_in = [](void* p, const char* port, const float* d, int f, int c, int r) {
         static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{AudioBuffer{d, f, c, r}});
     };
-    desc_.set_drawfn_in = [](void* p, const char* port, const void* fn) {
-        static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{*static_cast<const DrawFn*>(fn)});
-    };
     desc_.set_mesh_in = [](void* p, const char* port, const void* mesh) {
-        static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{*static_cast<const MeshPtr*>(mesh)});
+        static_cast<SubgraphNode*>(p)->cache_inlet(
+            port, PortValue{*static_cast<const MeshPtr*>(mesh)});
     };
     desc_.set_text_in = [](void* p, const char* port, const char* utf8) {
         static_cast<SubgraphNode*>(p)->cache_inlet(port, PortValue{std::string{utf8}});

@@ -1,28 +1,23 @@
 // Copyright 2025 Travis West
 #pragma once
-#include "gl_geometry.hpp"
-#include "gl_program.hpp"
-#include "sygaldry_endpoints.hpp"
-#include "visual_node.hpp"
-#include <Eigen/Core>
 #include <memory>
 #include <string_view>
-#include <vector>
 
-struct LissajousParams {
-    float freq_x    = 3.0f;
-    float freq_y    = 4.0f;
-    float freq_z    = 0.5f;   // slow z modulation
-    float phase_x   = 0.0f;   // animated over time
-    float amp       = 1.0f;
-    int   samples   = 4000;
-};
+#include <Eigen/Core>
 
-class Lissajous : public VisualNode<Lissajous> {
-public:
-    static consteval std::string_view name()          { return "lissajous"; }
-    static consteval std::string_view source_header() { return "components/lissajous/lissajous.hpp"; }
-    static consteval std::string_view source_cpp()    { return "components/lissajous/lissajous.cpp"; }
+#include "render_payloads.hpp"  // Surface, Mesh, Shader
+#include "sygaldry_endpoints.hpp"
+
+// lissajous: a parametric curve drawn as an unlit, per-vertex-colored
+// LINE_STRIP. The curve animates (phase + z drift) over time, so the geometry
+// is dynamic (rebuilt each frame). GL lives in render_region.
+class Lissajous {
+   public:
+    static consteval std::string_view name() { return "lissajous"; }
+    static consteval std::string_view source_header() {
+        return "components/lissajous/lissajous.hpp";
+    }
+    static consteval std::string_view source_cpp() { return "components/lissajous/lissajous.cpp"; }
 
     struct endpoints {
         normalled_in<float, fp(0.5f), fp(20.0f), fp(3.0f)> freq_x;
@@ -31,27 +26,12 @@ public:
         normalled_in<float, fp(0.0f), fp(6.283f), fp(0.0f)> phase_x;
         normalled_in<float, fp(0.1f), fp(5.0f), fp(1.0f)> amp;
         normalled_in<float, fp(100.f), fp(10000.f), fp(4000.f)> samples;
-    
-        ::out<DrawFn> render;
+        ::out<Surface> surface;
+        ::out<Mesh>    mesh;
     } endpoints;
 
+    void operator()(double time_s);
 
-    Lissajous() = default;
-
-    static Lissajous create(LissajousParams const&);
-    bool gl_ready() const { return prog_ != nullptr; }
-    void init_gl();
-    void sync_params();
-    void update(float time_s);
-    void draw(Eigen::Matrix4f const& mvp) const;
-
-private:
-    struct RawTag {};
-    explicit Lissajous(RawTag) {}
-    static Lissajous create_default();
-    LissajousParams params_;
-    std::vector<float> vbo_data_; // interleaved: x,y,z,r,g,b (6 floats per vertex)
-    GlGeometry geom_;
-    std::unique_ptr<GlProgram> prog_;
-    GLint mvp_loc_ = -1;
+   private:
+    Shader shader_;
 };

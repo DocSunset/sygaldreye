@@ -1,16 +1,17 @@
 // Copyright 2025 Travis West
 #include "subgraph_node.hpp"
-#include "signal_graph_plan.hpp"
-#include "port_schema_reader.hpp"
+
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <string_view>
 
+#include "port_schema_reader.hpp"
+#include "signal_graph_plan.hpp"
+
 // ── SubgraphNode ─────────────────────────────────────────────────────────────
 
-SubgraphNode::SubgraphNode(std::unique_ptr<Graph> inner)
-    : inner_(std::move(inner)) {
+SubgraphNode::SubgraphNode(std::unique_ptr<Graph> inner) : inner_(std::move(inner)) {
     // Plan + wire the inner graph NOW: its wire_plan resets every v6 input,
     // so it must run before the outer graph forwards wires into us (the
     // lazy build at first tick would wipe outer connections).
@@ -28,8 +29,10 @@ void SubgraphNode::operator()(double t) {
     for (const auto& decl : inner_->inlets) {
         auto cv = inlet_cache_.find(decl.name);
         if (cv == inlet_cache_.end()) continue;
-        auto it = std::find_if(inner_->nodes.begin(), inner_->nodes.end(),
-                               [&](const NodeInstance& n) { return n.id == decl.node; });
+        auto it =
+            std::find_if(inner_->nodes.begin(), inner_->nodes.end(), [&](const NodeInstance& n) {
+                return n.id == decl.node;
+            });
         if (it == inner_->nodes.end()) continue;
         apply_value(*it, decl.port.c_str(), cv->second);
     }
@@ -40,53 +43,77 @@ void SubgraphNode::push_outlets(EyeballsOutputCtx* ctx) const {
     // Pull-only path (phase D): read the inner node's owned storage typed
     // by its schema kind — there is no inner values map.
     for (const auto& decl : inner_->outlets) {
-        auto it = std::find_if(inner_->nodes.begin(), inner_->nodes.end(),
-                               [&](const NodeInstance& n) { return n.id == decl.node; });
+        auto it =
+            std::find_if(inner_->nodes.begin(), inner_->nodes.end(), [&](const NodeInstance& n) {
+                return n.id == decl.node;
+            });
         if (it == inner_->nodes.end()) continue;
         std::string kind = "unknown";
         PortSchema schema = parse_port_schema(it->desc->port_schema);
         for (const auto& p : schema.outputs)
-            if (p.name == decl.port) { kind = p.kind; break; }
+            if (p.name == decl.port) {
+                kind = p.kind;
+                break;
+            }
         auto v = read_output(*it, decl.port, kind);
         if (!v) continue;
         const char* nm = decl.name.c_str();
-        std::visit([&](const auto& val) {
-            using T = std::decay_t<decltype(val)>;
-            if constexpr (std::is_same_v<T, double>) {
-                ctx->emit_scalar(ctx->store, ctx->node_id, nm, val);
-            } else if constexpr (std::is_same_v<T, Eigen::Vector2f>) {
-                ctx->emit_vec2(ctx->store, ctx->node_id, nm, val.x(), val.y());
-            } else if constexpr (std::is_same_v<T, Eigen::Vector3f>) {
-                ctx->emit_vec3(ctx->store, ctx->node_id, nm, val.x(), val.y(), val.z());
-            } else if constexpr (std::is_same_v<T, Eigen::Vector4f>) {
-                ctx->emit_vec4(ctx->store, ctx->node_id, nm, val.x(), val.y(), val.z(), val.w());
-            } else if constexpr (std::is_same_v<T, Eigen::Matrix4f>) {
-                ctx->emit_mat4(ctx->store, ctx->node_id, nm, val.data());
-            } else if constexpr (std::is_same_v<T, Eigen::Quaternionf>) {
-                ctx->emit_quat(ctx->store, ctx->node_id, nm, val.x(), val.y(), val.z(), val.w());
-            } else if constexpr (std::is_same_v<T, GpuTexture>) {
-                ctx->emit_texture(ctx->store, ctx->node_id, nm, val.id, val.width,
-                                  val.height, val.internal_format, val.filter);
-            } else if constexpr (std::is_same_v<T, AudioBuffer>) {
-                ctx->emit_audio(ctx->store, ctx->node_id, nm, val.data, val.frames,
-                                val.channels, val.sample_rate);
-            } else if constexpr (std::is_same_v<T, DrawFn>) {
-                if (ctx->emit_drawfn)
-                    ctx->emit_drawfn(ctx->store, ctx->node_id, nm,
-                                     static_cast<const void*>(&val));
-            } else if constexpr (std::is_same_v<T, MeshPtr>) {
-                if (ctx->emit_mesh)
-                    ctx->emit_mesh(ctx->store, ctx->node_id, nm,
-                                   static_cast<const void*>(&val));
-            } else if constexpr (std::is_same_v<T, std::string>) {
-                if (ctx->emit_text)
-                    ctx->emit_text(ctx->store, ctx->node_id, nm, val.c_str());
-            } else if constexpr (std::is_same_v<T, Span>) {
-                if (ctx->emit_span)
-                    ctx->emit_span(ctx->store, ctx->node_id, nm,
-                                   val.data, val.rows, val.cols);
-            }
-        }, *v);
+        std::visit(
+            [&](const auto& val) {
+                using T = std::decay_t<decltype(val)>;
+                if constexpr (std::is_same_v<T, double>) {
+                    ctx->emit_scalar(ctx->store, ctx->node_id, nm, val);
+                } else if constexpr (std::is_same_v<T, Eigen::Vector2f>) {
+                    ctx->emit_vec2(ctx->store, ctx->node_id, nm, val.x(), val.y());
+                } else if constexpr (std::is_same_v<T, Eigen::Vector3f>) {
+                    ctx->emit_vec3(ctx->store, ctx->node_id, nm, val.x(), val.y(), val.z());
+                } else if constexpr (std::is_same_v<T, Eigen::Vector4f>) {
+                    ctx->emit_vec4(
+                        ctx->store, ctx->node_id, nm, val.x(), val.y(), val.z(), val.w());
+                } else if constexpr (std::is_same_v<T, Eigen::Matrix4f>) {
+                    ctx->emit_mat4(ctx->store, ctx->node_id, nm, val.data());
+                } else if constexpr (std::is_same_v<T, Eigen::Quaternionf>) {
+                    ctx->emit_quat(
+                        ctx->store, ctx->node_id, nm, val.x(), val.y(), val.z(), val.w());
+                } else if constexpr (std::is_same_v<T, GpuTexture>) {
+                    ctx->emit_texture(
+                        ctx->store,
+                        ctx->node_id,
+                        nm,
+                        val.id,
+                        val.width,
+                        val.height,
+                        val.internal_format,
+                        val.filter);
+                } else if constexpr (std::is_same_v<T, AudioBuffer>) {
+                    ctx->emit_audio(
+                        ctx->store,
+                        ctx->node_id,
+                        nm,
+                        val.data,
+                        val.frames,
+                        val.channels,
+                        val.sample_rate);
+                } else if constexpr (std::is_same_v<T, MeshPtr>) {
+                    if (ctx->emit_mesh)
+                        ctx->emit_mesh(
+                            ctx->store, ctx->node_id, nm, static_cast<const void*>(&val));
+                } else if constexpr (std::is_same_v<T, std::string>) {
+                    if (ctx->emit_text) ctx->emit_text(ctx->store, ctx->node_id, nm, val.c_str());
+                } else if constexpr (std::is_same_v<T, Span>) {
+                    if (ctx->emit_span)
+                        ctx->emit_span(
+                            ctx->store,
+                            ctx->node_id,
+                            nm,
+                            val.data,
+                            val.rows,
+                            val.cols,
+                            int(val.row_axis),
+                            int(val.col_axis));
+                }
+            },
+            *v);
     }
 }
 
@@ -94,8 +121,10 @@ int SubgraphNode::connect_inlet(const char* name, const void* src) {
     int hit = 0;
     for (const auto& decl : inner_->inlets) {
         if (decl.name != name) continue;
-        auto it = std::find_if(inner_->nodes.begin(), inner_->nodes.end(),
-                               [&](const NodeInstance& n) { return n.id == decl.node; });
+        auto it =
+            std::find_if(inner_->nodes.begin(), inner_->nodes.end(), [&](const NodeInstance& n) {
+                return n.id == decl.node;
+            });
         if (it == inner_->nodes.end() || !it->desc->connect) continue;
         hit |= it->desc->connect(it->data, decl.port.c_str(), src);
     }
@@ -105,17 +134,14 @@ int SubgraphNode::connect_inlet(const char* name, const void* src) {
 const void* SubgraphNode::outlet_ptr(const char* name) const {
     for (const auto& decl : inner_->outlets) {
         if (decl.name != name) continue;
-        auto it = std::find_if(inner_->nodes.begin(), inner_->nodes.end(),
-                               [&](const NodeInstance& n) { return n.id == decl.node; });
+        auto it =
+            std::find_if(inner_->nodes.begin(), inner_->nodes.end(), [&](const NodeInstance& n) {
+                return n.id == decl.node;
+            });
         if (it == inner_->nodes.end() || !it->desc->output_ptr) continue;
         return it->desc->output_ptr(it->data, decl.port.c_str());
     }
     return nullptr;
-}
-
-void SubgraphNode::push_draw_calls_to(DrawCallCtx* ctx) {
-    ctx->calls->insert(ctx->calls->end(),
-                       inner_->draw_calls.begin(), inner_->draw_calls.end());
 }
 
 // ── inlet-params (rung 1) ────────────────────────────────────────────────────
@@ -144,14 +170,15 @@ void SubgraphNode::deserialize_params(const char* json) {
                 if (s[i] == '\\' && i + 1 < q) {
                     char c = s[++i];
                     txt += (c == 'n') ? '\n' : (c == 't') ? '\t' : c;
-                } else txt += s[i];
+                } else
+                    txt += s[i];
             }
-            v   = std::move(txt);
+            v = std::move(txt);
             pos = (q < s.size()) ? q + 1 : q;
         } else {
             auto end = s.find_first_of(",}", pos);
             if (end == std::string_view::npos) end = s.size();
-            v   = strtod(s.data() + pos, nullptr);
+            v = strtod(s.data() + pos, nullptr);
             pos = end;
         }
         param_defaults_[key] = v;
@@ -173,15 +200,18 @@ std::string SubgraphNode::serialize_params() const {
         } else if (const std::string* t = std::get_if<std::string>(&v)) {
             out += '"';
             for (char c : *t) {
-                if (c == '\n')      out += "\\n";
-                else if (c == '\t') out += "\\t";
+                if (c == '\n')
+                    out += "\\n";
+                else if (c == '\t')
+                    out += "\\t";
                 else {
                     if (c == '"' || c == '\\') out += '\\';
                     out += c;
                 }
             }
             out += '"';
-        } else out += "0";
+        } else
+            out += "0";
     }
     return out + "}";
 }

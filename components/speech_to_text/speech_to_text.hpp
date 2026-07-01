@@ -11,6 +11,7 @@ class SpeechToTextNode {
 public:
     static consteval std::string_view name()          { return "speech_to_text"; }
     static consteval std::string_view source_header() { return "components/speech_to_text/speech_to_text.hpp"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
     static consteval std::string_view source_cpp()    { return "components/speech_to_text/speech_to_text.cpp"; }
 
     struct endpoints {

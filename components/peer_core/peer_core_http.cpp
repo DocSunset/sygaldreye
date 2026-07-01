@@ -1,10 +1,11 @@
 // Copyright 2026 Travis West
 // The HTTP control surface — identical on every peer.
-#include "peer_core.hpp"
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+
+#include "peer_core.hpp"
 
 namespace {
 
@@ -33,56 +34,75 @@ std::string_view find_object(std::string_view json, std::string_view key) {
     p += needle.size() - 1;
     int depth = 0;
     for (auto i = p; i < json.size(); ++i) {
-        if (json[i] == '{') ++depth;
-        else if (json[i] == '}' && --depth == 0) return json.substr(p, i - p + 1);
+        if (json[i] == '{')
+            ++depth;
+        else if (json[i] == '}' && --depth == 0)
+            return json.substr(p, i - p + 1);
     }
     return {};
 }
 
 std::string value_json(const PortValue& val) {
-    return std::visit([](const auto& v) -> std::string {
-        using T = std::decay_t<decltype(v)>;
-        char buf[160];
-        if constexpr (std::is_same_v<T, double>) {
-            std::snprintf(buf, sizeof(buf), "%g", v);
-        } else if constexpr (std::is_same_v<T, Eigen::Vector2f>) {
-            std::snprintf(buf, sizeof(buf), "[%g,%g]", double(v.x()), double(v.y()));
-        } else if constexpr (std::is_same_v<T, Eigen::Vector3f>) {
-            std::snprintf(buf, sizeof(buf), "[%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()));
-        } else if constexpr (std::is_same_v<T, Eigen::Vector4f> ||
-                             std::is_same_v<T, Eigen::Quaternionf>) {
-            std::snprintf(buf, sizeof(buf), "[%g,%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()), double(v.w()));
-        } else if constexpr (std::is_same_v<T, Eigen::Matrix4f>) {
-            std::snprintf(buf, sizeof(buf), R"("matrix4")");
-        } else if constexpr (std::is_same_v<T, GpuTexture>) {
-            std::snprintf(buf, sizeof(buf), R"("texture:%u")", v.id);
-        } else if constexpr (std::is_same_v<T, DrawFn>) {
-            std::snprintf(buf, sizeof(buf), R"("drawfn")");
-        } else if constexpr (std::is_same_v<T, MeshPtr>) {
-            std::snprintf(buf, sizeof(buf), R"("mesh:%zuv")", v ? v->vertices.size() : 0);
-        } else if constexpr (std::is_same_v<T, AudioBuffer>) {
-            std::snprintf(buf, sizeof(buf), R"("audio[%d]")", v.frames);
-        } else if constexpr (std::is_same_v<T, Span>) {
-            std::snprintf(buf, sizeof(buf), R"("span[%dx%d]")", v.rows, v.cols);
-        } else if constexpr (std::is_same_v<T, std::string>) {
-            std::string out = "\"";
-            for (char c : v) {
-                if (c == '\n')      out += "\\n";
-                else if (c == '\t') out += "\\t";
-                else {
-                    if (c == '"' || c == '\\') out += '\\';
-                    out += c;
+    return std::visit(
+        [](const auto& v) -> std::string {
+            using T = std::decay_t<decltype(v)>;
+            char buf[160];
+            if constexpr (std::is_same_v<T, double>) {
+                std::snprintf(buf, sizeof(buf), "%g", v);
+            } else if constexpr (std::is_same_v<T, Eigen::Vector2f>) {
+                std::snprintf(buf, sizeof(buf), "[%g,%g]", double(v.x()), double(v.y()));
+            } else if constexpr (std::is_same_v<T, Eigen::Vector3f>) {
+                std::snprintf(
+                    buf, sizeof(buf), "[%g,%g,%g]", double(v.x()), double(v.y()), double(v.z()));
+            } else if constexpr (
+                std::is_same_v<T, Eigen::Vector4f> || std::is_same_v<T, Eigen::Quaternionf>) {
+                std::snprintf(
+                    buf,
+                    sizeof(buf),
+                    "[%g,%g,%g,%g]",
+                    double(v.x()),
+                    double(v.y()),
+                    double(v.z()),
+                    double(v.w()));
+            } else if constexpr (std::is_same_v<T, Eigen::Matrix4f>) {
+                std::snprintf(buf, sizeof(buf), R"("matrix4")");
+            } else if constexpr (std::is_same_v<T, GpuTexture>) {
+                std::snprintf(buf, sizeof(buf), R"("texture:%u")", v.id);
+            } else if constexpr (std::is_same_v<T, MeshPtr>) {
+                std::snprintf(buf, sizeof(buf), R"("mesh:%zuv")", v ? v->vertices.size() : 0);
+            } else if constexpr (std::is_same_v<T, AudioBuffer>) {
+                std::snprintf(buf, sizeof(buf), R"("audio[%d]")", v.frames);
+            } else if constexpr (std::is_same_v<T, Span>) {
+                std::snprintf(
+                    buf,
+                    sizeof(buf),
+                    R"("span[%d %s x %d %s]")",
+                    v.rows,
+                    axis_name(v.row_axis),
+                    v.cols,
+                    axis_name(v.col_axis));
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                std::string out = "\"";
+                for (char c : v) {
+                    if (c == '\n')
+                        out += "\\n";
+                    else if (c == '\t')
+                        out += "\\t";
+                    else {
+                        if (c == '"' || c == '\\') out += '\\';
+                        out += c;
+                    }
                 }
+                return out + '"';
+            } else {
+                std::snprintf(buf, sizeof(buf), R"("value")");
             }
-            return out + '"';
-        } else {
-            std::snprintf(buf, sizeof(buf), R"("value")");
-        }
-        return buf;
-    }, val);
+            return buf;
+        },
+        val);
 }
 
-} // namespace
+}  // namespace
 
 void PeerCore::install_routes() {
     http_.add_route("GET", "/graph", [this](std::string_view) -> std::string {
@@ -109,11 +129,14 @@ void PeerCore::install_routes() {
             if (!desc) continue;
             if (!first) out += ',';
             first = false;
-            out += "{\"type\":\""; out += type_name; out += '"';
+            out += "{\"type\":\"";
+            out += type_name;
+            out += '"';
             if (desc->create && desc->serialize) {
                 void* tmp = desc->create();
                 const char* s = desc->serialize(tmp);
-                out += ",\"defaults\":"; out += s;
+                out += ",\"defaults\":";
+                out += s;
                 if (desc->free_str) desc->free_str(s);
                 desc->destroy(tmp);
             }
@@ -127,7 +150,9 @@ void PeerCore::install_routes() {
         for (const auto& n : registry.type_names()) {
             if (!first) out += ',';
             first = false;
-            out += '"'; out += n; out += '"';
+            out += '"';
+            out += n;
+            out += '"';
         }
         return out + "]";
     });
@@ -148,19 +173,20 @@ void PeerCore::install_routes() {
                 if (e != std::string_view::npos && e - s < 64)
                     stem = std::string(body.substr(s, e - s));
             }
-            std::snprintf(path, sizeof(path), "%s/%s.json",
-                          cfg_.data_dir.c_str(), stem.c_str());
+            std::snprintf(path, sizeof(path), "%s/%s.json", cfg_.data_dir.c_str(), stem.c_str());
         } else {
-            std::snprintf(path, sizeof(path), "%s/plugin_%ld.so",
-                          cfg_.data_dir.c_str(),
-                          static_cast<long>(std::time(nullptr)));
+            std::snprintf(
+                path,
+                sizeof(path),
+                "%s/plugin_%ld.so",
+                cfg_.data_dir.c_str(),
+                static_cast<long>(std::time(nullptr)));
         }
         FILE* f = std::fopen(path, "wb");
         if (!f) return R"({"ok":false,"error":"fopen failed"})";
         std::fwrite(body.data(), 1, body.size(), f);
         std::fclose(f);
-        if (!registry.load_plugin(path))
-            return R"({"ok":false,"error":"load_plugin failed"})";
+        if (!registry.load_plugin(path)) return R"({"ok":false,"error":"load_plugin failed"})";
         // Hot reload: re-instantiate the running graph through the (possibly
         // replaced) registry. Untouched types adopt their live state via
         // migration; a reloaded type gets fresh instances of the new code
@@ -177,8 +203,7 @@ void PeerCore::install_routes() {
         std::string body = compact_json(std::string(raw));
         auto node = find_string(body, "node");
         auto params = find_object(body, "params");
-        if (node.empty() || params.empty())
-            return R"({"ok":false,"error":"need node and params"})";
+        if (node.empty() || params.empty()) return R"({"ok":false,"error":"need node and params"})";
         queue_param(std::string(node), std::string(params));
         return R"({"ok":true})";
     });
@@ -190,60 +215,62 @@ void PeerCore::install_routes() {
         const auto& p = *g.plan;
         auto ids = [&](const std::vector<std::size_t>& v) {
             std::string s = "[";
-            for (std::size_t i : v)
-                s += (s.size() > 1 ? ",\"" : "\"") + g.nodes[i].id + '"';
+            for (std::size_t i : v) s += (s.size() > 1 ? ",\"" : "\"") + g.nodes[i].id + '"';
             return s + "]";
         };
-        std::string s = "{\"order\":" + ids(p.order)
-                      + ",\"block_order\":" + ids(p.block_order)
-                      + ",\"appliers\":[";
+        std::string s = "{\"order\":" + ids(p.order) + ",\"block_order\":" + ids(p.block_order) +
+                        ",\"appliers\":[";
         bool first = true;
         for (std::size_t n = 0; n < p.appliers.size(); ++n)
             for (const auto& a : p.appliers[n]) {
                 if (!first) s += ',';
                 first = false;
-                s += "\"" + a.edge->from_node + "." + a.edge->from_port +
-                     "->" + g.nodes[n].id + "." + a.edge->to_port + '"';
+                s += "\"" + a.edge->from_node + "." + a.edge->from_port + "->" + g.nodes[n].id +
+                     "." + a.edge->to_port + '"';
             }
         s += "],\"delayed\":[";
         first = true;
         for (const auto& d : p.delays) {
             if (!first) s += ',';
             first = false;
-            s += "\"" + d.applier.edge->from_node + "." + d.applier.edge->from_port +
-                 "->" + d.applier.edge->to_node + "." + d.applier.edge->to_port + '"';
+            s += "\"" + d.applier.edge->from_node + "." + d.applier.edge->from_port + "->" +
+                 d.applier.edge->to_node + "." + d.applier.edge->to_port + '"';
         }
         s += "],\"crossings\":[";
         first = true;
         for (const auto& c : p.crossings) {
             if (!first) s += ',';
             first = false;
-            s += "\"" + c.edge->from_node + "." + c.edge->from_port + "->" +
-                 c.edge->to_node + "." + c.edge->to_port + ":" +
-                 std::string(c.mapping) + '"';
+            s += "\"" + c.edge->from_node + "." + c.edge->from_port + "->" + c.edge->to_node + "." +
+                 c.edge->to_port + ":" + std::string(c.mapping) + '"';
         }
         return s + "]}";
     });
     http_.add_route("GET", "/values", [this](std::string_view) -> std::string {
-        probe("");   // force a fresh frame-coherent snapshot
+        probe("");  // force a fresh frame-coherent snapshot
         std::lock_guard<std::mutex> lock(values_mutex_);
         std::string out = "{";
         bool first = true;
         for (const auto& [key, val] : values_snapshot_) {
             if (!first) out += ',';
             first = false;
-            out += '"'; out += key; out += "\":";
+            out += '"';
+            out += key;
+            out += "\":";
             out += value_json(val);
         }
         return out + "}";
     });
     http_.add_route("GET", "/camera", [this](std::string_view) -> std::string {
         std::string out = "{";
-        for (auto [k, port] : {std::pair{"pos", "pos"}, {"yaw", "yaw_out"},
-                               {"pitch", "pitch_out"}}) {
+        for (auto [k, port] :
+             {std::pair{"pos", "pos"}, {"yaw", "yaw_out"}, {"pitch", "pitch_out"}}) {
             if (auto v = probe(std::string("camera.") + port)) {
                 if (out.size() > 1) out += ',';
-                out += '"'; out += k; out += "\":"; out += value_json(*v);
+                out += '"';
+                out += k;
+                out += "\":";
+                out += value_json(*v);
             }
         }
         return out + "}";
@@ -256,14 +283,21 @@ void PeerCore::install_routes() {
         bool right = find_string(body, "hand") != "left";
         // Re-emit only numeric fields: hand node inputs share these names.
         char params[256];
-        std::snprintf(params, sizeof(params),
+        std::snprintf(
+            params,
+            sizeof(params),
             R"({"x":%g,"y":%g,"z":%g,"qx":%g,"qy":%g,"qz":%g,"qw":%g,"trigger_in":%g,"grip_in":%g,"thumb_x_in":%g,"thumb_y_in":%g})",
-            find_number(body, "x", 0), find_number(body, "y", 1.2),
+            find_number(body, "x", 0),
+            find_number(body, "y", 1.2),
             find_number(body, "z", -0.4),
-            find_number(body, "qx", 0), find_number(body, "qy", 0),
-            find_number(body, "qz", 0), find_number(body, "qw", 1),
-            find_number(body, "trigger", 0), find_number(body, "grip", 0),
-            find_number(body, "thumb_x", 0), find_number(body, "thumb_y", 0));
+            find_number(body, "qx", 0),
+            find_number(body, "qy", 0),
+            find_number(body, "qz", 0),
+            find_number(body, "qw", 1),
+            find_number(body, "trigger", 0),
+            find_number(body, "grip", 0),
+            find_number(body, "thumb_x", 0),
+            find_number(body, "thumb_y", 0));
         queue_param(right ? "hand_r" : "hand_l", params);
         return R"({"ok":true})";
     });
@@ -275,16 +309,20 @@ void PeerCore::install_routes() {
             auto p = q.find("name=");
             if (p != std::string::npos) name = std::string(q.substr(p + 5));
         }
-        if (name.find('/') != std::string::npos)
-            return R"({"ok":false,"error":"bad name"})";
+        if (name.find('/') != std::string::npos) return R"({"ok":false,"error":"bad name"})";
         std::string path = cfg_.data_dir + "/" + name;
         FILE* f = std::fopen(path.c_str(), "wb");
         if (!f) return R"({"ok":false,"error":"fopen"})";
         std::size_t wrote = std::fwrite(body.data(), 1, body.size(), f);
         std::fclose(f);
         char out[160];
-        std::snprintf(out, sizeof(out), R"({"ok":%s,"bytes":%zu,"path":"%s"})",
-                      wrote == body.size() ? "true" : "false", wrote, path.c_str());
+        std::snprintf(
+            out,
+            sizeof(out),
+            R"({"ok":%s,"bytes":%zu,"path":"%s"})",
+            wrote == body.size() ? "true" : "false",
+            wrote,
+            path.c_str());
         return out;
     });
     http_.add_route("POST", "/play", [this](std::string_view body) -> std::string {
@@ -295,8 +333,7 @@ void PeerCore::install_routes() {
         std::fwrite(body.data(), 1, body.size(), f);
         std::fclose(f);
         char params[576];
-        std::snprintf(params, sizeof(params),
-                      R"({"file":"%s","seq":%ld})", path, ++play_seq_);
+        std::snprintf(params, sizeof(params), R"({"file":"%s","seq":%ld})", path, ++play_seq_);
         queue_param("speaker", params);
         return R"({"ok":true})";
     });
@@ -311,8 +348,7 @@ void PeerCore::install_routes() {
         std::fwrite(body.data(), 1, body.size(), f);
         std::fclose(f);
         char params[576];
-        std::snprintf(params, sizeof(params),
-                      R"({"file":"%s","seq":%ld})", path, ++play_seq_);
+        std::snprintf(params, sizeof(params), R"({"file":"%s","seq":%ld})", path, ++play_seq_);
         queue_param("stt", params);
         return R"({"ok":true})";
     });
@@ -321,18 +357,18 @@ void PeerCore::install_routes() {
         std::unique_lock<std::mutex> lock(shot_mutex_);
         shot_path_ = path;
         shot_done_ = false;
-        bool ok = shot_cv_.wait_for(lock, std::chrono::seconds(2),
-                                    [this] { return shot_done_; }) && shot_ok_;
+        bool ok = shot_cv_.wait_for(lock, std::chrono::seconds(2), [this] { return shot_done_; }) &&
+                  shot_ok_;
         shot_path_.clear();
         return ok;
     };
-    http_.add_route("POST", "/screenshot", [this, request_shot](std::string_view body) -> std::string {
-        std::string path = cfg_.data_dir + "/shot.png";
-        if (auto p = find_string(body, "path"); !p.empty()) path = std::string(p);
-        if (!request_shot(path))
-            return R"({"ok":false,"error":"capture timed out or failed"})";
-        return std::string(R"({"ok":true,"path":")") + path + "\"}";
-    });
+    http_.add_route(
+        "POST", "/screenshot", [this, request_shot](std::string_view body) -> std::string {
+            std::string path = cfg_.data_dir + "/shot.png";
+            if (auto p = find_string(body, "path"); !p.empty()) path = std::string(p);
+            if (!request_shot(path)) return R"({"ok":false,"error":"capture timed out or failed"})";
+            return std::string(R"({"ok":true,"path":")") + path + "\"}";
+        });
     http_.add_route("GET", "/screenshot", [this, request_shot](std::string_view) -> std::string {
         std::string path = cfg_.data_dir + "/eye.png";
         if (!request_shot(path)) return R"({"ok":false,"error":"capture timed out"})";

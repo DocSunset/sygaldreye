@@ -8,6 +8,10 @@
 #include <GLES3/gl3.h>
 #include <string_view>
 
+// PARKED: offscreen leg. Out of the build (root CMakeLists) and unregistered
+// in both shells while DrawFn is retired (ABI v8). Revived on render_region
+// FBO passes; see planning/lifting_and_editor_decomposition.md DEFERRED.
+//
 // Offscreen render graph plumbing. render_target consumes a draw-call edge
 // (the producer then skips the global pass) and emits the scene as a
 // texture; texture_view puts a texture on screen. Chains compose:
@@ -16,6 +20,7 @@
 struct RenderTargetNode {
     static consteval std::string_view name() { return "render_target"; }
     static consteval std::string_view source_header() { return "components/render_nodes/render_nodes.hpp"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
     struct endpoints {
         ::in<DrawFn> draw;
         ::in<Eigen::Matrix4f> pv;
@@ -37,6 +42,7 @@ private:
 struct TextureViewNode {
     static consteval std::string_view name() { return "texture_view"; }
     static consteval std::string_view source_header() { return "components/render_nodes/render_nodes.hpp"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
     struct endpoints {
         in<GpuTexture> texture;
         normalled_in<float, fp(0.f), fp(1.f), fp(1.f)> alpha;

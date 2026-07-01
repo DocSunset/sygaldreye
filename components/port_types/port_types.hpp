@@ -22,9 +22,19 @@ constexpr bool is_wildcard(std::string_view kind) {
     return kind.empty() || kind == "any" || kind == "unknown";
 }
 
+// A scalar/vector CELL kind: a span lifts onto these (conformability.md).
+constexpr bool is_cell_kind(std::string_view kind) {
+    return kind == "scalar" || kind == "bang" || kind == "bool" ||
+           kind == "vec2" || kind == "vec3" || kind == "vec4" ||
+           kind == "quat" || kind == "mat4";
+}
+
 // May these two ports be connected at all (true edge OR via a mapping)?
 constexpr bool connection_legal(std::string_view from, std::string_view to) {
     if (is_wildcard(from) || is_wildcard(to)) return true;  // subgraph
+    if (from == "span" && is_cell_kind(to)) return true;    // excess-rank lift
+    if (is_cell_kind(from) && to == "span") return true;    // lifted gather
+    if (from == "mesh" && to == "mesh_array") return true;  // lifted mesh gather
     return from == to;                                      // outlets etc.
 }
 

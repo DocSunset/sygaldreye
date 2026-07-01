@@ -1,13 +1,12 @@
 #define XR_USE_PLATFORM_ANDROID
 #define XR_USE_GRAPHICS_API_OPENGL_ES
-#include <jni.h>
-#include <EGL/egl.h>
-#include <GLES3/gl3.h>
-#include <openxr/openxr.h>
-#include <openxr/openxr_platform.h>
-
 #include <android/log.h>
 #include <android_native_app_glue.h>
+#include <EGL/egl.h>
+#include <GLES3/gl3.h>
+#include <jni.h>
+#include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
 
 #include <cstring>
 #include <vector>
@@ -15,16 +14,22 @@
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "eyeballs", __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "eyeballs", __VA_ARGS__)
 
-#define XR_CHECK(call) \
-    do { \
-        XrResult _r = (call); \
-        if (XR_FAILED(_r)) { LOGE(#call " failed: %d", (int)_r); return XR_NULL_HANDLE; } \
+#define XR_CHECK(call)                          \
+    do {                                        \
+        XrResult _r = (call);                   \
+        if (XR_FAILED(_r)) {                    \
+            LOGE(#call " failed: %d", (int)_r); \
+            return XR_NULL_HANDLE;              \
+        }                                       \
     } while (0)
 
-#define XR_CHECK_SYS(call) \
-    do { \
-        XrResult _r = (call); \
-        if (XR_FAILED(_r)) { LOGE(#call " failed: %d", (int)_r); return XR_NULL_SYSTEM_ID; } \
+#define XR_CHECK_SYS(call)                      \
+    do {                                        \
+        XrResult _r = (call);                   \
+        if (XR_FAILED(_r)) {                    \
+            LOGE(#call " failed: %d", (int)_r); \
+            return XR_NULL_SYSTEM_ID;           \
+        }                                       \
     } while (0)
 
 XrSystemId xr_get_system(XrInstance instance) {
@@ -56,11 +61,13 @@ XrSystemId xr_get_system(XrInstance instance) {
 XrInstance xr_create_instance(struct android_app* app) {
     // Init loader
     PFN_xrInitializeLoaderKHR initLoader = nullptr;
-    XR_CHECK(xrGetInstanceProcAddr(XR_NULL_HANDLE, "xrInitializeLoaderKHR",
-                                   reinterpret_cast<PFN_xrVoidFunction*>(&initLoader)));
+    XR_CHECK(xrGetInstanceProcAddr(
+        XR_NULL_HANDLE,
+        "xrInitializeLoaderKHR",
+        reinterpret_cast<PFN_xrVoidFunction*>(&initLoader)));
     XrLoaderInitInfoAndroidKHR loaderInfo{};
-    loaderInfo.type               = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
-    loaderInfo.applicationVM      = app->activity->vm;
+    loaderInfo.type = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
+    loaderInfo.applicationVM = app->activity->vm;
     loaderInfo.applicationContext = app->activity->clazz;
     XR_CHECK(initLoader((const XrLoaderInitInfoBaseHeaderKHR*)&loaderInfo));
 
@@ -77,24 +84,27 @@ XrInstance xr_create_instance(struct android_app* app) {
     xrEnumerateInstanceExtensionProperties(nullptr, extCount, &extCount, exts.data());
     for (const char* req : required) {
         bool found = false;
-        for (auto& e : exts) if (strcmp(e.extensionName, req) == 0) { found = true; break; }
+        for (auto& e : exts)
+            if (strcmp(e.extensionName, req) == 0) {
+                found = true;
+                break;
+            }
         if (!found) LOGE("missing extension: %s", req);
     }
 
     // Create instance
     XrInstanceCreateInfoAndroidKHR androidInfo{};
-    androidInfo.type               = XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR;
-    androidInfo.applicationVM       = app->activity->vm;
+    androidInfo.type = XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR;
+    androidInfo.applicationVM = app->activity->vm;
     androidInfo.applicationActivity = app->activity->clazz;
 
     XrInstanceCreateInfo ci{};
-    ci.type                       = XR_TYPE_INSTANCE_CREATE_INFO;
-    ci.next                       = &androidInfo;
-    ci.enabledExtensionCount      = 2;
-    ci.enabledExtensionNames      = required;
+    ci.type = XR_TYPE_INSTANCE_CREATE_INFO;
+    ci.next = &androidInfo;
+    ci.enabledExtensionCount = 2;
+    ci.enabledExtensionNames = required;
     ci.applicationInfo.apiVersion = XR_API_VERSION_1_0;
-    strncpy(ci.applicationInfo.applicationName, "eyeballs",
-            XR_MAX_APPLICATION_NAME_SIZE - 1);
+    strncpy(ci.applicationInfo.applicationName, "eyeballs", XR_MAX_APPLICATION_NAME_SIZE - 1);
 
     XrInstance instance = XR_NULL_HANDLE;
     XR_CHECK(xrCreateInstance(&ci, &instance));
@@ -103,7 +113,8 @@ XrInstance xr_create_instance(struct android_app* app) {
     XrInstanceProperties props{};
     props.type = XR_TYPE_INSTANCE_PROPERTIES;
     if (XR_SUCCEEDED(xrGetInstanceProperties(instance, &props)))
-        LOG("XR runtime: %s (ver %u.%u.%u)", props.runtimeName,
+        LOG("XR runtime: %s (ver %u.%u.%u)",
+            props.runtimeName,
             XR_VERSION_MAJOR(props.runtimeVersion),
             XR_VERSION_MINOR(props.runtimeVersion),
             XR_VERSION_PATCH(props.runtimeVersion));

@@ -1,11 +1,14 @@
 // Copyright 2025 Travis West
 #include "component_registry.hpp"
-#include "subgraph_node.hpp"
-#include "eyeballs_node_abi.hpp"
-#include "sygaldry_endpoints.hpp"
+
 #include <gtest/gtest.h>
+
 #include <cstdio>
 #include <string>
+
+#include "eyeballs_node_abi.hpp"
+#include "subgraph_node.hpp"
+#include "sygaldry_endpoints.hpp"
 
 struct RegistryTestNode {
     static consteval std::string_view name() { return "registry_test"; }
@@ -47,13 +50,18 @@ TEST(ComponentRegistry, CreateDestroyViaRegistry) {
 
 TEST(ComponentRegistry, LoadJsonSubgraph) {
     const char* path = "/tmp/test_sub.json";
-    const char* json = "{\"nodes\":[],\"edges\":[]}";
+    // A subgraph declares an interface (inlets/outlets). A contentless graph is
+    // a scene, not a node type, and is now skipped.
+    const char* json =
+        "{\"inlets\":[{\"name\":\"v\",\"node\":\"a\",\"port\":\"val\"}],"
+        "\"nodes\":[{\"id\":\"a\",\"type\":\"registry_test\"}],\"edges\":[]}";
     std::FILE* f = std::fopen(path, "wb");
     ASSERT_NE(f, nullptr);
     std::fputs(json, f);
     std::fclose(f);
 
     ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<RegistryTestNode>());
     EXPECT_TRUE(reg.load_plugin(path));
     EXPECT_NE(reg.find("test_sub"), nullptr);
 }
@@ -95,8 +103,7 @@ TEST(HotReload, ParamsCarryAcrossDescriptorChange) {
     ASSERT_TRUE(reg2.load_plugin(HOT_TEST_V2_PATH));
 
     auto g1 = parse_graph(
-        R"({"nodes":[{"id":"h","type":"hot_test","params":{"gain":7}}],"edges":[]})",
-        reg1);
+        R"({"nodes":[{"id":"h","type":"hot_test","params":{"gain":7}}],"edges":[]})", reg1);
     ASSERT_TRUE(g1);
     tick_graph(*g1, 0.0);
     EXPECT_DOUBLE_EQ(std::get<double>(snapshot_values(*g1).at("h.v")), 7.0);  // v1: ×1
@@ -107,7 +114,8 @@ TEST(HotReload, ParamsCarryAcrossDescriptorChange) {
     ASSERT_TRUE(g2);
     migrate_graph(*g2, *g1);
     tick_graph(*g2, 0.0);
-    EXPECT_DOUBLE_EQ(std::get<double>(snapshot_values(*g2).at("h.v")), 14.0);  // v2: ×2, gain carried
+    EXPECT_DOUBLE_EQ(
+        std::get<double>(snapshot_values(*g2).at("h.v")), 14.0);  // v2: ×2, gain carried
 }
 #endif
 

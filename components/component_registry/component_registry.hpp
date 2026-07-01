@@ -23,6 +23,10 @@ struct ComponentRegistry {
     // Parse and register a subgraph JSON file; returns false on failure.
     bool load_subgraph_json(const std::string& path);
 
+    // Register a subgraph from a JSON string under the given type name.
+    // For shells that embed subgraph definitions (no filesystem at init).
+    bool register_subgraph(const std::string& type_name, const std::string& json);
+
     // Look up a type by name; returns nullptr if not found.
     const EyeballsNodeDescriptor* find(const std::string& type_name) const;
 

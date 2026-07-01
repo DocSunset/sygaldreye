@@ -11,6 +11,7 @@
 struct WavPlayerNode {
     static consteval std::string_view name() { return "wav_player"; }
     static consteval std::string_view source_header() { return "components/wav_player/wav_player.hpp"; }
+    static constexpr int lift_kind() { return lift::resource_holder; }
 
     struct endpoints {
         normalled_in<std::string> file;

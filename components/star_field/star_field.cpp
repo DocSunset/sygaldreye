@@ -1,90 +1,79 @@
 // Copyright 2025 Travis West
 #include "star_field.hpp"
-#include "star_field_shaders.hpp"
-#include "gl_program.hpp"
-#include "log.hpp"
+
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
-#define TAG "star_field"
-#define LOGE(...) LOG_E(TAG, __VA_ARGS__)
+#include "tri_mesh.hpp"
 
-StarField StarField::create(int star_count, float radius) {
-    StarField sf;
-    auto prog = GlProgram::build(star_field_shaders::STAR_VERT, star_field_shaders::STAR_FRAG);
-    if (!prog) { LOGE("star shader build failed"); return sf; }
-    sf.prog_        = std::make_unique<GlProgram>(std::move(*prog));
-    sf.vp_loc_      = sf.prog_->uniform_location("uVP");
-    sf.alpha_loc_   = sf.prog_->uniform_location("uStarAlpha");
-    sf.radius_loc_  = sf.prog_->uniform_location("uRadius");
-    sf.star_count_  = static_cast<GLsizei>(star_count);
-    sf.radius_      = radius;
-    glGenVertexArrays(1, &sf.vao_);
-    return sf;
+namespace {
+
+// Stars generated from gl_VertexID; vertex positions ignored. Finite radius +
+// normal uMVP so they depth-sort behind closer geometry (order-independent).
+// uMVP injected by render_region.
+constexpr const char* kVert = R"(#version 300 es
+precision mediump float;
+uniform mat4  uMVP;
+uniform float uStarAlpha;
+uniform float uRadius;
+uint uhash(uint x) {
+    x = ((x >> 16u) ^ x) * 0x45d9f3bu;
+    x = ((x >> 16u) ^ x) * 0x45d9f3bu;
+    return (x >> 16u) ^ x;
+}
+float fhash(uint x) { return float(uhash(x)) * (1.0 / 4294967296.0); }
+void main() {
+    uint  id    = uint(gl_VertexID);
+    float theta = 6.28318530 * fhash(id);
+    float u     = fhash(id + 2000u) * 2.0 - 1.0;
+    float r     = sqrt(max(0.0, 1.0 - u * u));
+    vec3  pos   = uRadius * vec3(cos(theta) * r, abs(u), sin(theta) * r);
+    gl_Position  = uMVP * vec4(pos, 1.0);
+    gl_PointSize = 1.0 + fhash(id + 4000u) * 2.0;
+}
+)";
+constexpr const char* kFrag = R"(#version 300 es
+precision mediump float;
+uniform float uStarAlpha;
+out vec4 fragColor;
+void main() {
+    vec2  uv = gl_PointCoord * 2.0 - 1.0;
+    float d  = dot(uv, uv);
+    float a  = smoothstep(1.0, 0.3, d) * uStarAlpha;
+    fragColor = vec4(1.0, 1.0, 1.0, a);
+}
+)";
+
+MeshPtr make_points(int n) {
+    auto m = std::make_shared<TriMeshData>();
+    m->vertices.resize(static_cast<size_t>(std::max(0, n)));  // positions unused
+    return m;
 }
 
-void StarField::operator()(double /*time_s*/) {
-    if (!prog_) {  // constructed off render thread (graph parse): lazy init
-        auto saved = endpoints;
-        *this = create(int(endpoints.star_count.get()), endpoints.radius.get());
-        endpoints = saved;
+}  // namespace
+
+void StarField::operator()(double) {
+    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    int n = std::max(0, static_cast<int>(endpoints.star_count.get()));
+    if (n != count_) {
+        points_ = make_points(n);
+        count_  = n;
     }
-    sun_elev_   = endpoints.sun_elevation.get();
-    star_count_ = static_cast<GLsizei>(endpoints.star_count.get());
-    radius_     = endpoints.radius.get();
-    endpoints.render.value = [this](const Eigen::Matrix4f& vp) { draw(vp); };
-}
 
-void StarField::draw(Eigen::Matrix4f const& vp) const {
-    if (!prog_) return;
-    float alpha = std::clamp(-sun_elev_ * 3.0f, 0.0f, 1.0f);
-    if (star_count_ <= 0 || alpha <= 0.01f) return;
-    // Background layer: xyww in the shader pins depth to exactly 1.0, which
-    // loses a GL_LESS test against the cleared buffer (Adreno's rounding
-    // sometimes let it pass; Mesa never does). Skip depth entirely.
-    glDisable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    prog_->use();
-    GlProgram::uniform(vp_loc_, vp);
-    glUniform1f(alpha_loc_,  alpha);
-    glUniform1f(radius_loc_, radius_);
-    glBindVertexArray(vao_);
-    glDrawArrays(GL_POINTS, 0, star_count_);
-    glBindVertexArray(0);
-    glDisable(GL_BLEND);
-    glDepthMask(GL_TRUE);
-    glEnable(GL_DEPTH_TEST);
-}
+    const float alpha = std::clamp(-endpoints.sun_elevation.get() * 3.0f, 0.0f, 1.0f);
 
-StarField::~StarField() {
-    if (vao_ != 0U) { glDeleteVertexArrays(1, &vao_); }
-}
+    Mesh m;
+    m.geometry = points_;
+    m.mode     = Primitive::Points;
+    endpoints.mesh.value = std::move(m);
 
-StarField::StarField(StarField&& src) noexcept
-    : prog_(std::move(src.prog_)),
-      vao_(src.vao_),
-      vp_loc_(src.vp_loc_),
-      alpha_loc_(src.alpha_loc_),
-      radius_loc_(src.radius_loc_),
-      star_count_(src.star_count_),
-      radius_(src.radius_),
-      sun_elev_(src.sun_elev_) {
-    src.vao_ = 0U;
-}
-
-StarField& StarField::operator=(StarField&& src) noexcept {
-    if (this != &src) {
-        if (vao_ != 0U) { glDeleteVertexArrays(1, &vao_); }
-        prog_       = std::move(src.prog_);
-        vao_        = src.vao_;  src.vao_ = 0U;
-        vp_loc_     = src.vp_loc_;
-        alpha_loc_  = src.alpha_loc_;
-        radius_loc_ = src.radius_loc_;
-        star_count_ = src.star_count_;
-        radius_     = src.radius_;
-        sun_elev_   = src.sun_elev_;
-    }
-    return *this;
+    Surface s;
+    s.shader      = shader_;
+    s.blend       = true;
+    s.depth_write = false;  // background points don't occlude
+    s.cull_back   = false;
+    s.uniforms.push_back({"uStarAlpha", alpha});
+    s.uniforms.push_back({"uRadius", endpoints.radius.get()});
+    endpoints.surface.value = std::move(s);
 }

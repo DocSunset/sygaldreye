@@ -1,10 +1,13 @@
 // Copyright 2025 Travis West
 #include "eyeballs_node_abi.hpp"
-#include "sygaldry_endpoints.hpp"
-#include <Eigen/Core>
+
 #include <gtest/gtest.h>
+
 #include <cstring>
+#include <Eigen/Core>
 #include <string>
+
+#include "sygaldry_endpoints.hpp"
 
 struct TestNode {
     static consteval std::string_view name() { return "test_node"; }
@@ -27,7 +30,19 @@ struct RichNode {
         normalled_in<float, fp(0.f), fp(10.f), fp(1.f)> speed;
         in<Eigen::Vector3f> dir;
         out<Eigen::Vector3f> pos;
-        out<DrawFn>          render;
+        out<MeshPtr> render;
+    } endpoints;
+    void operator()(double) {}
+};
+
+// v7: a node that opts out of the stateful lift default + names a key field.
+struct LiftMetaNode {
+    static consteval std::string_view name() { return "lift_meta"; }
+    static constexpr int lift_kind() { return EYEBALLS_LIFT_STATELESS; }
+    static constexpr std::string_view lift_key() { return "id"; }
+    struct endpoints {
+        normalled_in<std::string> id;
+        out<float> y;
     } endpoints;
     void operator()(double) {}
 };
@@ -36,13 +51,24 @@ TEST(EyeballsNodeAbi, Version) {
     EXPECT_EQ(make_descriptor<TestNode>()->version, EYEBALLS_ABI_VERSION);
 }
 
+TEST(EyeballsNodeAbi, LiftMetadataDefaultsStateful) {
+    auto* d = make_descriptor<TestNode>();
+    EXPECT_EQ(d->lift_kind, EYEBALLS_LIFT_STATEFUL);
+    EXPECT_EQ(d->lift_key, nullptr);
+}
+
+TEST(EyeballsNodeAbi, LiftMetadataFromStaticMembers) {
+    auto* d = make_descriptor<LiftMetaNode>();
+    EXPECT_EQ(d->lift_kind, EYEBALLS_LIFT_STATELESS);
+    ASSERT_NE(d->lift_key, nullptr);
+    EXPECT_STREQ(d->lift_key, "id");
+}
+
 TEST(EyeballsNodeAbi, TypeName) {
     EXPECT_STREQ(make_descriptor<TestNode>()->type_name, "test_node");
 }
 
-TEST(EyeballsNodeAbi, ProcessNotNull) {
-    EXPECT_NE(make_descriptor<TestNode>()->process, nullptr);
-}
+TEST(EyeballsNodeAbi, ProcessNotNull) { EXPECT_NE(make_descriptor<TestNode>()->process, nullptr); }
 
 TEST(EyeballsNodeAbi, NoProcessIsNull) {
     EXPECT_EQ(make_descriptor<NoProcessNode>()->process, nullptr);
@@ -114,21 +140,22 @@ TEST(EyeballsNodeAbi, PushOutputsCallsEmitVec3) {
     rich->endpoints.pos.value = Eigen::Vector3f{1.0f, 2.0f, 3.0f};
 
     EyeballsOutputCtx ctx{};
-    ctx.store   = nullptr;
+    ctx.store = nullptr;
     ctx.node_id = "rich_node_0";
-    ctx.emit_scalar  = [](void*, const char*, const char*, double) {};
-    ctx.emit_vec2    = [](void*, const char*, const char*, float, float) {};
-    ctx.emit_vec3    = [](void* store, const char*, const char*,
-                          float x, float y, float z) {
+    ctx.emit_scalar = [](void*, const char*, const char*, double) {};
+    ctx.emit_vec2 = [](void*, const char*, const char*, float, float) {};
+    ctx.emit_vec3 = [](void* store, const char*, const char*, float x, float y, float z) {
         auto* arr = static_cast<float*>(store);
-        arr[0] = x; arr[1] = y; arr[2] = z;
+        arr[0] = x;
+        arr[1] = y;
+        arr[2] = z;
     };
-    ctx.emit_vec4    = [](void*, const char*, const char*, float, float, float, float) {};
-    ctx.emit_mat4    = [](void*, const char*, const char*, const float*) {};
-    ctx.emit_quat    = [](void*, const char*, const char*, float, float, float, float) {};
-    ctx.emit_texture = [](void*, const char*, const char*, unsigned int, int, int,
-                          unsigned int, unsigned int) {};
-    ctx.emit_audio   = [](void*, const char*, const char*, const float*, int, int, int) {};
+    ctx.emit_vec4 = [](void*, const char*, const char*, float, float, float, float) {};
+    ctx.emit_mat4 = [](void*, const char*, const char*, const float*) {};
+    ctx.emit_quat = [](void*, const char*, const char*, float, float, float, float) {};
+    ctx.emit_texture =
+        [](void*, const char*, const char*, unsigned int, int, int, unsigned int, unsigned int) {};
+    ctx.emit_audio = [](void*, const char*, const char*, const float*, int, int, int) {};
 
     float out[3] = {0, 0, 0};
     ctx.store = out;
@@ -153,9 +180,9 @@ TEST(EyeballsNodeAbi, PortSchemaNotNull) {
 struct V6Producer {
     static consteval std::string_view name() { return "v6_producer"; }
     struct endpoints {
-        out<float>     level;
+        out<float> level;
         out<AudioBuffer> audio;
-        event_out      tick;
+        event_out tick;
     } endpoints;
     void operator()(double) {
         endpoints.level.value = 42.f;
@@ -166,26 +193,25 @@ struct V6Producer {
 struct V6Consumer {
     static consteval std::string_view name() { return "v6_consumer"; }
     struct endpoints {
-        in<float, fp(2.f)>                       gain;     // compile-time default
+        in<float, fp(2.f)> gain;                               // compile-time default
         normalled_in<float, fp(0.f), fp(10.f), fp(5.f)> base;  // persisted param
-        cv_in<float>                             depth;    // attenuverter
-        normalled_in<std::string>                label;
-        in<AudioBuffer>                          audio;
-        event_in                                 trigger;
-        out<float>                               sum;
+        cv_in<float> depth;                                    // attenuverter
+        normalled_in<std::string> label;
+        in<AudioBuffer> audio;
+        event_in trigger;
+        out<float> sum;
     } endpoints;
     void operator()(double) {
-        endpoints.sum.value = endpoints.gain.get() + endpoints.base.get() +
-                              endpoints.depth.get();
+        endpoints.sum.value = endpoints.gain.get() + endpoints.base.get() + endpoints.depth.get();
     }
 };
 
 TEST(EndpointsV6, TotalGetReadsDefaultsUnwired) {
     V6Consumer n;
-    EXPECT_FLOAT_EQ(n.endpoints.gain.get(), 2.f);    // in<T,Def>
-    EXPECT_FLOAT_EQ(n.endpoints.base.get(), 5.f);    // normalled init
-    EXPECT_FLOAT_EQ(n.endpoints.depth.get(), 0.f);   // cv offset
-    EXPECT_EQ(n.endpoints.audio.get().data, nullptr); // stream absent
+    EXPECT_FLOAT_EQ(n.endpoints.gain.get(), 2.f);      // in<T,Def>
+    EXPECT_FLOAT_EQ(n.endpoints.base.get(), 5.f);      // normalled init
+    EXPECT_FLOAT_EQ(n.endpoints.depth.get(), 0.f);     // cv offset
+    EXPECT_EQ(n.endpoints.audio.get().data, nullptr);  // stream absent
 }
 
 TEST(EndpointsV6, ConnectIsZeroCopyPointerWiring) {
@@ -218,9 +244,9 @@ TEST(EndpointsV6, ConnectIsZeroCopyPointerWiring) {
 TEST(EndpointsV6, CvApplyAffineAndQuat) {
     V6Consumer n;
     float mod = 3.f;
-    n.endpoints.depth.src    = &mod;
+    n.endpoints.depth.src = &mod;
     n.endpoints.depth.offset = 1.f;
-    n.endpoints.depth.slope  = -2.f;
+    n.endpoints.depth.slope = -2.f;
     EXPECT_FLOAT_EQ(n.endpoints.depth.get(), 1.f - 2.f * 3.f);
 
     Eigen::Quaternionf base{Eigen::AngleAxisf(0.5f, Eigen::Vector3f::UnitY())};
@@ -236,20 +262,20 @@ TEST(EndpointsV6, SerializeEmitsPersistedFieldsNotLiveValues) {
     auto* c = static_cast<V6Consumer*>(cons);
 
     float live = 9.f;
-    c->endpoints.base.src     = &live;     // wired: live value is 9
-    c->endpoints.base.fallback = 5.f;      // persisted default stays 5
-    c->endpoints.depth.offset  = 0.25f;
-    c->endpoints.depth.slope   = -1.f;
+    c->endpoints.base.src = &live;     // wired: live value is 9
+    c->endpoints.base.fallback = 5.f;  // persisted default stays 5
+    c->endpoints.depth.offset = 0.25f;
+    c->endpoints.depth.slope = -1.f;
     c->endpoints.label.fallback = "hi\nthere";
 
     const char* s = dc->serialize(cons);
     std::string j{s};
     dc->free_str(s);
-    EXPECT_NE(j.find("\"base\":5"), std::string::npos);      // not 9
+    EXPECT_NE(j.find("\"base\":5"), std::string::npos);  // not 9
     EXPECT_NE(j.find("\"depth\":0.25"), std::string::npos);
     EXPECT_NE(j.find("\"depth_slope\":-1"), std::string::npos);
     EXPECT_NE(j.find("\"label\":\"hi\\nthere\""), std::string::npos);
-    EXPECT_EQ(j.find("\"gain\""), std::string::npos);        // in<T>: no param
+    EXPECT_EQ(j.find("\"gain\""), std::string::npos);  // in<T>: no param
 
     // round-trip into a fresh instance
     void* cons2 = dc->create();
@@ -267,11 +293,11 @@ TEST(EndpointsV6, SerializeEmitsPersistedFieldsNotLiveValues) {
 TEST(EndpointsV6, SchemaDirectionFromShapes) {
     auto* dc = make_descriptor<V6Consumer>();
     std::string s{dc->port_schema};
-    auto inputs_at  = s.find("\"inputs\"");
+    auto inputs_at = s.find("\"inputs\"");
     auto outputs_at = s.find("\"outputs\"");
     ASSERT_NE(inputs_at, std::string::npos);
     ASSERT_NE(outputs_at, std::string::npos);
-    EXPECT_LT(s.find("\"gain\""), outputs_at);     // inputs before outputs
+    EXPECT_LT(s.find("\"gain\""), outputs_at);  // inputs before outputs
     EXPECT_GT(s.find("\"sum\""), outputs_at);
     EXPECT_NE(s.find("\"min\":0,\"max\":10"), std::string::npos);  // normalled range
     EXPECT_NE(s.find("\"trigger\",\"kind\":\"bang\""), std::string::npos);

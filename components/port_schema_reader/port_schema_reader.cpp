@@ -1,5 +1,6 @@
 // Copyright 2025 Travis West
 #include "port_schema_reader.hpp"
+
 #include <cstdlib>
 #include <cstring>
 #include <string_view>
@@ -7,7 +8,8 @@
 // Find value of a string key in a JSON object fragment.
 static std::string_view find_str(std::string_view json, std::string_view key) {
     std::string needle = "\"";
-    needle += key; needle += "\":\"";
+    needle += key;
+    needle += "\":\"";
     auto p = json.find(needle);
     if (p == std::string_view::npos) return {};
     p += needle.size();
@@ -28,7 +30,8 @@ static std::vector<std::string> split_objects(std::string_view json) {
         int depth = 0;
         auto start = p;
         for (auto i = p; i < json.size(); ++i) {
-            if (json[i] == '{') ++depth;
+            if (json[i] == '{')
+                ++depth;
             else if (json[i] == '}') {
                 if (--depth == 0) {
                     result.push_back(std::string(json.substr(start, i - start + 1)));
@@ -41,12 +44,24 @@ static std::vector<std::string> split_objects(std::string_view json) {
     return result;
 }
 
+// Natural cell rank from kind (conformability.md "match cells"). 0 marks a
+// whole-payload kind: lifting never splits it into rows.
+int PortInfo::cell_rank() const {
+    if (kind == "scalar" || kind == "bang" || kind == "bool") return 1;
+    if (kind == "vec2") return 2;
+    if (kind == "vec3") return 3;
+    if (kind == "vec4" || kind == "quat") return 4;
+    if (kind == "mat4") return 16;
+    return 0;  // audio/span/mesh/surface/drawable/texture/text
+}
+
 static std::vector<PortInfo> parse_ports(std::string_view json, std::string_view key) {
     std::string needle = "\"";
-    needle += key; needle += "\":[";
+    needle += key;
+    needle += "\":[";
     auto p = json.find(needle);
     if (p == std::string_view::npos) return {};
-    p += needle.size() - 1; // points at '['
+    p += needle.size() - 1;  // points at '['
     auto objs = split_objects(json.substr(p));
     std::vector<PortInfo> ports;
     ports.reserve(objs.size());
@@ -63,6 +78,9 @@ static std::vector<PortInfo> parse_ports(std::string_view json, std::string_view
         };
         info.min = num("min", 0.f);
         info.max = num("max", 1.f);
+        // Whole if a cell-kind port opts out (schema "whole":1) or the kind is
+        // whole-by-payload (cell_rank 0).
+        info.whole = info.cell_rank() == 0 || obj.find("\"whole\":1") != std::string::npos;
         ports.push_back(std::move(info));
     }
     return ports;
@@ -72,7 +90,7 @@ PortSchema parse_port_schema(const char* json) {
     if (!json) return {};
     std::string_view sv(json);
     PortSchema s;
-    s.inputs  = parse_ports(sv, "inputs");
+    s.inputs = parse_ports(sv, "inputs");
     s.outputs = parse_ports(sv, "outputs");
     return s;
 }

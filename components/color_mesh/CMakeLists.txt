@@ -1,0 +1,3 @@
+add_library(color_mesh INTERFACE)
+target_include_directories(color_mesh INTERFACE .)
+target_link_libraries(color_mesh INTERFACE eyeballs_node_abi render_payloads)

@@ -1,6 +1,6 @@
 add_library(eyeballs_node_abi INTERFACE)
 target_include_directories(eyeballs_node_abi INTERFACE . $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(eyeballs_node_abi INTERFACE param_registry gpu_texture sygaldry_endpoints tri_mesh)
+target_link_libraries(eyeballs_node_abi INTERFACE param_registry gpu_texture sygaldry_endpoints tri_mesh render_payloads)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)
 if(EXISTS ${GTEST_ROOT})

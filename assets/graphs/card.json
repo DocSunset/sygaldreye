@@ -1,0 +1,14 @@
+{
+  "inlets":[
+    {"name":"id","node":"geo","port":"id"},
+    {"name":"position","node":"geo","port":"position"}
+  ],
+  "outlets":[
+    {"name":"mesh","node":"geo","port":"mesh"}
+  ],
+  "lift_key":"id",
+  "nodes":[
+    {"id":"geo","type":"card_mesh","params":{}}
+  ],
+  "edges":[]
+}

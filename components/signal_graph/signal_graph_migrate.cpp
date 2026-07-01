@@ -5,6 +5,11 @@
 #include <utility>
 
 void migrate_graph(Graph& fresh, Graph& old) {
+    // Lifted host instances survive the swap: the fresh plan rebuilds its
+    // LiftGroups but reattaches to these by key. Stale entries (host removed
+    // / descriptor changed) are reconciled lazily on the next lift tick.
+    fresh.lifted_store = std::move(old.lifted_store);
+
     std::unordered_map<std::string, NodeInstance*> old_by_id;
     for (auto& n : old.nodes) old_by_id[n.id] = &n;
 

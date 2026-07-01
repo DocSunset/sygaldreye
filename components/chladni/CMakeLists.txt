@@ -1,10 +1,4 @@
 add_library(chladni STATIC chladni.cpp)
 target_include_directories(chladni PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(chladni PUBLIC tri_mesh gl_program sygaldry_endpoints visual_node)
+target_link_libraries(chladni PUBLIC tri_mesh render_payloads sygaldry_endpoints)
 target_compile_options(chladni PRIVATE -Wall -Wextra)
-
-if(CMAKE_CROSSCOMPILING)
-    target_link_libraries(chladni PRIVATE GLESv3)
-else()
-    target_link_libraries(chladni PRIVATE GLESv2)
-endif()

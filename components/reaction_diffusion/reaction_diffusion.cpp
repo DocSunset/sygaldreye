@@ -1,17 +1,15 @@
 // Copyright 2025 Travis West
 #include "reaction_diffusion.hpp"
-#include "log.hpp"
-#include <Eigen/Core>
+
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
-
-#define TAG "reaction_diffusion"
+#include <memory>
 
 namespace {
 
-constexpr const char* VERT = R"(#version 300 es
+constexpr const char* kVert = R"(#version 300 es
 layout(location=0) in vec3 aPos;
-layout(location=1) in vec3 aNormal;
 layout(location=2) in vec4 aColor;
 uniform mat4 uMVP;
 out vec4 vColor;
@@ -20,169 +18,118 @@ void main() {
     vColor = aColor;
 }
 )";
-
-constexpr const char* FRAG = R"(#version 300 es
+constexpr const char* kFrag = R"(#version 300 es
 precision mediump float;
 in vec4 vColor;
 out vec4 fragColor;
-void main() {
-    fragColor = vColor;
-}
+void main() { fragColor = vColor; }
 )";
 
-// Seed random squares with U=0.5, V=0.25 to kick off the reaction
 void seed_grid(std::vector<float>& u, std::vector<float>& v, int w, int h) {
-    // LCG for reproducible seeding
-    uint32_t s = 0xDEADBEEFu;
-    auto lcg = [&]() -> float {
+    uint32_t s   = 0xDEADBEEFu;
+    auto     lcg = [&]() -> float {
         s = s * 1664525u + 1013904223u;
         return float(s >> 8) / float(1u << 24);
     };
-    constexpr int n_seeds = 64;
-    constexpr int sq_size = 6;
+    constexpr int n_seeds = 64, sq = 6;
     for (int n = 0; n < n_seeds; ++n) {
         int cx = static_cast<int>(lcg() * float(w));
         int cy = static_cast<int>(lcg() * float(h));
-        for (int dy = -sq_size; dy <= sq_size; ++dy) {
-            for (int dx = -sq_size; dx <= sq_size; ++dx) {
-                int x = (cx + dx + w) % w;
-                int y = (cy + dy + h) % h;
+        for (int dy = -sq; dy <= sq; ++dy)
+            for (int dx = -sq; dx <= sq; ++dx) {
+                int    x   = (cx + dx + w) % w;
+                int    y   = (cy + dy + h) % h;
                 size_t idx = static_cast<size_t>(y * w + x);
-                u[idx] = 0.5f;
-                v[idx] = 0.25f;
+                u[idx]     = 0.5f;
+                v[idx]     = 0.25f;
             }
-        }
     }
 }
 
-} // namespace
+}  // namespace
 
-ReactionDiffusion ReactionDiffusion::create_default() { return create({}); }
+void ReactionDiffusion::init() {
+    const int w = params_.grid_w, h = params_.grid_h;
+    size_t    n = static_cast<size_t>(w * h);
+    u_.assign(n, 1.0f);
+    v_.assign(n, 0.0f);
+    u_next_.resize(n);
+    v_next_.resize(n);
+    seed_grid(u_, v_, w, h);
 
-ReactionDiffusion ReactionDiffusion::create(RDParams const& p) {
-    ReactionDiffusion rd{RawTag{}};
-    rd.params_ = p;
-
-    size_t n = static_cast<size_t>(p.grid_w * p.grid_h);
-    rd.u_.assign(n, 1.0f);
-    rd.v_.assign(n, 0.0f);
-    rd.u_next_.resize(n);
-    rd.v_next_.resize(n);
-
-    seed_grid(rd.u_, rd.v_, p.grid_w, p.grid_h);
-
-    // Each cell = 2 triangles = 6 vertices (unindexed for simplicity)
-    int n_tris = (p.grid_w - 1) * (p.grid_h - 1) * 2;
-    rd.data_.vertices.resize(static_cast<size_t>(n_tris * 3));
-    rd.data_.indices.resize(static_cast<size_t>(n_tris * 3));
-    for (size_t i = 0; i < rd.data_.indices.size(); ++i)
-        rd.data_.indices[i] = static_cast<uint32_t>(i);
-
-    rd.mesh_ = TriMesh::create(rd.data_);
-
-    auto prog = GlProgram::build(VERT, FRAG);
-    if (!prog) { LOG_E(TAG, "shader build failed"); return rd; }
-    rd.prog_    = std::make_unique<GlProgram>(std::move(*prog));
-    rd.mvp_loc_ = rd.prog_->uniform_location("uMVP");
-    return rd;
+    // Shared-vertex grid on the XZ plane in [-1,1]; color per vertex from V.
+    data_ = std::make_shared<TriMeshData>();
+    data_->vertices.resize(n);
+    float inv_w = 1.0f / float(w - 1), inv_h = 1.0f / float(h - 1);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            TriVertex& vtx = data_->vertices[static_cast<size_t>(y * w + x)];
+            vtx.position   = Eigen::Vector3f(float(x) * inv_w * 2.f - 1.f, 0.f,
+                                             float(y) * inv_h * 2.f - 1.f);
+            vtx.normal     = Eigen::Vector3f(0.f, 1.f, 0.f);
+            vtx.color      = params_.color_a;
+        }
+    data_->indices.reserve(static_cast<size_t>(w - 1) * (h - 1) * 6);
+    for (int y = 0; y < h - 1; ++y)
+        for (int x = 0; x < w - 1; ++x) {
+            uint32_t a = uint32_t(y * w + x), ww = uint32_t(w);
+            data_->indices.insert(data_->indices.end(),
+                                  {a, a + 1, a + ww, a + 1, a + ww + 1, a + ww});
+        }
 }
 
-void ReactionDiffusion::update() {
-    auto& p  = params_;
-    int   w  = p.grid_w;
-    int   h  = p.grid_h;
-    float Du = p.Du;
-    float Dv = p.Dv;
-    float F  = p.F;
-    float k  = p.k;
-    float dt = p.dt;
-
-    for (int step = 0; step < p.steps_per_frame; ++step) {
-        for (int y = 0; y < h; ++y) {
+void ReactionDiffusion::step_sim() {
+    const int w = params_.grid_w, h = params_.grid_h;
+    const float Du = params_.Du, Dv = params_.Dv, F = params_.F, k = params_.k, dt = params_.dt;
+    for (int step = 0; step < params_.steps_per_frame; ++step) {
+        for (int y = 0; y < h; ++y)
             for (int x = 0; x < w; ++x) {
-                // Wrap-around indices
-                int xp = (x + 1) % w, xm = (x - 1 + w) % w;
-                int yp = (y + 1) % h, ym = (y - 1 + h) % h;
-
-                size_t c  = static_cast<size_t>(y  * w + x);
-                size_t xn = static_cast<size_t>(y  * w + xp);
-                size_t xs = static_cast<size_t>(y  * w + xm);
-                size_t ye = static_cast<size_t>(yp * w + x);
-                size_t yw = static_cast<size_t>(ym * w + x);
-
-                float u = u_[c], v = v_[c];
-                float lap_u = u_[xn] + u_[xs] + u_[ye] + u_[yw] - 4.0f * u;
-                float lap_v = v_[xn] + v_[xs] + v_[ye] + v_[yw] - 4.0f * v;
-                float uvv   = u * v * v;
-
+                int    xp = (x + 1) % w, xm = (x - 1 + w) % w;
+                int    yp = (y + 1) % h, ym = (y - 1 + h) % h;
+                size_t c     = static_cast<size_t>(y * w + x);
+                float  u     = u_[c], v = v_[c];
+                float  lap_u = u_[static_cast<size_t>(y * w + xp)] + u_[static_cast<size_t>(y * w + xm)]
+                            + u_[static_cast<size_t>(yp * w + x)] + u_[static_cast<size_t>(ym * w + x)]
+                            - 4.0f * u;
+                float lap_v = v_[static_cast<size_t>(y * w + xp)] + v_[static_cast<size_t>(y * w + xm)]
+                            + v_[static_cast<size_t>(yp * w + x)] + v_[static_cast<size_t>(ym * w + x)]
+                            - 4.0f * v;
+                float uvv  = u * v * v;
                 u_next_[c] = u + dt * (Du * lap_u - uvv + F * (1.0f - u));
                 v_next_[c] = v + dt * (Dv * lap_v + uvv - (F + k) * v);
             }
-        }
         std::swap(u_, u_next_);
         std::swap(v_, v_next_);
     }
-
-    // Upload to mesh
-    auto& p2   = params_;
-    int   vi   = 0;
-    float inv_w = 1.0f / float(p2.grid_w - 1);
-    float inv_h = 1.0f / float(p2.grid_h - 1);
-    Eigen::Vector3f normal = {0.0f, 1.0f, 0.0f};
-
-    auto cell_color = [&](int cx, int cy) -> Eigen::Vector4f {
-        float vval = std::clamp(v_[static_cast<size_t>(cy * w + cx)], 0.0f, 1.0f);
-        return p2.color_a * (1.0f - vval) + p2.color_b * vval;
-    };
-
-    for (int y = 0; y < h - 1; ++y) {
-        for (int x = 0; x < w - 1; ++x) {
-            // Positions in [-1, 1] XZ plane at Y=0
-            float x0 = float(x)   * inv_w * 2.0f - 1.0f;
-            float x1 = float(x+1) * inv_w * 2.0f - 1.0f;
-            float z0 = float(y)   * inv_h * 2.0f - 1.0f;
-            float z1 = float(y+1) * inv_h * 2.0f - 1.0f;
-
-            auto c00 = cell_color(x, y);
-            auto c10 = cell_color(x+1, y);
-            auto c01 = cell_color(x, y+1);
-            auto c11 = cell_color(x+1, y+1);
-
-            // Average color per triangle
-            auto tri0_col = ((c00 + c10 + c01) / 3.0f).eval();
-            auto tri1_col = ((c10 + c11 + c01) / 3.0f).eval();
-
-            data_.vertices[static_cast<size_t>(vi++)] = {{x0, 0.0f, z0}, normal, tri0_col};
-            data_.vertices[static_cast<size_t>(vi++)] = {{x1, 0.0f, z0}, normal, tri0_col};
-            data_.vertices[static_cast<size_t>(vi++)] = {{x0, 0.0f, z1}, normal, tri0_col};
-
-            data_.vertices[static_cast<size_t>(vi++)] = {{x1, 0.0f, z0}, normal, tri1_col};
-            data_.vertices[static_cast<size_t>(vi++)] = {{x1, 0.0f, z1}, normal, tri1_col};
-            data_.vertices[static_cast<size_t>(vi++)] = {{x0, 0.0f, z1}, normal, tri1_col};
-        }
-    }
-    mesh_.update(data_);
 }
 
 void ReactionDiffusion::operator()(double /*time_s*/) {
-    if (!prog_) {  // constructed off render thread (HTTP parse): redo GL init
-        auto saved = endpoints;
-        *this = ReactionDiffusion::create(params_);
-        endpoints = saved;
-    }
+    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    if (!data_) init();
+
     params_.Du              = endpoints.Du.get();
     params_.Dv              = endpoints.Dv.get();
     params_.F               = endpoints.F.get();
     params_.k               = endpoints.k.get();
     params_.dt              = endpoints.dt.get();
     params_.steps_per_frame = static_cast<int>(endpoints.steps_per_frame.get());
-    update();
-    endpoints.render.value = [this](const Eigen::Matrix4f& vp) { draw(vp); };
-}
+    step_sim();
 
-void ReactionDiffusion::draw(Eigen::Matrix4f const& mvp) const {
-    if (!prog_) return;
-    prog_->use();
-    GlProgram::uniform(mvp_loc_, mvp);
-    mesh_.draw();
+    const int w = params_.grid_w, h = params_.grid_h;
+    for (int i = 0; i < w * h; ++i) {
+        float vv = std::clamp(v_[static_cast<size_t>(i)], 0.0f, 1.0f);
+        data_->vertices[static_cast<size_t>(i)].color =
+            params_.color_a * (1.0f - vv) + params_.color_b * vv;
+    }
+
+    Mesh m;
+    m.geometry = data_;
+    m.mode     = Primitive::Triangles;
+    m.dynamic  = true;  // colors change each frame (positions fixed)
+    endpoints.mesh.value = std::move(m);
+
+    Surface s;
+    s.shader    = shader_;
+    s.cull_back = false;
+    endpoints.surface.value = std::move(s);
 }

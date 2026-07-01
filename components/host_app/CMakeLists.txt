@@ -9,10 +9,12 @@ if(NOT CMAKE_CROSSCOMPILING)
         PRIVATE ${STB_INCLUDE_DIR} $ENV{GLFW_INCLUDE_DIR})
     target_link_libraries(host_app
         PUBLIC peer_core fly_camera
-        PRIVATE fly_camera_node hand_node editor_node wire_mesh spawner_node claude_tmux tts_node whisper_node math_nodes net_nodes ui_nodes star_field
+        PRIVATE fly_camera_node hand_node edit_sink graph_source card_mesh card_widgets_mesh card_labels_mesh editor_wires handle_picker wire_drag slider_drag dwell_delete undo_node palette palette_mesh wire_mesh spawner_node claude_tmux tts_node whisper_node math_nodes net_nodes star_field
                 water_surface sky_dome sun_light cube_node lissajous aurora_curtain
-                chladni terrain_generator particle_system reaction_diffusion rd_gpu rd_renderer render_nodes glsl_effect mesh_nodes
-                trigger_edge text_label poke_stick poke_button spectrogram stt_whisper tts_local osc_node dac_node ugens spatialize_node sample_player eyeballs_node_abi
+                chladni terrain_generator particle_system reaction_diffusion rd_gpu mesh_nodes
+                trigger_edge text_label spectrogram stt_whisper tts_local osc_node dac_node ugens spatialize_node sample_player eyeballs_node_abi
+                render_region color_mesh vertex_color_mesh sprite tree_generator
+                poke_stick poke_button ui_nodes rubber_band_controller flat_shader
                 -L$ENV{GLFW_LIB_DIR} glfw GLESv2)
     target_compile_options(host_app PRIVATE -Wall -Wextra)
 endif()
