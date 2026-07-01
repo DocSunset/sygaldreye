@@ -1,0 +1,1 @@
+- eigen-typed output ports trigger -Wmaybe-uninitialized in schema gen (Node tmp{}); benign (names only read) but noisy — consider value-initializing port payloads or suppressing locally.

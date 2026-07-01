@@ -1,0 +1,1 @@
+authoring environment for deep learning networks, so that you can hand author certain layers of the network to give a nice interpretable parameter at a certain point, tweak it in real time, train things; wekinator for 2026
