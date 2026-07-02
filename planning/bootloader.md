@@ -1,26 +1,105 @@
-# Graph executor bootstrapping — assessment
+# Graph executor bootstrapping — design draft
 
-Status: assessment, 2026-07-01. Precedes implementation and the later node-factoring pass.
+Status: design draft for alignment, 2026-07-02. Supersedes the 2026-07-01 assessment
+(preserved below). Ratified direction from discussion: generalize the audio-region
+pattern into executor nodes; stage 0 is platform-independent code, but boot *graphs*
+and registries may be platform-specific — the target is that all platform-specific
+code lives in nodes, not that all platforms run the same graphs.
 
-## Target
+## Executor nodes
 
-The entry point of every non-frozen sygaldreye program is a portable graph-executor
-bootloader. Stage 0 is the only native C++ outside the graph execution system, and it is
-identical on every platform. Everything platform-specific is expressed as:
+A node that owns (a) a subgraph and (b) an execution context in which that subgraph's
+plan ticks. To its parent it is an ordinary node; edges crossing its boundary get the
+documented mapping adapters (edge_executor.design.md: latch, snapshot, queue, ring,
+net) chosen by payload and cadence.
 
-- platform-specific **nodes** that simply aren't linked/registered elsewhere, and
-- platform-specific **graphs** selected by observing the executor's environment.
+- Flavors are contexts: `thread_executor`, `subprocess_executor` (boundary edges
+  degrade to net mappings — remote-peer machinery pointed at a child process),
+  `async_executor` (event loop; async-function sub-subgraphs).
+- Lifecycle: instantiate → acquire context → run → stop, plus restart policy
+  (supervision falls out).
+- Pacing (proposed, OPEN Q2): executors are generic; a resource node *inside* the
+  subgraph claims pacing — dac claims audio callbacks (the existing precedent),
+  xr_session claims xrWaitFrame, a window node claims vsync. No pacer → free-run at a
+  rate param. The pace-claim interface between executor and subgraph node is the one
+  new seam.
+- Regions become containment (OPEN Q1): explicit membership in an executor's subgraph
+  replaces dac-upstream-closure inference. Inference remains only as a migration
+  bridge; the editor gains "place node inside executor."
 
-## Where we are
+AudioRegion is the hardcoded prototype: thread executor + dac pacer. Retrofit it first.
 
-Closer than it looks. `PeerCore` already is "the portable peer minus the platform"
-(peer_core.hpp:21-26); `signal_graph`, `component_registry`, and `parse_graph` have no
-platform dependencies; platform audio/net differences already live in per-target sources
-selected by CMake (5 `#ifdef` blocks total in the whole tree); the block region already
-demonstrates the key pattern — the `dac` **node** owns the audio device and paces its
-region.
+## Stage 0 — the native kernel
 
-What violates the target today:
+Identical logic on every platform; contains exactly:
+
+1. Executor core: parse, plan, tick, migrate, boundary adapters (already portable).
+2. Registry, populated by one target-supplied symbol `syg_register_linked(registry)`
+   (CMake-generated TU per target — loud link failure, readable capability manifest).
+   Runtime inspection of linked nodes = reading ComponentRegistry's map; already
+   surfaced as the palette (`sorted_types_`, /palette).
+3. Embedded boot graph via a second target-supplied symbol. May differ per target;
+   stage-0 code never branches on platform.
+4. Opaque platform-context stash (trampoline hands over android_app* etc.; only
+   platform nodes read it — graph_source::set_context pattern).
+5. Root context: `init()` + `step()`. Trampolines (<10 lines each) choose the driving
+   shape: while-loop (desktop), emscripten_set_main_loop (web), android_main (Quest).
+
+Not in stage 0: HTTP, files, GL/XR/audio, graph selection logic.
+
+## Boot sequence
+
+Boot graph (embedded, per-platform) contains one executor node whose subgraph is the
+platform layer: context/pacer nodes (egl + xr_session / gl_window / raf), input source
+nodes, `http_server`, `mdns`, instruction sources (`cli_args` from the stash, ws/peer
+links, hardcoded constant). The platform graph holds the application graph in a
+swappable slot.
+
+The edit primitive generalizes PeerCore's swap+migrate from "replace the graph" to
+"replace the subgraph of node X, migrating state" — serving boot handoff, live edit,
+and replacement alike.
+
+Transfer is spawn, not exec (proposed, OPEN Q3): the boot graph stays resident as a
+near-idle supervisor holding the executor node and its restart policy. This is the
+watchdog against a platform/app graph editing away its own control surface, and
+matches "the core that spins up and executes the graph that spins up and executes the
+graphs… recursively" (peer_core.design.md).
+
+PeerCore dissolves: registry → stage 0; swap/migrate/queues → executor machinery;
+HTTP routes, mdns, values/probe, screenshots → nodes.
+
+## Open questions
+
+1. Commit to containment-based regions, deprecating dac-closure inference? (editor UX
+   + plan builder consequences; avoid maintaining two region theories)
+2. Pacer-inside-generic-executor (dac precedent) vs platform-flavored executors (if
+   the XR frame envelope is different in kind from audio callbacks).
+3. Spawn vs exec for stage transfer — boot graph as durable supervisor?
+
+## First slices (once aligned)
+
+1. Generated per-target registration TU (kills the three hand lists: 106/92/41).
+2. Retrofit AudioRegion as `thread_executor` + pacer-claiming `dac` — proves the
+   abstraction where it already exists in disguise, no XR risk.
+3. Stage-0 extraction from PeerCore + trampolines; host first.
+4. Quest platform graph: xr_session pacer node absorbing xr.cpp + XrSessionObj +
+   FrameLoop + Renderer/EglContext/EyeSwapchain; input polling into source nodes
+   (delete pump_xr_sources); retire Scene; mdns/http as nodes.
+5. Web onto the same bootloader; subgraph-slot swap as the general edit primitive.
+
+---
+
+# Appendix: original assessment (2026-07-01)
+
+## Where we were
+
+`PeerCore` already is "the portable peer minus the platform" (peer_core.hpp:21-26);
+`signal_graph`, `component_registry`, and `parse_graph` have no platform dependencies;
+platform audio/net differences already live in per-target sources selected by CMake
+(5 `#ifdef` blocks in the whole tree); the block region already demonstrates the key
+pattern — the `dac` node owns the audio device and paces its region.
+
+Violations of the target:
 
 | Shell | Native outside the graph | LOC (approx) |
 |---|---|---|
@@ -28,98 +107,20 @@ What violates the target today:
 | Host (`app/spectator`, `host_app`) | GLFW/EGL window or headless FBO, fps input polling, main loop, hand-listed registry (106) | ~265 |
 | Web (`app/web`) | WebGL context, DOM input, rAF loop + 250ms net pump, its own default graph, its own inline registry (41) | ~291 |
 
-Cross-cutting violations:
+Cross-cutting: three divergent hand-maintained registration lists; the shell drives
+the executor (`begin_frame → pump_contexts → tick → collect_edits` from platform
+loops); graph selection hardcoded (`kEditorGraph`); host services (HTTP, mdns,
+plugin scan, XR pose pumping) wired outside the graph.
 
-1. **Three divergent hand-maintained node registration lists.** Capability should be
-   "what is linked into this target", not what a shell remembered to register.
-2. **The shell drives the executor**, calling `begin_frame → pump_contexts → tick →
-   collect_edits` from a platform-owned loop (XR frame loop / GLFW / rAF). The frame
-   region has no equivalent of `dac`.
-3. **Graph selection is hardcoded** (`kEditorGraph` compiled into peer_core; web has a
-   different `kDefaultGraph`). No environment observation, no staged loading.
-4. **Host services wired outside the graph**: HTTP server and edit/param queues owned by
-   PeerCore, mdns started in `android_main`, `graphs_dir` plugin scan in `PeerCore::init`,
-   XR poses pushed into nodes from outside by `pump_xr_sources`.
+## Resolution notes from discussion
 
-## Architectural decisions required
-
-**D1 — Pacer inversion (the hard one).** Someone must call `tick`. Today xrWaitFrame /
-GLFW / rAF block-and-callback from the shell. Proposal: stage 0 owns a trivial loop;
-a *pacer seam* lets one node per peer claim frame pacing, exactly as `dac` claims block
-pacing. Platform pacer nodes: `xr_frame_pump` (Quest — owns session, wait/begin/end,
-layer submission), `gl_window` (host — GLFW pump), `raf_pump` (web — emscripten main
-loop). Until a pacer claims the seam, stage 0 free-runs offline ticks — which is exactly
-what app.cpp's pre-headset loop and doffed-headset path already do by hand.
-
-**D2 — Entry symbol honesty.** `android_main(android_app*)`, `int main()`, and
-emscripten's main-loop registration cannot literally be one function. The invariant worth
-enforcing: one shared stage-0 TU (`bootloader.cpp`), and per-platform entry *trampolines
-of <10 lines* whose only job is to call it. The trampolines are part of the bootloader
-component, not of any app.
-
-**D3 — Registration = linkage.** Replace the three lists with self-registering
-descriptors (static registrar per node TU) or a CMake-generated registration TU per
-target. Watch linker dead-stripping (Android `.so`, wasm): needs whole-archive or the
-generated-TU approach. Then the bootloader never names a node.
-
-**D4 — Environment observation = registry probing.** Platform-graph selection should ask
-"is node type `xr_frame_pump` registered? is `gl_window`?" rather than sniff OS strings.
-Capability-based selection falls out of D3 for free and works for degraded environments
-(Quest build with no headset attached behaves like its capabilities, not its brand).
-
-**D5 — Resource ordering across stages.** GL nodes assume a current context at
-create/first-tick. Staged loading must guarantee the stage-2 context/pacer node is live
-before any GL node initializes. Existing lazy-GL patterns (render_region caches,
-"call init after a context exists" in peer_core.hpp:37-38) point the way: GL resource
-acquisition on first tick, never in `create()`.
-
-## Bootstrap stages (proposed)
-
-- **Stage 0 (native, identical everywhere)**: registry from link set (D3) → parse
-  embedded stage-1 boot graph → loop `begin_frame/tick/collect_edits` until quit,
-  yielding to a pacer when one claims the seam (D1).
-- **Stage 1 (embedded boot graph, portable JSON)**: capability probe nodes → select
-  platform bootstrap graph → `graph_loader` node swaps it in. `graph_loader` is
-  PeerCore's existing `/graph` swap machinery exposed as a node (resource-holder context
-  seam, same as `graph_source`).
-- **Stage 2 (platform graph, chosen not compiled)**: instantiates the pacer/context/device
-  nodes for this environment (`xr_frame_pump`+`egl_context` / `gl_window` / `raf_pump`+
-  `webgl_context`), plus `http_server`, `mdns_advertise`, `plugin_scan` nodes; then loads
-  stage 3.
-- **Stage 3**: the application graph (today's editor).
-
-## Work slices, in order
-
-1. **Self-registration** (D3). Mechanical; deletes ~240 registration calls and the
-   web/host/Quest drift. Prerequisite for everything.
-2. **Extract stage-0 bootloader from PeerCore + pacer seam; host first.** `gl_window`
-   pacer node; `spectator_main.cpp` becomes a trampoline. PeerCore sheds `Config`
-   (default_graph_json/graphs_dir/http_port all move graph-ward in later slices).
-3. **Boot graphs** (D4). `capability_probe` + `graph_loader` nodes, embedded stage-1
-   graph, platform graphs as data. Kill `kEditorGraph`-as-the-entry and web's separate
-   default.
-4. **Quest nodification** (the bulk): `xr_frame_pump` node absorbing xr.cpp +
-   XrSessionObj + FrameLoop + Renderer/EglContext/EyeSwapchain; input polling moves
-   inside `head_pose`/`controller` nodes (delete `pump_xr_sources`); retire `Scene`;
-   `mdns_advertise` node (owns the JNI multicast lock on Android).
-5. **Web unification** onto the same bootloader (`raf_pump`, fetch-based `plugin_scan`
-   variant — no dlopen/fs on web, fine under "platform-specific nodes").
-6. **Host services as nodes**: `http_server`, `plugin_scan`; PeerCore dissolves into
-   bootloader + nodes.
-
-Then the second step — factoring the nodes — starts from a position where *everything*
-is a node, which is the forcing function working as intended.
-
-## Risks
-
-- **D1 timing fidelity**: xrWaitFrame prediction must still gate rendering; the pacer
-  node owns wait/begin/end internally, so the graph ticks inside the XR frame envelope as
-  today — but getting the seam wrong shows up as judder. Prove on host (GLFW) first.
-- **Static-init/linker traps** in D3 on `.so` and wasm targets.
-- **Stage-2 ordering** (D5): a stage graph that references GL before its context node is
-  live must fail loud at parse/plan time, not crash in a driver.
-- **HTTP-as-node** moves the control surface into graph content: an edit that removes the
-  http node saws off the branch it sits on. Boot graphs should be re-loadable from stage 1
-  on such failure (watchdog in stage 0).
-- Frozen programs are unaffected: freezing (kanban/backlog/freezer.md) bypasses the
-  bootloader by design — "non-frozen" is exactly the right scope qualifier.
+- Original D1 (pacer seam) → subsumed by executor nodes, above.
+- Original D2 (entry symbols) → accepted as constraint; trampolines.
+- Original D3/D4 (registration = linkage, capability probing) → generated TU stands;
+  per-platform boot graphs are acceptable, so registry probing is a convenience, not
+  the selection mechanism. Stage-0 platform independence is the invariant.
+- Original D5 (resource ordering) → resolved by containment: a subgraph cannot tick
+  before its executor's context exists. GL nodes still must not acquire resources in
+  `create()` (first-tick lazy init; fail loud if ticked with no context).
+- Frozen programs unaffected: freezing (kanban/backlog/freezer.md) bypasses the
+  bootloader by design.
