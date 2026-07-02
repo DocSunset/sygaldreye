@@ -5,6 +5,10 @@
 
 #include "peer_core.hpp"
 
+// The host node vocabulary (builtins + the embedded card subgraph), shared
+// by HostApp::init and the shipped-graph parse-check test.
+void register_host_nodes(ComponentRegistry& reg);
+
 // Desktop shell over PeerCore: registers the host node vocabulary, pumps
 // frames from GLFW/headless EGL, and draws via camera.pv. Everything else
 // (HTTP surface, graph swap, queues, screenshots) is the portable core.

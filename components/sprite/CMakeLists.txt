@@ -1,3 +1,10 @@
 add_library(sprite INTERFACE)
 target_include_directories(sprite INTERFACE .)
-target_link_libraries(sprite INTERFACE eyeballs_node_abi render_payloads tri_mesh)
+target_link_libraries(sprite INTERFACE eyeballs_node_abi render_payloads)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(sprite_test sprite.test.cpp)
+    target_link_libraries(sprite_test PRIVATE sprite GTest::gtest_main)
+    target_compile_options(sprite_test PRIVATE -Wall -Wextra)
+endif()

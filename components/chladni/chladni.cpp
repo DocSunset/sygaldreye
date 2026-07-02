@@ -5,24 +5,9 @@
 #include <cmath>
 #include <memory>
 
-namespace {
-constexpr const char* kVert = R"(#version 300 es
-layout(location=0) in vec3 aPos;
-layout(location=2) in vec4 aColor;
-uniform mat4 uMVP;
-out vec4 vColor;
-void main() {
-    gl_Position = uMVP * vec4(aPos, 1.0);
-    vColor = aColor;
-}
-)";
-constexpr const char* kFrag = R"(#version 300 es
-precision mediump float;
-in vec4 vColor;
-out vec4 fragColor;
-void main() { fragColor = vColor; }
-)";
+#include "common_shaders.hpp"
 
+namespace {
 const Eigen::Vector4f kNodeColor{0.95f, 0.90f, 0.75f, 1.0f};  // sand/cream
 const Eigen::Vector4f kAntiColor{0.05f, 0.08f, 0.18f, 1.0f};  // dark blue
 }  // namespace
@@ -49,7 +34,9 @@ void Chladni::init() {
 }
 
 void Chladni::operator()(double time_s) {
-    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    if (!shader_)
+        shader_ = std::make_shared<ShaderData>(ShaderData{
+            common_shaders::kUnlitVertexColorVert, common_shaders::kUnlitVertexColorFrag});
     if (!data_) init();
 
     const int   n     = n_;
@@ -76,6 +63,7 @@ void Chladni::operator()(double time_s) {
             data_->vertices[static_cast<size_t>(gy) * n + gx].color =
                 kNodeColor * (1.0f - ct) + kAntiColor * ct;
         }
+    data_->touch();  // mutated in place — re-stamp so render_region re-uploads
 
     Mesh m;
     m.geometry = data_;

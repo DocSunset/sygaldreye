@@ -20,8 +20,9 @@ from the editor; wire *appearance* lives here, swappable live.
 
 ## Requirements
 
-- Geometry rebuilt each frame from the wires span; GL lives in
-  render_region (no GL in this node).
+- One held TriMeshData refilled in place from the wires span each frame and
+  touch()ed, so render_region re-uploads it once per frame (never per eye);
+  GL lives in render_region (no GL in this node).
 
 ## Allowed dependencies
 

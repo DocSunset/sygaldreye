@@ -5,51 +5,12 @@
 #include <memory>
 #include <vector>
 
+#include "common_shaders.hpp"
 #include "glyph_layout.hpp"
 #include "palette.hpp"
 #include "tri_mesh.hpp"
 
 namespace {
-// Unlit vertex-color shader for the backdrop panel.
-constexpr const char* kPanelVert = R"(#version 300 es
-layout(location=0) in vec3 aPos;
-layout(location=1) in vec3 aNormal;
-layout(location=2) in vec4 aColor;
-uniform mat4 uMVP;
-out vec4 vColor;
-void main() { gl_Position = uMVP * vec4(aPos, 1.0); vColor = aColor; }
-)";
-constexpr const char* kPanelFrag = R"(#version 300 es
-precision mediump float;
-in vec4 vColor;
-out vec4 fragColor;
-void main() { fragColor = vColor; }
-)";
-constexpr const char* kTextVert = R"(#version 300 es
-layout(location=0) in vec3 aPos;
-layout(location=1) in vec3 aNormal;
-uniform mat4 uMVP;
-out vec2 vUV;
-void main() { gl_Position = uMVP * vec4(aPos, 1.0); vUV = aNormal.xy; }
-)";
-constexpr const char* kTextFrag = R"(#version 300 es
-precision mediump float;
-in vec2 vUV;
-uniform sampler2D uAtlas;
-uniform float uRange;
-uniform vec4 uColor;
-out vec4 fragColor;
-float median(float r, float g, float b) { return max(min(r, g), min(max(r, g), b)); }
-void main() {
-    vec3 msd = texture(uAtlas, vUV).rgb;
-    float sd = median(msd.r, msd.g, msd.b) - 0.5;
-    vec2 unit_range = vec2(uRange) / vec2(textureSize(uAtlas, 0));
-    vec2 screen_tex_size = vec2(1.0) / fwidth(vUV);
-    float px_range = max(0.5 * dot(unit_range, screen_tex_size), 1.0);
-    float alpha = clamp(sd * px_range + 0.5, 0.0, 1.0);
-    fragColor = vec4(uColor.rgb, uColor.a * alpha);
-}
-)";
 
 void quad(
     TriMeshData& m, float cx, float cy, float cz, float hw, float hh, const Eigen::Vector4f& col) {
@@ -64,9 +25,11 @@ void quad(
 
 void PaletteMeshNode::operator()(double) {
     if (!panel_shader_)
-        panel_shader_ = std::make_shared<ShaderData>(ShaderData{kPanelVert, kPanelFrag});
+        panel_shader_ = std::make_shared<ShaderData>(ShaderData{
+            common_shaders::kUnlitVertexColorVert, common_shaders::kUnlitVertexColorFrag});
     if (!text_shader_)
-        text_shader_ = std::make_shared<ShaderData>(ShaderData{kTextVert, kTextFrag});
+        text_shader_ = std::make_shared<ShaderData>(
+            ShaderData{common_shaders::kMsdfTextVert, common_shaders::kMsdfTextFrag});
 
     const Eigen::Vector3f pp = PaletteNode::panel_pos();
     const float pw = PaletteNode::panel_w(), ph = PaletteNode::panel_h();

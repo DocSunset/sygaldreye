@@ -7,25 +7,25 @@
 
 #include "tri_mesh.hpp"
 
+#include "common_shaders.hpp"
+
 namespace {
 
-// Unlit, per-vertex-color program: lets a single mesh carry differently
-// colored quads (slider track + thumb) in one draw. render_region injects
-// uMVP. Blends so panels read as translucent glass.
-constexpr const char* kVert = R"(#version 300 es
-precision highp float;
-layout(location=0) in vec3 aPos;
-layout(location=2) in vec4 aColor;
-uniform mat4 uMVP;
-out vec4 vColor;
-void main() { vColor = aColor; gl_Position = uMVP * vec4(aPos, 1.0); }
-)";
-constexpr const char* kFrag = R"(#version 300 es
-precision mediump float;
-in vec4 vColor;
-out vec4 fragColor;
-void main() { fragColor = vColor; }
-)";
+// Unlit, per-vertex-color program (common_shaders): lets a single mesh carry
+// differently colored quads (slider track + thumb) in one draw. render_region
+// injects uMVP. Blends so panels read as translucent glass.
+Shader make_ui_shader() {
+    return std::make_shared<ShaderData>(ShaderData{
+        common_shaders::kUnlitVertexColorVert, common_shaders::kUnlitVertexColorFrag});
+}
+
+// The held TriMeshData, cleared for refilling (caller touch()es after).
+TriMeshData& refill(std::shared_ptr<TriMeshData>& data) {
+    if (!data) data = std::make_shared<TriMeshData>();
+    data->vertices.clear();
+    data->indices.clear();
+    return *data;
+}
 
 Eigen::Vector3f ray_dir(const Eigen::Quaternionf& q_in) {
     Eigen::Quaternionf q =
@@ -80,7 +80,7 @@ Surface ui_surface(const Shader& shader) {
 }  // namespace
 
 void UiSliderNode::operator()(double) {
-    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    if (!shader_) shader_ = make_ui_shader();
     float lo = endpoints.min.get(), hi = endpoints.max.get();
     if (value_norm_ < 0.f) {
         float span = hi - lo;
@@ -97,21 +97,22 @@ void UiSliderNode::operator()(double) {
 
     endpoints.value.value = lo + value_norm_ * (hi - lo);
 
-    auto mesh = std::make_shared<TriMeshData>();
-    add_quad(*mesh, cx, cy, cz, w, 0.03f, {0.15f, 0.17f, 0.22f, 0.95f});  // track
+    TriMeshData& mesh = refill(data_);
+    add_quad(mesh, cx, cy, cz, w, 0.03f, {0.15f, 0.17f, 0.22f, 0.95f});  // track
     Eigen::Vector4f thumb_c =
         hover_ ? Eigen::Vector4f{0.6f, 0.9f, 1.f, 1.f} : Eigen::Vector4f{0.4f, 0.6f, 0.9f, 1.f};
-    add_quad(*mesh, cx + (value_norm_ - 0.5f) * w, cy, cz + 0.005f, 0.02f, 0.05f, thumb_c);
+    add_quad(mesh, cx + (value_norm_ - 0.5f) * w, cy, cz + 0.005f, 0.02f, 0.05f, thumb_c);
+    mesh.touch();
 
     Mesh m;
-    m.geometry = mesh;
+    m.geometry = data_;
     m.dynamic = true;
     endpoints.mesh.value = std::move(m);
     endpoints.surface.value = ui_surface(shader_);
 }
 
 void UiButtonNode::operator()(double) {
-    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    if (!shader_) shader_ = make_ui_shader();
     float cx = endpoints.x.get(), cy = endpoints.y.get(), cz = endpoints.z.get();
     float w = endpoints.width.get(), h = endpoints.height.get();
     auto hit =
@@ -124,30 +125,32 @@ void UiButtonNode::operator()(double) {
     Eigen::Vector4f color = pressed_ ? Eigen::Vector4f{0.9f, 0.6f, 0.2f, 1.f}
                             : hover_ ? Eigen::Vector4f{0.35f, 0.45f, 0.55f, 1.f}
                                      : Eigen::Vector4f{0.2f, 0.25f, 0.3f, 0.95f};
-    auto mesh = std::make_shared<TriMeshData>();
-    add_quad(*mesh, cx, cy, cz, w, h, color);
+    TriMeshData& mesh = refill(data_);
+    add_quad(mesh, cx, cy, cz, w, h, color);
+    mesh.touch();
 
     Mesh m;
-    m.geometry = mesh;
+    m.geometry = data_;
     m.dynamic = true;
     endpoints.mesh.value = std::move(m);
     endpoints.surface.value = ui_surface(shader_);
 }
 
 void UiPaneNode::operator()(double) {
-    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
-    auto mesh = std::make_shared<TriMeshData>();
+    if (!shader_) shader_ = make_ui_shader();
+    TriMeshData& mesh = refill(data_);
     add_quad(
-        *mesh,
+        mesh,
         endpoints.x.get(),
         endpoints.y.get(),
         endpoints.z.get(),
         endpoints.width.get(),
         endpoints.height.get(),
         {endpoints.r.get(), endpoints.g.get(), endpoints.b.get(), endpoints.alpha.get()});
+    mesh.touch();
 
     Mesh m;
-    m.geometry = mesh;
+    m.geometry = data_;
     m.dynamic = true;
     endpoints.mesh.value = std::move(m);
     endpoints.surface.value = ui_surface(shader_);

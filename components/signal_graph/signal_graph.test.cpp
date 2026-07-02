@@ -141,6 +141,32 @@ struct DeviceNode {
     } endpoints;
     void operator()(double) { endpoints.y.value = endpoints.x.get(); }
 };
+// Text-output host: an unsupported gather kind when lifted.
+struct LabelerNode {
+    static consteval std::string_view name() { return "labeler"; }
+    struct endpoints {
+        in<float> x;
+        out<std::string> label;
+    } endpoints;
+    void operator()(double) { endpoints.label.value = "v"; }
+};
+// A voice: cell input + audio output — Block region when it feeds a dac.
+struct VoiceNode {
+    static consteval std::string_view name() { return "voice"; }
+    struct endpoints {
+        in<float> freq;
+        out<AudioBuffer> audio;
+    } endpoints;
+    void operator()(double) {}
+};
+// Named "dac" so infer_regions pins it (and its audio upstream) to Block.
+struct FakeDacNode {
+    static consteval std::string_view name() { return "dac"; }
+    struct endpoints {
+        in<AudioBuffer> audio;
+    } endpoints;
+    void operator()(double) {}
+};
 // Whole-array sink: captures the gathered Span (opts out of lifting).
 struct SpanSinkNode {
     static consteval std::string_view name() { return "span_sink"; }
@@ -186,6 +212,7 @@ static EyeballsNodeDescriptor make_node_a_desc() {
         .set_text_in = nullptr,
         .lift_kind = EYEBALLS_LIFT_STATEFUL,
         .lift_key = nullptr,
+        .set_host_context = nullptr,
     };
 }
 
@@ -219,6 +246,7 @@ static EyeballsNodeDescriptor make_node_b_desc() {
         .set_text_in = nullptr,
         .lift_kind = EYEBALLS_LIFT_STATEFUL,
         .lift_key = nullptr,
+        .set_host_context = nullptr,
     };
 }
 
@@ -1232,6 +1260,138 @@ TEST(SignalGraphLift, ResourceHolderIsNotLifted) {
     EXPECT_TRUE(plan->lift_groups.empty());
 }
 
+// ── lift lint: unsupported lift shapes are hard errors at parse ──────────────
+
+TEST(LiftLint, ResourceHolderLiftRejectsAtParse) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<SpanSourceNode>());
+    reg.register_builtin(make_descriptor<DeviceNode>());
+    testing::internal::CaptureStderr();
+    auto g = parse_graph(
+        R"({"nodes":[{"id":"src","type":"span_source"},{"id":"dev","type":"device2"}],
+        "edges":[{"from":"src.positions","to":"dev.x"}]})",
+        reg);
+    std::string err = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(g, nullptr);
+    EXPECT_NE(err.find("'dev'"), std::string::npos);
+    EXPECT_NE(err.find("resource-holder"), std::string::npos);
+}
+
+TEST(LiftLint, SecondArrayInputRejectsAtParse) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<SpanSourceNode>());
+    reg.register_builtin(make_descriptor<KeyedAccumNode>());
+    testing::internal::CaptureStderr();
+    auto g = parse_graph(
+        R"({"nodes":[{"id":"src","type":"span_source"},{"id":"ka","type":"keyed_accum"}],
+        "edges":[{"from":"src.positions","to":"ka.id"},
+                 {"from":"src.positions","to":"ka.x"}]})",
+        reg);
+    std::string err = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(g, nullptr);
+    EXPECT_NE(err.find("'x'"), std::string::npos);
+    EXPECT_NE(err.find("one lift per host"), std::string::npos);
+}
+
+TEST(LiftLint, NonGatheredOutputRejectsAtParse) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<SpanSourceNode>());
+    reg.register_builtin(make_descriptor<KeyedAccumNode>());
+    reg.register_builtin(make_descriptor<SpanSinkNode>());
+    testing::internal::CaptureStderr();
+    auto g = parse_graph(
+        R"({"nodes":[{"id":"src","type":"span_source"},{"id":"ka","type":"keyed_accum"},
+                     {"id":"sink","type":"span_sink"}],
+        "edges":[{"from":"src.positions","to":"ka.x"},
+                 {"from":"ka.seen_id","to":"sink.in_data"}]})",
+        reg);
+    std::string err = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(g, nullptr);
+    EXPECT_NE(err.find("seen_id"), std::string::npos);
+}
+
+TEST(LiftLint, GatherIntoCellInputRejectsAtParse) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<SpanSourceNode>());
+    reg.register_builtin(make_descriptor<AccumNode>());
+    reg.register_builtin(make_descriptor<ConsumerNode>());
+    testing::internal::CaptureStderr();
+    auto g = parse_graph(
+        R"({"nodes":[{"id":"src","type":"span_source"},{"id":"acc","type":"accum"},
+                     {"id":"c","type":"consumer"}],
+        "edges":[{"from":"src.positions","to":"acc.x"},
+                 {"from":"acc.sum","to":"c.val"}]})",
+        reg);
+    std::string err = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(g, nullptr);
+    EXPECT_NE(err.find("c.val"), std::string::npos);
+}
+
+TEST(LiftLint, UnsupportedGatherKindRejectsAtParse) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<SpanSourceNode>());
+    reg.register_builtin(make_descriptor<LabelerNode>());
+    reg.register_builtin(make_descriptor<TextSinkNode>());
+    testing::internal::CaptureStderr();
+    auto g = parse_graph(
+        R"({"nodes":[{"id":"src","type":"span_source"},{"id":"lab","type":"labeler"},
+                     {"id":"t","type":"text_sink"}],
+        "edges":[{"from":"src.positions","to":"lab.x"},
+                 {"from":"lab.label","to":"t.in"}]})",
+        reg);
+    std::string err = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(g, nullptr);
+    EXPECT_NE(err.find("cannot gather 'text'"), std::string::npos);
+}
+
+TEST(LiftLint, BlockRegionLiftRejectsAtParse) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<SpanSourceNode>());
+    reg.register_builtin(make_descriptor<VoiceNode>());
+    reg.register_builtin(make_descriptor<FakeDacNode>());
+    testing::internal::CaptureStderr();
+    auto g = parse_graph(
+        R"({"nodes":[{"id":"src","type":"span_source"},{"id":"v","type":"voice"},
+                     {"id":"d","type":"dac"}],
+        "edges":[{"from":"src.positions","to":"v.freq"},
+                 {"from":"v.audio","to":"d.audio"}]})",
+        reg);
+    std::string err = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(g, nullptr);
+    EXPECT_NE(err.find("'v'"), std::string::npos);
+    EXPECT_NE(err.find("Block"), std::string::npos);
+}
+
+// H1: dangling edges (either end) must not crash the lift scan.
+TEST(LiftLint, DanglingEdgesDoNotCrashPlanBuild) {
+    SpanSourceNode* src;
+    SpanSinkNode* sink;
+    auto g = make_lift_graph(&src, &sink);
+    g->edges.push_back({"ghost", "out", "acc", "z"});    // dangling producer
+    g->edges.push_back({"acc", "sum", "ghost2", "in"});  // dangling consumer
+    src->rows = {1.f};
+    tick_graph(*g, 0.0);
+    EXPECT_EQ(sink->rows, 1);
+}
+
+// Defensive path (programmatic graphs skip parse): the lift is refused AND
+// the excess edge is left unwired — never bound as a raw span→cell wire.
+TEST(LiftLint, BuildPlanRefusesResourceHolderWithoutGarbageWire) {
+    static auto src_desc = *make_descriptor<SpanSourceNode>();
+    static auto dev_desc = *make_descriptor<DeviceNode>();
+    auto g = std::make_unique<Graph>();
+    auto* src = new SpanSourceNode{};
+    auto* dev = new DeviceNode{};
+    g->nodes.push_back({&src_desc, src, "src"});
+    g->nodes.push_back({&dev_desc, dev, "dev"});
+    g->edges.push_back({"src", "positions", "dev", "x"});
+    src->rows = {1.f, 2.f};
+    tick_graph(*g, 0.0);
+    EXPECT_TRUE(g->plan->lift_groups.empty());
+    EXPECT_TRUE(g->plan->wires.empty());
+    EXPECT_EQ(dev->endpoints.x.src, nullptr);  // input left unwired
+}
+
 // L2: a subgraph containing a resource-holder is itself unliftable.
 TEST(SignalGraphLift, SubgraphWithResourceHolderInfersUnliftable) {
     ComponentRegistry reg;
@@ -1247,4 +1407,160 @@ TEST(SignalGraphLift, SubgraphWithResourceHolderInfersUnliftable) {
     const EyeballsNodeDescriptor* d = reg.find("dev_sub");
     ASSERT_NE(d, nullptr);
     EXPECT_EQ(d->lift_kind, lift::resource_holder);  // inferred from inner node
+}
+
+// M2: keyed identity must not collapse close keys — %g (6 sig digits)
+// renders 2^23 and 2^23+1 identically; the key format must not.
+TEST(SignalGraphLift, KeyPrecisionKeepsCloseKeysDistinct) {
+    SpanSourceNode* src;
+    SpanSinkNode* sink;
+    auto g = make_lift_graph(&src, &sink);
+    src->rows = {8388608.f, 8388609.f};
+    tick_graph(*g, 0.0);
+    EXPECT_EQ(g->lifted_store.size(), 2u);  // two instances, not one shared
+    tick_graph(*g, 0.0);
+    ASSERT_EQ(sink->rows, 2);
+    EXPECT_FLOAT_EQ(sink->seen[0], 2.f * 8388608.f);
+    EXPECT_FLOAT_EQ(sink->seen[1], 2.f * 8388609.f);
+}
+
+// H2: a live edit that changes the lifted host's DESCRIPTOR (re-registered
+// type / re-parsed inline subgraph) must move the stored clones onto the new
+// desc — never keep running (or destroy through) the stale one.
+TEST(MigrateGraph, LiftedInstancesFollowDescriptorChange) {
+    static auto src_desc = *make_descriptor<SpanSourceNode>();
+    static auto sink_desc = *make_descriptor<SpanSinkNode>();
+    static auto acc_v1 = *make_descriptor<AccumNode>();
+    static auto acc_v2 = *make_descriptor<AccumNode>();  // same type, new identity
+    auto make = [&](const EyeballsNodeDescriptor* acc) {
+        auto g = std::make_unique<Graph>();
+        g->nodes.push_back({&src_desc, new SpanSourceNode{}, "src"});
+        g->nodes.push_back({acc, new AccumNode{}, "acc"});
+        g->nodes.push_back({&sink_desc, new SpanSinkNode{}, "sink"});
+        g->edges.push_back({"src", "positions", "acc", "x"});
+        g->edges.push_back({"acc", "sum", "sink", "in_data"});
+        return g;
+    };
+    auto g1 = make(&acc_v1);
+    static_cast<SpanSourceNode*>(g1->nodes[0].data)->rows = {1.f, 2.f};
+    tick_graph(*g1, 0.0);
+    auto g2 = make(&acc_v2);
+    migrate_graph(*g2, *g1);
+    g1.reset();  // old graph (in real life: its owned descriptors too) dies
+    auto* src = static_cast<SpanSourceNode*>(g2->nodes[0].data);
+    auto* sink = static_cast<SpanSinkNode*>(g2->nodes[2].data);
+    src->rows = {1.f, 2.f};
+    tick_graph(*g2, 0.0);  // must not touch acc_v1's instances
+    for (const auto& kv : g2->lifted_store) EXPECT_EQ(kv.second.desc, &acc_v2);
+    ASSERT_EQ(sink->rows, 2);
+}
+
+TEST(MigrateGraph, ReregisteredSubgraphLiftFollowsNewDefinition) {
+    ComponentRegistry reg;
+    reg.register_builtin(make_descriptor<SpanSourceNode>());
+    reg.register_builtin(make_descriptor<AccumNode>());
+    reg.register_builtin(make_descriptor<SpanSinkNode>());
+    const char* sub = R"({"inlets":[{"name":"x","node":"a","port":"x"}],
+        "outlets":[{"name":"sum","node":"a","port":"sum"}],
+        "nodes":[{"id":"a","type":"accum"}],"edges":[]})";
+    ASSERT_TRUE(reg.register_subgraph("live_sub", sub));
+    const char* graph = R"({"nodes":[
+        {"id":"src","type":"span_source"},
+        {"id":"sub","type":"live_sub"},
+        {"id":"sink","type":"span_sink"}],
+      "edges":[{"from":"src.positions","to":"sub.x"},
+               {"from":"sub.sum","to":"sink.in_data"}]})";
+    auto g1 = parse_graph(graph, reg);
+    ASSERT_TRUE(g1);
+    static_cast<SpanSourceNode*>(g1->nodes[0].data)->rows = {3.f, 4.f};
+    tick_graph(*g1, 0.0);
+    const EyeballsNodeDescriptor* old_desc = g1->nodes[1].desc;
+    // Live reload: re-register the type (new descriptor), reparse, migrate.
+    ASSERT_TRUE(reg.register_subgraph("live_sub", sub));
+    auto g2 = parse_graph(graph, reg);
+    ASSERT_TRUE(g2);
+    ASSERT_NE(g2->nodes[1].desc, old_desc);
+    migrate_graph(*g2, *g1);
+    g1.reset();
+    auto* src = static_cast<SpanSourceNode*>(g2->nodes[0].data);
+    auto* sink = static_cast<SpanSinkNode*>(g2->nodes[2].data);
+    src->rows = {3.f, 4.f};
+    tick_graph(*g2, 0.0);
+    for (const auto& kv : g2->lifted_store) EXPECT_EQ(kv.second.desc, g2->nodes[1].desc);
+    EXPECT_EQ(sink->rows, 2);
+}
+
+// L1: editing the lift away (span edge removed, host kept) must destroy the
+// orphaned store entries, not leak them forever.
+TEST(SignalGraphLift, RemovedLiftDropsStoreEntries) {
+    SpanSourceNode* src;
+    SpanSinkNode* sink;
+    auto g1 = make_lift_graph(&src, &sink);
+    src->rows = {1.f, 2.f, 3.f};
+    tick_graph(*g1, 0.0);
+    EXPECT_EQ(g1->lifted_store.size(), 3u);
+    SpanSourceNode* src2;
+    SpanSinkNode* sink2;
+    auto g2 = make_lift_graph(&src2, &sink2);
+    g2->edges.clear();  // the edit deleted the span edge → no lift
+    migrate_graph(*g2, *g1);
+    tick_graph(*g2, 0.0);  // fresh plan has no LiftGroup → entries dropped
+    EXPECT_TRUE(g2->lifted_store.empty());
+}
+
+// ── L3: gather zero-fill stride ──────────────────────────────────────────────
+// A hand-rolled vec3-in / scalar-out stateless host whose output goes MISSING
+// (null output_ptr) for rows whose sum exceeds 100.
+struct V3Sum {
+    const float* p = nullptr;
+    float y = 0.f;
+    bool has = true;
+};
+static EyeballsNodeDescriptor make_v3sum_desc() {
+    EyeballsNodeDescriptor d{};
+    d.version = EYEBALLS_ABI_VERSION;
+    d.type_name = "v3sum";
+    d.create = []() -> void* { return new V3Sum{}; };
+    d.destroy = [](void* x) { delete static_cast<V3Sum*>(x); };
+    d.process = [](void* x, double) {
+        auto* s = static_cast<V3Sum*>(x);
+        if (!s->p) return;
+        s->y = s->p[0] + s->p[1] + s->p[2];
+        s->has = s->y < 100.f;
+    };
+    d.connect = [](void* x, const char* port, const void* src) -> int {
+        if (std::string_view{port} != "p") return 0;
+        static_cast<V3Sum*>(x)->p = static_cast<const float*>(src);
+        return 1;
+    };
+    d.output_ptr = [](void* x, const char* port) -> const void* {
+        auto* s = static_cast<V3Sum*>(x);
+        if (std::string_view{port} != "y" || !s->has) return nullptr;
+        return &s->y;
+    };
+    d.port_schema =
+        R"({"inputs":[{"name":"p","kind":"vec3"}],"outputs":[{"name":"y","kind":"scalar"}]})";
+    d.lift_kind = EYEBALLS_LIFT_STATELESS;
+    return d;
+}
+
+TEST(SignalGraphLift, MissingOutputZeroFillsOneOutCell) {
+    static auto v3_desc = make_v3sum_desc();
+    static auto src_desc = *make_descriptor<Vec3SpanSourceNode>();
+    static auto sink_desc = *make_descriptor<SpanSinkNode>();
+    auto g = std::make_unique<Graph>();
+    auto* src = new Vec3SpanSourceNode{};
+    auto* sink = new SpanSinkNode{};
+    g->nodes.push_back({&src_desc, src, "src"});
+    g->nodes.push_back({&v3_desc, new V3Sum{}, "v"});
+    g->nodes.push_back({&sink_desc, sink, "sink"});
+    g->edges.push_back({"src", "positions", "v", "p"});
+    g->edges.push_back({"v", "y", "sink", "in_data"});
+    src->rows = {1, 2, 3, 50, 60, 70, 4, 5, 6};  // row 1 sum=180 → missing
+    tick_graph(*g, 0.0);
+    ASSERT_EQ(sink->rows, 3);
+    ASSERT_EQ(sink->seen.size(), 3u);
+    EXPECT_FLOAT_EQ(sink->seen[0], 6.f);
+    EXPECT_FLOAT_EQ(sink->seen[1], 0.f);   // ONE zero: out-cell, not in-cell
+    EXPECT_FLOAT_EQ(sink->seen[2], 15.f);  // rows stay aligned
 }

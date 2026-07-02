@@ -56,8 +56,7 @@ void WireDragNode::operator()(double) {
     bool grip_up = !grip && prev_grip_;
     prev_grip_ = grip;
 
-    Layout l = editor_layout::build_layout(
-        *ctx_.graph, ctx_.overrides ? *ctx_.overrides : editor_layout::PosOverrides{});
+    const Layout& l = editor_layout::cached_layout(ctx_);
 
     if (state_ == State::MovingCard) {
         if (!grip) {
@@ -65,6 +64,8 @@ void WireDragNode::operator()(double) {
             move_id_.clear();
         } else if (ctx_.overrides && !move_id_.empty()) {
             (*ctx_.overrides)[move_id_] = tip + move_offset_;
+            // Keep the shared layout live during the drag.
+            if (ctx_.overrides_gen) ++*ctx_.overrides_gen;
         }
         return;
     }
@@ -89,8 +90,10 @@ void WireDragNode::operator()(double) {
         state_ = State::Idle;
         if (const Handle* h = nearest_compatible_input(l, tip, from_kind_, 0.03f)) {
             if (ctx_.edits) {
-                std::string op = "{\"op\":\"add_edge\",\"from\":\"" + from_node_ + "." +
-                                 from_port_ + "\",\"to\":\"" + h->node_id + "." + h->port_name +
+                using editor_layout::json_escape;
+                std::string op = "{\"op\":\"add_edge\",\"from\":\"" + json_escape(from_node_) +
+                                 "." + json_escape(from_port_) + "\",\"to\":\"" +
+                                 json_escape(h->node_id) + "." + json_escape(h->port_name) +
                                  "\"}";
                 ctx_.edits->push(std::move(op));
             }

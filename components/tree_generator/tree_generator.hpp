@@ -4,7 +4,14 @@
 #include <cstdint>
 #include <Eigen/Core>
 #include "tri_mesh.hpp"
-#include "billboard_quad.hpp"
+
+// One leaf-cluster billboard (moved here from the deleted billboard_quad GL
+// component — only this POD was ever consumed).
+struct BillboardInstance {
+    Eigen::Vector3f position;
+    Eigen::Vector2f size;
+    Eigen::Vector4f color;
+};
 
 struct BranchParams {
     float    length_scale  = 0.7f;

@@ -9,8 +9,13 @@
 // contract: state + tick(), params arrive as arguments or plain members,
 // NO absolute-time state (time arrives as per-sample increments — the
 // metro epoch bug class is structurally impossible here), no allocation
-// inside tick(). One kernel instance per channel is the lifting unit for
-// conformability; the freezer composes kernels into frozen plugins.
+// inside tick(). Allocation is permitted only in prepare() and only on
+// first touch or size change (DelayLine's line buffer — idempotent, once
+// per new kernel). That first-touch alloc can still land in the audio
+// callback when a live edit creates a kernel; the off-thread warm pass
+// that removes it is tracked in kanban/backlog/audio_region_followups.md.
+// One kernel instance per channel is the lifting unit for conformability;
+// the freezer composes kernels into frozen plugins.
 
 namespace synth {
 

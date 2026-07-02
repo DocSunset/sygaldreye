@@ -1,0 +1,10 @@
+add_library(flat_mesh INTERFACE)
+target_include_directories(flat_mesh INTERFACE .)
+target_link_libraries(flat_mesh INTERFACE eyeballs_node_abi render_payloads)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(flat_mesh_test flat_mesh.test.cpp)
+    target_link_libraries(flat_mesh_test PRIVATE flat_mesh GTest::gtest_main)
+    target_compile_options(flat_mesh_test PRIVATE -Wall -Wextra)
+endif()

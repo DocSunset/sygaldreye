@@ -1,14 +1,35 @@
 // Copyright 2026 Travis West
 #include "signal_graph.hpp"
+#include "signal_graph_plan.hpp"
 #include <string>
 #include <unordered_map>
 #include <utility>
 
 void migrate_graph(Graph& fresh, Graph& old) {
     // Lifted host instances survive the swap: the fresh plan rebuilds its
-    // LiftGroups but reattaches to these by key. Stale entries (host removed
-    // / descriptor changed) are reconciled lazily on the next lift tick.
+    // LiftGroups and reattaches to these by key. Reconcile NOW, while old's
+    // descriptors are still alive (inline-subgraph descs die with `old`):
+    // host gone → destroy the entry; host's descriptor changed (re-parsed
+    // inline subgraph, re-registered type) → rebuild the instance on the new
+    // desc, carrying serialized state. Entries whose lift EDGE went away
+    // (host kept) are dropped by wire_plan once the fresh plan is built.
     fresh.lifted_store = std::move(old.lifted_store);
+    for (auto it = fresh.lifted_store.begin(); it != fresh.lifted_store.end();) {
+        const NodeInstance* host = nullptr;
+        for (const auto& n : fresh.nodes)  // key = "hostid.in_port#…"
+            if (it->first.rfind(n.id + ".", 0) == 0) {
+                host = &n;
+                break;
+            }
+        if (!host) {
+            if (it->second.desc && it->second.desc->destroy && it->second.data)
+                it->second.desc->destroy(it->second.data);
+            it = fresh.lifted_store.erase(it);
+            continue;
+        }
+        if (host->desc != it->second.desc) migrate_lifted_instance(it->second, host->desc);
+        ++it;
+    }
 
     std::unordered_map<std::string, NodeInstance*> old_by_id;
     for (auto& n : old.nodes) old_by_id[n.id] = &n;

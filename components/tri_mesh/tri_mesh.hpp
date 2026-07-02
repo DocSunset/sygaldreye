@@ -1,8 +1,8 @@
 #pragma once
-#include <vector>
+#include <atomic>
 #include <cstdint>
+#include <vector>
 #include <Eigen/Core>
-#include <GLES3/gl3.h>
 
 struct TriVertex {
     Eigen::Vector3f position;
@@ -10,28 +10,20 @@ struct TriVertex {
     Eigen::Vector4f color;
 };
 
+// CPU triangle-mesh payload (GL-free; render_region owns the GPU copy).
+// `version` is a globally unique stamp: assigned at construction and re-stamped
+// by touch() after in-place mutation. render_region re-uploads when the version
+// it cached differs — and because stamps are never reused, a fresh allocation
+// landing at a freed TriMeshData's address can never alias a cache entry.
 struct TriMeshData {
     std::vector<TriVertex> vertices;
     std::vector<uint32_t>  indices;
-};
+    uint64_t               version = next_version();
 
-struct TriMesh {
-    static TriMesh create(TriMeshData const&);
+    void touch() { version = next_version(); }
 
-    TriMesh() = default;
-    ~TriMesh();
-    TriMesh(TriMesh const&) = delete;
-    TriMesh& operator=(TriMesh const&) = delete;
-    TriMesh(TriMesh&&) noexcept;
-    TriMesh& operator=(TriMesh&&) noexcept;
-
-    void update(TriMeshData const&);
-    void draw() const;
-
-private:
-    GLuint vao_          = 0;
-    GLuint vbo_          = 0;
-    GLuint ebo_          = 0;
-    GLsizei index_count_ = 0;
-    GLsizei vertex_count_ = 0;
+    static uint64_t next_version() {
+        static std::atomic<uint64_t> counter{0};
+        return ++counter;
+    }
 };

@@ -71,9 +71,14 @@ void CubeNode::operator()(double /*time_s*/) {
     if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
 
     const Eigen::Vector3f pos{endpoints.pos_x.get(), endpoints.pos_y.get(), endpoints.pos_z.get()};
-    Mesh                  m;
-    m.geometry = make_box(pos, endpoints.scale.get());
-    m.dynamic  = true;  // pos/scale baked; rebuilt on change
+    const float           sc = endpoints.scale.get();
+    if (!mesh_ || pos != last_pos_ || sc != last_scale_) {  // pos/scale baked in
+        mesh_      = make_box(pos, sc);
+        last_pos_  = pos;
+        last_scale_ = sc;
+    }
+    Mesh m;
+    m.geometry = mesh_;
     endpoints.mesh.value = std::move(m);
 
     Eigen::Vector3f ldir = endpoints.light_dir.get();

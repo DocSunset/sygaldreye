@@ -27,10 +27,15 @@ struct PaletteNode {
         ::in<Eigen::Vector3f> pos;
         ::in<Eigen::Quaternionf> rot;
         ::in<float> trigger;
+        ::out<float> page;  // current page → palette_mesh.page (keeps them in sync)
     } endpoints;
 
     void operator()(double);
     void set_context(const editor_layout::GestureContext& ctx) { ctx_ = ctx; }
+    void set_host_context(const char* kind, void* ctx) {
+        if (std::string_view{kind} == editor_layout::kEditorContextKind)
+            set_context(*static_cast<const editor_layout::GestureContext*>(ctx));
+    }
     int page() const { return page_; }
 
 private:

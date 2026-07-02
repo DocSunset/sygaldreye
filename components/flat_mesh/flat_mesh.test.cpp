@@ -1,5 +1,5 @@
 // Copyright 2026 Travis West
-#include "flat_shader.hpp"
+#include "flat_mesh.hpp"
 
 #include <gtest/gtest.h>
 

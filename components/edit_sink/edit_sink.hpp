@@ -3,6 +3,7 @@
 #include <string>
 #include <string_view>
 
+#include "editor_layout.hpp"
 #include "event_queue.hpp"
 #include "sygaldry_endpoints.hpp"
 
@@ -42,6 +43,11 @@ struct EditSinkNode {
     }
 
     void set_context(EventQueue<std::string>* edits) { edits_ = edits; }
+    // Generic host-context seam (ABI v9): the editor context carries the queue.
+    void set_host_context(const char* kind, void* ctx) {
+        if (std::string_view{kind} == editor_layout::kEditorContextKind)
+            set_context(static_cast<const editor_layout::GestureContext*>(ctx)->edits);
+    }
 
 private:
     std::string last_;

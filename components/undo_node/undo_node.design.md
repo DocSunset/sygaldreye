@@ -7,8 +7,9 @@ last edit. Keeps a 1-deep history of the serialized live graph.
 ## Ports
 - Sources: `thumb_x` (scalar) — left thumbstick.
 - Destinations: the edit queue (a whole-graph edit, passed through verbatim).
-- Temporal couplings: `set_context` each frame; captures a new baseline
-  whenever the live graph changes.
+- Temporal couplings: context injected each frame (ABI v9); re-examines the
+  graph only when `graph_gen` (or the graph pointer) moves — idle frames
+  cost nothing — and captures a new baseline on structural change.
 
 ## Requirements
 - Resource-holder (unliftable): observes the graph it lives in.

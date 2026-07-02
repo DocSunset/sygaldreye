@@ -23,6 +23,9 @@
 struct DacNode {
     static consteval std::string_view name() { return "dac"; }
     static consteval std::string_view source_header() { return "components/dac_node/dac_node.hpp"; }
+    // resource_holder here means "unliftable terminal", NOT hardware
+    // ownership (AudioEngine owns the stream): dac is the region's summing
+    // output, so the executor must never clone it.
     static constexpr int lift_kind() { return lift::resource_holder; }
 
     // endpoints v6: an unconnected audio input is structurally silent.

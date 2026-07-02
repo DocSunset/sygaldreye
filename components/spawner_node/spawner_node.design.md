@@ -7,16 +7,19 @@ The primitive that lets graph-built UI extend the graph.
 
 ## Ports
 - Inputs: trigger (slider; rising edge fires), type (text param).
-- Outputs: none (edits flow via take_edit; becomes a `graph_edit` event
-  output when event edges land).
-- Sources: `set_context(graph, registry)` platform pump.
-- Destinations: `take_edit()` platform collection.
-- Temporal couplings: same as editor_node.
+- Outputs: none (edits push onto the shared edit queue).
+- Sources: `set_context(graph, registry, edit queue)` injected by
+  peer_core's pump_contexts (the generic ABI v9 context hook this arc).
+- Destinations: edit ops onto peer_core's edit queue, applied by
+  collect_edits.
+- Temporal couplings: context injected before tick each frame.
 - Intended seams: wire ui_button.pressed → trigger; palettes in JSON.
 
 ## Requirements
 - Unknown type or empty type must no-op.
-- Generated ids must not collide (type + timestamp).
+- Emits a structured `add_node` op; apply_edit_op assigns the smallest
+  free `<type>_N` id (no collisions after deletions).
 
 ## Allowed dependencies
-signal_graph, component_registry, sygaldry_endpoints.
+signal_graph, component_registry, sygaldry_endpoints, event_queue,
+editor_layout (context type + json_escape).

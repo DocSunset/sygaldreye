@@ -227,6 +227,15 @@ std::unique_ptr<Graph> parse_graph(const std::string& raw_json, const ComponentR
 
     g->lift_key = std::string(find_string(json, "lift_key"));
 
+    // Lift lint (ratified: unsupported lift shapes are hard errors): reject
+    // the whole graph, loudly, naming the node/port. Callers (peer_core)
+    // keep the previous graph when parse fails.
+    if (auto lint = lint_lifts(*g); !lint.errors.empty()) {
+        for (const auto& msg : lint.errors)
+            std::fprintf(stderr, "parse_graph: %s\n", msg.c_str());
+        return nullptr;
+    }
+
     return g;
 }
 

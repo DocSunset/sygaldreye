@@ -26,10 +26,18 @@ struct HandlePickerNode {
         ::in<Eigen::Quaternionf> rot;
         ::out<std::string> label;        // "" when nothing is near
         ::out<Eigen::Vector3f> pos_out;  // label anchor (world)
+        // Anchor as scalars too: text_label takes pos_x/y/z, not a vec3.
+        ::out<float> pos_x;
+        ::out<float> pos_y;
+        ::out<float> pos_z;
     } endpoints;
 
     void operator()(double);
     void set_context(const editor_layout::GestureContext& ctx) { ctx_ = ctx; }
+    void set_host_context(const char* kind, void* ctx) {
+        if (std::string_view{kind} == editor_layout::kEditorContextKind)
+            set_context(*static_cast<const editor_layout::GestureContext*>(ctx));
+    }
 
 private:
     editor_layout::GestureContext ctx_;

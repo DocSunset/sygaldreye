@@ -6,15 +6,15 @@ Vertex-shader-based wind sway effect for grass, foliage, and other meshes.
 
 ### wind_shader
 
-Extends the flat_shader pattern with wind displacement uniforms.
+Extends the flat_mesh pattern with wind displacement uniforms.
 
-**Vertex layout** (matches TriMesh / flat_shader):
+**Vertex layout** (matches TriMesh / flat_mesh):
 - Location 0: `vec3 aPos` — position
 - Location 2: `vec4 aColor` — RGB = face color; **A = sway mask** (0=anchored, 1=free)
 
 Location 1 (normal) is declared by TriMesh's VAO but not read by this shader — it is safely ignored.
 
-**Sway mask encoding:** color.a is repurposed as a per-vertex sway weight. This avoids changing `TriVertex` or adding a second VBO. The trade-off is that `color.a` cannot simultaneously encode transparency; this is acceptable because `flat_shader`/`wind_shader` draw opaque geometry. The fragment shader always outputs `alpha = 1.0`.
+**Sway mask encoding:** color.a is repurposed as a per-vertex sway weight. This avoids changing `TriVertex` or adding a second VBO. The trade-off is that `color.a` cannot simultaneously encode transparency; this is acceptable because `flat_mesh`/`wind_shader` draw opaque geometry. The fragment shader always outputs `alpha = 1.0`.
 
 **Displacement formula:**
 ```
@@ -50,7 +50,7 @@ Helper that stamps sway mask values into a `TriMeshData` based on a height thres
 
 ## Allowed dependencies
 
-- `flat_shader` (shares build pattern; linked for potential future sharing)
+- `flat_mesh` (shares build pattern; linked for potential future sharing)
 - `tri_mesh` (TriMeshData, TriVertex)
 - `gl_program` (GlProgram)
 - Eigen, GLES3, Android log

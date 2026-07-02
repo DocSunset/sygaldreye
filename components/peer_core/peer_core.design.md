@@ -19,11 +19,14 @@ because every feature implemented per-shell drifted (the /screenshot and
 - Sources: HTTP requests (mongoose thread) — the full control surface:
   /graph /palette /plugins /param /values /camera /controller /play
   /screenshot /meta-graph /quit. Identical on every peer.
-- Destinations: graph_source/edit_sink/editor/spawner/fly_camera context
-  seams (pump_contexts); "speaker" node receives /play params. The meta
-  seam (graph_source reads the live graph, edit_sink owns the edit queue)
-  is the decomposed editor's replacement for the editor monolith's
-  set_context; collect_edits applies structured ops via apply_edit_op.
+- Destinations: the editor-context seam (pump_contexts): graph_source
+  reads the live graph, edit_sink owns the edit queue, gesture/mesh
+  nodes get the GestureContext (graph + edit queue + position overrides
+  + type list), spawner its graph/registry/queue; fly_camera gets
+  aspect. ABI v9 (this arc) makes the seam a generic descriptor hook —
+  any node declaring it receives context, replacing per-type dispatch.
+  "speaker" node receives /play params; collect_edits applies structured
+  ops via apply_edit_op.
 - Temporal couplings: fulfil_screenshot must run where the eye/frame
   image is readable (host: after draw; device: renderer post-resolve).
   begin_frame must precede tick (swap+params before processing).
@@ -43,8 +46,10 @@ because every feature implemented per-shell drifted (the /screenshot and
 ## Allowed dependencies
 
 component_registry, signal_graph, subgraph_node, http_server,
-event_queue, editor_node, spawner_node, graph_source, edit_sink,
-fly_camera_node, GLES3.
+event_queue, editor_layout (the context type), fly_camera_node,
+port_schema_reader, remote_node, audio_region, GLES3. (The v9 hook
+removed the per-type editor-node includes — peer_core no longer
+depends on any editor node.)
 (stbi_write_png is extern — exactly one shell TU provides the
 implementation.)
 

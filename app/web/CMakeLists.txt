@@ -29,7 +29,7 @@ foreach(c
     glsl_blinn_phong port_types port_schema_reader event_queue
     eyeballs_node_abi signal_graph subgraph_node component_registry
     ws_link remote_node
-    sphere_geometry sphere_mesh cube_geometry light material lit_shader
+    sphere_geometry light material lit_shader
     cube_mesh cube_node sky_dome star_field water_surface sun_light
     math_nodes hand_node fly_camera fly_camera_node
     osc_node dac_node audio_output audio_region spectrogram render_nodes glsl_effect

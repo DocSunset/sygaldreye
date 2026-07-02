@@ -41,4 +41,7 @@ struct PokeButtonNode {
 private:
     Shader shader_;
     bool prev_press_ = false;
+    MeshPtr mesh_;  // rebuilt only when placement changes
+    Eigen::Vector3f last_pos_{0.f, 0.f, 0.f};
+    float last_half_ = 0.f;
 };

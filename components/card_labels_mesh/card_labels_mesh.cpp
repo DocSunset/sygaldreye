@@ -4,45 +4,18 @@
 #include <memory>
 #include <vector>
 
+#include "common_shaders.hpp"
 #include "glyph_layout.hpp"
 #include "tri_mesh.hpp"
 
-namespace {
-// MSDF text shader (the canonical glyph shader; UV carried in aNormal.xy).
-constexpr const char* kVert = R"(#version 300 es
-layout(location=0) in vec3 aPos;
-layout(location=1) in vec3 aNormal;
-uniform mat4 uMVP;
-out vec2 vUV;
-void main() { gl_Position = uMVP * vec4(aPos, 1.0); vUV = aNormal.xy; }
-)";
-constexpr const char* kFrag = R"(#version 300 es
-precision mediump float;
-in vec2 vUV;
-uniform sampler2D uAtlas;
-uniform float uRange;
-uniform vec4 uColor;
-out vec4 fragColor;
-float median(float r, float g, float b) { return max(min(r, g), min(max(r, g), b)); }
-void main() {
-    vec3 msd = texture(uAtlas, vUV).rgb;
-    float sd = median(msd.r, msd.g, msd.b) - 0.5;
-    vec2 unit_range = vec2(uRange) / vec2(textureSize(uAtlas, 0));
-    vec2 screen_tex_size = vec2(1.0) / fwidth(vUV);
-    float px_range = max(0.5 * dot(unit_range, screen_tex_size), 1.0);
-    float alpha = clamp(sd * px_range + 0.5, 0.0, 1.0);
-    fragColor = vec4(uColor.rgb, uColor.a * alpha);
-}
-)";
-}  // namespace
-
 void CardLabelsMeshNode::operator()(double) {
-    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    if (!shader_)
+        shader_ = std::make_shared<ShaderData>(
+            ShaderData{common_shaders::kMsdfTextVert, common_shaders::kMsdfTextFrag});
     auto data = std::make_shared<TriMeshData>();
 
     if (ctx_.graph) {
-        editor_layout::Layout l = editor_layout::build_layout(
-            *ctx_.graph, ctx_.overrides ? *ctx_.overrides : editor_layout::PosOverrides{});
+        const editor_layout::Layout& l = editor_layout::cached_layout(ctx_);
         const float sc = endpoints.scale.get() * 0.018f;  // 0.018 m * text_scale parity
         std::vector<float> quads;                         // x, y, u, v per vertex
         for (const auto& card : l.cards) {

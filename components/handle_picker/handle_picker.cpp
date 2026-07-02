@@ -11,8 +11,7 @@ void HandlePickerNode::operator()(double) {
     if (!ctx_.graph) return;
 
     Eigen::Vector3f tip = editor_layout::controller_tip(endpoints.pos.get(), endpoints.rot.get());
-    Layout l = editor_layout::build_layout(
-        *ctx_.graph, ctx_.overrides ? *ctx_.overrides : editor_layout::PosOverrides{});
+    const Layout& l = editor_layout::cached_layout(ctx_);
 
     // Nearest handle within 0.05 m; an actively-near slider overrides with a
     // value readout (vr_editor.cpp hover loop).
@@ -46,4 +45,7 @@ void HandlePickerNode::operator()(double) {
             }
         }
     }
+    endpoints.pos_x.value = endpoints.pos_out.value.x();
+    endpoints.pos_y.value = endpoints.pos_out.value.y();
+    endpoints.pos_z.value = endpoints.pos_out.value.z();
 }

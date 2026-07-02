@@ -1,6 +1,5 @@
 // Copyright 2026 Travis West
 #include "spectrogram.hpp"
-#include <GLES3/gl3.h>
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -31,38 +30,22 @@ void fft(std::vector<std::complex<float>>& a) {
 }
 } // namespace
 
-SpectrogramNode::SpectrogramNode() : window_(kFft), column_(kFft / 2) {
+SpectrogramNode::SpectrogramNode() : window_(kFft) {
     for (int i = 0; i < kFft; ++i)
         window_[std::size_t(i)] =
             0.5f - 0.5f * std::cos(6.2831853f * float(i) / float(kFft - 1));
 }
 
-SpectrogramNode::~SpectrogramNode() {
-    // GL object leak on destruction off the render thread is the lesser
-    // evil; graphs are destroyed render-side in practice.
-    if (tex_) glDeleteTextures(1, &tex_);
-}
-
-void SpectrogramNode::ensure_gl() {
+void SpectrogramNode::ensure_size() {
     int want = std::max(64, int(endpoints.columns.get()));
-    if (tex_ && want == width_) return;
-    if (tex_) glDeleteTextures(1, &tex_);
+    if (want == width_) return;
     width_ = want;
-    glGenTextures(1, &tex_);
-    glBindTexture(GL_TEXTURE_2D, tex_);
-    std::vector<unsigned char> zero(std::size_t(width_) * (kFft / 2), 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width_, kFft / 2, 0,
-                 GL_RED, GL_UNSIGNED_BYTE, zero.data());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    image_.assign(std::size_t(width_) * (kFft / 2), 0);
     cursor_ = 0;
 }
 
 void SpectrogramNode::operator()(double) {
-    ensure_gl();
+    ensure_size();
     const AudioBuffer& in = endpoints.audio.get();
     if (in.data && in.frames > 0) {
         int stride = std::max(1, in.channels);
@@ -72,26 +55,19 @@ void SpectrogramNode::operator()(double) {
                                      std::size_t(ch)]);
     }
 
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glBindTexture(GL_TEXTURE_2D, tex_);
     std::vector<std::complex<float>> buf(kFft);
     while (int(accum_.size()) >= kFft) {
         for (int i = 0; i < kFft; ++i)
             buf[std::size_t(i)] = accum_[std::size_t(i)] * window_[std::size_t(i)];
         fft(buf);
         float gain = endpoints.gain.get();
+        unsigned char* column = &image_[std::size_t(cursor_) * (kFft / 2)];
         for (int b = 0; b < kFft / 2; ++b) {
             float mag = std::abs(buf[std::size_t(b)]) * (2.f / kFft);
             float v   = std::log10(1.f + gain * 9.f * mag);  // 0..~1
-            column_[std::size_t(b)] =
-                static_cast<unsigned char>(std::clamp(v, 0.f, 1.f) * 255.f);
+            column[b] = static_cast<unsigned char>(std::clamp(v, 0.f, 1.f) * 255.f);
         }
-        glTexSubImage2D(GL_TEXTURE_2D, 0, cursor_, 0, 1, kFft / 2,
-                        GL_RED, GL_UNSIGNED_BYTE, column_.data());
         cursor_ = (cursor_ + 1) % width_;
         accum_.erase(accum_.begin(), accum_.begin() + kHop);
     }
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    endpoints.texture.value = GpuTexture{tex_, width_, kFft / 2, GL_R8, GL_LINEAR};
 }

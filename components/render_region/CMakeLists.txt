@@ -1,4 +1,11 @@
-add_library(render_region STATIC render_region.cpp)
+add_library(render_region STATIC render_region.cpp render_region_issue.cpp)
 target_include_directories(render_region PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
 target_link_libraries(render_region PUBLIC render_payloads gl_program gl_geometry tri_mesh)
 target_compile_options(render_region PRIVATE -Wall -Wextra)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(render_region_test render_region.test.cpp)
+    target_link_libraries(render_region_test PRIVATE render_region host_gl_context GTest::gtest_main)
+    target_compile_options(render_region_test PRIVATE -Wall -Wextra)
+endif()

@@ -29,6 +29,10 @@ struct WireDragNode {
 
     void operator()(double);
     void set_context(const editor_layout::GestureContext& ctx) { ctx_ = ctx; }
+    void set_host_context(const char* kind, void* ctx) {
+        if (std::string_view{kind} == editor_layout::kEditorContextKind)
+            set_context(*static_cast<const editor_layout::GestureContext*>(ctx));
+    }
 
 private:
     enum class State { Idle, Dragging, MovingCard };

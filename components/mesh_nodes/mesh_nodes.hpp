@@ -1,5 +1,7 @@
 // Copyright 2026 Travis West
 #pragma once
+#include <GLES3/gl3.h>
+
 #include "eyeballs_node_abi.hpp"
 #include "tri_mesh.hpp"
 #include "sygaldry_endpoints.hpp"
@@ -26,6 +28,10 @@ private:
     MeshPtr cached_;
 };
 
+// parked: offscreen leg (kanban/backlog/offscreen_fbo_leg.md). Owns an FBO +
+// glReadPixels readback — GL outside the render_region boundary — and its
+// GpuTexture feeders are parked too. Compiled (this file hosts live nodes)
+// but not registered by either shell until the FBO leg lands.
 struct MeshDisplaceNode {
     static consteval std::string_view name() { return "mesh_displace"; }
     static consteval std::string_view source_header() { return "components/mesh_nodes/mesh_nodes.hpp"; }
@@ -97,6 +103,8 @@ struct MeshRippleNode {
         out<MeshPtr> mesh_out;
     } endpoints;
     void operator()(double);
+private:
+    std::shared_ptr<TriMeshData> out_;  // refilled in place + touch()ed
 };
 
 // Twist around Y proportional to height.
@@ -108,6 +116,8 @@ struct MeshTwistNode {
         out<MeshPtr> mesh_out;
     } endpoints;
     void operator()(double);
+private:
+    std::shared_ptr<TriMeshData> out_;  // refilled in place + touch()ed
 };
 
 // Bake a mat4 into the vertices (positions + rotated normals).
@@ -119,6 +129,8 @@ struct MeshTransformNode {
         out<MeshPtr> mesh_out;
     } endpoints;
     void operator()(double);
+private:
+    std::shared_ptr<TriMeshData> out_;  // refilled in place + touch()ed
 };
 
 // ── span era (conformability.md): lists as values ───────────────────────────

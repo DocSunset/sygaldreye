@@ -30,8 +30,7 @@ void DwellDeleteNode::operator()(double time_s) {
     }
 
     Eigen::Vector3f tip = editor_layout::controller_tip(endpoints.pos.get(), endpoints.rot.get());
-    Layout l = editor_layout::build_layout(
-        *ctx_.graph, ctx_.overrides ? *ctx_.overrides : editor_layout::PosOverrides{});
+    const Layout& l = editor_layout::cached_layout(ctx_);
 
     const Card* hc = card_under(l, tip);
     std::string hit_card = hc ? hc->node_id : std::string{};
@@ -59,14 +58,16 @@ void DwellDeleteNode::operator()(double time_s) {
 
     if (dwell_s_ >= 1.0f) {
         dwell_s_ = 0.f;
+        using editor_layout::json_escape;
         if (!dwell_card_.empty()) {
-            ctx_.edits->push("{\"op\":\"remove_node\",\"id\":\"" + dwell_card_ + "\"}");
+            ctx_.edits->push("{\"op\":\"remove_node\",\"id\":\"" + json_escape(dwell_card_) + "\"}");
             dwell_card_.clear();
         } else if (dwell_edge_ >= 0) {
             const Edge& e = ctx_.graph->edges[std::size_t(dwell_edge_)];
             ctx_.edits->push(
-                "{\"op\":\"remove_edge\",\"from\":\"" + e.from_node + "." + e.from_port +
-                "\",\"to\":\"" + e.to_node + "." + e.to_port + "\"}");
+                "{\"op\":\"remove_edge\",\"from\":\"" + json_escape(e.from_node) + "." +
+                json_escape(e.from_port) + "\",\"to\":\"" + json_escape(e.to_node) + "." +
+                json_escape(e.to_port) + "\"}");
             dwell_edge_ = -1;
         }
     }

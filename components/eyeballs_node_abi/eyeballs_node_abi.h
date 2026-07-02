@@ -2,7 +2,7 @@
 #ifndef EYEBALLS_NODE_ABI_H
 #define EYEBALLS_NODE_ABI_H
 
-#define EYEBALLS_ABI_VERSION 8
+#define EYEBALLS_ABI_VERSION 9
 
 /* v7: how the executor lifts this node over an excess-rank (array) input.
    STATEFUL (default) → N migrated instances, one state each (Clones).
@@ -113,6 +113,12 @@ typedef struct {
        index). */
     int lift_kind;
     const char* lift_key;
+    /* v9: host-context seam. The host offers named context objects each
+       frame (kind, e.g. "editor"); a node that declares
+       `void set_host_context(const char* kind, void* ctx)` receives them.
+       Replaces per-type dispatch in the shell — plugins and subgraph-inner
+       nodes get context without the host knowing their type. Nullable. */
+    void (*set_host_context)(void* data, const char* kind, void* ctx);
 } EyeballsNodeDescriptor;
 
 /* Every plugin .so must export this symbol: */

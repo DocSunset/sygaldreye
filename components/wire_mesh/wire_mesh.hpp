@@ -9,7 +9,8 @@
 // Bezier wires from an N×10 span: each row is {from.xyz, to.xyz, rgba}.
 // Editor publishes wire endpoints as data (vr_editor_decomposition.md); this
 // node tessellates them into an unlit, per-vertex-colored line Mesh + Surface.
-// GL lives in render_region; the geometry is dynamic (rebuilt each frame).
+// GL lives in render_region; the geometry is one held TriMeshData refilled in
+// place each frame and touch()ed so the boundary re-uploads it once.
 struct WireMeshNode {
     static consteval std::string_view name() { return "wire_mesh"; }
     static consteval std::string_view source_header() {
@@ -26,4 +27,5 @@ struct WireMeshNode {
 
    private:
     Shader shader_;
+    std::shared_ptr<TriMeshData> data_;  // mutated in place + touch()ed
 };

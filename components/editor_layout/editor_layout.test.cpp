@@ -67,3 +67,38 @@ TEST(EditorLayout, KeyMatchesGraphSourceHash) {
     EXPECT_NE(id_key("add0"), id_key("mul0"));
     EXPECT_FLOAT_EQ(id_key("add0"), id_key("add0"));
 }
+
+// The shared cache rebuilds only when (graph, graph_gen, overrides_gen)
+// moves — 7 nodes per frame hit the same build.
+TEST(EditorLayout, CachedLayoutMemoizesOnGenerations) {
+    Graph g;
+    make_graph(g);
+    LayoutCache cache;
+    std::uint64_t ogen = 0;
+    GestureContext ctx{&g, nullptr, nullptr, nullptr, nullptr, &cache, 0, &ogen};
+    const Layout* a = &cached_layout(ctx);
+    const Layout* b = &cached_layout(ctx);
+    EXPECT_EQ(a, b);
+    EXPECT_EQ(cache.builds, 1u);  // hit on identical gens
+    ctx.graph_gen = 1;            // swap or in-place param write
+    cached_layout(ctx);
+    EXPECT_EQ(cache.builds, 2u);
+    ++ogen;  // card drag
+    cached_layout(ctx);
+    EXPECT_EQ(cache.builds, 3u);
+    cached_layout(ctx);
+    EXPECT_EQ(cache.builds, 3u);  // steady state: no rebuild
+}
+
+TEST(EditorLayout, CachedLayoutWithoutCacheRebuildsEveryCall) {
+    Graph g;
+    make_graph(g);
+    GestureContext ctx{&g, nullptr, nullptr, nullptr};
+    EXPECT_EQ(cached_layout(ctx).cards.size(), 2u);  // no cache: plain build
+    EXPECT_EQ(cached_layout(ctx).cards.size(), 2u);
+}
+
+TEST(EditorLayout, JsonEscapeQuotesAndBackslashes) {
+    EXPECT_EQ(json_escape("plain"), "plain");
+    EXPECT_EQ(json_escape("a\"b\\c"), "a\\\"b\\\\c");
+}

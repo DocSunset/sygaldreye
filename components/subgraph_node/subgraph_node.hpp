@@ -24,6 +24,11 @@ public:
     int connect_inlet(const char* name, const void* src);
     const void* outlet_ptr(const char* name) const;
 
+    // Host-context seam (ABI v9), forwarded to every inner node that
+    // declares it — a gesture node composed inside a subgraph gets the same
+    // context a top-level one does (nested subgraphs recurse).
+    void set_host_context(const char* kind, void* ctx);
+
     // Inlet-params (inlet_defaults.md rung 1): {"inlet": value} JSON sets
     // persisted defaults applied like any inlet value — presets become
     // parametric abstractions. serialize emits the DEFAULTS (never live

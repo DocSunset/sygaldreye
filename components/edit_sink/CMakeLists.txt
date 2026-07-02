@@ -1,6 +1,6 @@
 add_library(edit_sink INTERFACE)
 target_include_directories(edit_sink INTERFACE . $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(edit_sink INTERFACE sygaldry_endpoints event_queue)
+target_link_libraries(edit_sink INTERFACE sygaldry_endpoints event_queue editor_layout)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)
 if(EXISTS ${GTEST_ROOT})

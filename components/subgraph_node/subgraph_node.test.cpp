@@ -123,3 +123,49 @@ TEST(SubgraphNode, V6WiresForwardToInnerStorage) {
     sn(0.1);
     EXPECT_FLOAT_EQ(thru->endpoints.out.value, -2.f);
 }
+
+// ── host-context seam (ABI v9) ───────────────────────────────────────────────
+
+struct SgCtxProbe {
+    static consteval std::string_view name() { return "sg_ctxprobe"; }
+    struct endpoints {
+        ::out<float> y;
+    } endpoints;
+    void operator()(double) {}
+    void set_host_context(const char* k, void* c) {
+        kind = k;
+        ctx = c;
+    }
+    std::string kind;
+    void* ctx = nullptr;
+};
+
+// The subgraph descriptor exposes set_host_context iff an inner node
+// consumes it, and forwards kind+pointer to that inner node.
+TEST(SubgraphDescriptor, HostContextForwardsToInnerConsumers) {
+    ComponentRegistry reg;
+    static auto desc = make_descriptor<SgCtxProbe>();
+    reg.register_builtin(desc);
+    auto inner = parse_graph(
+        R"({"nodes":[{"id":"p","type":"sg_ctxprobe","params":{}}],"edges":[]})", reg);
+    ASSERT_NE(inner, nullptr);
+    SubgraphDescriptor d(std::move(inner), "probe_sub");
+    ASSERT_NE(d.descriptor()->set_host_context, nullptr);
+
+    void* node = d.descriptor()->create();
+    int payload = 0;
+    d.descriptor()->set_host_context(node, "editor", &payload);
+    auto* sn = static_cast<SubgraphNode*>(node);
+    auto* probe = static_cast<SgCtxProbe*>(sn->inner().nodes[0].data);
+    EXPECT_EQ(probe->kind, "editor");
+    EXPECT_EQ(probe->ctx, &payload);
+    d.descriptor()->destroy(node);
+}
+
+TEST(SubgraphDescriptor, NoHostContextHookWithoutInnerConsumers) {
+    ComponentRegistry reg;
+    auto inner = make_gain_graph(reg);
+    ASSERT_NE(inner, nullptr);
+    SubgraphDescriptor d(std::move(inner), "gain_sub");
+    EXPECT_EQ(d.descriptor()->set_host_context, nullptr);
+}

@@ -33,19 +33,27 @@ std::string structure_sig(const Graph& g) {
 void UndoNode::operator()(double) {
     if (!ctx_.graph) return;
 
-    // Snapshot the graph only when its STRUCTURE changes; the prior snapshot is
-    // the undo target. Param-only frames don't disturb it.
-    std::string sig = structure_sig(*ctx_.graph);
-    std::string now = serialize_graph(*ctx_.graph);
-    if (current_sig_.empty()) {
-        current_sig_ = sig;
-        current_ = now;
-    } else if (sig != current_sig_) {
-        previous_ = current_;
-        current_sig_ = sig;
-        current_ = now;
-    } else {
-        current_ = now;  // keep the latest params for the current structure
+    // Re-examine the graph only when its generation moved (peer_core bumps
+    // graph_gen on every swap and in-place param write) — an idle frame costs
+    // nothing, not a whole-graph serialization.
+    if (last_graph_ != ctx_.graph || last_gen_ != ctx_.graph_gen || current_sig_.empty()) {
+        last_graph_ = ctx_.graph;
+        last_gen_ = ctx_.graph_gen;
+        // Snapshot the graph only when its STRUCTURE changes; the prior
+        // snapshot is the undo target. Param-only frames don't disturb it.
+        std::string sig = structure_sig(*ctx_.graph);
+        std::string now = serialize_graph(*ctx_.graph);
+        ++snapshots_;
+        if (current_sig_.empty()) {
+            current_sig_ = sig;
+            current_ = std::move(now);
+        } else if (sig != current_sig_) {
+            previous_ = current_;
+            current_sig_ = sig;
+            current_ = std::move(now);
+        } else {
+            current_ = std::move(now);  // keep the latest params for the current structure
+        }
     }
 
     bool gesture = endpoints.thumb_x.get() < -0.7f;

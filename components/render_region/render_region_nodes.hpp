@@ -12,8 +12,11 @@
 // DrawDesc: the draw is this node plus its wiring.
 //
 // seq_in/seq_out declare submission ORDER via the DAG — chain draws from a
-// render_head and topological order becomes draw order. The enqueue itself is
-// unconditional (the event sequences, it does not gate).
+// render_head and topological order becomes draw order; every shipped scene
+// with blended/depth-write-off surfaces wires such a chain. The enqueue itself
+// is unconditional — a deliberate deviation from the ratified plan's "an
+// unwired draw never fires": patch a draw in live editing and it shows up
+// immediately; unwired draws simply append in tick order.
 struct DrawNode {
     static consteval std::string_view name() { return "draw"; }
     static consteval std::string_view source_header() {

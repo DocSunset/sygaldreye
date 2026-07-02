@@ -35,8 +35,7 @@ void CardWidgetsMeshNode::operator()(double) {
         endpoints.mesh.value = nullptr;
         return;
     }
-    editor_layout::Layout l = editor_layout::build_layout(
-        *ctx_.graph, ctx_.overrides ? *ctx_.overrides : editor_layout::PosOverrides{});
+    const editor_layout::Layout& l = editor_layout::cached_layout(ctx_);
 
     auto m = std::make_shared<TriMeshData>();
     constexpr float hs = editor_layout::kHandleHalf;  // 0.006

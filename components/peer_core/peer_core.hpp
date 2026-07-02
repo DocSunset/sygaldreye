@@ -40,7 +40,7 @@ struct PeerCore {
 
     // ── frame phases, render thread ──────────────────────────────────────
     void begin_frame();                // swap+migrate pending, apply params
-    void pump_contexts(float aspect);  // editor/spawner/fly_camera seams
+    void pump_contexts(float aspect);  // v9 host-context hook + fly_camera aspect
     void tick(double time_s);          // tick graph, snapshot values
     void collect_edits();              // edit queue → pending graph
     // At the shell's safe readback point (current READ framebuffer).
@@ -111,6 +111,13 @@ private:
     // resource-holder nodes in pump_contexts.
     editor_layout::PosOverrides editor_overrides_;
     std::vector<std::string> sorted_types_;
+    // Shared memoized editor layout + its generation stamps: graph_gen_
+    // bumps on every swap and in-place param write, overrides_gen_ when a
+    // card drag writes the override map. Editor nodes rebuild layout (and
+    // undo_node re-serializes) only when a stamp moves.
+    editor_layout::LayoutCache layout_cache_;
+    std::uint64_t graph_gen_ = 0;
+    std::uint64_t overrides_gen_ = 0;
     AudioRegion audio_;
     double prev_tick_t_ = 0.0;
     std::mutex hosted_mutex_;

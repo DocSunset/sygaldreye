@@ -90,6 +90,39 @@ bool is_excess_rank_edge(
     return info->cell_rank() >= 1 && !info->whole;
 }
 
+// THE lift-selection rule, shared by build_plan and lint_lifts: host node
+// index → the edge index it lifts on. First excess-rank edge in edge order
+// wins ("one lift per host", v1); the lift_key port is the KEY channel (id),
+// not the lift trigger, so it is skipped — UNLESS it is the host's ONLY
+// excess-rank input (the L1 case where key and cell are the same port).
+std::unordered_map<std::size_t, std::size_t> select_lifts(
+    const Graph& g, const std::unordered_map<std::string, std::size_t>& idx) {
+    auto has_other_excess = [&](std::size_t host, std::string_view key_port) {
+        for (const auto& e : g.edges) {
+            auto f = idx.find(e.from_node), t = idx.find(e.to_node);
+            if (f == idx.end() || t == idx.end() || t->second != host || e.to_port == key_port)
+                continue;
+            if (is_excess_rank_edge(g.nodes[f->second], e.from_port, g.nodes[host], e.to_port))
+                return true;
+        }
+        return false;
+    };
+    std::unordered_map<std::size_t, std::size_t> chosen;
+    for (std::size_t ei = 0; ei < g.edges.size(); ++ei) {
+        const Edge& e = g.edges[ei];
+        auto f = idx.find(e.from_node), t = idx.find(e.to_node);
+        if (f == idx.end() || t == idx.end()) continue;
+        if (chosen.count(t->second)) continue;
+        const NodeInstance& to = g.nodes[t->second];
+        if (to.desc->lift_key && std::string_view{to.desc->lift_key} == e.to_port &&
+            has_other_excess(t->second, to.desc->lift_key))
+            continue;  // lift on the cell input, not the id channel
+        if (!is_excess_rank_edge(g.nodes[f->second], e.from_port, to, e.to_port)) continue;
+        chosen[t->second] = ei;
+    }
+    return chosen;
+}
+
 // Block region (v1 rule, see header): dacs + upstream closure through
 // audio edges.
 std::vector<Rate> infer_regions(
@@ -118,6 +151,84 @@ std::vector<Rate> infer_regions(
 
 }  // namespace
 
+LiftLint lint_lifts(const Graph& g) {
+    LiftLint r;
+    r.dead_edge.assign(g.edges.size(), 0);
+    r.no_lift.assign(g.nodes.size(), 0);
+    std::unordered_map<std::string, std::size_t> idx;
+    for (std::size_t i = 0; i < g.nodes.size(); ++i) idx[g.nodes[i].id] = i;
+    auto chosen = select_lifts(g, idx);
+    if (chosen.empty()) return r;
+    auto region = infer_regions(g, idx);
+    auto bad = [&](std::string msg) { r.errors.push_back(std::move(msg)); };
+
+    for (const auto& [host, lift_ei] : chosen) {
+        const NodeInstance& h = g.nodes[host];
+        const Edge& le = g.edges[lift_ei];
+        std::string via = le.from_node + "." + le.from_port + " -> " + h.id + "." + le.to_port;
+        bool refused = false;
+        if (h.desc->lift_kind == EYEBALLS_LIFT_RESOURCE_HOLDER) {
+            bad("cannot lift resource-holder '" +
+                std::string(h.desc->type_name ? h.desc->type_name : "?") + "' (node '" + h.id +
+                "') over array " + via +
+                " — resource holders (dac/editor/device streams) are unliftable");
+            refused = true;
+        } else if (region[host] == Rate::Block) {
+            bad("cannot lift node '" + h.id + "' over array " + via +
+                " — it runs in the audio (Block) region, which does not replay lifts yet");
+            refused = true;
+        }
+        if (refused) r.no_lift[host] = 1;
+
+        std::string_view key = h.desc->lift_key ? h.desc->lift_key : "";
+        auto [out_port, out_kind] = host_gather_out(h);
+        int out_cell = 0;
+        if (auto s = parse_port_schema(h.desc->port_schema); !s.outputs.empty())
+            out_cell = s.outputs.front().cell_rank();
+
+        for (std::size_t ei = 0; ei < g.edges.size(); ++ei) {
+            const Edge& e = g.edges[ei];
+            auto f = idx.find(e.from_node), t = idx.find(e.to_node);
+            if (t != idx.end() && t->second == host) {
+                bool excess = f != idx.end() &&
+                              is_excess_rank_edge(g.nodes[f->second], e.from_port, h, e.to_port);
+                if (refused) {  // a span→cell wire would read the Span struct as floats
+                    if (excess) r.dead_edge[ei] = 1;
+                } else if (excess && ei != lift_ei && e.to_port != key) {
+                    bad("node '" + h.id + "' already lifts on '" + le.to_port +
+                        "'; a second array input '" + e.to_port +
+                        "' is unsupported (one lift per host)");
+                    r.dead_edge[ei] = 1;
+                }
+            }
+            if (refused || f == idx.end() || f->second != host) continue;
+            // Edges FROM the lifted host: only its first output gathers; the
+            // node itself is never ticked, so anything else reads dead storage.
+            if (e.from_port != out_port) {
+                bad("lifted node '" + h.id + "': only its first output ('" + out_port +
+                    "') gathers; edge from '" + e.from_port + "' is unsupported");
+                r.dead_edge[ei] = 1;
+                continue;
+            }
+            if (out_kind != "mesh" && out_cell == 0) {
+                bad("lifted node '" + h.id + "': cannot gather '" + out_kind + "' output '" +
+                    out_port + "' (only numeric cells and mesh gather)");
+                r.dead_edge[ei] = 1;
+                continue;
+            }
+            std::string want = out_kind == "mesh" ? "mesh_array" : "span";
+            auto ti = t != idx.end() ? in_info(g.nodes[t->second], e.to_port) : std::nullopt;
+            if (ti && !port_types::is_wildcard(ti->kind) && ti->kind != want) {
+                bad("lifted node '" + h.id + "': gathered output '" + out_port + "' is a " + want +
+                    "; consumer " + e.to_node + "." + e.to_port + " ('" + ti->kind +
+                    "') cannot take it");
+                r.dead_edge[ei] = 1;
+            }
+        }
+    }
+    return r;
+}
+
 std::unique_ptr<TickPlan> build_plan(const Graph& g) {
     auto back = mark_back_edges(g);
     std::unordered_map<std::string, std::size_t> idx;
@@ -133,50 +244,29 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
     };
 
     // ── lift pre-pass (conformability.md): detect excess-rank edges ──────────
-    // host node index → its LiftGroup (a host lifts on ONE array input here;
-    // multi-input lift is a later rung). The host node is then a LIFTED slot:
-    // it is NOT ticked in place, and edges from its output gather.
-    std::unordered_map<std::size_t, LiftGroup*> host_group;
-    // The lift_key port is the KEY channel (id), not the lift trigger. A span
-    // feeding it is excess-rank too, so lifting on it (if its edge is listed
-    // first) would bind the id per row and leave the real cell unbound. Skip
-    // it — UNLESS it is the host's ONLY excess-rank input (the L1 case where
-    // key and cell are the same port). Find such hosts up front.
-    auto has_other_excess = [&](std::size_t host, std::string_view key_port) {
-        for (const auto& e : g.edges) {
-            auto f = idx.find(e.from_node), t = idx.find(e.to_node);
-            if (f == idx.end() || t->second != host || e.to_port == key_port) continue;
-            if (is_excess_rank_edge(g.nodes[f->second], e.from_port, g.nodes[host], e.to_port))
-                return true;
-        }
-        return false;
-    };
-    for (const auto& e : g.edges) {
-        auto f = idx.find(e.from_node), t = idx.find(e.to_node);
-        if (f == idx.end() || t == idx.end()) continue;
-        if (host_group.count(t->second)) continue;  // one lift per host (v1)
-        const NodeInstance& from = g.nodes[f->second];
+    // A lifted host lifts on ONE array input (multi-input lift is a later
+    // rung) and becomes a LIFTED slot: NOT ticked in place, edges from its
+    // output gather. Selection and validation share ONE implementation
+    // (select_lifts / lint_lifts). Bad shapes were rejected at parse; a
+    // programmatically built graph takes the defensive path — errors to
+    // stderr, the lift skipped, the flagged edges left unwired.
+    auto chosen = select_lifts(g, idx);
+    auto lint = lint_lifts(g);
+    for (const auto& msg : lint.errors)
+        std::fprintf(stderr, "build_plan: %s (left unwired)\n", msg.c_str());
+    plan->node_lift.assign(g.nodes.size(), nullptr);
+    for (std::size_t ei = 0; ei < g.edges.size(); ++ei) {
+        const Edge& e = g.edges[ei];
+        auto t = idx.find(e.to_node);
+        if (t == idx.end() || lint.no_lift[t->second]) continue;
+        auto ch = chosen.find(t->second);
+        if (ch == chosen.end() || ch->second != ei) continue;
+        auto f = idx.find(e.from_node);
         const NodeInstance& to = g.nodes[t->second];
-        if (to.desc->lift_key && std::string_view{to.desc->lift_key} == e.to_port &&
-            has_other_excess(t->second, to.desc->lift_key))
-            continue;  // lift on the cell input, not the id channel
-        if (!is_excess_rank_edge(from, e.from_port, to, e.to_port)) continue;
-        // Resource-holder guard: lifting a device/stream/editor node (or a
-        // subgraph containing one) is a hard error. Drop the lift; the edge
-        // falls through to ordinary classification, which is itself a type
-        // mismatch (span→cell) — loud where it lands.
-        if (to.desc->lift_kind == EYEBALLS_LIFT_RESOURCE_HOLDER) {
-            std::fprintf(
-                stderr,
-                "build_plan: cannot lift resource-holder '%s' (node '%s') over an "
-                "array — resource holders (dac/editor/device streams) are unliftable\n",
-                to.desc->type_name ? to.desc->type_name : "?",
-                to.id.c_str());
-            continue;
-        }
         LiftGroup lg;
         lg.host = t->second;
         lg.in_port = e.to_port;
+        lg.store_prefix = to.id + "." + lg.in_port + "#";
         lg.source = make_applier(e, f->second);
         if (auto info = in_info(to, e.to_port)) lg.cell = info->cell_rank();
         // Stateless hosts loop in place (CellMap); the safe default is N
@@ -203,12 +293,13 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
                 break;
             }
         plan->lift_groups.push_back(std::move(lg));
-        host_group[t->second] = &plan->lift_groups.back();
+        plan->node_lift[t->second] = &plan->lift_groups.back();
     }
 
     std::vector<Edge> dag_edges;
     for (std::size_t ei = 0; ei < g.edges.size(); ++ei) {
         const Edge& e = g.edges[ei];
+        if (lint.dead_edge[ei]) continue;  // flagged lift shape: never wire
         auto f = idx.find(e.from_node), t = idx.find(e.to_node);
         if (t == idx.end() || f == idx.end()) continue;
         // Lift routing: the array edge INTO a lifted host is consumed by the
@@ -216,15 +307,13 @@ std::unique_ptr<TickPlan> build_plan(const Graph& g) {
         // producer, but no wire/applier). The key-source edge (lift_key port)
         // is likewise consumed by the group. An edge FROM a lifted host's
         // gather output points the consumer at the group's gather slot.
-        if (auto hg = host_group.find(t->second);
-            hg != host_group.end() &&
-            (hg->second->in_port == e.to_port || hg->second->key_port == e.to_port)) {
+        if (LiftGroup* hg = plan->node_lift[t->second];
+            hg && (hg->in_port == e.to_port || hg->key_port == e.to_port)) {
             dag_edges.push_back(e);
             continue;
         }
-        if (auto hg = host_group.find(f->second);
-            hg != host_group.end() && hg->second->out_port == e.from_port) {
-            plan->gather_wires.push_back({&e, hg->second});
+        if (LiftGroup* hg = plan->node_lift[f->second]; hg && hg->out_port == e.from_port) {
+            plan->gather_wires.push_back({&e, hg});
             dag_edges.push_back(e);
             continue;
         }
@@ -320,6 +409,24 @@ void wire_plan(Graph& g) {
                                ? static_cast<const void*>(&gw.group->mesh_view)
                                : static_cast<const void*>(&gw.group->gather);
         t->second->desc->connect(t->second->data, gw.edge->to_port.c_str(), slot);
+    }
+    // Lifted-store hygiene: entries owned by no live LiftGroup (the lifted
+    // node/edge was edited away) would otherwise leak forever — live groups
+    // reattach by key; nothing else ever touches them.
+    for (auto it = g.lifted_store.begin(); it != g.lifted_store.end();) {
+        bool live = false;
+        for (const auto& lg : g.plan->lift_groups)
+            if (it->first.rfind(lg.store_prefix, 0) == 0) {
+                live = true;
+                break;
+            }
+        if (live) {
+            ++it;
+            continue;
+        }
+        if (it->second.desc && it->second.desc->destroy && it->second.data)
+            it->second.desc->destroy(it->second.data);
+        it = g.lifted_store.erase(it);
     }
 }
 

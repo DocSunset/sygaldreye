@@ -1,3 +1,10 @@
 add_library(color_mesh INTERFACE)
 target_include_directories(color_mesh INTERFACE .)
 target_link_libraries(color_mesh INTERFACE eyeballs_node_abi render_payloads)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(color_mesh_test color_mesh.test.cpp)
+    target_link_libraries(color_mesh_test PRIVATE color_mesh GTest::gtest_main)
+    target_compile_options(color_mesh_test PRIVATE -Wall -Wextra)
+endif()

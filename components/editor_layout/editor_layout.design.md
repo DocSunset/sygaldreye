@@ -13,12 +13,21 @@ simplest identity resolution, no text-array payload.
 
 ## Ports
 
-Not a node; a pure library (`build_layout`, `edge_endpoints`, `id_key`,
-`default_card_pos`).
+Not a node; a pure library (`build_layout`, `cached_layout`, `edge_endpoints`,
+`id_key`, `default_card_pos`, `json_escape`). Also defines `GestureContext` —
+the "editor"-kind host context (ABI v9 `set_host_context`) carrying the live
+graph, edit queue, position overrides, sorted type list, registry, and the
+shared `LayoutCache` with its generation stamps.
 
-- Inputs: a `Graph` + the per-id position-override map.
+- Inputs: a `Graph` + the per-id position-override map; for `cached_layout`,
+  a `GestureContext` (its `graph_gen`/`overrides_gen` key the memo).
 - Outputs: a `Layout` (cards, each with input/output handles and sliders).
-- Sources/Destinations/Temporal couplings/Intended seams: —
+- Sources/Destinations/Temporal couplings: the host (peer_core) owns the
+  cache and bumps `graph_gen` on swap + in-place param writes; wire_drag
+  bumps `overrides_gen` on card drags. Without a cache in the context,
+  `cached_layout` rebuilds per call (tests).
+- Intended seams: any node consuming kind "editor" via `set_host_context`
+  joins the editor without host changes.
 
 ## Requirements
 

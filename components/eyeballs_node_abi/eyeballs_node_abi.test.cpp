@@ -47,8 +47,39 @@ struct LiftMetaNode {
     void operator()(double) {}
 };
 
+// v9: a node that consumes host context.
+struct CtxNode {
+    static consteval std::string_view name() { return "ctx_node"; }
+    struct endpoints {
+        out<float> y;
+    } endpoints;
+    void operator()(double) {}
+    void set_host_context(const char* kind, void* ctx) {
+        last_kind = kind;
+        last_ctx = ctx;
+    }
+    std::string last_kind;
+    void* last_ctx = nullptr;
+};
+
 TEST(EyeballsNodeAbi, Version) {
     EXPECT_EQ(make_descriptor<TestNode>()->version, EYEBALLS_ABI_VERSION);
+}
+
+TEST(EyeballsNodeAbi, SetHostContextNullWithoutMember) {
+    EXPECT_EQ(make_descriptor<TestNode>()->set_host_context, nullptr);
+}
+
+TEST(EyeballsNodeAbi, SetHostContextDeliversKindAndPointer) {
+    auto* d = make_descriptor<CtxNode>();
+    ASSERT_NE(d->set_host_context, nullptr);
+    void* node = d->create();
+    int ctx = 7;
+    d->set_host_context(node, "editor", &ctx);
+    auto* c = static_cast<CtxNode*>(node);
+    EXPECT_EQ(c->last_kind, "editor");
+    EXPECT_EQ(c->last_ctx, &ctx);
+    d->destroy(node);
 }
 
 TEST(EyeballsNodeAbi, LiftMetadataDefaultsStateful) {

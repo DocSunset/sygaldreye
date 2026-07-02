@@ -1,40 +1,32 @@
 # tri_mesh
 
-General-purpose GPU mesh for arbitrary triangle geometry with per-vertex position, normal, and RGBA color.
+CPU triangle-mesh payload: `TriVertex` (position/normal/color) and
+`TriMeshData` (vertices + indices + version stamp). GL-free — the GPU copy is
+owned by `render_region`, which caches by `TriMeshData*` and re-uploads when
+`version` changes. The former GL `TriMesh` class was deleted (unused since the
+render-as-nodes migration).
 
 ## Ports
 
-**Inputs**
-- `create(TriMeshData const&)` — uploads geometry to GPU; must be called on the GL thread with a current context
-- `update(TriMeshData const&)` — re-uploads geometry; uses `glBufferSubData` when vertex count is unchanged, `glBufferData` otherwise
-- `draw()` — issues a `glDrawElements` call; caller is responsible for binding a shader and setting uniforms
-
-**Outputs**
-- None
-
-**Sources**
-- Requires an active OpenGL ES 3.0+ context on the calling thread
-
-**Destinations**
-- Caller's framebuffer receives rasterized triangles
-
-**Temporal couplings**
-- `create` must precede `update` and `draw`
-- Must be destroyed on the same GL thread it was created on
-
-**Intended seams**
-- `TriMeshData` is a plain struct; callers provide arbitrary geometry
+- Inputs: — (plain data)
+- Outputs: `version` — a globally unique stamp, assigned at construction and
+  re-stamped by `touch()`; consumers use it to detect content changes without
+  comparing vertices, and address reuse can never alias a stale stamp.
+- Sources: —
+- Destinations: `render_region`'s geometry cache keys on
+  (`TriMeshData*`, `version`).
+- Temporal couplings: producers must `touch()` after in-place mutation and
+  before the frame's draw is issued (same-thread tick → issue).
+- Intended seams: none — a POD payload.
 
 ## Requirements
 
-- Interleaved vertex layout: position (vec3), normal (vec3), color (vec4); attribute locations 0/1/2
-- `update()` avoids full reallocation when vertex count is unchanged
-- Move-only RAII; destructor releases VAO, VBO, EBO
-- Indices are `uint32_t` (drawn with `GL_UNSIGNED_INT`)
+- Interleaved layout: position (vec3), normal (vec3), color (vec4).
+- Version stamps are process-unique and monotonic (atomic counter).
 
 ## Allowed dependencies
 
-- `egl_context` (test only)
+- Eigen only.
 
 ## Owning package
 

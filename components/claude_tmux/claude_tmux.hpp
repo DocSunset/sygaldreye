@@ -21,6 +21,8 @@
 struct ClaudeTmuxNode {
     static consteval std::string_view name() { return "claude_tmux"; }
     static consteval std::string_view source_header() { return "components/claude_tmux/claude_tmux.hpp"; }
+    // Owns the tmux session (a spawned process): unliftable.
+    static constexpr int lift_kind() { return lift::resource_holder; }
 
     struct endpoints {
         normalled_in<std::string> session;   // empty → "claude_vr"

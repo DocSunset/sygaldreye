@@ -14,10 +14,10 @@
 #include "dac_node.hpp"
 #include "dwell_delete.hpp"
 #include "edit_sink.hpp"
-#include "editor_default_graph.hpp"
+#include "embedded_graphs.hpp"
 #include "editor_wires.hpp"
 #include "eyeballs_node_abi.hpp"
-#include "flat_shader.hpp"
+#include "flat_mesh.hpp"
 #include "fly_camera.hpp"
 #include "fly_camera_node.hpp"
 #include "graph_source.hpp"
@@ -33,7 +33,6 @@
 #include "particle_system.hpp"
 #include "poke_button.hpp"
 #include "poke_stick.hpp"
-#include "rd_gpu.hpp"
 #include "reaction_diffusion.hpp"
 #include "render_region.hpp"
 #include "render_region_nodes.hpp"
@@ -64,8 +63,7 @@
 #include "wire_drag.hpp"
 #include "wire_mesh.hpp"
 
-void HostApp::init(int http_port) {
-    auto& reg = core_.registry;
+void register_host_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<FlyCameraNode>());
     reg.register_builtin(make_descriptor<HandNode>());
     reg.register_builtin(make_descriptor<WireMeshNode>());
@@ -128,9 +126,8 @@ void HostApp::init(int http_port) {
     reg.register_builtin(make_descriptor<Terrain>());
     reg.register_builtin(make_descriptor<ParticleSystem>());
     reg.register_builtin(make_descriptor<ReactionDiffusion>());
-    reg.register_builtin(make_descriptor<RdGpu>());
     reg.register_builtin(make_descriptor<MeshGridNode>());
-    reg.register_builtin(make_descriptor<MeshDisplaceNode>());
+    // MeshDisplaceNode not registered: parked, offscreen leg (owns an FBO).
     reg.register_builtin(make_descriptor<MeshSphereNode>());
     reg.register_builtin(make_descriptor<MeshBoxNode>());
     reg.register_builtin(make_descriptor<MeshCylinderNode>());
@@ -176,17 +173,20 @@ void HostApp::init(int http_port) {
     // The card subgraph the editor lifts over the live graph (keyed by id).
     // Registered from the embedded definition so the default editor graph
     // parses identically on both shells, independent of the filesystem scan.
-    reg.register_subgraph("card", editor_default_graph::kEditorCardSubgraph);
+    reg.register_subgraph("card", embedded_graphs::kEditorCardSubgraph);
+}
+
+void HostApp::init(int http_port) {
+    register_host_nodes(core_.registry);
 
     PeerCore::Config cfg;
     cfg.http_port = http_port;
-    cfg.default_graph_json = editor_default_graph::kEditorGraph;
+    cfg.default_graph_json = embedded_graphs::kEditorGraph;
     cfg.data_dir = "/tmp";
     cfg.graphs_dir = "assets/graphs";
-    // Drop render_region's pointer-keyed caches when a retired graph (and its
-    // ShaderData/TriMeshData) is destructed, so reused addresses can't resolve
-    // to a freed node's program/geometry. Runs on the render thread (current
-    // GL context) inside begin_frame's swap.
+    // render_region's geometry/program caches are version/content keyed and
+    // survive swaps; this drops only the graph-scoped texture entries. Runs on
+    // the render thread (current GL context) inside begin_frame's swap.
     core_.on_graph_swapped = [](const Graph*) { RenderRegion::instance().notify_graph_swap(); };
     core_.init(cfg);
 }

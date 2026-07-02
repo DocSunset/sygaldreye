@@ -1,6 +1,7 @@
-# flat_shader
+# flat_mesh
 
-`flat_mesh`: a render-as-nodes graph node (ABI v8) for UNLIT, FLAT-shaded
+A render-as-nodes graph node (ABI v8; renamed from the flat_shader
+component so node name = component name) for UNLIT, FLAT-shaded
 geometry. The GLSL `flat` qualifier fills each triangle with its
 provoking-vertex color — no interpolation, no lighting. The distinct shading
 the lit nodes don't offer (cube_node/color_mesh are lit single-color;

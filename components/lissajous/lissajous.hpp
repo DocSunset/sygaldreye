@@ -34,4 +34,5 @@ class Lissajous {
 
    private:
     Shader shader_;
+    std::shared_ptr<TriMeshData> data_;  // mutated in place + touch()ed
 };

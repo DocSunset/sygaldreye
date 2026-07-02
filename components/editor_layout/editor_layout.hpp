@@ -1,8 +1,10 @@
 // Copyright 2026 Travis West
 #pragma once
+#include <cstdint>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -89,18 +91,45 @@ Layout build_layout(
 // either endpoint handle is absent.
 bool edge_endpoints(const Layout& l, const Edge& e, Eigen::Vector3f& from, Eigen::Vector3f& to);
 
-// The seam the shell injects into every gesture node (the editor's
-// interaction C++ → nodes, S3): the live graph to hit-test, the edit queue to
-// emit ops, and the shared per-id card-position overrides graph_source reads
-// (so a card-move and the card render agree on where a dragged card sits).
-// A gesture node is a resource-holder (it observes the graph it lives in),
-// exactly like graph_source/edit_sink.
+// One memoized layout shared by every editor node in a frame (7 nodes used to
+// rebuild it independently, each re-serializing every slider node). Owned by
+// the host (peer_core), keyed on (graph, graph_gen, overrides_gen).
+struct LayoutCache {
+    Layout layout;
+    const Graph* graph = nullptr;
+    std::uint64_t graph_gen = 0;
+    std::uint64_t overrides_gen = 0;
+    bool valid = false;
+    std::uint64_t builds = 0;  // test observability
+};
+
+// The context the host offers every node through the generic descriptor seam
+// (ABI v9 set_host_context, kind "editor"): the live graph to hit-test, the
+// edit queue to emit ops, the shared per-id card-position overrides
+// (graph_source reads, wire_drag writes), the sorted registry type list
+// (palette + spawner), the registry itself, and the shared layout cache with
+// its generation stamps. A consuming node is a resource-holder (it observes
+// the graph it lives in), exactly like graph_source/edit_sink.
 using PosOverrides = std::unordered_map<std::string, Eigen::Vector3f>;
 struct GestureContext {
     const Graph* graph = nullptr;
     EventQueue<std::string>* edits = nullptr;
     PosOverrides* overrides = nullptr;
     const std::vector<std::string>* types = nullptr;  // sorted registry types (palette)
+    const ComponentRegistry* registry = nullptr;      // spawner: type lookup
+    LayoutCache* layout = nullptr;                    // host-owned memoized layout
+    std::uint64_t graph_gen = 0;      // bumped on swap AND on in-place param writes
+    std::uint64_t* overrides_gen = nullptr;  // bump when writing `overrides`
 };
+
+inline constexpr const char* kEditorContextKind = "editor";
+
+// The shared layout, rebuilt only when (graph, graph_gen, overrides_gen)
+// moved. Without a cache in the context it rebuilds every call (tests).
+const Layout& cached_layout(const GestureContext& ctx);
+
+// Escape a string for interpolation into edit-op JSON (ids/ports/types are
+// data, not syntax). apply_edit_op unescapes on the parse side.
+std::string json_escape(std::string_view s);
 
 }  // namespace editor_layout

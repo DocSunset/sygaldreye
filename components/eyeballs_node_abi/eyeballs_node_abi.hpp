@@ -52,6 +52,12 @@ concept HasLiftKey = requires {
     { N::lift_key() } -> std::convertible_to<std::string_view>;
 };
 
+// v9: optional host-context seam. A node declaring
+// `void set_host_context(const char* kind, void* ctx)` receives the host's
+// named context objects (e.g. the editor's GestureContext) each frame.
+template <typename N>
+concept HasSetHostContext = requires(N& n, const char* k, void* c) { n.set_host_context(k, c); };
+
 // CPU mesh flowing through edges; shared so producers can regenerate while
 // consumers hold the previous frame.
 using MeshPtr = std::shared_ptr<const TriMeshData>;
@@ -377,6 +383,13 @@ const EyeballsNodeDescriptor* make_descriptor() {
     static const char* lift_key_ptr = nullptr;
     if constexpr (HasLiftKey<Node>) lift_key_ptr = Node::lift_key().data();
 
+    // v9 host-context seam: wired iff the node declares the member.
+    static void (*set_host_context_fn)(void*, const char*, void*) = nullptr;
+    if constexpr (HasSetHostContext<Node>)
+        set_host_context_fn = [](void* p, const char* kind, void* ctx) {
+            static_cast<Node*>(p)->set_host_context(kind, ctx);
+        };
+
     static EyeballsNodeDescriptor d{
         .version = EYEBALLS_ABI_VERSION,
         .type_name = Node::name().data(),
@@ -409,6 +422,7 @@ const EyeballsNodeDescriptor* make_descriptor() {
         .set_text_in = set_text_in_fn,
         .lift_kind = lift_kind_val,
         .lift_key = lift_key_ptr,
+        .set_host_context = set_host_context_fn,
     };
     return &d;
 }

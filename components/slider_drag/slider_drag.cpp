@@ -12,8 +12,7 @@ void SliderDragNode::operator()(double) {
     if (endpoints.trigger.get() <= 0.5f) return;
 
     Eigen::Vector3f tip = editor_layout::controller_tip(endpoints.pos.get(), endpoints.rot.get());
-    Layout l = editor_layout::build_layout(
-        *ctx_.graph, ctx_.overrides ? *ctx_.overrides : editor_layout::PosOverrides{});
+    const Layout& l = editor_layout::cached_layout(ctx_);
 
     // The single nearest track to the tip (half a port row in y; within the
     // track width in x; close in z). Sweeping neighbours during a vertical
@@ -35,13 +34,10 @@ void SliderDragNode::operator()(double) {
     float norm = std::clamp((dx + best->width * 0.5f) / best->width, 0.f, 1.f);
     float value = best->min_val + norm * (best->max_val - best->min_val);
 
-    char op[160];
-    std::snprintf(
-        op,
-        sizeof(op),
-        "{\"op\":\"set_param\",\"id\":\"%s\",\"port\":\"%s\",\"value\":%g}",
-        best->node_id.c_str(),
-        best->port_name.c_str(),
-        double(value));
-    ctx_.edits->push(op);
+    char num[32];
+    std::snprintf(num, sizeof(num), "%g", double(value));
+    using editor_layout::json_escape;
+    ctx_.edits->push(
+        "{\"op\":\"set_param\",\"id\":\"" + json_escape(best->node_id) + "\",\"port\":\"" +
+        json_escape(best->port_name) + "\",\"value\":" + num + "}");
 }

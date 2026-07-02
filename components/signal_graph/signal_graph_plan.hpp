@@ -51,6 +51,11 @@ struct Crossing {
 // scalar/vector input kind, so the consumer is replicated along the array's
 // leading axis. The schedulers replay this instead of a wire.
 //
+// Unsupported lift shapes are HARD ERRORS (the ratified rule): lint_lifts
+// rejects them at parse time with a message naming the node/port, and
+// build_plan defensively skips them (no lift, no wire) for programmatically
+// built graphs. See lint_lifts below for the shapes.
+//
 // Strategy is chosen from the host descriptor's lift_kind:
 //   Clones  — stateful default: N migrated host instances, one row each.
 //             Builtins and subgraphs alike via desc->create()/destroy()
@@ -78,7 +83,9 @@ struct LiftGroup {
     // Clones: live host instances, migrated across ticks (kept by key/index
     // so a lifted instance KEEPS ITS STATE when the array reorders).
     std::vector<NodeInstance> instances;
-    std::vector<std::string> inst_keys;  // parallel: each instance's key
+    std::vector<std::string> inst_keys;  // last tick's keys (skip store scans)
+    std::string store_prefix;            // "hostid.in_port#" (set at build)
+    bool reconciled = false;             // store scanned at least once
     // Gather: lifted outputs concatenate into a plan-owned slot the
     // downstream consumer's src points at (mirrors audio_slots). Span for
     // numeric cells; mesh_gather for an N-mesh payload (forest route 1).
@@ -113,6 +120,9 @@ struct TickPlan {
     // Excess-rank edges resolved as lifts. deque: stable addresses (gather
     // slots are pointed at by downstream consumers' src).
     std::deque<LiftGroup> lift_groups;
+    // Per node index: its LiftGroup, or nullptr (built once — schedulers
+    // must not rebuild this map per tick).
+    std::vector<LiftGroup*> node_lift;
     // Edges whose producer is a lifted host's gathered output: the consumer
     // points its src at the LiftGroup's gather Span (mesh_gather meshes are
     // delivered by tick). Resolved in wire_plan after gather is sized.
@@ -124,6 +134,30 @@ struct TickPlan {
 };
 
 std::unique_ptr<TickPlan> build_plan(const Graph& g);
+
+// Lift lint — the ONE validation pass over every excess-rank (lift) edge
+// (conformability_executor.md: unsupported lifts are "an error with a good
+// message"). Errors: lifting a resource-holder; lifting in the Block (audio)
+// region (no scheduler replays it there); a second array input into a lifted
+// host; an edge from a lifted host's non-gathered output; a gather kind the
+// executor cannot gather (not numeric-cell or mesh); a gathered output wired
+// to a consumer that cannot take the gather slot (span / mesh_array).
+// parse_graph REJECTS a graph with errors. build_plan prints them and skips
+// the lift / leaves the flagged edges unwired (defensive path).
+struct LiftLint {
+    std::vector<std::string> errors;
+    std::vector<char> dead_edge;  // per g.edges index: must not wire
+    std::vector<char> no_lift;    // per g.nodes index: lift refused
+};
+LiftLint lint_lifts(const Graph& g);
+
+// Lift replay (signal_graph_lift.cpp): reconcile/tick/gather one LiftGroup.
+void tick_lift_group(Graph& g, LiftGroup& lg, double time_s);
+
+// Rebuild a lifted instance on a new descriptor, carrying serialized state —
+// the lifted analogue of migrate_graph's param re-apply. Must run while the
+// OLD descriptor is still alive (migrate_graph calls it before `old` dies).
+void migrate_lifted_instance(LiftedInstance& li, const EyeballsNodeDescriptor* desc);
 
 // endpoints v6: reset every v6 input's src, then point plan.wires at their
 // producers' storage. Call after build_plan, post-migration (migrated

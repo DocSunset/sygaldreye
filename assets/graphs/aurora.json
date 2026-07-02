@@ -27,5 +27,7 @@
     {"from":"c2.surface","to":"d2.surface"},{"from":"c2.mesh","to":"d2.mesh"},
     {"from":"c3.surface","to":"d3.surface"},{"from":"c3.mesh","to":"d3.mesh"},
     {"from":"c4.surface","to":"d4.surface"},{"from":"c4.mesh","to":"d4.mesh"},
-    {"from":"c5.surface","to":"d5.surface"},{"from":"c5.mesh","to":"d5.mesh"}]
+    {"from":"c5.surface","to":"d5.surface"},{"from":"c5.mesh","to":"d5.mesh"},
+    {"from":"d1.seq_out","to":"d2.seq_in"},{"from":"d2.seq_out","to":"d3.seq_in"},
+    {"from":"d3.seq_out","to":"d4.seq_in"},{"from":"d4.seq_out","to":"d5.seq_in"}]
 }

@@ -40,3 +40,15 @@ grab_detector (drag gestures).
 4. Cards + palette via lifting.
 5. Gesture state machines.
 6. Delete VrEditor when empty.
+
+## Status (2026-07-01 — in review)
+
+Delivered in 87496a2 (monolith deleted; editor.json boots both shells);
+in-headset verification still pending with Travis. The 2026-07-01
+remediation arc fixes the audit's editor defects on this branch:
+slider-drag rerouted through queue_param, ABI v9 generic context seam
+replacing pump_contexts' per-type dispatch, shell registration parity,
+seq draw-order wiring. Undone plan slices filed as backlog
+(card_subgraph_decomposition, edit_ops_over_wires,
+card_positions_as_graph_content). See
+reports/audit_conformability_editor_arc.md §1.

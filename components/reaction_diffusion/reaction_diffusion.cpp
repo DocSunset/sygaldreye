@@ -6,24 +6,9 @@
 #include <cstdint>
 #include <memory>
 
-namespace {
+#include "common_shaders.hpp"
 
-constexpr const char* kVert = R"(#version 300 es
-layout(location=0) in vec3 aPos;
-layout(location=2) in vec4 aColor;
-uniform mat4 uMVP;
-out vec4 vColor;
-void main() {
-    gl_Position = uMVP * vec4(aPos, 1.0);
-    vColor = aColor;
-}
-)";
-constexpr const char* kFrag = R"(#version 300 es
-precision mediump float;
-in vec4 vColor;
-out vec4 fragColor;
-void main() { fragColor = vColor; }
-)";
+namespace {
 
 void seed_grid(std::vector<float>& u, std::vector<float>& v, int w, int h) {
     uint32_t s   = 0xDEADBEEFu;
@@ -104,7 +89,9 @@ void ReactionDiffusion::step_sim() {
 }
 
 void ReactionDiffusion::operator()(double /*time_s*/) {
-    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    if (!shader_)
+        shader_ = std::make_shared<ShaderData>(ShaderData{
+            common_shaders::kUnlitVertexColorVert, common_shaders::kUnlitVertexColorFrag});
     if (!data_) init();
 
     params_.Du              = endpoints.Du.get();
@@ -121,6 +108,7 @@ void ReactionDiffusion::operator()(double /*time_s*/) {
         data_->vertices[static_cast<size_t>(i)].color =
             params_.color_a * (1.0f - vv) + params_.color_b * vv;
     }
+    data_->touch();  // mutated in place — re-stamp so render_region re-uploads
 
     Mesh m;
     m.geometry = data_;

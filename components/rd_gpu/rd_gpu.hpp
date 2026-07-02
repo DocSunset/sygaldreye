@@ -7,6 +7,10 @@
 
 // GPU Gray-Scott reaction-diffusion via ping-pong FBOs.
 // Call init() once after the GL context is available.
+//
+// parked: offscreen leg (kanban/backlog/offscreen_fbo_leg.md). Its only
+// consumers (rd_renderer/glsl_effect/texture_view) are parked, so this GL
+// resource-holder is out of the build and unregistered until then.
 struct RdGpu {
     static consteval std::string_view name() { return "rd_gpu"; }
     static constexpr int lift_kind() { return lift::resource_holder; }

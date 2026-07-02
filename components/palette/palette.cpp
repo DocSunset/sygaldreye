@@ -4,6 +4,7 @@
 #include <cmath>
 
 void PaletteNode::operator()(double) {
+    endpoints.page.value = float(page_);  // palette_mesh draws whatever we poke
     bool trig = endpoints.trigger.get() > 0.5f;
     bool fire = trig && !prev_trigger_;
     prev_trigger_ = trig;
@@ -18,6 +19,7 @@ void PaletteNode::operator()(double) {
     int row = int((0.5f - d.y() / panel_h()) * float(kRows + 1));
     if (row <= 0) {  // header row flips pages
         page_ = (page_ + 1) % pages();
+        endpoints.page.value = float(page_);
         return;
     }
     int idx = page_ * kRows + row - 1;
@@ -25,5 +27,6 @@ void PaletteNode::operator()(double) {
 
     if (ctx_.edits)
         ctx_.edits->push(
-            "{\"op\":\"add_node\",\"type\":\"" + (*ctx_.types)[std::size_t(idx)] + "\"}");
+            "{\"op\":\"add_node\",\"type\":\"" +
+            editor_layout::json_escape((*ctx_.types)[std::size_t(idx)]) + "\"}");
 }

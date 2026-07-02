@@ -76,3 +76,25 @@ TEST(WireDrag, GripCardBodyMovesCard) {
     EXPECT_NEAR(ovr["add0"].x(), moved.x(), 1e-4f);
     EXPECT_TRUE(edits.drain().empty());  // a move is not an edit op
 }
+
+// §3 fix: a card drag bumps overrides_gen so the shared layout cache stays
+// live during the drag.
+TEST(WireDrag, CardMoveBumpsOverridesGeneration) {
+    Graph g;
+    make_graph(g);
+    auto l = editor_layout::build_layout(g, {});
+    Eigen::Vector3f body = l.cards[0].position;
+
+    EventQueue<std::string> edits;
+    editor_layout::PosOverrides ovr;
+    std::uint64_t ogen = 0;
+    GestureContext ctx{&g, &edits, &ovr};
+    ctx.overrides_gen = &ogen;
+    WireDragNode n;
+    n.set_context(ctx);
+
+    aim_at(n, body, false);
+    aim_at(n, body, true);                                    // grab
+    aim_at(n, body + Eigen::Vector3f{0.2f, 0, 0}, true);      // drag
+    EXPECT_GT(ogen, 0u);
+}

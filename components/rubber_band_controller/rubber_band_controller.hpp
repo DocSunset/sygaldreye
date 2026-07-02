@@ -43,4 +43,5 @@ private:
     std::array<GrabTarget, 2> targets_{};
     bool seeded_ = false;
     Shader shader_;
+    std::shared_ptr<TriMeshData> data_;  // mutated in place + touch()ed
 };

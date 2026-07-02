@@ -83,6 +83,15 @@ static bool contains_resource_holder(const Graph& g) {
     return false;
 }
 
+// The subgraph exposes the v9 host-context seam iff any inner node consumes
+// it (nested subgraphs already carry the inferred hook), so hosts can skip
+// context-free subgraphs like any other node.
+static bool contains_host_context(const Graph& g) {
+    for (const auto& n : g.nodes)
+        if (n.desc && n.desc->set_host_context) return true;
+    return false;
+}
+
 static std::string build_port_schema(const Graph& g) {
     std::string s = "{\"inputs\":[";
     bool first = true;
@@ -180,6 +189,12 @@ SubgraphDescriptor::SubgraphDescriptor(std::unique_ptr<Graph> graph_template, st
     desc_.output_ptr = [](void* p, const char* port) -> const void* {
         return static_cast<SubgraphNode*>(p)->outlet_ptr(port);
     };
+    // v9: forward host context to inner consumers (null when none — hosts
+    // can tell context-free subgraphs apart, exactly like plain nodes).
+    if (contains_host_context(*graph_template_))
+        desc_.set_host_context = [](void* p, const char* kind, void* ctx) {
+            static_cast<SubgraphNode*>(p)->set_host_context(kind, ctx);
+        };
 }
 
 SubgraphDescriptor::~SubgraphDescriptor() {

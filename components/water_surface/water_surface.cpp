@@ -144,7 +144,7 @@ void WaterSurface::rebuild_waves() {
         Eigen::Vector2f d  = wv.dir.normalized();
         float           k  = 2.0f * float(M_PI) / wv.wavelength;
         float           om = std::sqrt(G * k);
-        char            na[16], nb[16];
+        char            na[24], nb[24];  // sized for -Wformat-truncation (i < 32)
         std::snprintf(na, sizeof(na), "uWaveA[%d]", i);
         std::snprintf(nb, sizeof(nb), "uWaveB[%d]", i);
         wave_uniforms_.push_back({na, Eigen::Vector4f(d.x(), d.y(), k, om)});

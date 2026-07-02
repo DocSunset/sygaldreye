@@ -13,6 +13,8 @@
     {"from":"sky.mesh","to":"sky_d.mesh"},
     {"from":"seeds.seeds","to":"tree.seed"},
     {"from":"tree.mesh","to":"forest.meshes"},
-    {"from":"bark.surface","to":"forest.surface"}
+    {"from":"bark.surface","to":"forest.surface"},
+    {"from":"head.frame","to":"sky_d.seq_in"},
+    {"from":"sky_d.seq_out","to":"forest.seq_in"}
   ]
 }

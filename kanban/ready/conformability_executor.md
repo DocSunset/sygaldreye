@@ -98,6 +98,14 @@ Done when the strategy is implemented once and these consume it. Proves
   positions stay wires (the instanced-draw boundary, span whole-by-kind —
   NOT lifted). The shared instanced-draw helper / retiring the four
   hand-rollers remains.
+- 2026-07-01 audit correction (reports/audit_conformability_editor_arc.md
+  §2): the rung-3 core shipped with defects — the resource-holder "guard"
+  was a stderr warning that fell through to a garbage wire, dangling-edge
+  UB in has_other_excess, lifted_store reattach never compared
+  descriptors, and block-region hosts silently never lifted. All being
+  made plan-time hard errors / fixed in the 2026-07-01 remediation arc
+  (same branch). Deferred lift shapes filed: block_region_lifting.md,
+  lifted_output_chaining.md.
 
 ## Dependencies / sequencing
 

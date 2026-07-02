@@ -10,40 +10,12 @@
 #include "glyph_layout.hpp"
 #include "tri_mesh.hpp"
 
-namespace {
-// MSDF text: aPos in world, UV carried in aNormal.xy (TriVertex has no UV).
-constexpr const char* kVert = R"(#version 300 es
-layout(location=0) in vec3 aPos;
-layout(location=1) in vec3 aNormal;
-uniform mat4 uMVP;
-out vec2 vUV;
-void main() {
-    gl_Position = uMVP * vec4(aPos, 1.0);
-    vUV = aNormal.xy;
-}
-)";
-constexpr const char* kFrag = R"(#version 300 es
-precision mediump float;
-in vec2 vUV;
-uniform sampler2D uAtlas;
-uniform float uRange;
-uniform vec4 uColor;
-out vec4 fragColor;
-float median(float r, float g, float b) { return max(min(r, g), min(max(r, g), b)); }
-void main() {
-    vec3 msd = texture(uAtlas, vUV).rgb;
-    float sd = median(msd.r, msd.g, msd.b) - 0.5;
-    vec2 unit_range = vec2(uRange) / vec2(textureSize(uAtlas, 0));
-    vec2 screen_tex_size = vec2(1.0) / fwidth(vUV);
-    float px_range = max(0.5 * dot(unit_range, screen_tex_size), 1.0);
-    float alpha = clamp(sd * px_range + 0.5, 0.0, 1.0);
-    fragColor = vec4(uColor.rgb, uColor.a * alpha);
-}
-)";
-}  // namespace
+#include "common_shaders.hpp"
 
 void TextLabelNode::operator()(double /*time_s*/) {
-    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    if (!shader_)
+        shader_ = std::make_shared<ShaderData>(
+            ShaderData{common_shaders::kMsdfTextVert, common_shaders::kMsdfTextFrag});
 
     std::string text = endpoints.text.get();
     if (text.empty()) text = "label";
@@ -53,7 +25,9 @@ void TextLabelNode::operator()(double /*time_s*/) {
 
     const float     ox = endpoints.pos_x.get(), oy = endpoints.pos_y.get(), oz = endpoints.pos_z.get();
     const float     sc = endpoints.scale.get();
-    auto            data = std::make_shared<TriMeshData>();
+    if (!data_) data_ = std::make_shared<TriMeshData>();
+    auto& data = data_;
+    data->vertices.clear();
     data->vertices.reserve(quads.size() / 4);
     for (std::size_t i = 0; i + 3 < quads.size(); i += 4) {
         TriVertex v;
@@ -63,8 +37,10 @@ void TextLabelNode::operator()(double /*time_s*/) {
         data->vertices.push_back(v);
     }
 
+    data->touch();
+
     Mesh m;
-    m.geometry = std::move(data);  // no indices → draw_arrays(TRIANGLES)
+    m.geometry = data_;  // no indices → draw_arrays(TRIANGLES)
     m.mode     = Primitive::Triangles;
     m.dynamic  = true;
     endpoints.mesh.value = std::move(m);

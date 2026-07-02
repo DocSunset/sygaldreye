@@ -1,5 +1,6 @@
 // Copyright 2026 Travis West
 #pragma once
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <variant>
@@ -62,6 +63,9 @@ struct Uniform {
 // can't touch GL, so they hand render_region the pixels + a stable key; the
 // boundary uploads once, caches by key, and binds it to the sampler. pixels
 // must outlive the frame (a node-owned buffer or static data).
+// version: 0 ⇒ pixels are immutable at a stable address (upload once; the
+// cache entry is dropped on graph swap and by frame-age eviction). Producers
+// that regenerate pixels in place bump it to force a re-upload.
 struct ImageTex {
     std::string          sampler;  // GLSL sampler2D uniform name
     const void*          key;      // stable identity for the upload cache
@@ -69,6 +73,7 @@ struct ImageTex {
     int                  width;
     int                  height;
     int                  channels;  // 3 = RGB, 4 = RGBA
+    std::uint64_t        version = 0;
 };
 
 // Appearance payload (NOT named Material: the existing Material struct is
@@ -94,8 +99,9 @@ struct Mesh {
     MeshPtr                   geometry;
     std::vector<InstanceAttr> instances;  // empty ⇒ single, non-instanced draw
     Primitive                 mode = Primitive::Triangles;
-    // dynamic ⇒ regenerated every frame (water, terrain, editor, text). The
-    // boundary rebuilds it per frame instead of caching by pointer identity,
-    // which is unsafe when a freed TriMeshData's address is reused.
+    // Usage hint only: dynamic ⇒ the producer mutates the geometry often
+    // (GL_DYNAMIC_DRAW). Staleness is handled by TriMeshData::version — the
+    // boundary re-uploads when the version it cached differs, so producers
+    // must touch() after in-place mutation.
     bool                      dynamic = false;
 };

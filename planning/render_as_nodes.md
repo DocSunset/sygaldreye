@@ -205,3 +205,25 @@ E3. Update conformability.md; close #59.
 - PARKED R7 offscreen: render_target/texture_view/rd_renderer/glsl_effect
   out of build (sources kept); revived on render_region FBO passes.
 - TODO E: non-GPU rung-3 executor (subgraph → N clone_graph; CPU cell-map).
+
+## Deviations (2026-07-01, render-boundary audit fixes)
+
+- **Draw enqueue is unconditional** — line 96-98's "an unwired draw never
+  fires" is NOT implemented, deliberately: a freshly patched draw showing up
+  immediately is worth more to live editing than the gating. The ordering
+  contract is the seq chain (head → draw → draw…), now wired in every shipped
+  scene with 2+ blending/depth-write-off draws (editor, sky, aurora, forest,
+  control_panel); unwired draws append in tick order.
+- **Caches are versioned, not swap-wiped.** TriMeshData carries a globally
+  unique version stamp (touch() after in-place mutation); the boundary
+  re-uploads on mismatch and binds on match (the second eye never re-uploads).
+  Programs are keyed by GLSL source hash (N instances of one shader = one
+  compile, survives swaps). Dead/stale entries evict (expired weak_ptr or
+  ~300 frames unused). notify_graph_swap now only drops version-0 image
+  textures (node-owned pixel buffers whose address a new graph may reuse).
+- **rd_gpu parked with its consumers** (offscreen leg) — it was registered in
+  both shells with nothing to feed. spectrogram lost its GL texture (keeps
+  the CPU FFT ring; visual output returns via ImageTex on the offscreen leg).
+- Shared GLSL lives in render_payloads/common_shaders.hpp; flat_mesh got its
+  own component (was inside flat_shader); the shells' embedded editor graph
+  is now generated from assets/graphs/editor.json at configure time.

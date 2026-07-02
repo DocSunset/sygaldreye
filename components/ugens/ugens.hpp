@@ -33,11 +33,16 @@ inline int chans(const AudioBuffer& b) { return std::max(1, b.channels); }
 inline float at(const AudioBuffer& b, int frame, int c) {
     return b.data[std::size_t(c % chans(b)) * std::size_t(b.frames) + std::size_t(frame)];
 }
+// Sample rate of a buffer, defaulting when the producer left it unset.
+inline float rate(const AudioBuffer& b) {
+    return b.sample_rate > 0 ? float(b.sample_rate) : 48000.f;
+}
 
 // The conformability stamp (conformability.md): one kernel instance per
 // channel (map axis), each scanning its frames (time axis). prepare runs
-// once per kernel per block (coefficient pushes); tick is the per-sample
-// kernel call. This replaces every hand-written processor shell.
+// once per kernel per block (coefficient pushes), fresh=true only for
+// kernels created this block; tick is the per-sample kernel call. This
+// replaces every hand-written processor shell.
 template <typename K>
 struct Lift {
     std::vector<K> kernels;
@@ -46,10 +51,14 @@ struct Lift {
     AudioBuffer run(const AudioBuffer& in, Prepare&& prepare, Tick&& tick) {
         int n = (in.data && in.frames > 0) ? in.frames : 0;
         int ch = chans(in);
-        bool fresh = int(kernels.size()) != ch;
-        if (fresh) kernels.assign(std::size_t(ch), K{});
-        for (auto& k : kernels) prepare(k, fresh);
-        buf.resize(std::size_t(n) * std::size_t(ch));
+        // Grow/shrink, never wipe: surviving kernels keep their state
+        // (delay tails, envelopes) across channel-count changes; only new
+        // kernels are fresh. resize keeps capacity, so shrink/regrow under
+        // the high-water mark constructs nothing.
+        std::size_t survivors = std::min(kernels.size(), std::size_t(ch));
+        kernels.resize(std::size_t(ch));
+        for (std::size_t k = 0; k < kernels.size(); ++k) prepare(kernels[k], k >= survivors);
+        buf.resize(std::size_t(n) * std::size_t(ch));  // allocates only past capacity
         for (int c = 0; c < ch; ++c)
             for (int i = 0; i < n; ++i)  // planar: scan channel c's frames
                 buf[std::size_t(c) * std::size_t(n) + std::size_t(i)] =
@@ -136,11 +145,14 @@ struct AdsrNode {
         bool prev = false;
     };
     void operator()(double) {
+        const AudioBuffer in = endpoints.gate.get();
+        float sr = ugen_detail::rate(in);
         float a = endpoints.attack.get(), d = endpoints.decay.get();
         float su = endpoints.sustain.get(), r = endpoints.release.get();
         endpoints.audio_out.value = lift_.run(
-            endpoints.gate.get(),
+            in,
             [&](GateEnv& k, bool) {
+                k.env.sample_rate = sr;
                 k.env.attack_s = a;
                 k.env.decay_s = d;
                 k.env.sustain_level = su;
@@ -196,7 +208,7 @@ struct MixNode {
     struct endpoints {
         in<AudioBuffer> in1, in2, in3, in4;
         normalled_in<float, fp(0.f), fp(2.f), fp(1.f)> g1, g2, g3, g4;
-        out<AudioBuffer> audio;
+        out<AudioBuffer> audio_out;
     } endpoints;
     void operator()(double) {
         const AudioBuffer bufs[4] = {
@@ -218,7 +230,7 @@ struct MixNode {
                     buf_[std::size_t(c) * std::size_t(n) + std::size_t(i)] +=
                         ugen_detail::at(bufs[s], i, c) * gains[s];
         }
-        endpoints.audio.value = AudioBuffer{buf_.data(), n, ch, rate};
+        endpoints.audio_out.value = AudioBuffer{buf_.data(), n, ch, rate};
     }
 
 private:
@@ -238,19 +250,22 @@ struct BiquadNode {
         out<AudioBuffer> audio_out;
     } endpoints;
     void operator()(double) {
+        const AudioBuffer in = endpoints.audio.get();
+        float sr = ugen_detail::rate(in);
         float fr = endpoints.freq.get(), qq = endpoints.q.get();
         int m = int(endpoints.mode.get() + 0.5f);
-        bool changed = fr != freq_ || qq != q_ || m != mode_;
+        bool changed = fr != freq_ || qq != q_ || m != mode_ || sr != sr_;
         if (changed) {
             freq_ = fr;
             q_ = qq;
             mode_ = m;
-            co_ = m == 1   ? synth::high_pass(fr, qq, 48000.f)
-                  : m == 2 ? synth::band_pass(fr, qq, 48000.f)
-                           : synth::low_pass(fr, qq, 48000.f);
+            sr_ = sr;
+            co_ = m == 1   ? synth::high_pass(fr, qq, sr)
+                  : m == 2 ? synth::band_pass(fr, qq, sr)
+                           : synth::low_pass(fr, qq, sr);
         }
         endpoints.audio_out.value = lift_.run(
-            endpoints.audio.get(),
+            in,
             [&](synth::BiquadFilter& k, bool fresh) {
                 if (changed || fresh) k.set_coeffs(co_);
             },
@@ -260,7 +275,7 @@ struct BiquadNode {
 private:
     ugen_detail::Lift<synth::BiquadFilter> lift_;
     synth::BiquadCoeffs co_{};
-    float freq_ = -1.f, q_ = -1.f;
+    float freq_ = -1.f, q_ = -1.f, sr_ = -1.f;
     int mode_ = -1;
 };
 
@@ -274,12 +289,13 @@ struct DelayNode {
         normalled_in<float, fp(0.f), fp(1.f), fp(0.5f)> wet;
         out<AudioBuffer> audio_out;
     } endpoints;
-    static constexpr int kLen = 96000;
+    static constexpr int kLen = 96000;  // fixed max: never resizes on sr change
     void operator()(double) {
-        int d = std::clamp(int(endpoints.time.get() * 48000.f), 1, kLen - 1);
+        const AudioBuffer in = endpoints.audio.get();
+        int d = std::clamp(int(endpoints.time.get() * ugen_detail::rate(in)), 1, kLen - 1);
         float fb = endpoints.feedback.get(), wet = endpoints.wet.get();
         endpoints.audio_out.value = lift_.run(
-            endpoints.audio.get(),
+            in,
             [](synth::DelayLine& k, bool) { k.prepare(kLen); },
             [&](synth::DelayLine& k, float x, int, int) {
                 float echo = k.tick(x, d, fb);
@@ -323,7 +339,7 @@ struct SampleHoldNode {
     void operator()(double) {
         const AudioBuffer in = endpoints.audio.get();
         int n = (in.data && in.frames > 0) ? in.frames : 0;
-        float period = 48000.f / std::max(0.5f, endpoints.rate.get());
+        float period = ugen_detail::rate(in) / std::max(0.5f, endpoints.rate.get());
         // The clock is a time-axis scan shared by every channel: compute the
         // per-frame sample mask once, then map S&H across channels (planar
         // channel-outer iteration must not reach across channels per frame).
@@ -458,7 +474,7 @@ struct McPackNode {
     static consteval std::string_view name() { return "mc_pack"; }
     struct endpoints {
         in<AudioBuffer> in1, in2, in3, in4;
-        out<AudioBuffer> audio;
+        out<AudioBuffer> audio_out;
     } endpoints;
     void operator()(double) {
         const AudioBuffer bufs[4] = {
@@ -483,7 +499,7 @@ struct McPackNode {
                         ugen_detail::at(*b, i, c);
             base += bch;
         }
-        endpoints.audio.value = AudioBuffer{buf_.data(), n, out_ch, rate};
+        endpoints.audio_out.value = AudioBuffer{buf_.data(), n, out_ch, rate};
     }
 
 private:

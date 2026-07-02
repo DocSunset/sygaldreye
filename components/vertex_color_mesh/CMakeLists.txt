@@ -1,3 +1,10 @@
 add_library(vertex_color_mesh INTERFACE)
 target_include_directories(vertex_color_mesh INTERFACE .)
 target_link_libraries(vertex_color_mesh INTERFACE eyeballs_node_abi render_payloads)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(GTest REQUIRED)
+    add_executable(vertex_color_mesh_test vertex_color_mesh.test.cpp)
+    target_link_libraries(vertex_color_mesh_test PRIVATE vertex_color_mesh GTest::gtest_main)
+    target_compile_options(vertex_color_mesh_test PRIVATE -Wall -Wextra)
+endif()

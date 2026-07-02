@@ -7,9 +7,12 @@ via the gesture context.
 
 ## Ports
 - Sources: `pos` (vec3), `rot` (quat), `trigger` (scalar) — right controller;
-  the registry type list + edit queue via `GestureContext`.
-- Destinations: the edit queue (`add_node`).
-- Temporal couplings: `set_context` each frame; trigger rising edge fires once.
+  the registry type list + edit queue via the editor host context (ABI v9).
+- Outputs: `page` (scalar) — the current page, wired to `palette_mesh.page`
+  so the drawn rows are the poked rows.
+- Destinations: the edit queue (`add_node`, type json-escaped).
+- Temporal couplings: context injected each frame; trigger rising edge fires
+  once.
 - Intended seams: panel position/size + 15 rows/page match the monolith.
 
 ## Requirements

@@ -101,3 +101,82 @@ TEST(EditOp, WholeGraphPassesThrough) {
     std::string whole = R"({"nodes":[{"id":"x","type":"pass"}],"edges":[]})";
     EXPECT_EQ(apply_edit_op(whole, *g), whole);
 }
+
+// §4 fix: "<type>_(count+1)" collided with surviving ids after a deletion —
+// the fresh id must be the smallest unused "<type>_N".
+TEST(EditOp, DeleteThenSpawnGetsUniqueId) {
+    ComponentRegistry reg;
+    make_reg(reg);
+    auto g = parse_graph(
+        R"({"nodes":[{"id":"pass_1","type":"pass"},{"id":"pass_2","type":"pass"}],"edges":[]})",
+        reg);
+    ASSERT_TRUE(g);
+    auto g2 = parse_graph(apply_edit_op("{\"op\":\"remove_node\",\"id\":\"pass_1\"}", *g), reg);
+    ASSERT_TRUE(g2);  // [pass_2]
+    auto g3 = parse_graph(apply_edit_op("{\"op\":\"add_node\",\"type\":\"pass\"}", *g2), reg);
+    ASSERT_TRUE(g3);
+    ASSERT_EQ(g3->nodes.size(), 2u);
+    EXPECT_NE(g3->nodes[0].id, g3->nodes[1].id);  // count+1 gave a duplicate pass_2
+    EXPECT_EQ(g3->nodes[1].id, "pass_1");         // smallest free slot
+}
+
+// §4 fix: matching is structural. An inline subgraph's inner "id":"b" is a
+// substring of the serialized top-level node object — remove_node must erase
+// the TOP-LEVEL b, never the first "id":"b" found in the string.
+TEST(EditOp, RemoveNodeMatchesTopLevelObjectsOnly) {
+    ComponentRegistry reg;
+    make_reg(reg);
+    auto g = parse_graph(
+        R"({"nodes":[
+            {"id":"sub","graph":{"nodes":[{"id":"b","type":"pass"}],"edges":[]}},
+            {"id":"b","type":"pass"}],
+            "edges":[]})",
+        reg);
+    ASSERT_TRUE(g);
+    std::string j = apply_edit_op("{\"op\":\"remove_node\",\"id\":\"b\"}", *g);
+    auto g2 = parse_graph(j, reg);
+    ASSERT_TRUE(g2);
+    ASSERT_EQ(g2->nodes.size(), 1u);
+    EXPECT_EQ(g2->nodes[0].id, "sub");
+    // The inner b survived inside the subgraph.
+    EXPECT_NE(j.find("\"id\":\"b\""), std::string::npos);
+}
+
+// Same care for set_param: the inner object must not receive the param meant
+// for the top-level node.
+TEST(EditOp, SetParamTargetsTopLevelNode) {
+    ComponentRegistry reg;
+    make_reg(reg);
+    auto g = parse_graph(
+        R"({"nodes":[
+            {"id":"sub","graph":{"nodes":[{"id":"b","type":"pass"}],"edges":[]}},
+            {"id":"b","type":"pass"}],
+            "edges":[]})",
+        reg);
+    ASSERT_TRUE(g);
+    std::string j =
+        apply_edit_op("{\"op\":\"set_param\",\"id\":\"b\",\"port\":\"g\",\"value\":3.5}", *g);
+    auto g2 = parse_graph(j, reg);
+    ASSERT_TRUE(g2);
+    tick_graph(*g2, 0.0);
+    auto v = read_output(g2->nodes[1], "y", "scalar");
+    ASSERT_TRUE(v);
+    EXPECT_FLOAT_EQ(float(std::get<double>(*v)), 3.5f);
+}
+
+// §4 fix: op fields unescape on read and re-escape on write, so an id with a
+// quote/backslash survives add_node — and never clobbers an innocent node
+// whose id is a prefix of the weird one.
+TEST(EditOp, QuotedIdEscapesThroughAddNode) {
+    ComponentRegistry reg;
+    make_reg(reg);
+    auto g = parse_graph(R"({"nodes":[{"id":"we","type":"pass"}],"edges":[]})", reg);
+    ASSERT_TRUE(g);
+    // id is  we"ird\1  (escaped in the op JSON, as json_escape emits).
+    std::string j =
+        apply_edit_op("{\"op\":\"add_node\",\"type\":\"pass\",\"id\":\"we\\\"ird\\\\1\"}", *g);
+    EXPECT_NE(j.find("\"id\":\"we\\\"ird\\\\1\""), std::string::npos);  // re-escaped on write
+    // Node "we" untouched. (Full parse round-trips of weird ids also need
+    // serialize_graph escaping — outside the op layer, tracked in the report.)
+    EXPECT_NE(j.find("\"id\":\"we\""), std::string::npos);
+}

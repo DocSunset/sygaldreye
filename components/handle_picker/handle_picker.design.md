@@ -5,9 +5,11 @@ loop). The nearest port handle / slider to the tip → a legible label + its wor
 position, for a text_label to render. Feedback, not an edit.
 
 ## Ports
-- Sources: `pos` (vec3), `rot` (quat) — right controller; the graph via context.
-- Outputs: `label` (text, "" when nothing near), `pos_out` (vec3 anchor).
-- Temporal couplings: `set_context` each frame.
+- Sources: `pos` (vec3), `rot` (quat) — right controller; the graph via the
+  editor host context (ABI v9 `set_host_context`).
+- Outputs: `label` (text, "" when nothing near), `pos_out` (vec3 anchor),
+  `pos_x`/`pos_y`/`pos_z` (scalar anchor — text_label takes scalars).
+- Temporal couplings: context injected each frame.
 
 ## Requirements
 - Resource-holder (unliftable): observes the graph it lives in.

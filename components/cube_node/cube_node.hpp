@@ -38,4 +38,7 @@ class CubeNode {
 
    private:
     Shader shader_;
+    MeshPtr mesh_;  // rebuilt only when pos/scale change
+    Eigen::Vector3f last_pos_{0.f, 0.f, 0.f};
+    float last_scale_ = 0.f;
 };

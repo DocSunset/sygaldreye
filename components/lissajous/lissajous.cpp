@@ -25,27 +25,14 @@ Eigen::Vector3f hsv2rgb(float h, float s, float v) {
     }
 }
 
-constexpr const char* kVert = R"(#version 300 es
-layout(location=0) in vec3 aPos;
-layout(location=2) in vec4 aColor;
-uniform mat4 uMVP;
-out vec4 vColor;
-void main() {
-    gl_Position = uMVP * vec4(aPos, 1.0);
-    vColor = aColor;
-}
-)";
-constexpr const char* kFrag = R"(#version 300 es
-precision mediump float;
-in vec4 vColor;
-out vec4 fragColor;
-void main() { fragColor = vColor; }
-)";
-
 }  // namespace
 
+#include "common_shaders.hpp"
+
 void Lissajous::operator()(double time_s) {
-    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    if (!shader_)
+        shader_ = std::make_shared<ShaderData>(ShaderData{
+            common_shaders::kUnlitVertexColorVert, common_shaders::kUnlitVertexColorFrag});
 
     const float fx    = endpoints.freq_x.get();
     const float fy    = endpoints.freq_y.get();
@@ -56,7 +43,9 @@ void Lissajous::operator()(double time_s) {
                       + static_cast<float>(time_s) * (2.0f * static_cast<float>(M_PI) / 16.0f);
     const float fz    = fz0 + std::sin(static_cast<float>(time_s) * 0.1f) * 0.3f;
 
-    auto data = std::make_shared<TriMeshData>();
+    if (!data_) data_ = std::make_shared<TriMeshData>();
+    auto& data = data_;
+    data->vertices.clear();
     data->vertices.reserve(static_cast<size_t>(n));
     for (int i = 0; i < n; ++i) {
         float t = static_cast<float>(i) / static_cast<float>(n - 1) * 2.0f * static_cast<float>(M_PI);
@@ -69,8 +58,10 @@ void Lissajous::operator()(double time_s) {
         data->vertices.push_back(v);
     }
 
+    data->touch();
+
     Mesh m;
-    m.geometry = std::move(data);  // no indices → draw_arrays(GL_LINE_STRIP)
+    m.geometry = data_;  // no indices → draw_arrays(GL_LINE_STRIP)
     m.mode     = Primitive::LineStrip;
     m.dynamic  = true;
     endpoints.mesh.value = std::move(m);

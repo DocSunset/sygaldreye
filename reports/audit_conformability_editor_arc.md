@@ -1,5 +1,24 @@
 # Audit: conformability lifting + editor decomposition arc (2026-07-01)
 
+> **Remediation status (2026-07-02, this branch):** every finding below is
+> resolved in code except the architecture-scale items, which have ratified
+> backlog entries: card_subgraph_decomposition, edit_ops_over_wires,
+> card_positions_as_graph_content, block_region_lifting,
+> lifted_output_chaining, serial_id_escaping, cpp_size_overages,
+> package_docs, werror_rollout, spectrogram_gl_migration, mesh_displace_gl,
+> and the RT warm-pass note in audio_region_followups. Highlights: lift
+> misuse is now a parse-time hard error (lint_lifts); slider drags apply
+> in-place via queue_param (no rebuild); render caches are version-keyed
+> (no stale geometry, no recompile storm, no per-eye double upload, texture
+> eviction); ABI v9 generic context hook deletes peer_core's 13 type
+> special-cases and reaches subgraph-nested nodes; edit ops are structural,
+> escaped, and id-unique; ugen channel state survives count changes and
+> follows the buffer sample rate; shells register at parity; the embedded
+> editor graph is build-generated from assets/graphs/editor.json; rd_gpu /
+> mesh_displace parked, spectrogram GL removed; dead GL components deleted;
+> ADRs 006-011, kanban columns, and the five missing design docs + tests
+> added. Full host suite: 59/59 test binaries green.
+
 Scope: 87496a2 (squash of `lifting-editor-drawfn`, 46 commits), 4be6455,
 04b0e69, 6d86ac9, 233e97a, 3a037bf, a099a98, 313b50e. Audited against
 planning/vision.md, the ratified designs (conformability_executor.md,

@@ -5,6 +5,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Single-source embedded graphs: the shells' default editor graph is generated
+# from the shipped assets at configure time (the asset is the source of truth).
+file(READ ${CMAKE_SOURCE_DIR}/assets/graphs/editor.json EDITOR_GRAPH_JSON)
+file(READ ${CMAKE_SOURCE_DIR}/assets/graphs/card.json CARD_GRAPH_JSON)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    assets/graphs/editor.json assets/graphs/card.json)
+configure_file(components/host_app/embedded_graphs.hpp.in
+    ${CMAKE_BINARY_DIR}/generated/embedded_graphs.hpp @ONLY)
+
 # Unconditional: builds on both host and Android
 include_directories($ENV{BOOST_INCLUDE_DIR})
 add_subdirectory(vendor)
@@ -29,18 +38,15 @@ add_subdirectory(components/water_surface)
 add_subdirectory(components/host_gl_context)
 add_subdirectory(components/scene_snapshot)
 add_subdirectory(components/sphere_geometry)
-add_subdirectory(components/sphere_mesh)
 add_subdirectory(components/grab_target)
 add_subdirectory(components/grab_detector)
 add_subdirectory(components/tethered_point)
 add_subdirectory(components/cylinder_mesh)
 add_subdirectory(components/rubber_band_controller)
-add_subdirectory(components/cube_geometry)
 add_subdirectory(components/light)
 add_subdirectory(components/material)
 add_subdirectory(components/lit_shader)
-add_subdirectory(components/flat_shader)
-add_subdirectory(components/billboard_quad)
+add_subdirectory(components/flat_mesh)
 add_subdirectory(components/particle_system)
 add_subdirectory(components/star_field)
 add_subdirectory(components/sky_dome)
@@ -77,8 +83,9 @@ add_subdirectory(components/fly_camera_node)
 add_subdirectory(components/hand_node)
 add_subdirectory(components/math_nodes)
 add_subdirectory(components/net_nodes)
-add_subdirectory(components/rd_gpu)
-# Parked: offscreen leg (see rd_renderer note above).
+# Parked: offscreen leg (see rd_renderer note above). rd_gpu's only
+# consumers (rd_renderer/glsl_effect) are parked, so it parks with them.
+# add_subdirectory(components/rd_gpu)
 # add_subdirectory(components/render_nodes)
 # add_subdirectory(components/glsl_effect)
 add_subdirectory(components/mesh_nodes)

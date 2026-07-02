@@ -11,7 +11,8 @@ tell which.
 - Outputs: pos (vec3), rot (quat, normalized w/ identity fallback),
   trigger, grip, thumb_x, thumb_y (scalar).
 - Sources: platform param injection (HTTP) or XR runtime pump.
-- Destinations: editor_node, ui_* widgets, anything wanting a hand.
+- Destinations: gesture nodes (wire_drag/slider_drag/dwell_delete/…),
+  ui_*/poke_* widgets, anything wanting a hand.
 - Temporal couplings: values written before tick (param queue / XR pump).
 - Intended seams: the XR pump on device replaces HTTP without touching
   consumers — hardware-specific sourcing per the project vision.

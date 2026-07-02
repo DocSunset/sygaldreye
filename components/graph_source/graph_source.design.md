@@ -1,10 +1,13 @@
 # graph_source
 
-The editor's meta seam (`kanban/ready/vr_editor_decomposition.md`): the ONE
-node that reads the enclosing graph and publishes its model as data. Replaces
-`EditorNode::set_context` raw-pointer injection — with this node the editor
-stops being a monolith and becomes graph content (a lifted card-subgraph)
-fed by this source. "The editor is meta: it needs the WHOLE graph as data."
+The editor's meta *source* (`kanban/ready/vr_editor_decomposition.md`): reads
+the enclosing graph and publishes its model as data for the lifted card
+subgraph. It is NOT the only graph reader — every context-consuming editor
+node (gesture nodes, card_widgets_mesh/card_labels_mesh/editor_wires,
+undo_node) receives the same live graph through the generic host-context
+seam (ABI v9 `set_host_context`, kind "editor", built by
+`PeerCore::pump_contexts`). graph_source is the one that turns it into
+lift-ready Spans.
 
 ## Ports
 
@@ -17,26 +20,31 @@ fed by this source. "The editor is meta: it needs the WHOLE graph as data."
   - `positions` — `out<Span>`, N×3 card world positions (the lifted-cell
     source → `card.position`).
   - `count` — `out<float>`, N (node count).
-- Sources: the enclosing `Graph`, injected each frame by the shell
-  (`PeerCore::pump_contexts`) — the graph can't be a port, it contains this
-  node. The same seam the editor/spawner used.
-- Destinations: the card subgraph (lifted) and the gesture nodes downstream.
-- Temporal couplings: `set_context` must run before `tick` each frame;
-  `migrate_graph` keeps this instance (and its card-position overrides) alive
-  across the edits it helps produce.
-- Intended seams: card layout (the per-id position override map) is updated
-  by edit ops; alternative layouts replace the default grid without touching
-  the consumers.
+- Sources: the enclosing `Graph` + the shared per-id position-override map,
+  injected each frame through the editor host context (the graph can't be a
+  port — it contains this node).
+- Destinations: the card subgraph (lifted) and downstream layout consumers.
+- Temporal couplings: context must arrive before `tick` each frame;
+  `migrate_graph` keeps this instance alive across the edits it helps
+  produce.
+- Intended seams: the position-override map is written DIRECTLY by
+  wire_drag's card-move (shared host-owned state, not edit ops) — so drag
+  positions are not serialized, not undoable, and invisible to remote peers.
+  Making card positions graph content is tracked in
+  `kanban/backlog/card_positions_as_graph_content.md`. Alternative layouts
+  replace the default grid without touching the consumers.
 
 ## Requirements
 
 - Resource-holder (`lift_kind == resource_holder`): unliftable — it reads the
   graph it lives in.
 - Stable keys: identity follows the node id (FNV-1a hash), not the slot.
+  Hash + default grid are `editor_layout::id_key` / `default_card_pos` —
+  ONE definition, shared with the hit-testing nodes.
 
 ## Allowed dependencies
 
-`sygaldry_endpoints`, `signal_graph`.
+`sygaldry_endpoints`, `signal_graph`, `editor_layout`.
 
 ## Owning package
 

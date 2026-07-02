@@ -55,3 +55,36 @@ TEST(Palette, PokeHeaderFlipsPage) {
     EXPECT_EQ(n.page(), 1);
     EXPECT_TRUE(edits.drain().empty());  // a page flip is not an add
 }
+
+// Editor-audit fix: the page must be WIRABLE (palette_mesh.page consumes it),
+// or the mesh draws page 0 while pokes spawn page-1 types.
+TEST(Palette, PageFlipDrivesPageOutput) {
+    Graph g;
+    std::vector<std::string> types(20, "x");  // 2 pages
+    EventQueue<std::string> edits;
+    PaletteNode n;
+    n.set_context({&g, &edits, nullptr, &types});
+    poke(n, PaletteNode::panel_pos(), false);  // plain tick publishes page 0
+    EXPECT_FLOAT_EQ(n.endpoints.page.value, 0.f);
+
+    Eigen::Vector3f r0 = PaletteNode::panel_pos();
+    r0.y() = row_y(0);
+    poke(n, r0, true);  // header poke flips
+    EXPECT_FLOAT_EQ(n.endpoints.page.value, 1.f);
+}
+
+// Types with JSON-special characters must not corrupt the op.
+TEST(Palette, TypeNameIsEscapedInOp) {
+    Graph g;
+    std::vector<std::string> types = {"we\"ird"};
+    EventQueue<std::string> edits;
+    PaletteNode n;
+    n.set_context({&g, &edits, nullptr, &types});
+    Eigen::Vector3f r1 = PaletteNode::panel_pos();
+    r1.y() = row_y(1);
+    poke(n, r1, false);
+    poke(n, r1, true);
+    auto ops = edits.drain();
+    ASSERT_EQ(ops.size(), 1u);
+    EXPECT_EQ(ops[0], "{\"op\":\"add_node\",\"type\":\"we\\\"ird\"}");
+}

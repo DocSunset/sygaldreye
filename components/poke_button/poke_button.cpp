@@ -6,22 +6,9 @@
 
 #include "tri_mesh.hpp"
 
-namespace {
+#include "common_shaders.hpp"
 
-// Unlit, uniform-color program. render_region injects uMVP; uColor encodes
-// idle / hover / fire each tick with no geometry rebuild.
-constexpr const char* kVert = R"(#version 300 es
-precision highp float;
-layout(location=0) in vec3 aPos;
-uniform mat4 uMVP;
-void main() { gl_Position = uMVP * vec4(aPos, 1.0); }
-)";
-constexpr const char* kFrag = R"(#version 300 es
-precision mediump float;
-uniform vec4 uColor;
-out vec4 fragColor;
-void main() { fragColor = uColor; }
-)";
+namespace {
 
 // Unit box centered at c, half-extent h, baked into world space.
 MeshPtr make_box(const Eigen::Vector3f& c, float h) {
@@ -46,7 +33,10 @@ MeshPtr make_box(const Eigen::Vector3f& c, float h) {
 }  // namespace
 
 void PokeButtonNode::operator()(double) {
-    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    // Unlit uniform color: uColor encodes idle/hover/fire with no rebuild.
+    if (!shader_)
+        shader_ = std::make_shared<ShaderData>(ShaderData{
+            common_shaders::kUnlitUniformColorVert, common_shaders::kUnlitUniformColorFrag});
 
     Eigen::Vector3f pos{endpoints.x.get(), endpoints.y.get(), endpoints.z.get()};
     float half = endpoints.size.get() * 0.5f;
@@ -58,9 +48,13 @@ void PokeButtonNode::operator()(double) {
     prev_press_ = press;
     endpoints.hover.value = inside ? 1.f : 0.f;
 
+    if (!mesh_ || pos != last_pos_ || half != last_half_) {  // placement baked in
+        mesh_ = make_box(pos, half);
+        last_pos_ = pos;
+        last_half_ = half;
+    }
     Mesh m;
-    m.geometry = make_box(pos, half);
-    m.dynamic = true;  // placement baked; rebuilt on change
+    m.geometry = mesh_;
     endpoints.mesh.value = std::move(m);
 
     bool lit = inside && press;

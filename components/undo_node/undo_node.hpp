@@ -24,10 +24,18 @@ struct UndoNode {
 
     void operator()(double);
     void set_context(const editor_layout::GestureContext& ctx) { ctx_ = ctx; }
+    void set_host_context(const char* kind, void* ctx) {
+        if (std::string_view{kind} == editor_layout::kEditorContextKind)
+            set_context(*static_cast<const editor_layout::GestureContext*>(ctx));
+    }
+    std::uint64_t snapshots() const { return snapshots_; }  // test observability
 
 private:
     editor_layout::GestureContext ctx_;
     bool prev_gesture_ = false;
+    const Graph* last_graph_ = nullptr;  // re-examine on pointer OR gen change
+    std::uint64_t last_gen_ = 0;         // graph_gen at the last snapshot
+    std::uint64_t snapshots_ = 0;        // serialize_graph invocations
     std::string current_sig_;  // structural signature of the current graph
     std::string current_;      // current graph JSON (latest params)
     std::string previous_;     // the graph before the last STRUCTURAL edit

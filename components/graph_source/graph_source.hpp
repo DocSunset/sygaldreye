@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "editor_layout.hpp"
 #include "signal_graph.hpp"
 #include "sygaldry_endpoints.hpp"
 
@@ -40,13 +41,19 @@ struct GraphSourceNode {
 
     void operator()(double time_s);
 
-    // The shell points us at the live graph AND the shared card-position
+    // The host points us at the live graph AND the shared card-position
     // overrides (wire_drag writes them; we publish positions from them) so a
     // dragged card stays where it was dropped.
     void set_context(
         const Graph* g, const std::unordered_map<std::string, Eigen::Vector3f>* ovr = nullptr) {
         graph_ = g;
         pos_ovr_ = ovr;
+    }
+    // Generic host-context seam (ABI v9): the editor context carries both.
+    void set_host_context(const char* kind, void* ctx) {
+        if (std::string_view{kind} != editor_layout::kEditorContextKind) return;
+        const auto& g = *static_cast<const editor_layout::GestureContext*>(ctx);
+        set_context(g.graph, g.overrides);
     }
 
 private:

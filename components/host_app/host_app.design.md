@@ -12,17 +12,19 @@ pump, and final draw dispatch. Everything else lives in the graph.
 - Outputs: rendered frames into the current framebuffer; PNG screenshots;
   HTTP JSON responses.
 - Sources: `camera.pv` from the graph value store (any `fly_camera` node
-  named `camera`); editor/spawner pending edits via `take_edit()`.
+  named `camera`); edit ops via peer_core's edit queue (gesture nodes /
+  edit_sink).
 - Destinations: per-node `deserialize` (param queue applied on the render
-  thread); `set_context` on editor/spawner nodes; `inputs.aspect` on
-  fly_camera nodes.
+  thread); editor-context injection is peer_core's pump_contexts (the
+  graph_source/edit_sink/gesture seam; generic ABI v9 hook this arc);
+  `inputs.aspect` on fly_camera nodes.
 - Temporal couplings: pending graph swap + param queue apply happen at
   frame start, before tick; edits collected after tick; screenshots
   fulfilled after draw. GL context must be current before `init()` (node
   constructors may compile shaders).
-- Intended seams: node registration list (`init`), HTTP route table,
-  context-injection type list (dies when the ABI context lands —
-  see planning/edge_executor.design.md).
+- Intended seams: node registration list (`init`), HTTP route table.
+  (The context-injection type list dies with ABI v9's generic
+  editor-context hook, this arc.)
 
 ## Requirements
 - Live graph overwrite must not reset node state (migrate_graph).
@@ -30,6 +32,7 @@ pump, and final draw dispatch. Everything else lives in the graph.
 - Headless and windowed modes share `frame()` unchanged.
 
 ## Allowed dependencies
-component_registry, signal_graph, subgraph_node, http_server, fly_camera,
-fly_camera_node, hand_node, editor_node, spawner_node, math_nodes,
-net_nodes, ui_nodes, text_label, registered visual/scene nodes, stb, GLFW.
+peer_core, component_registry, signal_graph, subgraph_node, http_server,
+fly_camera, fly_camera_node, hand_node, spawner_node, math_nodes,
+net_nodes, ui_nodes, text_label, registered visual/scene/editor nodes,
+stb, GLFW.

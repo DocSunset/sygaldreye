@@ -40,6 +40,7 @@ private:
     float value_norm_ = -1.f;  // 0..1; <0: initialize from `init`
     bool hover_ = false;
     Shader shader_;
+    std::shared_ptr<TriMeshData> data_;  // mutated in place + touch()ed
 };
 
 struct UiButtonNode {
@@ -65,6 +66,7 @@ struct UiButtonNode {
 private:
     bool hover_ = false, pressed_ = false;
     Shader shader_;
+    std::shared_ptr<TriMeshData> data_;  // mutated in place + touch()ed
 };
 
 struct UiPaneNode {
@@ -88,4 +90,5 @@ struct UiPaneNode {
 
 private:
     Shader shader_;
+    std::shared_ptr<TriMeshData> data_;  // mutated in place + touch()ed
 };

@@ -13,7 +13,7 @@
 // smooth). Wraps raw geometry (MeshPtr) into Surface + Mesh for a draw node;
 // good for faceted/low-poly looks and debug-colored meshes. GL lives only in
 // render_region (ABI v8).
-namespace flat_shader_detail {
+namespace flat_mesh_detail {
 inline constexpr const char* kVert = R"(#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;
@@ -30,12 +30,12 @@ uniform vec4 uTint;
 out vec4 fragColor;
 void main() { fragColor = vColor * uTint; }
 )";
-}  // namespace flat_shader_detail
+}  // namespace flat_mesh_detail
 
 struct FlatMeshNode {
     static consteval std::string_view name() { return "flat_mesh"; }
     static consteval std::string_view source_header() {
-        return "components/flat_shader/flat_shader.hpp";
+        return "components/flat_mesh/flat_mesh.hpp";
     }
     struct endpoints {
         ::in<MeshPtr> geometry;
@@ -49,7 +49,7 @@ struct FlatMeshNode {
     void operator()(double) {
         if (!shader_)
             shader_ = std::make_shared<ShaderData>(
-                ShaderData{flat_shader_detail::kVert, flat_shader_detail::kFrag});
+                ShaderData{flat_mesh_detail::kVert, flat_mesh_detail::kFrag});
         Mesh m;
         m.geometry = endpoints.geometry.get();
         m.mode = Primitive::Triangles;

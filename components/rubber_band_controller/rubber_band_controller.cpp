@@ -111,7 +111,10 @@ void RubberBandController::operator()(double) {
 
     static const SphereGeometry sphere = make_sphere(kSphereLon, kSphereLat);
     static const MeshPtr cyl = make_cylinder(kCylSlices);
-    auto out = std::make_shared<TriMeshData>();
+    if (!data_) data_ = std::make_shared<TriMeshData>();
+    auto& out = data_;
+    out->vertices.clear();
+    out->indices.clear();
     append(*out, sphere, sphere_model(targets_[0].position), {1.f, 0.8f, 0.f, 1.f});
     append(*out, sphere, sphere_model(targets_[1].position), {0.2f, 0.6f, 1.f, 1.f});
     append(
@@ -119,9 +122,10 @@ void RubberBandController::operator()(double) {
         *cyl,
         cylinder_transform(targets_[0].position, targets_[1].position, kBandRadius),
         {0.9f, 0.2f, 0.2f, 1.f});
+    out->touch();
 
     Mesh m;
-    m.geometry = out;
+    m.geometry = data_;
     m.dynamic = true;
     endpoints.mesh.value = std::move(m);
 

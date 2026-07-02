@@ -53,3 +53,24 @@ TEST(UndoNode, NoHistoryNoOp) {
     tick(n, -0.9f);  // nothing changed → nothing to undo
     EXPECT_TRUE(edits.drain().empty());
 }
+
+// §3 fix: idle frames must not re-serialize the whole graph — snapshots
+// happen only when graph_gen (or the graph pointer) moves.
+TEST(UndoNode, NoReserializeOnUnchangedGeneration) {
+    Graph g;
+    add_node(g, "add0");
+    EventQueue<std::string> edits;
+    UndoNode n;
+    editor_layout::GestureContext ctx{&g, &edits, nullptr, nullptr};
+    ctx.graph_gen = 1;
+    n.set_context(ctx);
+    tick(n, 0.f);
+    EXPECT_EQ(n.snapshots(), 1u);
+    tick(n, 0.f);
+    tick(n, 0.f);
+    EXPECT_EQ(n.snapshots(), 1u);  // idle: no serialize
+    ctx.graph_gen = 2;             // a swap or param write happened
+    n.set_context(ctx);
+    tick(n, 0.f);
+    EXPECT_EQ(n.snapshots(), 2u);
+}

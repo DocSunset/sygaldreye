@@ -8,20 +8,7 @@
 #include <chrono>
 #include <vector>
 
-#include "card_labels_mesh.hpp"
-#include "card_widgets_mesh.hpp"
-#include "dwell_delete.hpp"
-#include "edit_sink.hpp"
-#include "editor_wires.hpp"
 #include "fly_camera_node.hpp"
-#include "graph_source.hpp"
-#include "handle_picker.hpp"
-#include "palette.hpp"
-#include "palette_mesh.hpp"
-#include "slider_drag.hpp"
-#include "spawner_node.hpp"
-#include "undo_node.hpp"
-#include "wire_drag.hpp"
 
 extern "C" int stbi_write_png(const char*, int, int, int, const void*, int);
 
@@ -64,6 +51,7 @@ void PeerCore::begin_frame() {
             auto old = std::move(active_);
             active_ = std::move(pending_);
             audio_.rebuild_unlocked(*active_);
+            ++graph_gen_;  // layout/undo caches key on this
             if (on_graph_swapped) on_graph_swapped(active_.get());
             // `old` (and every displaced instance) destructs here, inside
             // the guard.
@@ -74,6 +62,7 @@ void PeerCore::begin_frame() {
         for (auto& n : active_->nodes)
             if (n.id == id && n.desc->deserialize) {
                 n.desc->deserialize(n.data, params.c_str());
+                ++graph_gen_;  // in-place param write: same cache key
                 break;
             }
     }
@@ -89,41 +78,18 @@ void PeerCore::pump_contexts(float aspect) {
         sorted_types_ = registry.type_names();
         std::sort(sorted_types_.begin(), sorted_types_.end());
     }
+    // The meta seam, generic (ABI v9): build the editor context once and
+    // offer it to every node that declares set_host_context — gesture nodes,
+    // meshes, graph_source/edit_sink/spawner, plugins, subgraph inners alike.
+    // No type dispatch: extending the editor never touches this file again.
     editor_layout::GestureContext gctx{
-        active_.get(), &edit_events_, &editor_overrides_, &sorted_types_};
+        active_.get(),      &edit_events_,  &editor_overrides_, &sorted_types_,
+        &registry,          &layout_cache_, graph_gen_,         &overrides_gen_};
     for (auto& n : active_->nodes) {
-        std::string_view type{n.desc->type_name};
-        // The meta seam: graph_source reads the live graph, edit_sink owns the
-        // edit queue, the gesture nodes observe the graph + emit edit ops.
-        // These replace the deleted editor monolith's set_context; spawner
-        // keeps its own seam.
-        if (type == "graph_source")
-            static_cast<GraphSourceNode*>(n.data)->set_context(active_.get(), &editor_overrides_);
-        else if (type == "edit_sink")
-            static_cast<EditSinkNode*>(n.data)->set_context(&edit_events_);
-        else if (type == "handle_picker")
-            static_cast<HandlePickerNode*>(n.data)->set_context(gctx);
-        else if (type == "wire_drag")
-            static_cast<WireDragNode*>(n.data)->set_context(gctx);
-        else if (type == "slider_drag")
-            static_cast<SliderDragNode*>(n.data)->set_context(gctx);
-        else if (type == "dwell_delete")
-            static_cast<DwellDeleteNode*>(n.data)->set_context(gctx);
-        else if (type == "undo_node")
-            static_cast<UndoNode*>(n.data)->set_context(gctx);
-        else if (type == "palette")
-            static_cast<PaletteNode*>(n.data)->set_context(gctx);
-        else if (type == "palette_mesh")
-            static_cast<PaletteMeshNode*>(n.data)->set_context(gctx);
-        else if (type == "card_widgets_mesh")
-            static_cast<CardWidgetsMeshNode*>(n.data)->set_context(gctx);
-        else if (type == "card_labels_mesh")
-            static_cast<CardLabelsMeshNode*>(n.data)->set_context(gctx);
-        else if (type == "editor_wires")
-            static_cast<EditorWiresNode*>(n.data)->set_context(gctx);
-        else if (type == "spawner")
-            static_cast<SpawnerNode*>(n.data)->set_context(active_.get(), &registry, &edit_events_);
-        else if (type == "fly_camera")
+        if (n.desc->set_host_context)
+            n.desc->set_host_context(n.data, editor_layout::kEditorContextKind, &gctx);
+        // Value fallback, not a context seam: the camera's aspect default.
+        if (std::string_view{n.desc->type_name} == "fly_camera")
             static_cast<FlyCameraNode*>(n.data)->endpoints.aspect.fallback = aspect;
     }
 }
@@ -161,9 +127,54 @@ void PeerCore::tick(double time_s) {
     push_remote_outs();
 }
 
+namespace {
+// {"op":"set_param","id":…,"port":…,"value":N} → the in-place fast path.
+bool parse_set_param(const std::string& op, std::string& id, std::string& port, std::string& num) {
+    if (op.find("\"op\":\"set_param\"") == std::string::npos) return false;
+    auto field = [&](const char* key) {
+        std::string out;
+        std::string needle = std::string("\"") + key + "\":\"";
+        auto p = op.find(needle);
+        if (p == std::string::npos) return out;
+        for (p += needle.size(); p < op.size() && op[p] != '"'; ++p) {
+            if (op[p] == '\\' && p + 1 < op.size()) ++p;
+            out += op[p];
+        }
+        return out;
+    };
+    id = field("id");
+    port = field("port");
+    auto vp = op.find("\"value\":");
+    if (id.empty() || port.empty() || vp == std::string::npos) return false;
+    auto vs = vp + 8;
+    auto ve = op.find_first_of(",}", vs);
+    num = op.substr(vs, (ve == std::string::npos ? op.size() : ve) - vs);
+    return !num.empty();
+}
+}  // namespace
+
 void PeerCore::collect_edits() {
+    // set_param ops bypass the rebuild: they deserialize in place at the next
+    // begin_frame via queue_param — no parse, no swap, no cache wipe; the
+    // param persists because desc->serialize reads node data. A slider drag
+    // then costs one small deserialize per frame instead of a whole-graph
+    // rebuild at 72 Hz. Bursts coalesce to the last op per node+port.
+    struct P {
+        std::string id, port, num;
+    };
+    std::vector<P> params;
     for (auto& edit : edit_events_.drain()) {
-        // Structured ops (edit_sink) apply against the live graph; whole-graph
+        if (P p; parse_set_param(edit, p.id, p.port, p.num)) {
+            auto it = std::find_if(params.begin(), params.end(), [&](const P& q) {
+                return q.id == p.id && q.port == p.port;
+            });
+            if (it != params.end())
+                it->num = std::move(p.num);
+            else
+                params.push_back(std::move(p));
+            continue;
+        }
+        // Structural ops (edit_sink) apply against the live graph; whole-graph
         // JSON (old editor) passes through apply_edit_op verbatim. Each op
         // sees the latest pending graph so a burst of ops composes.
         const Graph* base = pending_ ? pending_.get() : active_.get();
@@ -173,6 +184,8 @@ void PeerCore::collect_edits() {
             pending_ = std::move(g);
         }
     }
+    for (auto& p : params)
+        queue_param(p.id, "{\"" + editor_layout::json_escape(p.port) + "\":" + p.num + "}");
 }
 
 void PeerCore::queue_param(std::string node_id, std::string params_json) {

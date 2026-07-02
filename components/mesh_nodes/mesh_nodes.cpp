@@ -177,7 +177,9 @@ void MeshCylinderNode::operator()(double) {
 void MeshRippleNode::operator()(double t) {
     MeshPtr in = endpoints.mesh.get();
     if (!in) { endpoints.mesh_out.value = in; return; }
-    auto out = std::make_shared<TriMeshData>(*in);
+    if (!out_) out_ = std::make_shared<TriMeshData>();
+    auto& out = out_;
+    *out = *in;  // copy, deform in place below, then re-stamp
     float a = endpoints.amplitude.get(), f = endpoints.freq.get();
     float ph = float(t) * endpoints.speed.get();
     for (auto& v : out->vertices) {
@@ -185,13 +187,16 @@ void MeshRippleNode::operator()(double t) {
                   std::cos(v.position.z() * f * 0.7f + ph * 1.3f);
         v.position += v.normal * (a * w);
     }
-    endpoints.mesh_out.value = std::move(out);
+    out->touch();
+    endpoints.mesh_out.value = out_;
 }
 
 void MeshTwistNode::operator()(double) {
     MeshPtr in = endpoints.mesh.get();
     if (!in) { endpoints.mesh_out.value = in; return; }
-    auto out = std::make_shared<TriMeshData>(*in);
+    if (!out_) out_ = std::make_shared<TriMeshData>();
+    auto& out = out_;
+    *out = *in;  // copy, deform in place below, then re-stamp
     float k = endpoints.angle.get();
     for (auto& v : out->vertices) {
         float ang = v.position.y() * k;
@@ -203,20 +208,24 @@ void MeshTwistNode::operator()(double) {
         v.normal.x() = c * nx - s * nz;
         v.normal.z() = s * nx + c * nz;
     }
-    endpoints.mesh_out.value = std::move(out);
+    out->touch();
+    endpoints.mesh_out.value = out_;
 }
 
 void MeshTransformNode::operator()(double) {
     MeshPtr in = endpoints.mesh.get();
     if (!in) { endpoints.mesh_out.value = in; return; }
-    auto out = std::make_shared<TriMeshData>(*in);
+    if (!out_) out_ = std::make_shared<TriMeshData>();
+    auto& out = out_;
+    *out = *in;  // copy, deform in place below, then re-stamp
     Eigen::Matrix4f m4 = endpoints.matrix.get();
     Eigen::Matrix3f rot = m4.block<3, 3>(0, 0);
     for (auto& v : out->vertices) {
         v.position = (m4 * v.position.homogeneous()).head<3>();
         v.normal   = (rot * v.normal).normalized();
     }
-    endpoints.mesh_out.value = std::move(out);
+    out->touch();
+    endpoints.mesh_out.value = out_;
 }
 
 // ── span era ─────────────────────────────────────────────────────────────────

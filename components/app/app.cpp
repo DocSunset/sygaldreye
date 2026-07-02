@@ -18,10 +18,10 @@
 #include "dac_node.hpp"
 #include "dwell_delete.hpp"
 #include "edit_sink.hpp"
-#include "editor_default_graph.hpp"
+#include "embedded_graphs.hpp"
 #include "editor_wires.hpp"
 #include "eyeballs_node_abi.hpp"
-#include "flat_shader.hpp"
+#include "flat_mesh.hpp"
 #include "fly_camera_node.hpp"
 #include "frame_loop.hpp"
 #include "graph_source.hpp"
@@ -42,7 +42,6 @@
 #include "poke_button.hpp"
 #include "poke_stick.hpp"
 #include "ptt_gate.hpp"
-#include "rd_gpu.hpp"
 #include "reaction_diffusion.hpp"
 #include "render_region.hpp"
 #include "render_region_nodes.hpp"
@@ -150,7 +149,6 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<WaterSurface>());
     reg.register_builtin(make_descriptor<SkyDome>());
     reg.register_builtin(make_descriptor<StarField>());
-    reg.register_builtin(make_descriptor<RdGpu>());
     reg.register_builtin(make_descriptor<HeadPoseNode>());
     reg.register_builtin(make_descriptor<LeftControllerNode>());
     reg.register_builtin(make_descriptor<RightControllerNode>());
@@ -179,6 +177,20 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<SmoothNode>());
     reg.register_builtin(make_descriptor<Split3Node>());
     reg.register_builtin(make_descriptor<Join3Node>());
+    reg.register_builtin(make_descriptor<HsvColorNode>());
+    reg.register_builtin(make_descriptor<TimeNode>());
+    reg.register_builtin(make_descriptor<Vec3AddNode>());
+    reg.register_builtin(make_descriptor<Vec3ScaleNode>());
+    reg.register_builtin(make_descriptor<Vec3LerpNode>());
+    reg.register_builtin(make_descriptor<Vec3DotNode>());
+    reg.register_builtin(make_descriptor<Vec3CrossNode>());
+    reg.register_builtin(make_descriptor<Vec3LengthNode>());
+    reg.register_builtin(make_descriptor<QuatEulerNode>());
+    reg.register_builtin(make_descriptor<QuatMulNode>());
+    reg.register_builtin(make_descriptor<QuatRotateNode>());
+    reg.register_builtin(make_descriptor<QuatSlerpNode>());
+    reg.register_builtin(make_descriptor<TrsNode>());
+    reg.register_builtin(make_descriptor<MatMulNode>());
     reg.register_builtin(make_descriptor<UdpSendNode>());
     reg.register_builtin(make_descriptor<UdpRecvNode>());
     reg.register_builtin(make_descriptor<HandNode>());
@@ -225,6 +237,10 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<MeshSphereNode>());
     reg.register_builtin(make_descriptor<MeshBoxNode>());
     reg.register_builtin(make_descriptor<MeshCylinderNode>());
+    reg.register_builtin(make_descriptor<MeshRippleNode>());
+    reg.register_builtin(make_descriptor<MeshTwistNode>());
+    reg.register_builtin(make_descriptor<MeshTransformNode>());
+    // MeshDisplaceNode not registered: parked, offscreen leg (owns an FBO).
     reg.register_builtin(make_descriptor<BiquadNode>());
     reg.register_builtin(make_descriptor<DelayNode>());
     reg.register_builtin(make_descriptor<ShaperNode>());
@@ -240,7 +256,7 @@ static void register_device_nodes(ComponentRegistry& reg) {
     reg.register_builtin(make_descriptor<SpectrogramNode>());
     reg.register_builtin(make_descriptor<WireMeshNode>());
     // The card subgraph the editor lifts over the live graph (keyed by id).
-    reg.register_subgraph("card", editor_default_graph::kEditorCardSubgraph);
+    reg.register_subgraph("card", embedded_graphs::kEditorCardSubgraph);
 }
 
 // Pump XR source nodes with current frame's live pose/input data.
@@ -334,13 +350,12 @@ void android_main(struct android_app* app) {
 
     PeerCore::Config cfg;
     cfg.http_port = 8080;
-    cfg.default_graph_json = editor_default_graph::kEditorGraph;
+    cfg.default_graph_json = embedded_graphs::kEditorGraph;
     cfg.data_dir = app->activity->internalDataPath;
     cfg.graphs_dir = std::string(app->activity->internalDataPath) + "/graphs";
-    // Drop render_region's pointer-keyed caches when a retired graph is
-    // destructed (reused ShaderData/TriMeshData addresses would otherwise
-    // resolve to a freed node's program/geometry). begin_frame's swap runs on
-    // the render thread with a current GL context.
+    // render_region's geometry/program caches are version/content keyed and
+    // survive swaps; this drops only the graph-scoped texture entries.
+    // begin_frame's swap runs on the render thread with a current GL context.
     state.core_.on_graph_swapped = [](const Graph*) {
         RenderRegion::instance().notify_graph_swap();
     };

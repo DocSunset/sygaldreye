@@ -39,8 +39,7 @@ void EditorWiresNode::operator()(double) {
         endpoints.wires.value = Span{nullptr, 0, 10};
         return;
     }
-    editor_layout::Layout l = editor_layout::build_layout(
-        *ctx_.graph, ctx_.overrides ? *ctx_.overrides : editor_layout::PosOverrides{});
+    const editor_layout::Layout& l = editor_layout::cached_layout(ctx_);
 
     for (const auto& e : ctx_.graph->edges) {
         Eigen::Vector3f from, to;

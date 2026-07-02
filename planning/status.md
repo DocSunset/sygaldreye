@@ -2,6 +2,29 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-07-01 — audit landed; remediation arc landing on this branch
+
+Full audit of the lifting/editor/DrawFn arc:
+reports/audit_conformability_editor_arc.md (five review passes; verdict:
+the deletions are real, the three headline claims each half-kept). A
+remediation arc is landing NOW (branch
+claude/audit-conformability-decomposition-ay6f5f): lifting-core hard
+errors + UB fixes (dangling-edge iterators, resource-holder plan-time
+error, lifted_store descriptor reattach), slider-drag rerouted through
+the in-place queue_param path (kills the per-frame rebuild storm),
+versioned render caches (stale param-edit geometry + the
+recompile-everything wipe), RT channel-state preservation on
+channel-count change, palette page port, ABI v9 generic editor-context
+seam (replaces pump_contexts' ~13 special cases), shell registration
+parity, seq draw-order wiring in shipped graphs. ADR-006..011 recorded;
+deferred findings filed as kanban/backlog items;
+vr_editor_decomposition moved to review (in-headset check with Travis
+still pending).
+
+CORRECTION to the 06-15 entry below: ui_nodes / poke_button /
+poke_stick / rubber_band_controller were NOT deleted — the final squash
+(87496a2) restored and modernized them onto the Mesh+Surface path.
+
 ## 2026-06-15 — S6 + DrawFn retirement DONE (branch `lifting-editor-drawfn`)
 
 The arc closes. Both shells now BOOT the node-based editor (`editor.json`'s

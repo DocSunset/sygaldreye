@@ -94,6 +94,32 @@ Layout build_layout(
     return l;
 }
 
+const Layout& cached_layout(const GestureContext& ctx) {
+    static thread_local LayoutCache fallback;  // no cache in ctx: rebuild per call
+    LayoutCache& c = ctx.layout ? *ctx.layout : fallback;
+    std::uint64_t ogen = ctx.overrides_gen ? *ctx.overrides_gen : 0;
+    if (!(c.valid && c.graph == ctx.graph && c.graph_gen == ctx.graph_gen &&
+          c.overrides_gen == ogen)) {
+        c.layout = build_layout(*ctx.graph, ctx.overrides ? *ctx.overrides : PosOverrides{});
+        c.graph = ctx.graph;
+        c.graph_gen = ctx.graph_gen;
+        c.overrides_gen = ogen;
+        c.valid = (ctx.layout != nullptr);
+        ++c.builds;
+    }
+    return c.layout;
+}
+
+std::string json_escape(std::string_view s) {
+    std::string out;
+    out.reserve(s.size());
+    for (char ch : s) {
+        if (ch == '"' || ch == '\\') out += '\\';
+        out += ch;
+    }
+    return out;
+}
+
 bool edge_endpoints(const Layout& l, const Edge& e, Eigen::Vector3f& from, Eigen::Vector3f& to) {
     bool hf = false, ht = false;
     for (const auto& c : l.cards) {

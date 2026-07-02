@@ -7,27 +7,10 @@
 
 #include "tri_mesh.hpp"
 
+#include "common_shaders.hpp"
+
 namespace {
 constexpr int kBezierSegs = 14;
-
-// Unlit per-vertex color, drawn as GL_LINES. uMVP injected by render_region.
-constexpr const char* kVert = R"(#version 300 es
-precision highp float;
-layout(location=0) in vec3 aPos;
-layout(location=2) in vec4 aColor;
-uniform mat4 uMVP;
-out vec4 vColor;
-void main() {
-    vColor = aColor;
-    gl_Position = uMVP * vec4(aPos, 1.0);
-}
-)";
-constexpr const char* kFrag = R"(#version 300 es
-precision mediump float;
-in vec4 vColor;
-out vec4 fragColor;
-void main() { fragColor = vColor; }
-)";
 
 TriVertex line_vertex(const Eigen::Vector3f& p, const float* c) {
     TriVertex v;
@@ -39,10 +22,14 @@ TriVertex line_vertex(const Eigen::Vector3f& p, const float* c) {
 }  // namespace
 
 void WireMeshNode::operator()(double) {
-    if (!shader_) shader_ = std::make_shared<ShaderData>(ShaderData{kVert, kFrag});
+    if (!shader_)
+        shader_ = std::make_shared<ShaderData>(ShaderData{
+            common_shaders::kUnlitVertexColorVert, common_shaders::kUnlitVertexColorFrag});
 
-    // Tessellate the span into GL_LINES vertex pairs (rebuilt each frame).
-    auto data = std::make_shared<TriMeshData>();
+    // Tessellate the span into GL_LINES vertex pairs (refilled in place).
+    if (!data_) data_ = std::make_shared<TriMeshData>();
+    auto& data = data_;
+    data->vertices.clear();
     Span s    = endpoints.wires.get();
     if (s.data && s.cols == 10) {
         for (int r = 0; r < s.rows; ++r) {
@@ -66,8 +53,10 @@ void WireMeshNode::operator()(double) {
         }
     }
 
+    data->touch();
+
     Mesh m;
-    m.geometry = std::move(data);  // no indices → draw_arrays(GL_LINES)
+    m.geometry = data_;  // no indices → draw_arrays(GL_LINES)
     m.mode     = Primitive::Lines;
     m.dynamic  = true;
     endpoints.mesh.value = std::move(m);

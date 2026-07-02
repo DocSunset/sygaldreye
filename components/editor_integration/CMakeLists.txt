@@ -8,6 +8,7 @@ if(EXISTS ${GTEST_ROOT})
     add_executable(editor_integration_test editor_integration.test.cpp)
     target_link_libraries(editor_integration_test PRIVATE
         wire_drag slider_drag dwell_delete palette editor_layout
-        component_registry signal_graph math_nodes editor_integration_gtest)
+        component_registry signal_graph math_nodes peer_core GLESv2
+        editor_integration_gtest)
     target_compile_options(editor_integration_test PRIVATE -Wall -Wextra)
 endif()

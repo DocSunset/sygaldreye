@@ -1,6 +1,6 @@
 add_library(graph_source STATIC graph_source.cpp)
 target_include_directories(graph_source PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(graph_source PUBLIC signal_graph sygaldry_endpoints)
+target_link_libraries(graph_source PUBLIC signal_graph sygaldry_endpoints editor_layout)
 target_compile_options(graph_source PRIVATE -Wall -Wextra)
 
 set(GTEST_ROOT $ENV{ANDROID_NDK_ROOT}/sources/third_party/googletest)

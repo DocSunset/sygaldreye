@@ -14,6 +14,7 @@
     {"from":"grad.surface","to":"sky_d.surface"},
     {"from":"grad.mesh","to":"sky_d.mesh"},
     {"from":"stars.surface","to":"stars_d.surface"},
-    {"from":"stars.mesh","to":"stars_d.mesh"}
+    {"from":"stars.mesh","to":"stars_d.mesh"},
+    {"from":"sky_d.seq_out","to":"stars_d.seq_in"}
   ]
 }

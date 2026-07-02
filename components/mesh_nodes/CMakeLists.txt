@@ -1,4 +1,10 @@
 add_library(mesh_nodes STATIC mesh_nodes.cpp)
 target_include_directories(mesh_nodes PUBLIC . $ENV{EIGEN3_INCLUDE_DIR})
 target_link_libraries(mesh_nodes PUBLIC eyeballs_node_abi tri_mesh gpu_texture sygaldry_endpoints)
+# GL for the parked MeshDisplaceNode's FBO readback (offscreen leg).
+if(CMAKE_CROSSCOMPILING)
+    target_link_libraries(mesh_nodes PUBLIC GLESv3)
+else()
+    target_link_libraries(mesh_nodes PUBLIC GLESv2)
+endif()
 target_compile_options(mesh_nodes PRIVATE -Wall -Wextra)

@@ -11,9 +11,9 @@
 // vertex_color_mesh: a shader-specific node for lit, per-vertex-colored
 // geometry (terrain, reaction-diffusion grids, editor quads). The mesh carries
 // its colors in aColor; this node applies one directional sun (Blinn-Phong)
-// and emits Surface + Mesh. Geometry is treated as dynamic (its producers
-// regenerate it), so render_region rebuilds it per frame rather than caching
-// by a pointer that may be reused. Sun is wireable (sky.sun_dir/sun_color).
+// and emits Surface + Mesh. dynamic is a usage hint (producers animate the
+// geometry); staleness is the producer's TriMeshData version — render_region
+// re-uploads only when it changes. Sun is wireable (sky.sun_dir/sun_color).
 namespace vertex_color_mesh_detail {
 inline constexpr const char* kVert = R"(#version 300 es
 precision highp float;
@@ -79,7 +79,7 @@ struct VertexColorMeshNode {
         Mesh m;
         m.geometry = endpoints.geometry.get();
         m.mode     = Primitive::Triangles;
-        m.dynamic  = true;  // producers (terrain/RD/editor) regenerate it
+        m.dynamic  = true;  // usage hint: producers (terrain/RD/editor) animate it
         endpoints.mesh.value = std::move(m);
 
         const Eigen::Vector3f dir =

@@ -1,7 +1,7 @@
 add_library(tree_generator STATIC tree_generator.cpp tree_generator_impl.cpp)
 target_include_directories(tree_generator PUBLIC .)
 target_include_directories(tree_generator PUBLIC $ENV{EIGEN3_INCLUDE_DIR})
-target_link_libraries(tree_generator PUBLIC tri_mesh billboard_quad noise)
+target_link_libraries(tree_generator PUBLIC tri_mesh noise)
 target_compile_options(tree_generator PRIVATE -Wall -Wextra)
 
 if(CMAKE_CROSSCOMPILING)

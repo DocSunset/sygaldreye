@@ -131,6 +131,11 @@ int SubgraphNode::connect_inlet(const char* name, const void* src) {
     return hit;
 }
 
+void SubgraphNode::set_host_context(const char* kind, void* ctx) {
+    for (auto& n : inner_->nodes)
+        if (n.desc && n.desc->set_host_context) n.desc->set_host_context(n.data, kind, ctx);
+}
+
 const void* SubgraphNode::outlet_ptr(const char* name) const {
     for (const auto& decl : inner_->outlets) {
         if (decl.name != name) continue;
