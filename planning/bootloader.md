@@ -4,6 +4,31 @@ Status: design draft, 2026-07-02, third revision after alignment. Converged: rol
 model, executor packages, spawn+exec both. Open: provenance/detachment details.
 Original assessment in appendix.
 
+## The general principle: datasets and derivations
+
+The graph is not the fundamental object. A **dataset** is; a **pipeline** is a
+derivation from datasets to datasets; **provenance-or-fork** is the law relating
+derived data to its sources. A graph is a dataset an executor can run. Compilation
+is a derivation; freezing is a derivation whose output kind is C++; an edit is a
+pass or a fork. The same principle carries an additive synthesizer (partials
+dataset → oscillator pipeline), atomic decomposition analysis-resynthesis, a video
+editor-compositor, projection mapping, and an ML workbench (dataset → training
+derivation → model artifact with provenance to its training set) — new dataset
+kinds and vocabulary, no new principles.
+
+Consequences taken now:
+- The graph-as-value payload (stage 0, item 3) is conceived as the general
+  **dataset payload**: kind + content + provenance reference. Graph is the first
+  kind.
+- Provenance records are content-hash-friendly from day one, so derivation
+  memoization (Nix-style; the project already standardizes on Nix) is possible
+  later without retrofit.
+- Pipelines run in two modes with existing executors: **streaming** (live
+  frame/block tick) and **derivation** (run-to-completion with provenance
+  recording — a worker-region execution; the worker region is the build system).
+- The five applications above are validation targets, not requirements: design the
+  primitive so it doesn't preclude them; build only the graph case now.
+
 ## Roles, not types
 
 App / engine / execution are roles in a compilation relationship, not disjoint kinds.
@@ -102,8 +127,10 @@ routes, mdns, values/probe, screenshots → nodes.
 
 1. **Identity-preserving lowering**: deterministic, emitting app-node-id →
    execution-node-id maps so state survives re-lowering. Main engineering risk.
-2. **Provenance/detachment semantics**: must be decided before execution graphs
-   become editable.
+2. **Provenance/detachment semantics**: not merely an editing rule — it is the data
+   model of the whole platform (datasets and derivations, above). Settle it
+   deliberately, before execution graphs become editable and before the first
+   non-graph dataset kind.
 3. **Engine-graph debuggability**: purpose-built probes early; pull-observability is
    the substrate.
 4. Allocation discipline stands: no resource acquisition in create(); first-tick
