@@ -29,6 +29,8 @@ Consequences taken now:
 - The five applications above are validation targets, not requirements: design the
   primitive so it doesn't preclude them; build only the graph case now.
 
+Where datasets live, who sees them, and how: planning/datasets.md.
+
 ## Roles, not types
 
 App / engine / execution are roles in a compilation relationship, not disjoint kinds.
