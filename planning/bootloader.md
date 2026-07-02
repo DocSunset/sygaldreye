@@ -1,115 +1,129 @@
 # Graph executor bootstrapping — design draft
 
-Status: design draft, 2026-07-02, revised after alignment discussion. Converged: the
-three-level model below. Open: spawn vs exec (Q3). Supersedes the 2026-07-01
-assessment (appendix).
+Status: design draft, 2026-07-02, third revision after alignment. Converged: roles
+model, executor packages, spawn+exec both. Open: provenance/detachment details.
+Original assessment in appendix.
 
-## The three-level model
+## Roles, not types
 
-A self-hosting compiler pipeline:
+App / engine / execution are roles in a compilation relationship, not disjoint kinds.
+Every graph is **defined** (as data — in memory or JSON), **compiled** by an engine
+graph with matching capabilities, and **realized** as an execution graph running on
+hardware across a network of peers, devices, processes, threads, event loops. Engine
+graphs are themselves defined/compiled/realized: a reflective tower.
 
-- **Application graph** — authored content, platform- and execution-agnostic. No
-  executors, regions, or adapters. What the editor edits and peers exchange.
-- **Engine graph** — a graph, run by the engine, that examines application graphs and
-  constructs execution graphs: infers regions (audio, xr, gl, remote-peer…), inserts
-  the executors appropriate to *this* environment, materializes boundary adapters
-  (edge_executor.design.md: latch, snapshot, queue, ring, net). The engine graph is
-  the portable cross-platform story — the same everywhere; platform difference
-  appears in what it emits, not what it is.
-- **Execution graph** — the lowered artifact: explicit executor containment, platform
-  nodes, adapters. Never authored by hand.
+- The regress grounds at stage 0: the naive C++ executor is the fixed base realizing
+  the first engine graph.
+- **Laziness rule**: the tower is potential, not resident. A level's engine graph is
+  instantiated only when someone edits at that level. Never N meta-levels running.
 
-Resolved by this model:
-- Containment vs inference (old Q1) was a false dichotomy: inference is the app-graph
-  representation, containment the execution-graph representation; lowering maps them.
-- Platform selection: app graphs stay portable; execution graphs are where
-  platform-specific nodes appear, placed by the engine graph's environment
-  observation.
+## Every level editable: provenance with detachment
 
-## Executor nodes
+All graphs are runtime-editable, including realized artifacts. The round-trip
+semantic (an execution graph is edited, then its app graph re-lowers — who wins?):
 
-A node owning (a) a subgraph and (b) the execution context that ticks it — thread,
-subprocess (boundary edges degrade to net mappings), async event loop.
+- Every realized graph carries **provenance** to its definition (doctrine already
+  established by the freezer: frozen artifacts carry source JSON for unfreezing).
+- An edit to a realized graph either becomes a **pass** appended to the pipeline that
+  produced it (editing the compiler; persists across re-lowering), or **forks
+  provenance**: the editor now owns the graph at that level, detachment is recorded,
+  upstream re-lowering no longer applies. Tracked, never silent.
+- Degenerate case: a graph with no upstream definition is an app graph whose
+  compilation is identity. Uniform editability falls out.
 
-**Pacing: the executor owns it** (resolved Q2), along with the platform resource.
-Inner node families bind through a per-flavor **contract**: audio executor ↔ dac/adc;
-xr executor ↔ head_pose/controllers/layer submission; gl executor ↔ draw nodes. This
-matches the existing code (AudioRegion/AudioEngine own thread, device, pacing;
-DacNode bridges in) and retires the three hand-rolled contracts the survey found:
-the RenderRegion singleton, pump_xr_sources(), dac's AudioEngine::instance() reach.
-Lifecycle: instantiate → acquire context → run → stop, plus restart policy.
+## Spawn and exec: one primitive, two call sites
+
+The general primitive is "replace the subgraph of slot X, migrating state."
+**Exec** = swap your own slot (reduced footprint, no fallback). **Spawn** =
+instantiate a child slot and park (resident fallback + restart policy). Per-stage
+policy bit; both supported. Stage 0 spawns stage 1 and remains resident — its cost
+is a parked loop and the embedded boot graph, and it is the one tower level that
+cannot be edited away.
+
+## Executor regions are capability packages
+
+An executor flavor (audio, xr, gl, worker, subprocess, remote-peer) is a world
+apart — its own app/engine/execution triple — spliced into the main engine at
+runtime when its capability is available. Three parts:
+
+1. **Vocabulary**: its platform nodes (dac/adc, xr_session, draw…), present only
+   where linked.
+2. **Passes**: extensions to the engine's realization pipeline — recognize its
+   region in an app graph (dac-closure inference, generalized), construct its
+   execution subgraph and context, choose boundary adapters (latch, snapshot, queue,
+   ring, net). The dac/adc "special contract" is just this package's rewrite rule
+   binding those nodes to its context.
+3. **Machinery**: C++ context internals (thread, device callback, frame envelope)
+   inside its nodes. Executor owns pacing and the platform resource.
+
+Requires the engine graph to be a **pipeline with declared extension points**;
+splicing a package in is itself an edit to the engine graph, driven by environment
+observation. Same primitive again.
+
+**Capability-driven placement**: when a package is absent locally, realization can
+place that region on a remote peer advertising the capability — net adapters and
+remote-peer machinery already exist. Quest lowers its worker region onto the Linux
+peer; a browser peer lowers XR remotely and becomes a spectator. Cross-network
+placement is a fallthrough case of lowering, not a feature.
 
 ## Stage 0 — the native kernel
 
-Identical logic on every platform. A *naive* executor: flat graph, no regions, no
-pacing, free-running — exactly enough to run the engine graph (control-rate, no
-realtime constraints). Contains:
+Identical logic on every platform; vanishingly minimal. A naive executor — flat
+graph, no regions, no pacing, free-running — exactly enough to run the first engine
+graph (control-rate). Contains:
 
 1. Naive tick core: parse, plan (flat), tick, migrate.
-2. Registry, populated by target-supplied `syg_register_linked(registry)`
-   (CMake-generated TU per target; loud link failure; readable capability manifest).
-   Runtime inspection of linked nodes = reading ComponentRegistry's map (already the
-   palette).
-3. Graph-as-value payload type + primitive query/transform node implementations —
-   the one substantial new port-system addition. (Precedent: graph JSON strings flow
-   through queue_edit; graph_source reifies the enclosing graph as wired data.)
-4. Executor-node primitives implemented in C++ *as nodes*: thread spawn, adapters,
-   contracts, and an instantiate/swap-with-migration node.
+2. Registry via target-supplied `syg_register_linked(registry)` (CMake-generated TU;
+   loud link failure; readable capability manifest). Linked-node inspection =
+   reading ComponentRegistry's map (already the palette).
+3. Graph-as-value payload + primitive query/transform nodes — the substantial new
+   port-system addition. (Precedent: graph JSON through queue_edit; graph_source.)
+4. Executor primitives implemented in C++ *as nodes*: thread spawn, adapters,
+   contexts, and the slot-swap-with-migration node.
 5. Embedded boot graph via a second target-supplied symbol (may differ per target;
    stage-0 code never branches on platform).
-6. Opaque platform-context stash (trampoline hands over android_app* etc.; only
-   platform nodes read it). Trampolines <10 lines: while-loop (desktop),
-   emscripten_set_main_loop (web), android_main (Quest).
+6. Opaque platform-context stash (android_app* etc.; only platform nodes read it).
+   Trampolines <10 lines: while-loop / emscripten_set_main_loop / android_main.
 
-Engine *logic* — which passes, in what order, the region rules — is graph content:
-live-editable, satisfying the no-restart criterion (planning/vision.md) at the
-compiler layer.
+Not in stage 0: HTTP, files, GL/XR/audio, selection logic, region rules.
 
 ## Boot sequence
 
-Stage 0 ticks the boot graph → boot graph spawns the engine graph → engine graph
-receives application graphs from instruction sources (cli_args from the stash,
-http_server, ws/peer links, hardcoded constant), lowers them, instantiates execution
-graphs. Edits arrive against the app graph; the engine graph re-lowers; swap+migrate
-carries state.
+Stage 0 ticks the boot graph → spawns the engine graph and parks as fallback →
+engine graph observes environment, splices available capability packages, receives
+app graphs from instruction sources (cli_args stash, http_server, ws/peer links,
+embedded constant), lowers, realizes. Edits arrive at any level; provenance decides
+propagation; slot-swap+migrate carries state.
 
-Q3 (open, recommendation: spawn): the boot graph stays resident supervising the
-engine graph with a restart policy — the engine graph is critical infrastructure a
-bad edit could wedge; the boot graph is the recovery story. Matches "the core that
-spins up and executes the graph that spins up and executes the graphs… recursively"
-(peer_core.design.md).
-
-PeerCore dissolves: registry → stage 0; swap/migrate/queues → executor machinery;
-HTTP routes, mdns, values/probe, screenshots → nodes.
+PeerCore dissolves: registry → stage 0; swap/migrate/queues → slot machinery; HTTP
+routes, mdns, values/probe, screenshots → nodes.
 
 ## Hard problems
 
-1. **Identity-preserving lowering.** State lives in execution-graph nodes but must
-   survive re-lowering keyed by app-graph identity: lowering must be deterministic
-   and emit an app-node-id → execution-node-id map for swap+migrate. Main
-   engineering risk.
-2. **Engine-graph debuggability.** A graph transforming graphs needs purpose-built
-   probes early; pull-observability is the substrate.
-3. GL/XR nodes must not acquire resources in create() (first-tick lazy init; fail
-   loud if ticked without context) — containment handles ordering, not allocation
-   discipline.
+1. **Identity-preserving lowering**: deterministic, emitting app-node-id →
+   execution-node-id maps so state survives re-lowering. Main engineering risk.
+2. **Provenance/detachment semantics**: must be decided before execution graphs
+   become editable.
+3. **Engine-graph debuggability**: purpose-built probes early; pull-observability is
+   the substrate.
+4. Allocation discipline stands: no resource acquisition in create(); first-tick
+   lazy init; fail loud without context.
 
-## Migration path (strangler pattern)
+## Migration path (strangler pattern — unchanged by the vision, by design)
 
 1. Generated per-target registration TU (kills the three hand lists: 106/92/41).
-2. Wrap the existing C++ build_plan pipeline as a single `lower` node; initial engine
-   graph = receive app graph → lower → instantiate. Semantically the current system,
-   restructured into the three-level shape.
-3. Retrofit AudioRegion as the first executor node with the dac/adc contract — the
-   pattern already exists there in disguise; no XR risk.
+2. Wrap existing C++ build_plan as a single `lower` node; initial engine graph =
+   receive → lower → realize. Semantically the current system in the new shape.
+3. Retrofit AudioRegion as the first capability package (vocabulary: dac/adc;
+   passes: today's inference; machinery: existing thread/device code). No XR risk.
 4. Stage-0 extraction from PeerCore + trampolines; host first.
-5. Quest platform executor: xr executor absorbing xr.cpp + XrSessionObj + FrameLoop +
+5. Declare engine pipeline extension points (prerequisite for a second package).
+6. Quest package: xr executor absorbing xr.cpp + XrSessionObj + FrameLoop +
    Renderer/EglContext/EyeSwapchain; input via the xr contract (delete
    pump_xr_sources); retire Scene; mdns/http as nodes.
-6. Web onto the same bootloader.
-7. Factor passes out of the monolithic `lower` node into engine-graph vocabulary one
-   at a time (region inference, adapter insertion, executor placement) — the "second
-   step: properly factoring the nodes," applied to the compiler itself.
+7. Web onto the same bootloader.
+8. Factor passes out of the `lower` monolith into engine-graph vocabulary; decide
+   provenance/detachment before opening execution graphs to the editor.
 
 ---
 
@@ -138,13 +152,15 @@ plugin scan, XR pose pumping) wired outside the graph.
 
 ## Resolution notes from discussion
 
-- Pacer seam (old D1) → executor nodes; executor owns pacing + resource, inner nodes
-  bind via contract.
-- Entry symbols (old D2) → accepted constraint; trampolines.
-- Registration/probing (old D3/D4) → generated TU stands; per-platform boot graphs
-  acceptable; the invariant is stage-0 platform independence. Superseded in part by
-  the engine-graph model: portability lives in the engine graph.
-- Resource ordering (old D5) → containment orders execution; allocation discipline
-  (no resources in create()) remains.
-- Frozen programs unaffected: freezing (kanban/backlog/freezer.md) bypasses the
-  bootloader by design.
+- Pacer seam → executor packages own pacing + resource; node families bind via the
+  package's rewrite rules. Retires the RenderRegion singleton, pump_xr_sources(),
+  and dac's AudioEngine::instance() reach.
+- Entry symbols → accepted constraint; trampolines.
+- Registration/probing → generated TU stands; per-platform boot graphs acceptable;
+  portability lives in the engine graph.
+- Containment vs inference → false dichotomy: inference is the app-graph view,
+  containment the execution-graph view; lowering maps them.
+- Resource ordering → containment orders execution; allocation discipline remains.
+- Spawn vs exec → both, one primitive; stage 0 always spawn+resident.
+- Frozen programs: freezing is the extreme point of the same spectrum — realization
+  to C++ with provenance for unfreezing — and bypasses the bootloader by design.
