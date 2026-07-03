@@ -2,6 +2,38 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-07-03 — Terminology session: the ontology reaches its floor
+
+`planning/lexicon.md` (NEW) — ratified concepts, definitions pending, organized
+by **form vs function** (Kevin Austin's modular-synthesis distinction at the
+level of all data and computation). The floor: one form, **data** ("just bits
+somewhere; traces"); two primal functions, node (data as container) and link
+(data as reference; edge/name/route/ref/address = links with derived
+qualities); everything else is patching. Subsumed: entity → node, occurrence →
+instance, contents → data, component → prose vestige. System definition
+inscribed in vision.md ("a protocol for encoding recursive metadata and
+decoding data to derive other data"). Stage 0 REFRAMED in bootloader.md: a
+frozen realization of the boot graph — everything in it is ordinary nodes; the
+only irreducible property is pre-existence; its build derivation is a Nix
+derivation (provenance continues into the flake lock). Terminology sweep
+applied across the 07-02 docs.
+
+## 2026-07-02 — Architecture session: the data model closes (ADR-006…012)
+
+The planning session convened by `planning/architecture_handoff.md` ran and
+closed its agenda. Ratified: datasets-and-derivations as the foundation (a
+dataset **is** a node; derive vs capture); naming (root+route; mutability lives
+in the name — `planning/naming.md`, NEW); store-as-graph + provide/compatible
+availability (`planning/datasets.md` rewritten); trust (per-peer keypairs,
+advertisement-as-sandbox, graphs-vs-plugins — `planning/trust.md`, NEW);
+extension points are ports, order is wiring; detachment resolved (realized views
+write back through the route map; no override dataset); graph = composite entity
+(topology + defaults; presets fall out). **Sygaldreye subsumes Rhizome**
+(`planning/rhizome.md`, NEW; ~/agents/projects/rhizome is an abandoned probe).
+Stage 0 gains the naive resolver. Handoff doc marked resolved; vision.md gained
+"The deeper foundation". Not yet done: work-item planning for the migration
+slices (deliberately deferred — still architecting).
+
 ## 2026-06-15 — S6 + DrawFn retirement DONE (branch `lifting-editor-drawfn`)
 
 The arc closes. Both shells now BOOT the node-based editor (`editor.json`'s

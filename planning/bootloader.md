@@ -1,8 +1,9 @@
 # Graph executor bootstrapping — design draft
 
-Status: design draft, 2026-07-02, third revision after alignment. Converged: roles
-model, executor packages, spawn+exec both. Open: provenance/detachment details.
-Original assessment in appendix.
+Status: design draft, 2026-07-02, fourth revision. Converged: roles model, executor
+packages, spawn+exec both. Provenance/detachment RESOLVED (see "Every level
+editable" below); naming in planning/naming.md; store in planning/datasets.md;
+trust in planning/trust.md. Original assessment in appendix.
 
 ## The general principle: datasets and derivations
 
@@ -44,19 +45,33 @@ graphs are themselves defined/compiled/realized: a reflective tower.
 - **Laziness rule**: the tower is potential, not resident. A level's engine graph is
   instantiated only when someone edits at that level. Never N meta-levels running.
 
-## Every level editable: provenance with detachment
+## Every level editable: provenance with detachment (RESOLVED 2026-07-02)
 
-All graphs are runtime-editable, including realized artifacts. The round-trip
-semantic (an execution graph is edited, then its app graph re-lowers — who wins?):
+All graphs are runtime-editable, including realized artifacts. Every realized graph
+carries **provenance** to its definition (freezer doctrine). The round-trip
+semantic, final form, one breath: **realized views are editing surfaces that write
+back through the route map; lowering inserts defaults only where absent;
+conditional behavior is a pass; refusing write-back is a fork.**
 
-- Every realized graph carries **provenance** to its definition (doctrine already
-  established by the freezer: frozen artifacts carry source JSON for unfreezing).
-- An edit to a realized graph either becomes a **pass** appended to the pipeline that
-  produced it (editing the compiler; persists across re-lowering), or **forks
-  provenance**: the editor now owns the graph at that level, detachment is recorded,
-  upstream re-lowering no longer applies. Tracked, never silent.
-- Degenerate case: a graph with no upstream definition is an app graph whose
-  compilation is identity. Uniform editability falls out.
+- A mapping is just a node; an app graph may contain e.g. a custom smoother
+  explicitly, and lowering inserts its default boundary mapping **only where no
+  mapping already sits** (the precise meaning of edge_executor's "replaceable by
+  the user").
+- Editing the *lowered view* is projection editing (the spreadsheet principle):
+  the editor translates the edit through the inverse lowering route map into an
+  app-graph edit. No override/patch dataset — that would be a second place where
+  definition lives, and it would drift.
+- Genuinely conditional-on-lowering desires ("only when this boundary lands
+  cross-thread") are the definition of a **pass** — usually a tiny one, spliced
+  like any capability-package pass. Promotion to a pass is always a deliberate
+  authoring act, never automatic.
+- An edit the app-level vocabulary can't express is a vocabulary gap (guiding
+  star: fix upstream), not a case for shadow state.
+- **Fork** = the ref stops tracking the derivation's output — an ordinary,
+  recorded rebind (naming.md). Degenerate case: a graph with no upstream
+  definition is an app graph whose compilation is identity.
+- Param/default writes are NOT this problem: they edit the persisted defaults
+  node (datasets.md "composite node"), no lowering involved.
 
 ## Spawn and exec: one primitive, two call sites
 
@@ -83,9 +98,16 @@ runtime when its capability is available. Three parts:
 3. **Machinery**: C++ context internals (thread, device callback, frame envelope)
    inside its nodes. Executor owns pacing and the platform resource.
 
-Requires the engine graph to be a **pipeline with declared extension points**;
-splicing a package in is itself an edit to the engine graph, driven by environment
-observation. Same primitive again.
+A package splice is a derivation over the engine graph (graph → graph) — same
+primitive again, driven by environment observation. But raw transformers don't
+compose (pass-ordering hell), so: **extension points aren't machinery — they're
+ports.** The initial engine graph *publishes inlets* (fan-ins: recognize-region,
+construct-context, choose-adapters); the well-behaved package **wires into them**
+rather than rewriting. Full transformer power stays available for surgery — it's
+just an edit — but then the package owns the breakage. **Order is wiring** (the
+draw-chain precedent: topological order is submission order); pass order is
+visible patch structure, which is also free debuggability. "Name the initial
+ports" is migration-slice-5 interface design, no longer an architecture question.
 
 **Capability-driven placement**: when a package is absent locally, realization can
 place that region on a remote peer advertising the capability — net adapters and
@@ -95,16 +117,30 @@ placement is a fallthrough case of lowering, not a feature.
 
 ## Stage 0 — the native kernel
 
+REFRAMED 2026-07-03: stage 0 is **a frozen realization of the boot graph** — not
+special machinery but ordinary (native) nodes whose parsing, planning, and
+instantiation happened at *build time* instead of runtime. The one irreducible
+property is pre-existence: something must already be running before anything can
+be derived at runtime. Parse, plan, swap, resolve, even the tick loop are all
+nodes; what cannot be decomposed is that this one graph arrives already derived.
+Per the freezer doctrine it carries provenance for unfreezing (boot graph JSON +
+native manifest), and its build-time derivation is a Nix derivation — provenance
+continues below stage 0 into the flake lock; fiat retreats to the
+toolchain/physics boundary.
+
 Identical logic on every platform; vanishingly minimal. A naive executor — flat
 graph, no regions, no pacing, free-running — exactly enough to run the first engine
-graph (control-rate). Contains:
+graph (control-rate). Contains (read as the frozen graph's capability manifest):
 
 1. Naive tick core: parse, plan (flat), tick, migrate.
 2. Registry via target-supplied `syg_register_linked(registry)` (CMake-generated TU;
    loud link failure; readable capability manifest). Linked-node inspection =
    reading ComponentRegistry's map (already the palette).
-3. Graph-as-value payload + primitive query/transform nodes — the substantial new
-   port-system addition. (Precedent: graph JSON through queue_edit; graph_source.)
+3. Dataset payload (kind + content + provenance reference; graph is the first
+   kind) + primitive query/transform nodes + the **naive resolver** (hash → bytes
+   in the local object directory — grounds resolution-as-graphs the way the naive
+   executor grounds the tower; stays independently invokable forever). (Precedent:
+   graph JSON through queue_edit; graph_source.)
 4. Executor primitives implemented in C++ *as nodes*: thread spawn, adapters,
    contexts, and the slot-swap-with-migration node.
 5. Embedded boot graph via a second target-supplied symbol (may differ per target;
@@ -127,14 +163,15 @@ routes, mdns, values/probe, screenshots → nodes.
 
 ## Hard problems
 
-1. **Identity-preserving lowering**: deterministic, emitting app-node-id →
-   execution-node-id maps so state survives re-lowering. Main engineering risk.
-2. **Provenance/detachment semantics**: not merely an editing rule — it is the data
-   model of the whole platform (datasets and derivations, above). Settle it
-   deliberately, before execution graphs become editable and before the first
-   non-graph dataset kind.
+1. **Identity-preserving lowering**: deterministic, emitting route → route maps so
+   state survives re-lowering (= lowering emits stable local names; naming.md).
+   Main engineering risk — and it now also carries projection editing (write-back
+   through the inverse map) and defaults rebasing.
+2. ~~Provenance/detachment semantics~~ RESOLVED 2026-07-02: naming.md is the data
+   model; "Every level editable" above is the editing rule.
 3. **Engine-graph debuggability**: purpose-built probes early; pull-observability is
-   the substrate.
+   the substrate. Stakes raised by self-hosted resolution/repair — the naive
+   resolver stays independently invokable as insurance.
 4. Allocation discipline stands: no resource acquisition in create(); first-tick
    lazy init; fail loud without context.
 

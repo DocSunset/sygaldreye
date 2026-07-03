@@ -39,6 +39,22 @@ require modularity and separation of concerns; the usual reusable,
 maintainable, flexible, changeable design virtues. Prefer composition of
 existing nodes over a new primitive.
 
+## The deeper foundation (2026-07-02)
+
+> **Sygaldreye is a protocol for encoding recursive metadata and decoding data
+> to derive other data — grounded in stage 0, paced by executors, shared by a
+> mesh, terminating in someone's senses.** (2026-07-03)
+
+The graph was never the fundamental object — a **dataset** is; a graph is a
+dataset an executor can run, and a dataset is a node. Compilation, freezing,
+analysis, recording, ML training are all *derivations*; every derivation chain
+bottoms out in *captures* (testimony from the world). This grounds two horizons
+beyond VR patching: **Rhizome** — the all-media hypermedium — is this data model's
+document layer (a document is a graph; transclusion is a link; see
+planning/rhizome.md), and at full scale the system is web-shaped: a declarative
+sandbox (advertisement), packages that are provenance closures, links that
+survive editing. Detail: ADR-006…012.
+
 ## Guiding principles
 
 - **Express almost everything through the graph engine.** Core

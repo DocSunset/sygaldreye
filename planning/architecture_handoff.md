@@ -1,5 +1,12 @@
 # Architecture planning handoff
 
+> **RESOLVED 2026-07-02** — the planning session this document convened has run.
+> Outcomes: ADR-006…012 in adr.md; planning/naming.md and planning/trust.md (new);
+> planning/datasets.md rewritten; planning/bootloader.md revised (detachment
+> resolved, extension points = ports, naive resolver in stage 0);
+> planning/rhizome.md (sygaldreye subsumes the rhizome project). Open questions
+> 1–6 below are closed; 7–8 remain engineering discipline. Kept for the record.
+
 Written 2026-07-02 at the end of a design session that began as "assess migrating to a
 self-bootstrapping graph executor" and converged on a far-reaching architecture for the
 whole system. This document is the entry point for a dedicated architectural planning

@@ -62,7 +62,10 @@ Inference rules:
 
 Auto-inserted by the executor at inferred boundaries, BUT always visible
 in the editor and replaceable by the user (this is where we beat Max:
-the boundary is reified as a patchable node, not hidden):
+the boundary is reified as a patchable node, not hidden). Precise
+semantics of "replaceable" (ratified 2026-07-02, ADR-011): lowering
+inserts the default only where no mapping already sits; replacing one in
+a lowered view writes back through the route map as an app-graph edit:
 
 | boundary | mapping | semantics |
 |---|---|---|
