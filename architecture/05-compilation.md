@@ -97,12 +97,12 @@ stage-0 extraction → declare extension ports → XR package → web → factor
 
 ## Freezing (FRZ)
 
-Freezing is a derivation whose output kind is C++ — proposed framing (pending
-ratification): a **backend of realization**. The engine pipeline ends in
-realize with two backends: *interpret* (instantiate natives + plan) and
-*codegen* (emit a fused, portable, typed C++ class). Same passes, same
-compilation map, same provenance shape. Ratified substance (2026-06-12 card +
-2026-07-03 amendments):
+Freezing is a derivation whose output kind is C++ — ratified (ADR-014): a
+**backend of realization**. The engine pipeline ends in realize with two
+backends: *interpret* (instantiate natives + plan) and *codegen* (emit a
+fused, portable, typed C++ class). Same passes, same compilation map, same
+provenance shape — one compilation model, never two. Ratified substance
+(2026-06-12 card + 2026-07-03 amendments):
 
 - **Codegen, not constexpr**: the generator emits plain typed C++ (identical
   optimizer visibility, sane compile times, readable errors, no compile-time

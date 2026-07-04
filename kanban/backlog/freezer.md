@@ -4,7 +4,7 @@
 > "carries source JSON" doctrine, now free); freeze-as-a-service = capability
 > placement fallthrough; per-sample feedback is now the INTERPRETER's default
 > too (ADR-013) — the freezer is a pure optimizer, never a semantics change;
-> "backend of compilation" framing proposed (see architecture/05). Trigger
+> freezing is a backend of realization (ADR-014, ratified). Trigger
 > status: v6 ✓, spans/conformability ✓, values map dead ✗.
 
 Revives phase 9 (freeze_graph.py / compile_frozen.py / ABI provenance
