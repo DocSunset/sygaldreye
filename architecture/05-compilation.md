@@ -95,6 +95,60 @@ stage-0 extraction → declare extension ports → XR package → web → factor
 - CMP-8.1: after step 2, behavior is bit-identical to the pre-tower system on
   the full existing test suite (semantically the current system, new shape).
 
+## Freezing (FRZ)
+
+Freezing is a derivation whose output kind is C++ — proposed framing (pending
+ratification): a **backend of realization**. The engine pipeline ends in
+realize with two backends: *interpret* (instantiate natives + plan) and
+*codegen* (emit a fused, portable, typed C++ class). Same passes, same
+compilation map, same provenance shape. Ratified substance (2026-06-12 card +
+2026-07-03 amendments):
+
+- **Codegen, not constexpr**: the generator emits plain typed C++ (identical
+  optimizer visibility, sane compile times, readable errors, no compile-time
+  registry fighting the plugin system).
+- **Pure optimizer (ADR-013)**: per-sample islands are the interpreter's
+  semantics too; freezing fuses them to loop-carried variables — cost
+  changes, sound never does.
+- **Portable-component-first**: the primary artifact is a plain C++ class —
+  POD endpoint structs, simple tick(), dependency closure = kernel headers
+  only; packagings are (a) plugin .so / WASM side module, (b) firmware
+  scaffold, (c) Sygaldry-component adapter. Freeze-time baking: channel
+  counts, rates, block size, subgraph composition become static.
+- **Tiers are computed** from the dependency closure of natives used
+  (a provenance query, surfaced in the editor): tier 1 freestanding (MCUs,
+  anywhere C++ runs) · tier 2 platform-lib (GLES/audio hosts) · tier 3
+  host-bound. A tier-1-plus-net artifact is a **frozen peer** — a
+  microcontroller advertising a fixed vocabulary (naming pending).
+- **Freeze is a node** on the worker region; peers without toolchains use a
+  peer that advertises it (capability placement fallthrough); the artifact
+  returns by hash through the plugin gate (MSH-5) with recipe provenance —
+  the canonical trusted plugin. Unfreezing = reading provenance. Frozen
+  programs bypass the bootloader; stage 0 is ultimately the freezer applied
+  to the boot graph (SZ-4's far end).
+
+**FRZ-1 (round-trip).** freeze(graph, target) → artifact with recipe
+provenance; unfreeze recovers the editable source graph.
+- FRZ-1.1: A/B chime interpreted-vs-frozen: spectrogram diff ≈ 0; block-time
+  stat shows the speedup; hot-reload swaps it live.
+- FRZ-1.2: unfreeze(artifact) yields the source graph hash; re-freezing is a
+  memo hit.
+
+**FRZ-2 (tier computation).** Tier is derived per subgraph from native
+closure and shown in the editor.
+- FRZ-2.1: hello-cosine's block region reports tier 1; add a tmux node and
+  the enclosing graph reports tier 3 with the culprit named.
+
+**FRZ-3 (freestanding proof).** Tier-1 artifacts compile
+`-ffreestanding` with no OS symbols.
+- FRZ-3.1: arm-none-eabi build of frozen chime links clean (long before real
+  hardware).
+
+**FRZ-4 (service).** Freezing places onto a toolchain-advertising peer and
+returns by hash under the plugin gate.
+- FRZ-4.1: Quest wires a graph to the remote freeze node; the signed .so
+  arrives and hot-loads (MSH-5.1's flow, provenance-chained to the graph).
+
 ## Worked example (test seed)
 
 The projection-editing loop as one scripted test: compile hello-cosine →

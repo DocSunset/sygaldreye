@@ -53,3 +53,7 @@ Realized views write back through the compilation's inverse route map; compilati
 ## ADR-012: Sygaldreye subsumes Rhizome
 
 A rhizome entity is a dataset is a node; transclusion is an address-valued link; the "proposed program to render" is a declinable graph run in the reader's sandbox. The rhizome/astui project is an abandoned design probe; its durable context lives in planning/rhizome.md.
+
+## ADR-013: Feedback is one sample by default; cycles are per-sample islands
+
+Within a region, the default z⁻¹ delays ONE SAMPLE. The interpreter executes each cycle (strongly-connected island) sample-interleaved — per-sample kernels ticked once around the loop per sample (Pd `block~ 1`, scoped automatically to the island); feedforward stretches keep fused per-node block loops. Freezing fuses islands to loop-carried variables: a pure optimizer, identical semantics (upholds L7 "format is law"). Opting out is wiring: an explicit block-sized delay in the loop breaks the island. A cycle through a block-override node (FFT-shaped work) forces an explicit block delay at that edge, loudly, at edit time. Islands render visibly in the editor (cost transparency). Ratified 2026-07-03; enabled by the kernel-extraction discipline. Supersedes block-granular cycle delay.

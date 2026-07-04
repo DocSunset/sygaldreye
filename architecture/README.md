@@ -19,6 +19,13 @@ automated tests.
 | 8. Mesh & trust (MSH) | 08-mesh-trust.md |
 | 9. Editor & documents (EDR) | 09-editor-documents.md |
 | 10. The Law (needs N1–N8, laws L1–L17, traceability) | 10-laws.md |
+| 11. The language core (LNG) | 11-language-core.md |
+| 12. Node authoring & conformability (AUT) | 12-authoring-conformability.md |
+
+(Chs. 11–12 and ch. 5's FRZ section added 2026-07-03 after the coverage
+audit: the book covers everything that is part of the graph language, not
+every node. Freezing requirements live in ch. 5; per-sample feedback islands
+are ADR-013, in ch. 4.)
 
 Reading order: 0 → 1 → your part → 10. The running example everywhere is
 **hello-cosine** (defined in ch. 1 §2). Sources of truth this book distills:

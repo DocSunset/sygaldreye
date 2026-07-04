@@ -182,6 +182,23 @@ Association, requirement → laws → needs:
 | MSH-6 | L17, L5 | N8, N5 |
 | MSH-7 | L15 | N3, N7 |
 | MSH-8 | L15, L17 | N8, N7 |
+| EXE-10 | L7, L8 | N6, N2 |
+| FRZ-1 | L4, L7 | N5, N6 |
+| FRZ-2 | L4 | N6, N2 |
+| FRZ-3 | L7 | N6 |
+| FRZ-4 | L15, L16 | N3, N8 |
+| LNG-1, LNG-2 | L1, L3 | N2, N6 |
+| LNG-3 | L8 | N6, N2 |
+| LNG-4 | L1, L13 | N2, N5 |
+| LNG-5 | L8, L13 | N1, N4, N5 |
+| LNG-6 | L1, L10 | N2 |
+| LNG-7 | L9 | N2, N6 |
+| LNG-8 | L7 | N5, N6 |
+| LNG-9 | L8 | N1 (open) |
+| AUT-1, AUT-2 | L7, L9 | N6 |
+| AUT-3 | L3, L7 | N2, N6 |
+| AUT-4 | L12 | N1, N2 |
+| AUT-5 | L1, L16 | N2, N4 |
 | EDR-1 | L1, L8 | N2, N1 |
 | EDR-2, EDR-3 | L2, L13 | N5, N1 |
 | EDR-4 | L13 | N1 |
@@ -262,6 +279,29 @@ Every item is a consequence of the machinery in chapters 2–9, cited.
 - Agents can't hear or see the room, so the system shows them: probes,
   values, screenshots, spectrograms on any edge, without disturbing the
   patch (EDR-8).
+
+**Sound design without asterisks**
+
+- Feedback is one sample by default: Karplus-Strong, feedback FM, and
+  filters-in-loops just work, live and interpreted; freezing only makes them
+  cheap (EXE-10, FRZ-1). Explicit delays opt out — the choice is wiring.
+- Polyphony is a channel count: wire a span of frequencies into one osc and
+  get N keyed voices, no voice-manager node, identity preserved through
+  resize (LNG-2, AUT-4).
+- Freeze any patch to a portable C++ class — a plugin, a firmware image, an
+  embedded instrument authored in VR — and unfreeze it back to the editable
+  graph; a microcontroller running one can stay a peer, advertising its
+  nodes to the mesh (FRZ-1–4).
+
+**Horizons (validation targets, not requirements — the kind system must not
+preclude them)**
+
+- An additive synthesizer whose partials are a dataset driving an oscillator
+  pipeline; atomic-decomposition analysis-resynthesis; a video
+  editor-compositor; projection mapping; an ML workbench where a model
+  carries provenance to its training set (ADR-006's five applications).
+- The companion and spectator apps as *just more subgraphs* — expressed
+  through, and hackable via, the same graph model (vision.md).
 
 **A medium, not just an app**
 

@@ -1,5 +1,12 @@
 # The freezer: graph JSON → optimized, portable, typed C++ (ratified 2026-06-12)
 
+> 2026-07-03 amendments: freeze is a DERIVATION (recipe provenance = the
+> "carries source JSON" doctrine, now free); freeze-as-a-service = capability
+> placement fallthrough; per-sample feedback is now the INTERPRETER's default
+> too (ADR-013) — the freezer is a pure optimizer, never a semantics change;
+> "backend of compilation" framing proposed (see architecture/05). Trigger
+> status: v6 ✓, spans/conformability ✓, values map dead ✗.
+
 Revives phase 9 (freeze_graph.py / compile_frozen.py / ABI provenance
 fields) with four ratified decisions from the design conversation.
 

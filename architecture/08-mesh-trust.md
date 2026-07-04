@@ -73,6 +73,8 @@ dlopen/side-module load.
   logged. Sign it with a paired key whose policy is accepted: loads
   hot (existing dlopen hot-reload machinery), and its provenance (source
   dataset, toolchain) is queryable.
+- MSH-5.2: the browser peer's plugin form is a WASM side module over the
+  same channel and gate; the policy check is form-agnostic.
 
 **MSH-6 (capture testimony keys).** Every capture's testimony carries the
 capturing peer's public key; verification is signature-checking, not trust.

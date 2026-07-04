@@ -69,7 +69,7 @@ a lowered view writes back through the route map as an app-graph edit:
 
 | boundary | mapping | semantics |
 |---|---|---|
-| cycle (any rate) | `z⁻¹` | unit delay. The certified feedback behavior (one-tick delay) IS this mapping; the old cycle-cut "edge" was never a true edge. |
+| cycle (any rate) | `z⁻¹` | unit delay. The certified feedback behavior IS this mapping; the old cycle-cut "edge" was never a true edge. AMENDED by ADR-013 (2026-07-03): within a region the unit is ONE SAMPLE — cycles execute as per-sample islands in the interpreter; an explicit block delay in the loop opts out. |
 | frame → block | `latch` | value captured at block boundary |
 | block → frame | `snapshot` | last completed block's value |
 | event across threads | `queue` | MPSC, never drops (fixes palette-press loss, kills take_edit()) |

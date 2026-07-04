@@ -27,6 +27,27 @@ rate, recomputed on every edit; a node's region is the strictest rate among
 its ports; declaring both audio and draw_call ports on one node type is a
 type error (the type system enforces decomposition).
 
+**Region machinery.** Block membership = dacs plus their upstream closure
+through audio edges (a node with audio in but no audio out — a spectrogram —
+stays frame-side by design); block instances are excluded from the frame
+plan. With no device, `pump_offline` drives blocks from the frame region —
+headless peers keep computing. Some kinds pin regions as well as rates
+(texture/draw_call pin render — the GL context; audio pins the audio thread).
+Cross-region state is carried only by mappings; within a region, appliers run
+before process() in topological order, so an event reaches a downstream node
+in the same tick — which is why a linear event chain is a legal ordering
+declaration (order is wiring).
+
+**Per-sample islands (ADR-013).** Within a region, the default z⁻¹ delays ONE
+SAMPLE. The planner detects each cycle (strongly-connected island) and
+executes it sample-interleaved: per-sample kernels ticked once around the
+loop per sample; feedforward stretches keep fused per-node block loops.
+Freezing fuses islands to loop-carried variables — a pure optimizer,
+identical semantics. Opting out is wiring (an explicit block-sized delay
+breaks the island); a cycle through a block-override node forces an explicit
+block delay at that edge, loudly, at edit time. Islands are rendered visibly
+in the editor, like regions (cost transparency).
+
 **Mappings are visible.** Compilation inserts canonical mappings at inferred
 boundaries — z⁻¹ (cycle), latch (frame→block), snapshot (block→frame), queue
 (event cross-thread, never drops), ring (stream cross-thread), net (cross-
@@ -108,6 +129,20 @@ editor's view and replaceable; replacement writes back per CMP-4.
 them and collected when unlinked; no other lifecycle API.
 - EXE-9.1: removing lfo0 and edge 1 in one edit op collects lfo0's state;
   undo restores it (from the structural snapshot, not the live cell).
+
+**EXE-10 (per-sample islands, ADR-013).** Cycle detection per edit;
+sample-interleaved execution of islands; explicit block delay opts out;
+block-override membership rejected at edit time with a forced explicit delay.
+- EXE-10.1: a one-node Karplus-Strong loop (delay-line kernel + damping,
+  fed back) sounds correct interpreted: pitch matches 1-sample feedback
+  math, not block-delayed math.
+- EXE-10.2: inserting an explicit block-sized delay into the loop reverts
+  the island to block execution (observable: per-callback kernel-call count
+  drops to per-node-per-block).
+- EXE-10.3: wiring a spectrogram (block-override) into a cycle yields an
+  edit-time error naming the edge that needs an explicit delay.
+- EXE-10.4: frozen vs interpreted render of the same feedback patch:
+  spectrogram diff ≈ 0 (the freezer changed cost, not sound).
 
 ## Worked example (test seed)
 
