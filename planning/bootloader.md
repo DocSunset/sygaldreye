@@ -50,18 +50,18 @@ graphs are themselves defined/compiled/realized: a reflective tower.
 All graphs are runtime-editable, including realized artifacts. Every realized graph
 carries **provenance** to its definition (freezer doctrine). The round-trip
 semantic, final form, one breath: **realized views are editing surfaces that write
-back through the route map; lowering inserts defaults only where absent;
+back through the route map; compilation inserts defaults only where absent;
 conditional behavior is a pass; refusing write-back is a fork.**
 
 - A mapping is just a node; an app graph may contain e.g. a custom smoother
-  explicitly, and lowering inserts its default boundary mapping **only where no
+  explicitly, and compilation inserts its default boundary mapping **only where no
   mapping already sits** (the precise meaning of edge_executor's "replaceable by
   the user").
-- Editing the *lowered view* is projection editing (the spreadsheet principle):
-  the editor translates the edit through the inverse lowering route map into an
+- Editing the *realized view* is projection editing (the spreadsheet principle):
+  the editor translates the edit through the compilation's inverse route map into an
   app-graph edit. No override/patch dataset — that would be a second place where
   definition lives, and it would drift.
-- Genuinely conditional-on-lowering desires ("only when this boundary lands
+- Genuinely conditional-on-compilation desires ("only when this boundary lands
   cross-thread") are the definition of a **pass** — usually a tiny one, spliced
   like any capability-package pass. Promotion to a pass is always a deliberate
   authoring act, never automatic.
@@ -71,7 +71,7 @@ conditional behavior is a pass; refusing write-back is a fork.**
   recorded rebind (naming.md). Degenerate case: a graph with no upstream
   definition is an app graph whose compilation is identity.
 - Param/default writes are NOT this problem: they edit the persisted defaults
-  node (datasets.md "composite node"), no lowering involved.
+  node (datasets.md "composite node"), no compilation involved.
 
 ## Spawn and exec: one primitive, two call sites
 
@@ -111,9 +111,10 @@ ports" is migration-slice-5 interface design, no longer an architecture question
 
 **Capability-driven placement**: when a package is absent locally, realization can
 place that region on a remote peer advertising the capability — net adapters and
-remote-peer machinery already exist. Quest lowers its worker region onto the Linux
-peer; a browser peer lowers XR remotely and becomes a spectator. Cross-network
-placement is a fallthrough case of lowering, not a feature.
+remote-peer machinery already exist. Quest's worker region is compiled onto the
+Linux peer; a browser peer's XR region compiles onto a remote peer and the browser
+becomes a spectator. Cross-network placement is a fallthrough case of compilation,
+not a feature.
 
 ## Stage 0 — the native kernel
 
@@ -155,7 +156,7 @@ Not in stage 0: HTTP, files, GL/XR/audio, selection logic, region rules.
 Stage 0 ticks the boot graph → spawns the engine graph and parks as fallback →
 engine graph observes environment, splices available capability packages, receives
 app graphs from instruction sources (cli_args stash, http_server, ws/peer links,
-embedded constant), lowers, realizes. Edits arrive at any level; provenance decides
+embedded constant), compiles, realizes. Edits arrive at any level; provenance decides
 propagation; slot-swap+migrate carries state.
 
 PeerCore dissolves: registry → stage 0; swap/migrate/queues → slot machinery; HTTP
@@ -163,8 +164,9 @@ routes, mdns, values/probe, screenshots → nodes.
 
 ## Hard problems
 
-1. **Identity-preserving lowering**: deterministic, emitting route → route maps so
-   state survives re-lowering (= lowering emits stable local names; naming.md).
+1. **Identity-preserving compilation**: deterministic, emitting route → route maps
+   so state survives re-compilation (= compilation emits stable local names;
+   naming.md).
    Main engineering risk — and it now also carries projection editing (write-back
    through the inverse map) and defaults rebasing.
 2. ~~Provenance/detachment semantics~~ RESOLVED 2026-07-02: naming.md is the data
@@ -178,8 +180,8 @@ routes, mdns, values/probe, screenshots → nodes.
 ## Migration path (strangler pattern — unchanged by the vision, by design)
 
 1. Generated per-target registration TU (kills the three hand lists: 106/92/41).
-2. Wrap existing C++ build_plan as a single `lower` node; initial engine graph =
-   receive → lower → realize. Semantically the current system in the new shape.
+2. Wrap existing C++ build_plan as a single `compile` node; initial engine graph =
+   receive → compile → realize. Semantically the current system in the new shape.
 3. Retrofit AudioRegion as the first capability package (vocabulary: dac/adc;
    passes: today's inference; machinery: existing thread/device code). No XR risk.
 4. Stage-0 extraction from PeerCore + trampolines; host first.
@@ -188,7 +190,7 @@ routes, mdns, values/probe, screenshots → nodes.
    Renderer/EglContext/EyeSwapchain; input via the xr contract (delete
    pump_xr_sources); retire Scene; mdns/http as nodes.
 7. Web onto the same bootloader.
-8. Factor passes out of the `lower` monolith into engine-graph vocabulary; decide
+8. Factor passes out of the `compile` monolith into engine-graph vocabulary; decide
    provenance/detachment before opening execution graphs to the editor.
 
 ---
@@ -225,7 +227,7 @@ plugin scan, XR pose pumping) wired outside the graph.
 - Registration/probing → generated TU stands; per-platform boot graphs acceptable;
   portability lives in the engine graph.
 - Containment vs inference → false dichotomy: inference is the app-graph view,
-  containment the execution-graph view; lowering maps them.
+  containment the execution-graph view; compilation maps them.
 - Resource ordering → containment orders execution; allocation discipline remains.
 - Spawn vs exec → both, one primitive; stage 0 always spawn+resident.
 - Frozen programs: freezing is the extreme point of the same spectrum — realization

@@ -57,11 +57,11 @@ The naive resolver stays independently invokable forever (debuggability insuranc
 | **ref** | one binding: local name → hash. Its trail of past hashes is undo/history. |
 | **transclusion / input link** | an input whose value is an address (fixed = quotation, live = subscription). |
 | **provenance** | hashes only — testimony may not shift under you. |
-| **lowering map** | route → route (app instance → execution instance); state migration re-binds along it. |
+| **compilation map** | route → route (app instance → execution instance); state migration re-binds along it. |
 | **detachment** | a ref that stops tracking a derivation's output; fork = rebind, an ordinary loggable edit. |
 
 Routes are keyed by local names, never positions or byte offsets — that is what
-makes them edit-stable. Deterministic lowering = lowering that emits stable local
+makes them edit-stable. Deterministic compilation = compilation that emits stable local
 names (the lift machinery's "key by cell value, else index", stated generally).
 Standalone nodes (a word, a concept) may have no containment route; routes are
 *an* address, not identity.

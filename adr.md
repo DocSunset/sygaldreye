@@ -48,7 +48,7 @@ A capability-package splice is a derivation over the engine graph, but the well-
 
 ## ADR-011: Detachment — realized views are editing surfaces
 
-Realized views write back through the inverse lowering route map; lowering inserts default mappings only where none sits; conditional-on-lowering behavior is a (deliberate) pass; refusing write-back is a fork (a recorded ref rebind). No override/patch shadow dataset. A graph is a composite node (topology + defaults); presets are defaults nodes.
+Realized views write back through the compilation's inverse route map; compilation inserts default mappings only where none sits; conditional-on-compilation behavior is a (deliberate) pass; refusing write-back is a fork (a recorded ref rebind). No override/patch shadow dataset. A graph is a composite node (topology + defaults); presets are defaults nodes.
 
 ## ADR-012: Sygaldreye subsumes Rhizome
 

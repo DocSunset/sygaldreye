@@ -43,7 +43,12 @@ Roles:       instance · state   (ratified 2026-07-03 — role words, not
              uncommitted derivations — space and time; commit turns either
              into a dataset.)
 Data:        dataset · kind · provenance · capture · commit · fork · store
-Execution:   executor · region · rate · mapping · lowering · pass · migration
+Execution:   executor · region · rate · mapping · compile · pass · migration
+             ("compile" ratified 2026-07-03, replacing "lowering" — compiler
+             jargon that clashed with the codebase's load-bearing "lifting".
+             Convention: unqualified compile = graph compilation by an engine
+             graph; toolchain use always qualified (cross-compile, C++ compile).
+             "elaborate" available as unratified prose.)
 Mesh:        peer · mesh · advertisement · capability package
 Ground:      native · ground
 
