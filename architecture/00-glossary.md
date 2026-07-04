@@ -219,6 +219,17 @@ provenance for unfreezing. Freezing bypasses the bootloader by design.
 
 ## Ground and bootstrap
 
+**machinery** — the compiled substance that realizes function without itself
+being addressable in the graph: the interior of a node, executor, or package —
+the audio device code behind dac, the object directory behind the store, the
+thread and callback inside an executor, the trap handler inside a supervisor,
+all of stage 0. The law: machinery may have ANY interior, but its every
+interface is a link — invisibility is bought with interface discipline. Test:
+if it has a route or a hash, it's a node, not machinery (a .so at rest is a
+dataset; loaded and running, it is machinery). Machinery is what the ontology
+delegates to physics — it is where every ground lives operationally, and it is
+the one thing in the system that is neither data nor a role.
+
 **ground** — the role of being where a regress stops, by fiat or testimony.
 The pattern appears five times: sacred vocabulary grounds meaning; captures
 ground provenance; natives ground behavior; stage 0 grounds the tower; the

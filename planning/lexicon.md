@@ -51,7 +51,15 @@ Execution:   executor · region · rate · mapping · compile · pass · migrati
              graph; toolchain use always qualified (cross-compile, C++ compile).
              "elaborate" available as unratified prose.)
 Mesh:        peer · mesh · advertisement · capability package
-Ground:      native · ground
+Ground:      native · ground · machinery
+             (machinery ratified 2026-07-04: the compiled substance that
+             realizes function without being addressable — the interior of a
+             node/executor/package, reachable only through links, never named,
+             never wired. The law: machinery may have ANY interior; its every
+             interface is a link. Test: if it has a route or hash, it is not
+             machinery, it is a node — at rest machine code is data; running,
+             it is machinery. Machinery is what the ontology delegates to
+             physics; the ground lives there operationally.)
 
 ## Tempting but derived (named by definition when needed, not ratified as primitive)
 
