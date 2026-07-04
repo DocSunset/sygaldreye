@@ -302,6 +302,24 @@ preclude them)**
   carries provenance to its training set (ADR-006's five applications).
 - The companion and spectator apps as *just more subgraphs* — expressed
   through, and hackable via, the same graph model (vision.md).
+- The brainstormed application space (`kanban/applications/`, 2026-06),
+  whose uniting thread is **closing the research–application gap**: a paper,
+  model, dataset, or algorithm authored, explored, and shipped as an
+  interactive thing in one medium — research artifact and app are the same
+  patch. The notes, each riding machinery this book specifies:
+  *musical instruments* (VR lutherie on the audio substrate; EXE, ADR-013) ·
+  *game engine* and *physics sandbox* (the patch is the game / the physics
+  is the content) · *CAD, sculpting + slicer* and *3D scanner + LLM model
+  viewer* (scan → sculpt → print; geometry as wirable content; agents
+  seeing models via EDR-8-style rendered views) · *robotics firmware, 3D
+  printers* and *robot gardening* (one medium from motor loops to behavior —
+  frozen peers, FRZ, are the firmware story) · *home automation* (devices
+  and sensors as edges; the mesh reaching the house) · *ML authoring
+  environment* ("Wekinator 2026": hand-author interpretable layers, tweak
+  live, train as derivations) · *code/document explorer + hypertext editor*
+  and *web UI/hypertext content* (the rhizome layer's reading and authoring
+  faces; EDR-6) · *social appliverse* (patches as places people inhabit
+  together — MSH-8's graded circles grown up).
 
 **A medium, not just an app**
 
