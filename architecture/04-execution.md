@@ -22,6 +22,28 @@ worker (may block), net (transport pace). Two pipeline modes on the same
 executors: streaming (live tick) and derivation (run-to-completion with
 provenance recording — the worker region is the build system).
 
+**Rate-keyed semantics (ADR-015).** Event ports push (must-not-drop,
+same-tick topological propagation in-region, queues across threads). Value
+ports are dirty-push + demand-pull: writes propagate staleness; executors,
+probes, and derivations demand values; static subgraphs quiesce — lazy but
+never stale. Stream ports run clocked, always-hot, dirty-exempt. Clocks are
+inputs: time-dependent nodes wire to their executor's published clock, so
+"always dirty" is visible dataflow. Effects live in executors and sinks; a
+node with no demanded output and no clock input is provably inert (edit-time
+lint). This dissolves hot/cold-inlet conventions and trigger-object
+sequencing into the type system and order-is-wiring.
+
+**EXE-11 (quiescence & demand, ADR-015).**
+- EXE-11.1: a static scene (no clock-wired nodes, no incoming events)
+  performs zero node recomputations across 10³ frames while still
+  presenting (the plan replays cached draw state).
+- EXE-11.2: one param write recomputes exactly the dirty downstream cone,
+  nothing else (counter per node).
+- EXE-11.3: the inert-node lint flags a node with no demanded output and no
+  clock input at edit time.
+- EXE-11.4: event delivery is unaffected by quiescence: a bang into a
+  quiesced subgraph wakes exactly its cone, same-tick semantics preserved.
+
 **Regions are inferred, never declared** — connected components quotiented by
 rate, recomputed on every edit; a node's region is the strictest rate among
 its ports; declaring both audio and draw_call ports on one node type is a

@@ -183,6 +183,7 @@ Association, requirement → laws → needs:
 | MSH-7 | L15 | N3, N7 |
 | MSH-8 | L15, L17 | N8, N7 |
 | EXE-10 | L7, L8 | N6, N2 |
+| EXE-11 | L8, L9 | N6, N2 |
 | FRZ-1 | L4, L7 | N5, N6 |
 | FRZ-2 | L4 | N6, N2 |
 | FRZ-3 | L7 | N6 |
