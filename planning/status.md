@@ -2,6 +2,17 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-07-03 — The Architecture Book (architecture/)
+
+Eleven chapters distilling the ratified design for implementers and builder
+agents: glossary (full definitions for the lexicon), overview (hello-cosine as
+the running example), eight part chapters with enumerated requirements +
+acceptance criteria written to become automated tests (prefixes NAM/STO/EXE/
+CMP/SZ/PKG/MSH/EDR), and ch. 10 "The Law" — needs N1–N8, laws L1–L17,
+protocols, and the full requirement→law→need traceability table. Lexicon now
+points to the glossary for definitions. Where book and planning docs disagree:
+lexicon + adr.md govern.
+
 ## 2026-07-03 — Terminology session: the ontology reaches its floor
 
 `planning/lexicon.md` (NEW) — ratified concepts, definitions pending, organized

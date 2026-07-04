@@ -1,8 +1,9 @@
 # Lexicon — ratified concepts
 
 Status: inventory opened 2026-07-03 (terminology-alignment session). These names
-are **ratified as concepts; definitions deliberately pending.** One name per
-concept, one concept per name; when a definition lands it lands here.
+are **ratified as concepts.** One name per concept, one concept per name. This
+file remains the ratification LEDGER; full definitions with worked examples
+live in `architecture/00-glossary.md` (written 2026-07-03).
 
 ## Organizing principle: form vs function (Kevin Austin, via Travis 2026-07-03)
 
