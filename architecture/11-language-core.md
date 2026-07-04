@@ -138,6 +138,20 @@ surface; derived structure never persists.
 can flow as events; until ratified, text inlets are persistence-only and
 this requirement gates the seq-bump retirement.
 
+**LNG-10 (query vocabulary — core, ADR-024).** traverse, filter, join,
+fixpoint are core node types; queries run as derivations (memoized index
+datasets) or standing reactive values (incrementally maintained under
+ADR-015).
+- LNG-10.1: "takes whose lineage includes CID_osc-type" wired from the four
+  primitives returns the expected set over a seeded store corpus; re-running
+  is a memo hit.
+- LNG-10.2: the standing form updates within one demand cycle of a new
+  qualifying commit, and recomputes only its dirty cone (counter).
+- LNG-10.3: fixpoint over a cyclic link structure terminates (visited-set
+  semantics) — no query can hang the store.
+- LNG-10.4: the palette and the back-link index are expressed as queries
+  (no bespoke search code paths).
+
 ## Worked example (test seed)
 
 A polyphonic hello-cosine without new machinery: wire an 8×1 span of

@@ -196,6 +196,7 @@ Association, requirement → laws → needs:
 | LNG-7 | L9 | N2, N6 |
 | LNG-8 | L7 | N5, N6 |
 | LNG-9 | L8 | N1 (open) |
+| LNG-10 | L1, L8 | N2, N5, N7 |
 | AUT-1, AUT-2 | L7, L9 | N6 |
 | AUT-3 | L3, L7 | N2, N6 |
 | AUT-4 | L12 | N1, N2 |
