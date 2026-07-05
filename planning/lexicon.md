@@ -52,6 +52,12 @@ Execution:   executor · region · rate · mapping · compile · pass · migrati
              "elaborate" available as unratified prose.)
 Mesh:        peer · mesh · advertisement · capability package
 Ground:      native · ground · machinery
+Horology:    escapement · movement · crown · complication
+             (ratified 2026-07-04, ADR-028: escapement = node contract +
+             tick-in-order, the unconditional substrate; movement = a frozen
+             realized graph; crown = mutable plan + op applier + op inlet,
+             the minimal self-modification; complication = everything else,
+             including the liveness organs — present only by choice.)
              (machinery ratified 2026-07-04: the compiled substance that
              realizes function without being addressable — the interior of a
              node/executor/package, reachable only through links, never named,
