@@ -724,6 +724,9 @@ TESTS = {
     "LNG-7.1": lng71_context_two_levels_deep,
     "LNG-9": lng9_text_events_still_open,
     "TCF-1": tcf1_mapping_guarantees,
+    # AUT joined the manifest 2026-07-05 (extractor prefix gap)
+    "AUT-4.1": None,
+    "AUT-4.2": None,
     "TCF-2": tcf2_swaps_under_load,
     "TCF-3": tcf3_clock_honesty,
     "TCF-4": tcf4_fault_matrix,

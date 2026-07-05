@@ -13,7 +13,7 @@ BOOK = pathlib.Path(__file__).resolve().parent.parent / "architecture"
 # Build-rung assignment (Appendix A). Default by prefix; overrides by id.
 RUNG_BY_PREFIX = {
     "FMT": 1, "NAM": 1,
-    "COR": 2, "ABI": 2,
+    "COR": 2, "ABI": 2, "AUT": 2,
     "SZ": 4, "LNG": 5, "EXE": 5, "TCF": 5,
     "STO": 6, "CMP": 7, "FRZ": 8, "PKG": 8,
     "MSH": 9, "EDR": 11, "CNF": 12,
@@ -22,6 +22,11 @@ RUNG_OVERRIDES = {
     "COR-2": 3, "COR-4": 12, "FMT-3": 3, "FMT-4": 9,
     "SZ-6": 2, "SZ-1": 2, "EXE-5": 4, "LNG-8": 4, "LNG-10": 6,
     "ABI-4": 9, "ABI-5": 10, "STO-4": 6, "CMP-8": None,  # retired tombstone
+    "LNG-11": 7,  # ADR-034: the structured lane is rung 7's opening move
+    # AUT was missing from the prefix map — ch. 12 was silently absent from
+    # the manifest (found 2026-07-05). Kernels/generator bind at rung 2,
+    # lifting at rung 5, shells-over-ugens and the four routes at rung 8.
+    "AUT-2": 8, "AUT-4": 5, "AUT-5": 8,
 }
 
 req_pat = re.compile(r"\*\*([A-Z]{2,3}-\d+)(?:\s*\(([^)]*)\))?\.?\*\*\s*(.*)")

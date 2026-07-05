@@ -176,6 +176,7 @@ Association, requirement to laws to needs:
 | CMP-6 | L11 | N6 |
 | CMP-7 | L12 | N1 |
 | CMP-8 | L7, L11 | N6 |
+| CMP-9 | L11, L14 | N1, N2 |
 | SZ-1, SZ-6 | L11 | N2, N6 |
 | SZ-2 | L6, L15 | N2, N8 |
 | SZ-3 | L6 | N6, N5 |
@@ -210,6 +211,7 @@ Association, requirement to laws to needs:
 | LNG-8 | L7 | N5, N6 |
 | LNG-9 | L8 | N1 (open) |
 | LNG-10 | L1, L8 | N2, N5, N7 |
+| LNG-11 | L1, L3, L7 | N1, N2, N4 |
 | AUT-1, AUT-2 | L7, L9 | N6 |
 | AUT-3 | L3, L7 | N2, N6 |
 | AUT-4 | L12 | N1, N2 |

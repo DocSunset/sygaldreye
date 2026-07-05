@@ -47,6 +47,11 @@ rungs. Do not start rung N+1 while rung N's gate is unmet.
 - Blocking anywhere except the worker region (ADR-016).
 - Skipping the compilation map "for now" (CMP-2; state migration and
   projection editing both die without it).
+- A bespoke evaluator walking graph data — "X is a graph" as decoration
+  while C++ dispatches on type strings (the hollow-engine trap, caught at
+  rung 7). Graphs are REALIZED through the crown/plan (ADR-034); an
+  unavoidable interim walk is `// clause: scaffolding (dissolves:
+  <criterion>)`.
 
 ## Where things are
 

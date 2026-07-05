@@ -45,6 +45,54 @@
   "rung": 10,
   "text": "The same node source builds as"
  },
+ "AUT-1": {
+  "chapter": "12-authoring-conformability.md",
+  "criteria": {
+   "AUT-1.1": "synth_core kernel suite green; a kernel holding wall-clock state",
+   "AUT-1.2": "every kernel ticks correctly at N=1 sample granularity (island"
+  },
+  "name": "kernel contract",
+  "rung": 2,
+  "text": "Kernels are per-sample, absolute-time-free,"
+ },
+ "AUT-2": {
+  "chapter": "12-authoring-conformability.md",
+  "criteria": {
+   "AUT-2.1": "grep gate for raw frame loops in ugens; exceptions annotated.",
+   "AUT-2.2": "ugens test suite unchanged across a stamp refactor (the"
+  },
+  "name": "shell stamps",
+  "rung": 8,
+  "text": "No hand-written block loops outside the documented"
+ },
+ "AUT-3": {
+  "chapter": "12-authoring-conformability.md",
+  "criteria": {
+   "AUT-3.1": "adding a field to an endpoints struct surfaces the port, its promises, and its widget with zero descriptor edits."
+  },
+  "name": "generated descriptors",
+  "rung": 2,
+  "text": "Port declarations, promises, and affordances"
+ },
+ "AUT-4": {
+  "chapter": "12-authoring-conformability.md",
+  "criteria": {
+   "AUT-4.1": "EXE-5.2 (cards by id) and LNG-2.1 (channels by index) both pass;",
+   "AUT-4.2": "a span into a lift-key port does not steal the lift (the"
+  },
+  "name": "lift guarantees",
+  "rung": 5,
+  "text": "Keyed clone state survives reorder/resize/"
+ },
+ "AUT-5": {
+  "chapter": "12-authoring-conformability.md",
+  "criteria": {
+   "AUT-5.1": "hello-cosine's osc swapped for (a) a subgraph osc, (b) a frozen"
+  },
+  "name": "four routes, one registry",
+  "rung": 8,
+  "text": "Native, subgraph, frozen, and plugin"
+ },
  "CMP-1": {
   "chapter": "05-compilation.md",
   "criteria": {
@@ -68,8 +116,8 @@
  "CMP-3": {
   "chapter": "05-compilation.md",
   "criteria": {
-   "CMP-3.1": "with the audio package spliced, the engine graph diff against",
-   "CMP-3.2": "pass execution order equals topological order of the engine patch"
+   "CMP-3.1": "the audio splice lands as ordinary edit ops on the live engine",
+   "CMP-3.2": "pass execution order equals topological order of the engine"
   },
   "name": "extension ports",
   "rung": 7,
@@ -118,6 +166,18 @@
   "name": "RETIRED 2026-07-04",
   "rung": null,
   "text": "The strangler migration path assumed"
+ },
+ "CMP-9": {
+  "chapter": "05-compilation.md",
+  "criteria": {
+   "CMP-9.1": "compiling hello-cosine is observably the engine plan's run:",
+   "CMP-9.2": "an ordinary edit op wiring an additional pass node into a",
+   "CMP-9.3": "a pass authored as a graph dataset (no C++) wired into a fan-in",
+   "CMP-9.4": "the lock is honest (ADR-026): the generator's descriptors commit"
+  },
+  "name": "the engine is realized \u2014 ADR-034",
+  "rung": 7,
+  "text": "The engine graph runs through"
  },
  "CNF-1": {
   "chapter": "17-conformance-evolution.md",
@@ -481,6 +541,18 @@
   "rung": 6,
   "text": "traverse, filter, join,"
  },
+ "LNG-11": {
+  "chapter": "11-language-core.md",
+  "criteria": {
+   "LNG-11.1": "a graph value flows over an edge between two realized instances",
+   "LNG-11.2": "the RT audits (EXE-3.1, NAM-5.4) and golden audio re-run green",
+   "LNG-11.3": "a node emits an edit op as an event payload; wired into another",
+   "LNG-11.4": "the query four run as realized instances exchanging set values"
+  },
+  "name": "structured payloads \u2014 ADR-034",
+  "rung": 7,
+  "text": "The node contract carries"
+ },
  "LNG-2": {
   "chapter": "11-language-core.md",
   "criteria": {
@@ -553,7 +625,7 @@
   "criteria": {},
   "name": "text events \u2014 OPEN",
   "rung": 5,
-  "text": "Design the text event payload so graph edits"
+  "text": "Design the text event payload; until"
  },
  "MSH-1": {
   "chapter": "08-mesh-trust.md",

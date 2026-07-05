@@ -56,11 +56,15 @@ AND identical compilation map.
   scheme) and every app instance appears exactly once.
 
 **CMP-3 (extension ports).** Packages integrate exclusively by wiring into
-published fan-ins in the well-behaved path; the audio package passes this bar.
-- CMP-3.1: with the audio package spliced, the engine graph diff against
-  vanilla is additive wiring only (no rewrites of existing engine nodes).
-- CMP-3.2: pass execution order equals topological order of the engine patch
-  (probe records order; compare to wiring).
+published fan-ins in the well-behaved path; the audio package passes this
+bar. (Strengthened by ADR-034: both criteria observe the realized engine
+plan, never the compiler's self-report.)
+- CMP-3.1: the audio splice lands as ordinary edit ops on the live engine
+  graph; the diff against vanilla is additive wiring only (no rewrites of
+  existing engine nodes).
+- CMP-3.2: pass execution order equals topological order of the engine
+  patch, observed as per-instance tick counts in the realized engine plan
+  (never a list the compiler prints about itself).
 
 **CMP-4 (projection editing).** Edits in realized views write back through
 the inverse map; insert-if-absent for default mappings.
@@ -91,6 +95,28 @@ end-to-end (composition of CMP-2's map with EXE-5's migration).
 refactoring the probe; the ratified greenfield build (appendix,
 18-appendix-greenfield.md) supersedes it. The probe is reference and
 salvage, never migrated. Kept as a numbered tombstone so citations resolve.
+
+**CMP-9 (the engine is realized — ADR-034).** The engine graph runs through
+the one node contract: its passes are registered node types, instantiated
+from the registry into a plan, ticked by the same crown/plan machinery as
+any graph; compilation is a derivation-mode run of that plan (EXE-7). No
+pass behavior executes outside a node hook; a bespoke evaluator over engine
+data is scaffolding and names this requirement as its dissolution.
+- CMP-9.1: compiling hello-cosine is observably the engine plan's run:
+  per-pass-instance tick counters match the engine patch's topology, and an
+  instrumented audit shows zero compile work outside node hooks (the
+  hollow-engine regression).
+- CMP-9.2: an ordinary edit op wiring an additional pass node into a
+  published fan-in changes the next compile's output accordingly — no C++
+  change, no restart; removing it restores the prior output hash.
+- CMP-9.3: a pass authored as a graph dataset (no C++) wired into a fan-in
+  runs in the engine plan and is indistinguishable from a native pass
+  (AUT-5 extended to engine vocabulary).
+- CMP-9.4: the lock is honest (ADR-026): the generator's descriptors commit
+  through the canonical encoder as type nodes; graph locks carry those CIDs
+  (never placeholder strings); resolver traversal (NAM-1.2's walk through
+  lock → type → ports) and the runtime registry answer a port's promises
+  from the SAME committed declaration — one representation, two caches.
 
 ## Freezing (FRZ)
 

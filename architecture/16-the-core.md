@@ -98,9 +98,10 @@ commits declaring their clause, never ADRs):
   codecs, STT/TTS, the LLM client.
 - render set (~5): draw, render_head, shader-specific nodes — shaders
   themselves are datasets, so this set trends graph-ward.
-- SCAFFOLDING (marked, dissolves): the monolithic `compile` node (factors
-  into engine vocabulary at rung 7's end); gesture-FSM helpers if the
-  editor needs them before event-logic subgraphs are comfortable.
+- SCAFFOLDING (marked, dissolves — each marker names its dissolution
+  criterion, ADR-034): the monolithic `compile` walk (dissolves: CMP-9.2),
+  the bespoke query evaluator (dissolves: LNG-11.4); gesture-FSM helpers if
+  the editor needs them before event-logic subgraphs are comfortable.
 
 Everything with semantic content is a graph: the engine pipeline, all
 policy, the editor, sequencers and instruments above the kernel layer, the

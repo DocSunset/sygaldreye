@@ -185,6 +185,11 @@ def sz6_trampolines_small():
 
 
 TESTS = {
+    # AUT joined the manifest 2026-07-05 (ch. 12 had been silently absent —
+    # extractor prefix gap). None = pending: write each from criterion text.
+    "AUT-1.1": None,
+    "AUT-1.2": None,
+    "AUT-3.1": None,
     "ABI-1.1": abi11_one_declaration,
     "ABI-1.2": abi12_no_handwritten_serializers,
     "ABI-2.1": abi21_hook_discipline,

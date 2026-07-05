@@ -136,9 +136,11 @@ surface; derived structure never persists.
   is JSON-equal to j modulo key order; no `mappings` key in any persisted
   file.
 
-**LNG-9 (text events — OPEN).** Design the text event payload so graph edits
-can flow as events; until ratified, text inlets are persistence-only and
-this requirement gates the seq-bump retirement.
+**LNG-9 (text events — OPEN).** Design the text event payload; until
+ratified, text inlets are persistence-only. (ADR-034 unblocked graph-edit
+events separately: ops ride the structured lane as their own kind —
+LNG-11.3. This requirement now gates only text semantics and the seq-bump
+retirement.)
 
 **LNG-10 (query vocabulary — core, ADR-024).** traverse, filter, join,
 fixpoint are core node types; queries run as committed derivations (memoized index datasets) or as standing reactive values (incrementally maintained under
@@ -152,6 +154,25 @@ ADR-015).
   semantics) — no query can hang the store.
 - LNG-10.4: the palette and the back-link index are expressed as queries
   (no bespoke search code paths).
+
+**LNG-11 (structured payloads — ADR-034).** The node contract carries
+kind-tagged structured values (graph, edit ops, text, the catalog's
+non-float kinds) on the event and value disciplines: declared in endpoints
+structs like any port, codec and accessors generated (ABI-1), legality by
+the one promise oracle, zero-copy in-process, canonical encoding only at
+commit boundaries. The float/stream path is unchanged; the oracle refuses
+structured payloads on stream.
+- LNG-11.1: a graph value flows over an edge between two realized instances
+  (the engine's receive0 → regions0 hop); the consumer reads it through
+  generated accessors; no serialization on the hop.
+- LNG-11.2: the RT audits (EXE-3.1, NAM-5.4) and golden audio re-run green
+  after the widening — the float path pays nothing.
+- LNG-11.3: a node emits an edit op as an event payload; wired into another
+  graph's arbiter inlet, the op applies — a graph edits a graph through
+  wiring alone, no privileged surface (the LNG-9 unblock for op events).
+- LNG-11.4: the query four run as realized instances exchanging set values
+  over the structured lane; the bespoke query evaluator dissolves
+  (scaffolding retired; LNG-10's criteria stay green through the swap).
 
 ## Worked example (test seed)
 

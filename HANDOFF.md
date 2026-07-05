@@ -98,6 +98,19 @@ with Travis; one concern per message; breadcrumb the next step.
   to Travis, he listens and blesses (fixtures/golden-audio.md). Do not
   self-bless. Same at any "does this sound/look right" moment — he is the
   testimony.
+- **Rung 7 ends when the engine ticks** (ADR-034, added after the first
+  rung-7 pass went hollow). Widen the contract's payload lane FIRST
+  (LNG-11 — generated, zero-copy, floats untouched), then factor the
+  compile walk into realized pass instances (CMP-9). Do not interpret your
+  way past it: a bespoke walk over graph data is scaffolding and must name
+  its dissolution criterion. CMP-9.1 is the hollow-engine regression.
+- **One peer, many sessions.** From rung 7 on, a `syg` subcommand is a
+  session against ONE booted peer (tape → organs → engine slot): every
+  mutation is an op into an arbiter, every read is a resolution or query.
+  That is CNF-2's candidate-as-peer shape practiced five rungs early — and
+  it is what makes nodes-working-with-nodes the path of least resistance.
+  If a subcommand can't be expressed that way, an organ is missing; build
+  the organ, not a side-door.
 
 ## Milestones that matter (report these; skip noise)
 

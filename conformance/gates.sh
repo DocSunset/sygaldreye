@@ -24,12 +24,18 @@ if [ -d src ]; then
   if grep -rn "::instance()" src/nodes 2>/dev/null; then
     say EXE-6.1 "singleton reach from node code"; fail=1
   fi
-  # COR-5.1 — every native declares its clause on line 1 (ADR-033)
-  find src/nodes src/organs \( -name '*.cpp' -o -name '*.hpp' \) 2>/dev/null \
+  # COR-5.1 — every native declares its clause on line 1 (ADR-033);
+  # ADR-034 extends the scan to the executor package (the compile walk)
+  find src/nodes src/organs src/executor \( -name '*.cpp' -o -name '*.hpp' \) 2>/dev/null \
     | grep -v generated | while read -r f; do
     head -1 "$f" | grep -qE '^// clause: (machinery|floor|maturity|scaffolding)' \
       || { say COR-5.1 "native without a clause marker: $f"; exit 1; }
   done || fail=1
+  # ADR-034 — a scaffolding marker names the criterion that dissolves it
+  if grep -rn "clause: scaffolding" src --include='*.cpp' --include='*.hpp' 2>/dev/null \
+       | grep -v "dissolves: [A-Z][A-Z]*-[0-9]"; then
+    say ADR-034 "scaffolding without a named dissolution criterion"; fail=1
+  fi
 fi
 
 # COR-3 — the core-name manifest matches the book (ch. 16 stratum 3)

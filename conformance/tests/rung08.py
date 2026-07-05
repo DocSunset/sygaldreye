@@ -3,6 +3,10 @@ Write the test when you reach this rung; the assertion is quoted from the book.
 Never weaken a test to pass it — amend the book by ADR instead."""
 
 TESTS = {
+    # AUT joined the manifest 2026-07-05 (extractor prefix gap)
+    "AUT-2.1": None,
+    "AUT-2.2": None,
+    "AUT-5.1": None,
     # 05-compilation.md: A/B chime interpreted-vs-frozen: spectrogram diff roughly equals 0; block-time
     "FRZ-1.1": None,
     # 05-compilation.md: unfreeze(artifact) yields the source graph hash; re-freezing is a

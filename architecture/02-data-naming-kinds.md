@@ -43,6 +43,20 @@ links to decoder programs (render/traverse/serialize/validate) and conventions
 (port layout, rate constraints). Kind-of-kind is `kind`; the fiat kinds
 (`bytes`, `kind`, `scalar`, `audio`, `graph`, ...) are sacred-ground nodes.
 
+**The kind authoring surface (ADR-017 + ADR-030, made explicit 2026-07-05).**
+For struct-shaped kinds, the canonical definition surface is a C/C++ schema
+struct reflected via PFR (static reflection later): **fields are links** —
+each named member is a named link in the kind's convention, so the struct IS
+the one-level-up declaration written in the machine's language. The generator
+derives everything from it (in-motion layout, canonical codec, JSON
+projection, descriptor), and the committed descriptor IS the kind node
+(CMP-9.4) — so a C++ type and a kind correspond **by generated declaration,
+never by convention or folklore**. A node type's endpoints struct is this
+same surface for a kind that carries behavior (ADR-030); bulk raw-lane kinds
+(audio, wav, mesh payloads) author decoders instead of schemas (ADR-017's two
+lanes). A hand-maintained kind table is the descriptor-drift bug this design
+exists to kill (AUT-3).
+
 **Port promises (ADR-030 — "type" dissolved).** A port declaration attaches
 its promises directly as links: `ports/foo/kind` and `ports/foo/discipline`
 (clock constraints ride the kind node — audio pins block). **Checked at

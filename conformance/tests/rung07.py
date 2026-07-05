@@ -54,12 +54,23 @@ def cmp22_the_map():
 
 
 def cmp31_splice_is_additive():
+    # ADR-034 strengthened CMP-3.1: the splice must land as ordinary edit
+    # ops on the REALIZED engine graph, not as a JSON diff. The body below
+    # predates the strengthening — rewrite it from the new criterion text.
+    raise Pending("CMP-3.1 strengthened by ADR-034 — splice as edit ops on "
+                  "the realized engine; rewrite from the new criterion text")
     r = _compile([{"op": "engine-diff", "splice": _splice()}])
     assert r[0]["additive"] is True, "the splice rewrote existing engine nodes"
     assert r[0]["added_nodes"] == 2 and r[0]["added_edges"] == 2
 
 
 def cmp32_pass_order_is_wiring():
+    # ADR-034 strengthened CMP-3.2: order must be OBSERVED as per-instance
+    # tick counts in the realized engine plan; the body below compares the
+    # compiler's self-reported list against the same topo sort that made it
+    # (self-referential — the hollow-engine hole). Rewrite from the new text.
+    raise Pending("CMP-3.2 strengthened by ADR-034 — observe tick counts in "
+                  "the realized engine plan, not passes_run")
     r = _compile([{"op": "set-app", "graph": _hello()},
                   {"op": "compile", "splice": _splice()}])
     order = r[1]["passes_run"]
@@ -129,6 +140,11 @@ def cmp51_fork_detaches():
 
 
 def cmp61_lazy_tower():
+    # Vacuous until CMP-9: engine instances cannot yet exist, so counting
+    # zero of them proves nothing. Rewrite against real instances once the
+    # engine is realized (ADR-034).
+    raise Pending("CMP-6.1 vacuous until CMP-9 — engine instances cannot "
+                  "yet exist; rewrite against the realized engine")
     r = _compile([
         {"op": "set-app", "graph": _hello()},
         {"op": "compile"},
@@ -178,4 +194,15 @@ TESTS = {
     "CMP-5.1": cmp51_fork_detaches,
     "CMP-6.1": cmp61_lazy_tower,
     "CMP-7.1": cmp71_state_survives_recompilation,
+    # ADR-034 (2026-07-05): the realized engine and the structured lane.
+    # None = pending — write each test FIRST from its criterion text
+    # (BUILDER.md loop), extending HARNESS.md in the same commit.
+    "CMP-9.1": None,
+    "CMP-9.2": None,
+    "CMP-9.3": None,
+    "CMP-9.4": None,
+    "LNG-11.1": None,
+    "LNG-11.2": None,
+    "LNG-11.3": None,
+    "LNG-11.4": None,
 }
