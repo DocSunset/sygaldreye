@@ -82,6 +82,9 @@ Horology:    escapement · movement · crown · complication
 - tick = an uncommitted derivation; freeze = a committed derivation whose output kind is C++
 - subgraph = a node whose contents are a graph
 - boot graph = the graph stage 0 ticks first
+- version = a derived projection of a succession chain (ADR-032): class
+  hops counted by query; numbers stored nowhere; classes verified by the
+  suite. Never an identity.
 - entity = node (SUBSUMED 2026-07-03: "entity" was (1) a synonym for node and
   (2) a marker for the content-named half of the name split — but that split
   belongs to names, not things. Two name kinds: hash and route. naming.md's

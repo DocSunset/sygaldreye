@@ -45,6 +45,11 @@ double-compilation. Structural answer, standing.
   compatibility = reachability over supersedes/migrates-from (a fixpoint
   query, LNG-10); an old peer fetches a migration (it's a dataset) or asks
   a capable peer to derive the upgrade (placement).
+- **Versions are derived** (ADR-032): each declared succession carries a
+  class — breaking | additive | fix; `name@M.m.p` is computed from the chain
+  by a fixpoint query, stored nowhere; additive/fix classes are VERIFIED
+  (predecessor's criteria stay green; old decoders still decode); breaking
+  requires a migration or an explicit none. Semver as a checkable projection.
 - **The core evolves too** (ADR-027): sources are datasets, the core binary
   is a derivation, sygaldreye-N derives N+1; the suite gates every
   succession of everything, including itself.
@@ -66,5 +71,14 @@ excused).
 old objects readable via lazy migrate-on-read (memo hit second time);
 mixed-version two-peer exchange works both directions; lock-swap upgrades
 one graph without touching its topology hash's provenance chain.
+**CNF-6 (derived versions, ADR-032).** Succession classes are declared,
+versions computed, classes verified.
+- CNF-6.1: a chain of successions (origin, fix, additive, breaking, fix)
+  derives `@0.0.1`, `@0.1.0`, `@1.0.0`, `@1.0.1` at the respective heads.
+- CNF-6.2: an "additive" succession that fails a predecessor criterion is
+  rejected by the gate with the failing criterion named.
+- CNF-6.3: `osc@1.2.0` as a ref-sugar address resolves to the same hash as
+  walking the chain manually.
+
 **CNF-5 (self-gate).** A core succession (N derives N+1) is admitted only
 by the suite run by N (and, when they exist, by non-N implementations).

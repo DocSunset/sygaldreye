@@ -335,7 +335,11 @@ vocabulary map (name to type CID); upgrades are one link swap (ADR-026).
 **succession** — how anything evolves: nodes are succeeded, never mutated;
 migrations are lazy derivations; compatibility is reachability (ADR-025).
 **arbiter** — the one op queue per live instance; arrival order is the
-order (ADR-023). **quarantine tier** — fresh plugins realize in subprocess
+order (ADR-023). **version** — derived, never assigned (ADR-032): a
+succession class (breaking | additive | fix) on each supersedes link;
+`name@2.1.3` counts class hops from the chain's origin via a fixpoint query;
+classes are verified by the suite (additive/fix keep the predecessor's
+criteria green), so semver here is a checkable claim, not a vow. **quarantine tier** — fresh plugins realize in subprocess
 regions until trust promotes them (ADR-016). **conformance profiles** —
 movement-level (behavioral) and peer-level (protocol); the suite is the
 system's definition, written in the system (ADR-026 and 027).

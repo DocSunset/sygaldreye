@@ -226,6 +226,7 @@ Association, requirement to laws to needs:
 | TCF-1…5 | L8, L9, L19 | N6, N1 |
 | COR-1…4 | L6, L11, L18 | N2, N6 |
 | CNF-1…5 | L7, L20, L21 | N5, N6, N2 |
+| CNF-6 | L20, L21 | N5, N2 |
 
 *(New-chapter requirements are traced at chapter granularity; per-item rows
 join as the conformance suite (CNF-1) materializes them as test datasets.)*

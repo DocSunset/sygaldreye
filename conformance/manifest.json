@@ -154,6 +154,17 @@
   "rung": 12,
   "text": "A core succession (N derives N+1) is admitted only"
  },
+ "CNF-6": {
+  "chapter": "17-conformance-evolution.md",
+  "criteria": {
+   "CNF-6.1": "a chain of successions (origin, fix, additive, breaking, fix)",
+   "CNF-6.2": "an \"additive\" succession that fails a predecessor criterion is",
+   "CNF-6.3": "`osc@1.2.0` as a ref-sugar address resolves to the same hash as"
+  },
+  "name": "derived versions, ADR-032",
+  "rung": 12,
+  "text": "Succession classes are declared,"
+ },
  "COR-1": {
   "chapter": "16-the-core.md",
   "criteria": {},
