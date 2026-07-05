@@ -414,11 +414,28 @@ exec_plan::exec_plan(organs::graph_doc doc, int rate, int block)
   inject_context();
 }
 
+namespace {
+
+void submit_thunk(void* plan, crown::edit_op op) {
+  static_cast<exec_plan*>(plan)->submit(std::move(op));
+}
+
+}  // namespace
+
 void exec_plan::inject_context() {
+  ctx_ = {&doc_, &submit_thunk, this};
   for (auto& f : im_->frames)
-    if (f.type->set_context) f.type->set_context(f.state, &doc_);
+    if (f.type->set_context) f.type->set_context(f.state, &ctx_);
   for (auto& b : im_->blocks)
-    if (b.type->set_context) b.type->set_context(b.state, &doc_);
+    if (b.type->set_context) b.type->set_context(b.state, &ctx_);
+}
+
+void exec_plan::point_arbiter(const std::string& id, exec_plan& target) {
+  // the LNG-7 injection seam, aimed: this instance's arbiter hook now
+  // submits into ANOTHER graph's queue — a wiring choice, not a surface
+  target_ctx_ = {&doc_, &submit_thunk, &target};
+  if (auto* f = im_->frame_of(id))
+    if (f->type->set_context) f->type->set_context(f->state, &target_ctx_);
 }
 
 exec_plan::~exec_plan() = default;
@@ -576,7 +593,8 @@ const float* exec_plan::pump_block() {
     }
   }
   if (structural) rebuild();
-  // appliers run before process: deliver queued events into their cones
+  // appliers run before process: deliver queued events into their cones,
+  // then poll emitters — a node's emitted ops/events chain the same tick
   {
     thread_local std::vector<std::pair<std::string, double>> evs;
     evs.clear();
@@ -588,6 +606,22 @@ const float* exec_plan::pump_block() {
           if (f.type->apply) f.type->apply(f.state, e.port.c_str(), v);
           f.dirty = true;  // the bang wakes exactly its cone (EXE-11.4)
         }
+    for (auto& f : im_->frames) {
+      if (!f.type->semit) continue;
+      for (const auto& p : f.type->out_ports) {
+        if (std::string(p.discipline) != "event") continue;
+        crown::svalue sv;
+        while (f.type->semit(f.state, p.name, &sv)) {
+          auto route = f.id + "/" + p.name;
+          for (const auto& e : im_->event_edges)
+            if (e.from == route) {
+              auto& g = im_->frames[e.dst];
+              if (g.type->sapply) g.type->sapply(g.state, e.port.c_str(), sv);
+              g.dirty = true;
+            }
+        }
+      }
+    }
   }
   // 2. frame tick when due
   double block_dt = static_cast<double>(block_) / rate_;

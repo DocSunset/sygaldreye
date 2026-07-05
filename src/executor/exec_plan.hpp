@@ -43,6 +43,8 @@ class exec_plan {
   long recomputes(const std::string& id) const;  // EXE-11 counters
   float value_of(const std::string& id_port) const;  // frame cell peek
   const crown::svalue* svalue_of(const std::string& id_port) const;
+  // aim an arbiter_inlet instance at ANOTHER plan's queue (LNG-11.3)
+  void point_arbiter(const std::string& id, exec_plan& target);
   long process_calls() const;  // kernel invocations (EXE-10.2 observability)
   long rejected_ops() const { return rejected_; }  // precondition losers
   const std::vector<std::string>& faults() const { return faults_; }
@@ -59,6 +61,7 @@ class exec_plan {
   void apply_structural(const edit_op& o);
   void rebuild();  // re-realize, migrating state by route
   std::unique_ptr<impl> im_;
+  crown::node_context ctx_, target_ctx_;
   std::vector<applied_op> log_;
   std::size_t cursor_ = 0;
   long rejected_ = 0;

@@ -27,6 +27,15 @@ struct edit_op {
   bool undo_replay = false;  // inverse application: cursor move, not history
 };
 
+// What set_context delivers (the LNG-7 seam): the enclosing graph and an
+// arbiter submit hook — WHICH plan's arbiter is a wiring choice, which is
+// how a graph edits a graph (LNG-11.3).
+struct node_context {
+  const void* doc = nullptr;  // organs::graph_doc*
+  void (*submit)(void* plan, edit_op op) = nullptr;
+  void* plan = nullptr;
+};
+
 // mirrors the catalog's non-float set (ADR-034): these ride event/value
 // only; the oracle refuses them on stream
 inline bool structured_kind(const char* k) {

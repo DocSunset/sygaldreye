@@ -14,7 +14,8 @@ struct gs_state {
 };
 
 void gs_set_context(void* s, const void* ctx) {
-  static_cast<gs_state*>(s)->doc = static_cast<const graph_doc*>(ctx);
+  const auto* c = static_cast<const syg::crown::node_context*>(ctx);
+  static_cast<gs_state*>(s)->doc = static_cast<const graph_doc*>(c->doc);
 }
 
 void gs_value_tick(void* s, double, const float*, float* outs) {

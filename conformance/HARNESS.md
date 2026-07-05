@@ -43,6 +43,7 @@ import or port them into the implementation).
 | 7 | `syg compile` | the CMP session: compile as a memoized committed derivation over engine-v0-as-data (two memo stages), the compilation map, projection edits through the inverse map (conflicts on vanished targets), forks, engine-diff (splices are additive), the tower's laziness counter |
 | 2 | `syg kernel-audit` | the AUT-1 kernel contract, exercised directly: bounded outputs, stage machines, delay-at-N, slew clamps, and N=1 == N=128 per native → `{"suite","checks"}` |
 | 7 | *(exec-audit gains)* | `watch` reads structured cells (text shown, others as `<kind>`); output gains `encodes` (canonical-encode delta — the LNG-11.1 zero-copy witness) |
+| 7 | `syg graph-edits-graph` | `{target, editor, arbiter, bang}` → bang the editor graph; its op event flows into the TARGET's arbiter inlet; returns the target's op log + doc (LNG-11.3) |
 | 1 | `syg pins` | no stdin → one-line JSON of the frozen ch. 14 pins (multicodec/multihash numbers, multibase, chunk size, escape set, tape records, edit ops, wire kinds) — the FMT-5 freeze surface |
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 

@@ -232,6 +232,28 @@ def lng112_float_path_pays_nothing():
 import rung05
 exe31_rt_safety_under_live_edits = rung05.exe31_rt_safety_under_live_edits
 
+
+def lng113_a_graph_edits_a_graph():
+    # bang -> op event -> another graph's arbiter inlet: the op applies
+    # through wiring alone; no privileged surface anywhere in the path
+    editor = {"kind": "graph", "lock": {},
+              "topology": {"nodes": {"btn0": {"type": "button"},
+                                     "ob0": {"type": "op_button"},
+                                     "arb0": {"type": "arbiter_inlet"}},
+                           "edges": [{"from": "btn0/out", "to": "ob0/in"},
+                                     {"from": "ob0/out", "to": "arb0/in"}]},
+              "defaults": {"ob0/op": json.dumps(
+                  {"op": "add_node", "a": "noise0", "b": "noise",
+                   "author": "editor-graph"})}}
+    out = json.loads(syg("graph-edits-graph", stdin=json.dumps(
+        {"target": _hello(), "editor": editor,
+         "arbiter": "arb0", "bang": "btn0/out"}).encode()))
+    assert out["target_log"] == [{"op": "add_node", "a": "noise0",
+                                  "b": "noise", "author": "editor-graph"}]
+    # the structural op REALLY applied: the target's persisted surface grew
+    assert "noise0" in out["target_doc"]["topology"]["nodes"], out["target_doc"]
+
+
 TESTS = {
     "CMP-1.1": cmp11_passes_run_once,
     "CMP-1.2": cmp12_defaults_edit_skips_structure,
@@ -253,6 +275,6 @@ TESTS = {
     "CMP-9.4": None,
     "LNG-11.1": lng111_graph_value_over_an_edge,
     "LNG-11.2": lng112_float_path_pays_nothing,
-    "LNG-11.3": None,
+    "LNG-11.3": lng113_a_graph_edits_a_graph,
     "LNG-11.4": None,
 }

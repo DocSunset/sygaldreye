@@ -644,6 +644,31 @@ int cmd_kernel_audit() {
   return 0;
 }
 
+int cmd_graph_edits_graph() {
+  // LNG-11.3: a graph (the editor patch) edits ANOTHER graph (hello-cosine)
+  // through wiring alone — bang -> op event -> arbiter inlet -> the queue
+  auto in = nlohmann::json::parse(read_stdin());
+  syg::executor::exec_plan target(
+      syg::organs::parse_graph(in.at("target")), 48000, 128);
+  syg::executor::exec_plan editor(
+      syg::organs::parse_graph(in.at("editor")), 48000, 128);
+  editor.point_arbiter(in.at("arbiter"), target);
+  editor.post_event(in.at("bang"), 0.0);
+  for (int i = 0; i < 20; ++i) {
+    editor.pump_block();
+    target.pump_block();
+  }
+  nlohmann::json log = nlohmann::json::array();
+  for (const auto& a : target.log())
+    log.push_back({{"op", a.op.op}, {"a", a.op.a}, {"b", a.op.b},
+                   {"author", a.op.author}});
+  std::cout << nlohmann::json{
+                   {"target_log", log},
+                   {"target_doc", syg::organs::serialize_graph(target.doc())}}
+                   .dump() << "\n";
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -722,6 +747,7 @@ int main(int argc, char** argv) {
       return cmd_widget_of(argv[2], argc > 3 && std::string(argv[3]) == "--range");
     if (cmd == "render-graph" && argc > 2) return cmd_render_graph(std::stod(argv[2]));
     if (cmd == "render-live" && argc > 2) return cmd_render_live(std::stod(argv[2]));
+    if (cmd == "graph-edits-graph") return cmd_graph_edits_graph();
     if (cmd == "exec-audit") return cmd_exec_audit();
     if (cmd == "queue-audit" && argc > 2)
       return cmd_queue_audit(std::atol(argv[2]), argc > 3 ? std::atoi(argv[3]) : 1);
