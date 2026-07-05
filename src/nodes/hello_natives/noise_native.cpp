@@ -25,6 +25,6 @@ const syg::crown::native_type noise_native{
     "noise", [] { return static_cast<void*>(new noise_state()); },
     [](void* s) { delete static_cast<noise_state*>(s); },
     [](void*, const char*, double) {}, [](void*, const char*, const char*) {},
-    noise_process, nullptr, syg::generated::noise_in_ports, syg::generated::noise_out_ports};
+    noise_process, nullptr, syg::generated::noise_in_ports(), syg::generated::noise_out_ports()};
 
 }  // namespace syg::nodes

@@ -244,6 +244,104 @@ def lng52_ops_carry_authors():
     assert authors["add_node"] == "z6MkAgent", out["log"]
 
 
+
+def _ks(delay_extra=None, spectro_in_loop=False):
+    g = {"kind": "graph",
+         "lock": {"pulse": "kind:pulse@v1", "add": "kind:add@v1",
+                  "delay": "kind:delay@v1", "vca": "kind:vca@v1",
+                  "dac": "kind:dac@v1"},
+         "topology": {
+             "nodes": {"pulse0": {"type": "pulse"}, "add0": {"type": "add"},
+                       "delay0": {"type": "delay"}, "fb0": {"type": "vca"},
+                       "dac0": {"type": "dac"}},
+             "edges": [{"from": "pulse0/out", "to": "add0/a"},
+                       {"from": "fb0/out", "to": "add0/b"},
+                       {"from": "add0/out", "to": "delay0/in"},
+                       {"from": "delay0/out", "to": "fb0/in"},
+                       {"from": "add0/out", "to": "dac0/in"}]},
+         "defaults": {"delay0/samples": 99.0, "fb0/gain": 0.995}}
+    if delay_extra is not None:
+        # an explicit extra delay inside the loop (delay0 -> blk0 -> fb0)
+        g["topology"]["nodes"]["blk0"] = {"type": "delay"}
+        g["topology"]["edges"] = [
+            e for e in g["topology"]["edges"]
+            if not (e["from"] == "delay0/out" and e["to"] == "fb0/in")]
+        g["topology"]["edges"] += [{"from": "delay0/out", "to": "blk0/in"},
+                                   {"from": "blk0/out", "to": "fb0/in"}]
+        g["defaults"]["blk0/samples"] = float(delay_extra)
+        g["lock"]["delay"] = "kind:delay@v1"
+    if spectro_in_loop:
+        g["topology"]["nodes"]["spec0"] = {"type": "spectro"}
+        g["topology"]["edges"].append({"from": "add0/out", "to": "spec0/in"})
+        # drag the spectro INTO the cycle: feed something from... spectro has
+        # no outs; instead wire the loop THROUGH a block-override by making
+        # spec0 sit inside: emulate with an edge forming a cycle via spec0 is
+        # impossible (no outs) — use a self-looped block-override instead
+        g["lock"]["spectro"] = "kind:spectro@v1"
+    return g
+
+
+def _peak_hz(x, candidates, sr=48000):
+    import math
+    def goertzel(f):
+        w = 2 * math.pi * f / sr
+        c = 2 * math.cos(w)
+        s1 = s2 = 0.0
+        for v in x:
+            s0 = v + c * s1 - s2
+            s2, s1 = s1, s0
+        return math.sqrt(abs(s1 * s1 + s2 * s2 - c * s1 * s2))
+    return max(candidates, key=goertzel)
+
+
+def exe101_island_pitch():
+    import struct
+    raw = syg("render-graph", "1", stdin=json.dumps(_ks()).encode())
+    x = struct.unpack(f"<{len(raw) // 4}f", raw)
+    # 1-sample feedback math: f = 48000/(99+1) = 480 Hz;
+    # block-delayed math would ring at 48000/(99+128) ≈ 211 Hz
+    assert _peak_hz(x, [480.0, 48000 / (99 + 128), 375.0]) == 480.0
+    assert max(abs(v) for v in x) <= 1.0
+
+
+def exe102_explicit_delay_opts_out():
+    # per-callback kernel-call count: interleaved island = per-node-per-
+    # sample; an explicit block-sized delay reverts to per-node-per-block
+    island = _exec_audit(_ks(), blocks=10)["process_calls"]
+    cut = _exec_audit(_ks(delay_extra=128), blocks=10)["process_calls"]
+    assert island > 10 * 3 * 100, island   # 3 island nodes stepped per sample
+    assert cut <= 10 * 6, cut              # fused: one call per node per block
+
+
+def exe103_block_override_in_cycle_rejected():
+    # a spectrogram tap OUTSIDE the loop is legal; rewiring the loop
+    # THROUGH the block-override yields an edit-time error naming the edge
+    g = _ks()
+    g["lock"]["spectro"] = "kind:spectro@v1"
+    g["topology"]["nodes"]["spec0"] = {"type": "spectro"}
+    g["topology"]["edges"].append({"from": "add0/out", "to": "spec0/in"})
+    _exec_audit(g, blocks=2)  # the tap: fine
+    try:
+        _exec_audit(g, blocks=2, ops=[
+            {"block": 0, "op": "remove_edge", "a": "delay0/out", "b": "fb0/in"},
+            {"block": 0, "op": "add_edge", "a": "delay0/out", "b": "spec0/in"},
+            {"block": 0, "op": "add_edge", "a": "spec0/out", "b": "fb0/in"}])
+        raise AssertionError("a cycle through a block-override was accepted")
+    except AssertionError as e:
+        msg = str(e)
+        assert "spec0" in msg and "explicit block-sized delay" in msg, msg
+        assert "->" in msg, f"the edge is not named: {msg}"
+
+
+def exe104_frozen_equals_interpreted():
+    # the freezer is a pure optimizer (ADR-013/014): the hand-frozen
+    # loop-carried form of the KS island renders BYTE-IDENTICAL to the
+    # sample-interleaved interpreter
+    live = syg("render-graph", "2", stdin=json.dumps(_ks()).encode())
+    frozen = syg("render-movement", "ks", "2")
+    assert live == frozen, "freezing changed the sound, not just the cost"
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -258,10 +356,10 @@ TESTS = {
     "EXE-7.1": None,
     "EXE-8.1": None,
     "EXE-9.1": exe91_existence_is_reference,
-    "EXE-10.1": None,
-    "EXE-10.2": None,
-    "EXE-10.3": None,
-    "EXE-10.4": None,
+    "EXE-10.1": exe101_island_pitch,
+    "EXE-10.2": exe102_explicit_delay_opts_out,
+    "EXE-10.3": exe103_block_override_in_cycle_rejected,
+    "EXE-10.4": exe104_frozen_equals_interpreted,
     "EXE-11.1": exe111_static_scene_quiesces,
     "EXE-11.2": exe112_dirty_cone_exactly,
     "EXE-11.3": exe113_inert_lint,

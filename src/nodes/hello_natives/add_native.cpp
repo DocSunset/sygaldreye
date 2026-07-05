@@ -18,6 +18,6 @@ extern const syg::crown::native_type add_native;
 const syg::crown::native_type add_native{
     "add", [] { return static_cast<void*>(nullptr); }, [](void*) {},
     [](void*, const char*, double) {}, [](void*, const char*, const char*) {},
-    add_process, nullptr, syg::generated::add_in_ports, syg::generated::add_out_ports};
+    add_process, nullptr, syg::generated::add_in_ports(), syg::generated::add_out_ports()};
 
 }  // namespace syg::nodes

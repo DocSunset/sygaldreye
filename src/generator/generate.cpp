@@ -72,17 +72,17 @@ void emit(outputs& o, const std::string& name, body_flags body = {},
     if (std::string(traits<F>::dir) == "in") ins.push_back(fname);
   });
   // port tables for the registration layer (no hand-maintained descriptors)
-  o.ports_hpp += "inline const std::vector<syg::crown::port_decl> " + name + "_in_ports{";
+  o.ports_hpp += "inline const std::vector<syg::crown::port_decl>& " + name + "_in_ports() {\n  static const std::vector<syg::crown::port_decl> v{";
   for (const auto& [pn, pv] : ports.items())
     if (pv["dir"] == "in")
       o.ports_hpp += "{\"" + pn + "\", \"" + std::string(pv["kind"]) + "\", \"" +
                      std::string(pv["discipline"]) + "\"}, ";
-  o.ports_hpp += "};\ninline const std::vector<syg::crown::port_decl> " + name + "_out_ports{";
+  o.ports_hpp += "};\n  return v;\n}\ninline const std::vector<syg::crown::port_decl>& " + name + "_out_ports() {\n  static const std::vector<syg::crown::port_decl> v{";
   for (const auto& [pn, pv] : ports.items())
     if (pv["dir"] == "out")
       o.ports_hpp += "{\"" + pn + "\", \"" + std::string(pv["kind"]) + "\", \"" +
                      std::string(pv["discipline"]) + "\"}, ";
-  o.ports_hpp += "};\n";
+  o.ports_hpp += "};\n  return v;\n}\n";
 
   bool fallible = false;
   for (const auto& [pn, pv] : ports.items())
@@ -157,7 +157,7 @@ void emit_registration(const std::filesystem::path& dir) {
   // SZ-2: natives are present by LINKAGE — this TU references each native's
   // symbol, so a deleted object is a loud link error naming it, and the
   // palette equals this manifest by construction.
-  const std::vector<std::string> natives{"osc", "lfo", "vca", "dac", "noise", "add", "cell", "scale"};
+  const std::vector<std::string> natives{"osc", "lfo", "vca", "dac", "noise", "add", "cell", "scale", "delay", "pulse", "spectro"};
   const std::vector<std::string> organ_natives{
       "parser", "naive_resolver", "registry-face", "slot", "supervisor"};
   auto sym = [](std::string n) {
@@ -196,6 +196,9 @@ int main(int argc, char** argv) {
   emit<syg::nodes::decl::dac>(o, "dac", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::noise>(o, "noise", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::add>(o, "add", {}, "syg::nodes::decl");
+  emit<syg::nodes::decl::delay>(o, "delay", {}, "syg::nodes::decl");
+  emit<syg::nodes::decl::pulse>(o, "pulse", {}, "syg::nodes::decl");
+  emit<syg::nodes::decl::spectro>(o, "spectro", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::cell>(o, "cell", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::scale>(o, "scale", {}, "syg::nodes::decl");
   emit<syg::nodes::widget_a>(o, "widget_a");

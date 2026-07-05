@@ -38,6 +38,21 @@ struct add {
   au::out<au::audio, au::block> out;
 };
 
+struct delay {
+  au::in<au::audio, au::block> in;
+  au::in<au::scalar, au::value> samples;
+  au::out<au::audio, au::block> out;
+};
+
+struct pulse {
+  au::out<au::audio, au::block> out;
+};
+
+struct spectro {  // block-override: consumes its block whole (FFT-shaped)
+  au::in<au::audio, au::block> in;
+  au::out<au::audio, au::block> out;
+};
+
 struct cell {
   au::in<au::scalar, au::value> k;
   au::out<au::scalar, au::value> out;

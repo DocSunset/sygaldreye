@@ -84,11 +84,16 @@ region_map infer_regions(const organs::graph_doc& g) {
     }
     auto v = naming::connection_legal({sp->kind, sp->discipline},
                                       {dp->kind, dp->discipline});
-    if (!v.legal)
+    if (!v.legal) {
       out.errors.push_back("illegal edge " + std::to_string(i) + ": " + from +
                            " -> " + to);
-    else if (!v.mapping.empty())
+    } else if (!v.mapping.empty()) {
       out.mappings.push_back({i, v.mapping});
+    } else if (block.count(src_id) && !block.count(dst_id)) {
+      // a region crossing with matching promises still needs its mapping:
+      // the frame side sees the last COMPLETED block (ch. 4, snapshot)
+      out.mappings.push_back({i, "snapshot"});
+    }
   }
   return out;
 }

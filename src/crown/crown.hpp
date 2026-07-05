@@ -32,6 +32,9 @@ struct native_type {
   // time-dependent: wired to its executor's clock (ADR-015 — the visible
   // clock-input wiring arrives with the engine graph; this flag stands in)
   bool clocked = false;
+  // whole-block interior (FFT-shaped): a cycle through it demands an
+  // explicit delay at edit time (ADR-013)
+  bool block_override = false;
 };
 
 // One op record (the five appliers; the tape and every editor speak this).

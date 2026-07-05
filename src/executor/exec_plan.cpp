@@ -50,15 +50,31 @@ struct exec_plan::impl {
     const float* cell;
     std::vector<float>* target;
   };
+  struct snapshot {  // block -> frame: last completed block's value
+    const float* src_buf;  // producer's block buffer base
+    std::unique_ptr<float> cell;
+  };
 
   std::vector<block_node> blocks;  // fused per-node segments, topo order
   std::vector<frame_node> frames;
   std::vector<latch> latches;
+  std::vector<snapshot> snapshots;
   std::vector<std::pair<std::size_t, std::size_t>> frame_edges;  // src, dst
   std::vector<std::unique_ptr<std::vector<float>>> latch_bufs;
   std::vector<float> silence;
   std::map<std::string, std::vector<float>> param_bufs;  // route -> buffer
   std::vector<edit_op> inlet;
+  // the segment list (ADR-013): fused per-node block loops for feedforward
+  // stretches, sample-interleaved loops for islands
+  struct segment {
+    bool island = false;
+    std::vector<std::size_t> nodes;                 // block indices
+    std::map<std::size_t, std::vector<std::size_t>> backward;  // node -> in-ports with z⁻¹
+  };
+  std::vector<segment> segments;
+  struct block_edge { std::size_t src, dst, dst_port; };
+  std::vector<block_edge> block_edges;
+  long process_calls = 0;
   double t = 0, next_frame = 0;
   const float* sink = nullptr;
 
@@ -136,6 +152,8 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
     for (std::size_t i = 0; i < b.type->in_ports.size(); ++i) {
       std::string route = b.id + "/" + b.type->in_ports[i].name;
       if (connected.count(route)) continue;
+      if (std::string(b.type->in_ports[i].discipline) == "value")
+        continue;  // a param: set_num territory, not a stream buffer
       float v = 0.0f;
       if (doc.defaults.contains(route) && doc.defaults[route].is_number())
         v = doc.defaults[route];
@@ -144,15 +162,27 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
       b.ins[i] = buf.data();
     }
   // wiring; inferred boundaries get latches (visible via regions())
-  std::set<std::size_t> latched;
-  for (const auto& m : regions.mappings)
+  std::set<std::size_t> latched, snapped;
+  for (const auto& m : regions.mappings) {
     if (m.mapping == "latch") latched.insert(m.edge);
+    if (m.mapping == "snapshot") snapped.insert(m.edge);
+  }
   for (std::size_t i = 0; i < doc.edges.size(); ++i) {
     const auto& [from, to] = doc.edges[i];
     auto sid = from.substr(0, from.find('/'));
     auto sport = from.substr(from.find('/') + 1);
     auto did = to.substr(0, to.find('/'));
     auto dport = to.substr(to.find('/') + 1);
+    if (snapped.count(i)) {
+      auto* sb = im->block_of(sid);
+      auto* df = im->frame_of(did);
+      if (!sb || !df) throw std::runtime_error("snapshot endpoints missing");
+      auto& sn = im->snapshots.emplace_back();
+      sn.src_buf = sb->out_bufs[port_index(sb->type->out_ports, sport)].data();
+      sn.cell = std::make_unique<float>(0.0f);
+      df->ins[port_index(df->type->in_ports, dport)] = sn.cell.get();
+      continue;
+    }
     if (latched.count(i)) {
       auto* f = im->frame_of(sid);
       auto* b = im->block_of(did);
@@ -166,8 +196,11 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
     } else if (auto* db = im->block_of(did)) {
       auto* sb = im->block_of(sid);
       if (!sb) throw std::runtime_error("unmapped cross-region edge " + from);
-      db->ins[port_index(db->type->in_ports, dport)] =
-          sb->out_bufs[port_index(sb->type->out_ports, sport)].data();
+      auto dp_i = port_index(db->type->in_ports, dport);
+      db->ins[dp_i] = sb->out_bufs[port_index(sb->type->out_ports, sport)].data();
+      im->block_edges.push_back(
+          {static_cast<std::size_t>(sb - im->blocks.data()),
+           static_cast<std::size_t>(db - im->blocks.data()), dp_i});
     } else if (auto* df = im->frame_of(did)) {
       auto* sf = im->frame_of(sid);
       if (!sf) throw std::runtime_error("unmapped cross-region edge " + from);
@@ -182,6 +215,100 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
     for (auto& ob : b.out_bufs) b.outs.push_back(ob.data());
   for (auto& b : im->blocks)
     if (b.type->out_ports.empty() && !b.ins.empty()) im->sink = b.ins[0];
+
+  // --- segments (ADR-013): SCCs are per-sample islands ---
+  // an explicit delay of at least a block breaks the cycle at its input
+  auto delay_len = [&](const std::string& id) {
+    auto it = doc.defaults.find(id + "/samples");
+    return it != doc.defaults.end() && it->is_number() ? it->get<double>() : 0.0;
+  };
+  std::vector<std::vector<std::size_t>> adj(im->blocks.size());
+  for (const auto& e : im->block_edges) {
+    const auto& dst = im->blocks[e.dst];
+    if (std::string(dst.type->name) == "delay" && delay_len(dst.id) >= block)
+      continue;  // cut: the explicit delay decouples the loop
+    adj[e.src].push_back(e.dst);
+  }
+  // Tarjan SCC (iterative-enough at this scale: recursive lambda)
+  std::vector<int> comp(im->blocks.size(), -1), low(im->blocks.size()),
+      num(im->blocks.size(), -1);
+  std::vector<std::size_t> stk;
+  std::vector<bool> on(im->blocks.size(), false);
+  int counter = 0, ncomp = 0;
+  auto dfs = [&](auto&& self, std::size_t v) -> void {
+    num[v] = low[v] = counter++;
+    stk.push_back(v);
+    on[v] = true;
+    for (auto w : adj[v]) {
+      if (num[w] < 0) {
+        self(self, w);
+        low[v] = std::min(low[v], low[w]);
+      } else if (on[w]) {
+        low[v] = std::min(low[v], num[w]);
+      }
+    }
+    if (low[v] == num[v]) {
+      while (true) {
+        auto w = stk.back();
+        stk.pop_back();
+        on[w] = false;
+        comp[w] = ncomp;
+        if (w == v) break;
+      }
+      ++ncomp;
+    }
+  };
+  for (std::size_t v = 0; v < im->blocks.size(); ++v)
+    if (num[v] < 0) dfs(dfs, v);
+  // condensation topo order (Kahn), members kept in doc order
+  std::vector<std::set<int>> cadj(static_cast<std::size_t>(ncomp));
+  std::vector<int> indeg(static_cast<std::size_t>(ncomp), 0);
+  for (const auto& e : im->block_edges) {
+    if (comp[e.src] != comp[e.dst] &&
+        cadj[static_cast<std::size_t>(comp[e.src])].insert(comp[e.dst]).second)
+      ++indeg[static_cast<std::size_t>(comp[e.dst])];
+  }
+  std::vector<std::vector<std::size_t>> members(static_cast<std::size_t>(ncomp));
+  for (std::size_t v = 0; v < im->blocks.size(); ++v)
+    members[static_cast<std::size_t>(comp[v])].push_back(v);
+  std::vector<int> ready;
+  for (int c = 0; c < ncomp; ++c)
+    if (indeg[static_cast<std::size_t>(c)] == 0) ready.push_back(c);
+  std::vector<bool> self_loop(static_cast<std::size_t>(ncomp), false);
+  for (const auto& e : im->block_edges)
+    if (e.src == e.dst) self_loop[static_cast<std::size_t>(comp[e.src])] = true;
+  while (!ready.empty()) {
+    int c = ready.back();
+    ready.pop_back();
+    auto& seg = im->segments.emplace_back();
+    seg.nodes = members[static_cast<std::size_t>(c)];
+    seg.island = seg.nodes.size() > 1 || self_loop[static_cast<std::size_t>(c)];
+    if (seg.island) {
+      // a cycle may not pass through a block-override interior (EXE-10.3)
+      for (auto v : seg.nodes)
+        if (im->blocks[v].type->block_override) {
+          std::string edge = "?";
+          std::set<std::size_t> in_island(seg.nodes.begin(), seg.nodes.end());
+          for (const auto& e : im->block_edges)
+            if (e.dst == v && in_island.count(e.src))
+              edge = im->blocks[e.src].id + "/out -> " + im->blocks[v].id +
+                     "/" + im->blocks[v].type->in_ports[e.dst_port].name;
+          throw std::runtime_error(
+              "edit rejected: the cycle passes through block-override node '" +
+              im->blocks[v].id + "'; the edge " + edge +
+              " needs an explicit block-sized delay");
+        }
+      // backward in-island edges carry the one-sample z⁻¹
+      std::map<std::size_t, std::size_t> order;
+      for (std::size_t i = 0; i < seg.nodes.size(); ++i) order[seg.nodes[i]] = i;
+      for (const auto& e : im->block_edges)
+        if (order.count(e.src) && order.count(e.dst) &&
+            order[e.src] >= order[e.dst])
+          seg.backward[e.dst].push_back(e.dst_port);
+    }
+    for (auto d : cadj[static_cast<std::size_t>(c)])
+      if (--indeg[static_cast<std::size_t>(d)] == 0) ready.push_back(d);
+  }
   return im;
 }
 
@@ -207,6 +334,8 @@ void exec_plan::undo() {
     im_->inlet.push_back(std::move(o));
   }
 }
+
+long exec_plan::process_calls() const { return im_->process_calls; }
 
 long exec_plan::recomputes(const std::string& id) const {
   for (const auto& f : im_->frames)
@@ -334,12 +463,39 @@ const float* exec_plan::pump_block() {
   im_->t += block_dt;
   // 3. latches apply at the block boundary, never mid-block (EXE-4.1)
   for (auto& l : im_->latches) l.target->assign(l.target->size(), *l.cell);
-  // 4. the block segments, RT-audited
+  // 4. the segments, RT-audited: fused feedforward loops; islands
+  // sample-interleaved with z⁻¹ on backward edges (ADR-013)
   {
     abi::phase_guard g(abi::phase::process);
-    for (auto& b : im_->blocks)
-      b.type->process(b.state, b.ins.data(), b.outs.data(), block_);
+    for (auto& seg : im_->segments) {
+      if (!seg.island) {
+        for (auto v : seg.nodes) {
+          auto& b = im_->blocks[v];
+          b.type->process(b.state, b.ins.data(), b.outs.data(), block_);
+          ++im_->process_calls;
+        }
+        continue;
+      }
+      thread_local std::vector<const float*> tin;
+      thread_local std::vector<float*> tout;
+      for (int i = 0; i < block_; ++i) {
+        for (auto v : seg.nodes) {
+          auto& b = im_->blocks[v];
+          tin.resize(b.ins.size());
+          tout.resize(b.outs.size());
+          for (std::size_t k = 0; k < b.ins.size(); ++k) tin[k] = b.ins[k] + i;
+          if (auto bw = seg.backward.find(v); bw != seg.backward.end())
+            for (auto k : bw->second)  // z⁻¹: previous sample, wrapping to
+              tin[k] = b.ins[k] + (i == 0 ? block_ - 1 : i - 1);  // last block
+          for (std::size_t k = 0; k < b.outs.size(); ++k) tout[k] = b.outs[k] + i;
+          b.type->process(b.state, tin.data(), tout.data(), 1);
+          ++im_->process_calls;
+        }
+      }
+    }
   }
+  // 5. snapshots publish at period end: frame sees the completed block
+  for (auto& sn : im_->snapshots) *sn.cell = sn.src_buf[block_ - 1];
   return im_->sink ? im_->sink : im_->silence.data();
 }
 

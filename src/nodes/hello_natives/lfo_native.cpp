@@ -33,6 +33,6 @@ const syg::crown::native_type lfo_native{
     [] { return static_cast<void*>(new lfo_state{{0.0f, 440.0f, 48000.0f}, 1.0f}); },
     [](void* s) { delete static_cast<lfo_state*>(s); },
     lfo_set_num, lfo_no_text, lfo_process, lfo_value_tick,
-    syg::generated::lfo_in_ports, syg::generated::lfo_out_ports, true};
+    syg::generated::lfo_in_ports(), syg::generated::lfo_out_ports(), true};
 
 }  // namespace syg::nodes

@@ -25,6 +25,7 @@
 #include "regions.hpp"
 #include "resolver/naive_resolver.hpp"
 #include "hello_cosine/hello_cosine.hpp"
+#include "ks/ks.hpp"
 #include "oracle/oracle.hpp"
 
 namespace {
@@ -102,10 +103,13 @@ void stdout_sink(void*, const float* block, int n) {
 }
 
 int cmd_render_movement(const std::string& fixture, double seconds) {
-  if (fixture != "hello-cosine")
-    throw std::runtime_error("unknown movement fixture: " + fixture);
   int frames = static_cast<int>(seconds * syg::movements::hello_cosine_rate);
-  syg::movements::render_hello_cosine(frames, stdout_sink, nullptr);
+  if (fixture == "hello-cosine")
+    syg::movements::render_hello_cosine(frames, stdout_sink, nullptr);
+  else if (fixture == "ks")
+    syg::movements::render_ks(frames, stdout_sink, nullptr);
+  else
+    throw std::runtime_error("unknown movement fixture: " + fixture);
   return 0;
 }
 
@@ -309,6 +313,7 @@ int cmd_exec_audit() {
   std::cout << nlohmann::json{{"watched", watched},
                               {"recomputes", recomputes},
                               {"rt_events", rt_after - rt_before},
+                              {"process_calls", p.process_calls()},
                               {"log", log},
                               {"serialized", syg::organs::serialize_graph(p.doc())}}
                    .dump() << "\n";

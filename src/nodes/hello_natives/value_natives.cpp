@@ -32,13 +32,13 @@ const syg::crown::native_type cell_native{
     "cell", [] { return static_cast<void*>(new knob()); },
     [](void* s) { delete static_cast<knob*>(s); },
     knob_set, no_text, no_process, cell_value_tick,
-    syg::generated::cell_in_ports, syg::generated::cell_out_ports};
+    syg::generated::cell_in_ports(), syg::generated::cell_out_ports()};
 
 extern const syg::crown::native_type scale_native;
 const syg::crown::native_type scale_native{
     "scale", [] { return static_cast<void*>(new knob()); },
     [](void* s) { delete static_cast<knob*>(s); },
     knob_set, no_text, no_process, scale_value_tick,
-    syg::generated::scale_in_ports, syg::generated::scale_out_ports};
+    syg::generated::scale_in_ports(), syg::generated::scale_out_ports()};
 
 }  // namespace syg::nodes

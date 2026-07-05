@@ -29,6 +29,6 @@ const syg::crown::native_type osc_native{
     [] { return static_cast<void*>(new osc_state{{0.0f, 440.0f, 48000.0f}, 0.0f}); },
     [](void* s) { delete static_cast<osc_state*>(s); },
     osc_set_num, osc_set_text, osc_process, nullptr,
-    syg::generated::osc_in_ports, syg::generated::osc_out_ports};
+    syg::generated::osc_in_ports(), syg::generated::osc_out_ports()};
 
 }  // namespace syg::nodes

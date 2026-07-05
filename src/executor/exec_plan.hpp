@@ -46,6 +46,7 @@ class exec_plan {
   const region_map& regions() const { return regions_; }
   long recomputes(const std::string& id) const;  // EXE-11 counters
   float value_of(const std::string& id_port) const;  // frame cell peek
+  long process_calls() const;  // kernel invocations (EXE-10.2 observability)
   const std::vector<applied_op>& log() const { return log_; }
   std::size_t log_cursor() const { return cursor_; }
   void undo();  // move the cursor back, applying inverses (ADR-018:
