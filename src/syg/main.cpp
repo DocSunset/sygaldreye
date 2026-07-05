@@ -11,6 +11,7 @@
 #include "cid/cid.hpp"
 #include "pins/pins.hpp"
 #include "dagcbor/dagcbor.hpp"
+#include "naming_session.hpp"
 
 namespace {
 
@@ -109,6 +110,10 @@ int main(int argc, char** argv) {
     if (cmd == "hash") return cmd_hash();
     if (cmd == "verify" && argc > 2) return cmd_verify(argv[2]);
     if (cmd == "chunk-put") return cmd_chunk_put();
+    if (cmd == "naming") {
+      std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
+      return 0;
+    }
   } catch (const std::exception& e) {
     std::cerr << "syg " << cmd << ": " << e.what() << "\n";
     return 1;

@@ -57,6 +57,83 @@ def fmt2_address_roundtrip():
         assert got == want, f"impl parse differs on {printed!r}"
 
 
+# --- the naming session (resolver + kind registry; HARNESS.md `syg naming`) ---
+
+def _hello_objects():
+    """The ch. 1/ch. 2 worked-example store fragment: fiat kind nodes, node
+    type declarations with (kind, discipline) port promises, and the
+    hello-cosine composite. "$name" is the placeholder the session commits
+    into a real cid (dependency order)."""
+    def porttype(name, ports):
+        return {"kind": "node-type", "name": name,
+                "ports": {p: {"kind": {"/": f"${k}"}, "discipline": d}
+                          for p, (k, d) in ports.items()}}
+    return {
+        "scalar": {"kind": "kind", "name": "scalar"},
+        "audio": {"kind": "kind", "name": "audio"},
+        "osc-type": porttype("osc", {"freq": ("scalar", "value"),
+                                     "shape": ("scalar", "value"),
+                                     "out": ("audio", "block")}),
+        "lfo-type": porttype("lfo", {"freq": ("scalar", "value"),
+                                     "out": ("scalar", "frame")}),
+        "vca-type": porttype("vca", {"in": ("audio", "block"),
+                                     "gain": ("scalar", "block"),
+                                     "out": ("audio", "block")}),
+        "dac-type": porttype("dac", {"in": ("audio", "block")}),
+        "lock": {"osc": {"/": "$osc-type"}, "lfo": {"/": "$lfo-type"},
+                 "vca": {"/": "$vca-type"}, "dac": {"/": "$dac-type"}},
+        "topology": {"nodes": {"osc0": {"type": "osc"}, "lfo0": {"type": "lfo"},
+                               "vca0": {"type": "vca"}, "dac0": {"type": "dac"}},
+                     "edges": [{"from": "osc0/out", "to": "vca0/in"},
+                               {"from": "lfo0/out", "to": "vca0/gain"},
+                               {"from": "vca0/out", "to": "dac0/in"}]},
+        "defaults": {"osc0/freq": 220.0, "osc0/shape": "cosine",
+                     "lfo0/freq": 0.5},
+        "hello": {"kind": "graph", "topology": {"/": "$topology"},
+                  "defaults": {"/": "$defaults"}, "lock": {"/": "$lock"}},
+    }
+
+
+def _naming(objects, refs, ops):
+    out = json.loads(syg("naming", stdin=json.dumps(
+        {"objects": objects, "refs": refs, "ops": ops}).encode()))
+    return out["cids"], out["results"]
+
+
+def nam12_location_independence():
+    objs = _hello_objects()
+    ops = [{"op": "resolve", "addr": "$hello/nodes/osc0/out"}]
+    # peer 1 and peer 2 hold the same objects but different environments:
+    # different ref names, extra unrelated content on peer 2
+    cids1, r1 = _naming(objs, {"graphs/hello-cosine": "$hello"}, ops)
+    objs2 = dict(objs, unrelated={"kind": "note", "text": "peer two extra"})
+    cids2, r2 = _naming(objs2, {"elsewhere": "$hello"}, ops)
+    assert cids1["hello"] == cids2["hello"], "same content, same hash"
+    for r in (r1[0], r2[0]):
+        assert r["fixity"] == "fixed"
+        assert r["value"] == {"kind": {"/": cids1["audio"]}, "discipline": "block"}
+    drop_io = lambda r: {k: v for k, v in r.items() if k != "io"}
+    assert drop_io(r1[0]) == drop_io(r2[0]), "resolution differs across peers"
+
+
+def nam21_live_fixed_memo():
+    objs = _hello_objects()
+    fixed = "$hello/nodes/osc0/freq"
+    live = "graphs%2Fhello-cosine:nodes/osc0/freq"  # ref-name slash is escaped
+    cids, r = _naming(objs, {"graphs/hello-cosine": "$hello"}, [
+        {"op": "resolve", "addr": fixed},      # first: walks containers
+        {"op": "resolve", "addr": fixed},      # second: memoized
+        {"op": "resolve", "addr": live},
+        {"op": "normalize", "addr": live},
+    ])
+    assert r[0]["fixity"] == "fixed" and r[0]["io"] > 0
+    assert r[1]["io"] == 0, f"second resolve performed I/O: {r[1]}"
+    assert r[1]["value"] == r[0]["value"]
+    assert r[2]["fixity"] == "live"
+    want = address.print_(("cid", cids["hello"], ["nodes", "osc0", "freq"]))
+    assert r[3]["normalized"] == want, f"{r[3]} != {want}"
+
+
 def nam61_rehash_verifies():
     # pinned blake3 vectors (input = repeating 0..250 byte pattern)
     for c in fixture("blake3-vectors.json")["cases"]:
@@ -121,8 +198,8 @@ TESTS = {
     "FMT-2": fmt2_address_roundtrip,
     "NAM-1.1": fmt2_address_roundtrip,  # same property, book cross-reference
     "FMT-5": fmt5_pins_frozen,
-    "NAM-1.2": None,
-    "NAM-2.1": None,
+    "NAM-1.2": nam12_location_independence,
+    "NAM-2.1": nam21_live_fixed_memo,
     "NAM-2.2": None,
     "NAM-3.1": None,
     "NAM-4.1": None,

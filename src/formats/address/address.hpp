@@ -14,5 +14,6 @@ struct address {
 };
 
 address parse_address(const std::string& text);
+std::string print_address(const address& a);
 
 }  // namespace syg::formats

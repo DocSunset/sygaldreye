@@ -2,6 +2,8 @@
 
 #include <stdexcept>
 
+#include "pins/pins.hpp"
+
 namespace syg::formats {
 namespace {
 
@@ -39,7 +41,32 @@ std::vector<std::string> steps_of(const std::vector<std::string>& segs,
   return out;
 }
 
+std::string escape(const std::string& s) {
+  std::string out;
+  for (char c : s)
+    if (pins::escape_set.find(c) != std::string_view::npos) {
+      static constexpr char hex[] = "0123456789ABCDEF";
+      out += {'%', hex[(c >> 4) & 0xf], hex[c & 0xf]};
+    } else {
+      out.push_back(c);
+    }
+  return out;
+}
+
 }  // namespace
+
+std::string print_address(const address& a) {
+  std::string route;
+  for (const auto& s : a.route) route += (route.empty() ? "" : "/") + escape(s);
+  switch (a.kind) {
+    case address::first_step::peerkey:
+      return "#" + escape(a.head) + (route.empty() ? "" : "/" + route);
+    case address::first_step::refname:
+      return escape(a.head) + (route.empty() ? "" : ":" + route);
+    default:
+      return escape(a.head) + (route.empty() ? "" : "/" + route);
+  }
+}
 
 address parse_address(const std::string& text) {
   if (!text.empty() && text[0] == '#') {  // peer-key spelling
