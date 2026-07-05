@@ -3,6 +3,7 @@
 #include <map>
 #include <thread>
 #include <iostream>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -442,6 +443,67 @@ int cmd_widget_of(const std::string& kind, bool with_range) {
   return 0;
 }
 
+int cmd_derive_render(const std::string& objdir, double seconds) {
+  // EXE-7: a worker-region pipeline run to completion WITH the recorder on
+  // (ADR-031): output committed, recipe provenance written, memo keyed by
+  // the recipe (exact class: same inputs, same bytes)
+  namespace fs = std::filesystem;
+  fs::create_directories(objdir);
+  auto graph = nlohmann::json::parse(read_stdin());
+  auto graph_bytes = syg::formats::encode_projection(graph);
+  auto graph_cid = syg::formats::cid_to_text(syg::formats::cid_of(
+      syg::formats::pins::multicodec_dag_cbor, graph_bytes));
+  nlohmann::json recipe{{"op", "render"},
+                        {"inputs", {{"graph", {{"/", graph_cid}}}}},
+                        {"params", {{"seconds", seconds}, {"rate", 48000}}},
+                        {"determinism", "exact"}};
+  auto recipe_cid = syg::formats::cid_to_text(syg::formats::cid_of(
+      syg::formats::pins::multicodec_dag_cbor,
+      syg::formats::encode_projection(recipe)));
+  auto memo_path = fs::path(objdir) / ("memo-" + recipe_cid);
+  if (fs::exists(memo_path)) {
+    std::ifstream m(memo_path);
+    nlohmann::json hit = nlohmann::json::parse(m);
+    hit["memo"] = true;
+    hit["passes_run"] = 0;
+    std::cout << hit.dump() << "\n";
+    return 0;
+  }
+  // derive: render the graph (the one pass), commit output + provenance
+  syg::executor::exec_plan p(syg::organs::parse_graph(graph), 48000, 128);
+  syg::formats::byte_vec take;
+  int blocks = static_cast<int>(seconds * 48000) / 128;
+  for (int i = 0; i < blocks; ++i) {
+    const float* out = p.pump_block();
+    auto* raw = reinterpret_cast<const std::uint8_t*>(out);
+    take.insert(take.end(), raw, raw + 128 * sizeof(float));
+  }
+  auto put = [&](const syg::formats::byte_vec& cid,
+                 const syg::formats::byte_vec& obj) {
+    std::ofstream f(fs::path(objdir) / syg::formats::cid_to_text(cid),
+                    std::ios::binary);
+    f.write(reinterpret_cast<const char*>(obj.data()),
+            static_cast<std::streamsize>(obj.size()));
+  };
+  auto out_cid = syg::formats::cid_to_text(syg::formats::chunk_put(take, put));
+  recipe["output"] = {{"/", out_cid}};
+  auto prov_bytes = syg::formats::encode_projection(recipe);
+  auto prov_cid_b = syg::formats::cid_of(
+      syg::formats::pins::multicodec_dag_cbor, prov_bytes);
+  put(prov_cid_b, prov_bytes);
+  nlohmann::json result{{"memo", false},
+                        {"passes_run", 1},
+                        {"output", out_cid},
+                        {"provenance", syg::formats::cid_to_text(prov_cid_b)},
+                        {"recipe", recipe_cid}};
+  std::ofstream(memo_path) << nlohmann::json(
+      {{"output", out_cid},
+       {"provenance", syg::formats::cid_to_text(prov_cid_b)},
+       {"recipe", recipe_cid}}).dump();
+  std::cout << result.dump() << "\n";
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -513,6 +575,8 @@ int main(int argc, char** argv) {
     if (cmd == "queue-audit" && argc > 2)
       return cmd_queue_audit(std::atol(argv[2]), argc > 3 ? std::atoi(argv[3]) : 1);
     if (cmd == "swap-storm" && argc > 2) return cmd_swap_storm(std::atoi(argv[2]));
+    if (cmd == "derive-render" && argc > 3)
+      return cmd_derive_render(argv[2], std::stod(argv[3]));
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

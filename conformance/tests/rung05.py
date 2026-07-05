@@ -502,6 +502,28 @@ def exe81_boundary_replaceable():
     assert ramped, "the smoother never smoothed"
 
 
+
+def exe71_derivation_mode():
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        first = json.loads(syg("derive-render", td, "2",
+                               stdin=json.dumps(_hello()).encode()))
+        again = json.loads(syg("derive-render", td, "2",
+                               stdin=json.dumps(_hello()).encode()))
+        assert first["memo"] is False and first["passes_run"] == 1
+        assert again["memo"] is True and again["passes_run"] == 0, \
+            "re-running the derivation was not a memo hit"
+        assert again["output"] == first["output"]
+        # the provenance record is a real committed object: fetch it by
+        # hash through the naive resolver and re-derive its cid
+        prov = syg("resolve-hash", first["provenance"], td)
+        assert len(prov) > 0
+        # a different graph is a different recipe, not a stale hit
+        other = json.loads(syg("derive-render", td, "2",
+                               stdin=json.dumps(_ks()).encode()))
+        assert other["memo"] is False and other["output"] != first["output"]
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -513,7 +535,7 @@ TESTS = {
     "EXE-4.3": exe43_z_inverse_certified,
     "EXE-6.1": exe61_no_singleton_reach,
     "EXE-6.2": exe62_pump_offline,
-    "EXE-7.1": None,
+    "EXE-7.1": exe71_derivation_mode,
     "EXE-8.1": exe81_boundary_replaceable,
     "EXE-9.1": exe91_existence_is_reference,
     "EXE-10.1": exe101_island_pitch,
