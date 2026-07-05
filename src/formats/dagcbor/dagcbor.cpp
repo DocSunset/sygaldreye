@@ -1,5 +1,7 @@
 #include "dagcbor.hpp"
 
+#include "cid/cid.hpp"
+
 #include <algorithm>
 #include <bit>
 #include <cmath>
@@ -85,8 +87,14 @@ void encode(bytes& out, const nlohmann::json& v) {
     case json::value_t::object: {
       if (v.size() == 1 && v.contains("/")) {  // DAG-JSON escapes
         const auto& esc = v["/"];
-        if (esc.is_string())
-          throw std::runtime_error("cid links: pending the cid component");
+        if (esc.is_string()) {  // link: tag 42 over 0x00 + cid bytes
+          auto cid = cid_from_text(esc.get_ref<const std::string&>());
+          head(out, 6, 42);
+          head(out, 2, cid.size() + 1);
+          out.push_back(0x00);
+          out.insert(out.end(), cid.begin(), cid.end());
+          return;
+        }
         if (esc.is_object() && esc.size() == 1 && esc.contains("bytes") &&
             esc["bytes"].is_string()) {
           bytes b = base64_decode(esc["bytes"].get_ref<const std::string&>());

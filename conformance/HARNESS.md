@@ -14,6 +14,8 @@ import or port them into the implementation).
 | 1 | `syg parse-address` | address text on stdin → one-line JSON `{"kind","head","route"}` (oracle: reference/address.py) |
 | 3 | `syg replay-tape` | boot tape on stdin → JSON `{nodes, edges, defaults}` of the built graph (oracle: reference/tape.py) |
 | 2 | `syg render-movement <fixture> <seconds>` | render a frozen movement headless → raw float32 mono on stdout (checked against fixtures/golden-audio.md properties) |
+| 1 | `syg hash` | raw bytes on stdin → CID text (raw multicodec) on stdout (oracle: reference/cid.py + fixtures/blake3-vectors.json) |
+| 1 | `syg verify <cid>` | raw bytes on stdin → `{"ok":bool}` — re-hash equality against the given CID (NAM-6.1) |
 | 1 | `syg pins` | no stdin → one-line JSON of the frozen ch. 14 pins (multicodec/multihash numbers, multibase, chunk size, escape set, tape records, edit ops, wire kinds) — the FMT-5 freeze surface |
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 

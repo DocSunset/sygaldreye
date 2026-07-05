@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 
 #include "address/address.hpp"
+#include "cid/cid.hpp"
 #include "pins/pins.hpp"
 #include "dagcbor/dagcbor.hpp"
 
@@ -21,6 +22,27 @@ int cmd_encode() {
   auto v = nlohmann::json::parse(read_stdin());
   auto out = syg::formats::encode_projection(v);
   std::fwrite(out.data(), 1, out.size(), stdout);
+  return 0;
+}
+
+int cmd_hash() {
+  auto in = read_stdin();
+  syg::formats::byte_vec data(in.begin(), in.end());
+  std::cout << syg::formats::cid_to_text(
+                   syg::formats::cid_of(syg::formats::pins::multicodec_raw, data))
+            << "\n";
+  return 0;
+}
+
+int cmd_verify(const std::string& cid_text) {
+  auto in = read_stdin();
+  syg::formats::byte_vec data(in.begin(), in.end());
+  bool ok = false;
+  try {
+    ok = syg::formats::cid_verify(syg::formats::cid_from_text(cid_text), data);
+  } catch (const std::exception&) {
+  }
+  std::cout << (ok ? "{\"ok\":true}" : "{\"ok\":false}") << "\n";
   return 0;
 }
 
@@ -62,6 +84,8 @@ int main(int argc, char** argv) {
     if (cmd == "encode") return cmd_encode();
     if (cmd == "parse-address") return cmd_parse_address();
     if (cmd == "pins") return cmd_pins();
+    if (cmd == "hash") return cmd_hash();
+    if (cmd == "verify" && argc > 2) return cmd_verify(argv[2]);
   } catch (const std::exception& e) {
     std::cerr << "syg " << cmd << ": " << e.what() << "\n";
     return 1;

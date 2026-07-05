@@ -5,7 +5,7 @@ implementation binary (HARNESS.md) — Pending until ./syg exists. Never
 weaken a test; amend the book by ADR instead."""
 import json, random
 from _helpers import Pending, syg, random_value, fixture, to_projection
-from reference import dagcbor, address
+from reference import dagcbor, address, cid
 
 
 def fmt1_encoder_conformance():
@@ -57,6 +57,20 @@ def fmt2_address_roundtrip():
         assert got == want, f"impl parse differs on {printed!r}"
 
 
+def nam61_rehash_verifies():
+    # pinned blake3 vectors (input = repeating 0..250 byte pattern)
+    for c in fixture("blake3-vectors.json")["cases"]:
+        data = bytes(i % 251 for i in range(c["input_len"]))
+        want = cid.text(cid.cid_bytes(cid.RAW, bytes.fromhex(c["hash"])))
+        got = syg("hash", stdin=data).decode().strip()
+        assert got == want, f"cid mismatch at len {c['input_len']}: {got} != {want}"
+        assert json.loads(syg("verify", got, stdin=data)) == {"ok": True}
+        if data:  # a corrupted byte is detected
+            bad = bytearray(data)
+            bad[len(bad) // 2] ^= 1
+            assert json.loads(syg("verify", got, stdin=bytes(bad))) == {"ok": False}
+
+
 def fmt5_pins_frozen():
     # The ch. 14 pins, frozen 2026-07-05, restated here verbatim. If this test
     # ever disagrees with the implementation, the implementation drifted; if
@@ -92,7 +106,7 @@ TESTS = {
     "NAM-5.2": None,
     "NAM-5.3": None,
     "NAM-5.4": None,
-    "NAM-6.1": None,
+    "NAM-6.1": nam61_rehash_verifies,
     "NAM-6.2": None,
     "NAM-7.1": None,
 }
