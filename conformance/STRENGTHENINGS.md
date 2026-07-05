@@ -67,3 +67,10 @@ must miss the memo and undo the placement. Also killed rung05's
 `== {} or True` vacuous assert (exe114 now pins the watched VALUES) and
 tightened the dissolution gate (verb/case variants, trailing digits,
 .c/.cc/.h/.hh/.inl/.py coverage).
+
+## AUT-5.1 — 2026-07-05
+Criterion asks "same golden audio within tolerance" across the four
+authoring routes; the test asserts BYTE-IDENTITY of all three swapped
+renders against the native baseline (subgraph expansion, frozen artifact
+via its emitted node-type contract, shipped plugin through the gate),
+plus golden properties on the baseline and one-registry promise checks.

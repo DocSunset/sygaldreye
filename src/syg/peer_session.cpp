@@ -1,3 +1,5 @@
+#include <dlfcn.h>
+
 #include "peer_session.hpp"
 
 #include <fstream>
@@ -107,6 +109,37 @@ int peer_session(const nlohmann::json& in) {
       for (int i = 0; i < op.value("blocks", 10); ++i)
         app_instance->pump_block();
       r = {{"engine_alive", engine_alive()}};
+    } else if (what == "load-plugin") {
+      // the plugin gate's mechanical half (AUT-5): a .so's node type joins
+      // the registry; MSH-5 adds the trust dial later
+      void* lib = dlopen(op.at("so").get<std::string>().c_str(),
+                         RTLD_NOW | RTLD_LOCAL);
+      if (!lib) throw std::runtime_error(std::string("dlopen: ") + dlerror());
+      auto entry = reinterpret_cast<const crown::native_type* (*)()>(
+          dlsym(lib, "syg_plugin_native"));
+      if (!entry)
+        throw std::runtime_error("the plugin lacks syg_plugin_native");
+      auto* t = new crown::native_type(*entry());  // session-lifetime
+      if (op.contains("as"))
+        t->name = (new std::string(op.at("as").get<std::string>()))->c_str();
+      organs::register_plugin_native(t);
+      r = {{"registered", t->name}};
+    } else if (what == "render-take") {
+      // capture the sink for golden comparison (AUT-5.1) — hex f32le
+      executor::exec_plan take(organs::parse_graph(app), 48000, 128);
+      int blocks = op.value("blocks", 375);
+      static const char* hx = "0123456789abcdef";
+      std::string hex;
+      hex.reserve(static_cast<std::size_t>(blocks) * 128 * 8);
+      for (int i = 0; i < blocks; ++i) {
+        const float* b = take.pump_block();
+        const auto* c = reinterpret_cast<const unsigned char*>(b);
+        for (std::size_t j = 0; j < 128 * sizeof(float); ++j) {
+          hex += hx[c[j] >> 4];
+          hex += hx[c[j] & 15];
+        }
+      }
+      r = {{"hex", hex}};
     } else if (what == "app-cid") {
       r = {{"cid", s.put_node(app, false)}};
     } else if (what == "cat") {
@@ -155,7 +188,7 @@ int peer_session(const nlohmann::json& in) {
            {"via", "committed declaration"}};
     } else if (what == "registry-promises") {
       // runtime-side: the SAME declaration, answered from the linked table
-      for (const auto* n : organs::registered_natives())
+      for (const auto* n : organs::all_natives())
         if (op.at("type") == n->name) {
           for (const auto& p : n->in_ports)
             if (op.at("port") == p.name)

@@ -12,7 +12,7 @@ namespace syg::executor {
 namespace {
 
 const crown::native_type* native_named(const std::string& n) {
-  for (const auto* t : organs::registered_natives())
+  for (const auto* t : organs::all_natives())
     if (n == t->name) return t;
   return nullptr;
 }

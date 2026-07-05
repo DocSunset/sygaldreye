@@ -26,7 +26,7 @@ region_map infer_regions(const organs::graph_doc& g) {
   region_map out;
   std::map<std::string, const crown::native_type*> types;
   for (const auto& [id, tname] : g.nodes) {
-    for (const auto* n : organs::registered_natives())
+    for (const auto* n : organs::all_natives())
       if (tname == n->name) types[id] = n;
     if (!types.count(id))
       out.errors.push_back("unknown node type: " + tname + " (" + id + ")");

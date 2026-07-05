@@ -22,7 +22,7 @@ namespace syg::executor {
 namespace {
 
 const crown::native_type* type_named(const std::string& n) {
-  for (const auto* t : organs::registered_natives())
+  for (const auto* t : organs::all_natives())
     if (n == t->name) return t;
   throw std::runtime_error("no linked native: " + n);
 }

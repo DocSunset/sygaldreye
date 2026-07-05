@@ -61,7 +61,7 @@ void fanin_tick(void*, const crown::svalue* ins, crown::svalue* outs) {
 bool can_expand(const organs::graph_doc& doc) {
   for (const auto& [id, t] : doc.nodes) {
     const crown::native_type* n = nullptr;
-    for (const auto* c : organs::registered_natives())
+    for (const auto* c : organs::all_natives())
       if (t == c->name) n = c;
     if (!n) return true;  // a graph-authored type: subgraph expansion
     for (const auto& p : n->out_ports)

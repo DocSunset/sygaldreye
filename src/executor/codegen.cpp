@@ -214,7 +214,9 @@ emitted emit_frozen(const organs::graph_doc& doc,
     src += "  float carry_" + subst("$id", f.substr(0, f.find('/'))) + " = 0;\n";
   src += "};\n";
   // the hosted plugin gate (dlopen) — omitted from freestanding builds so
-  // tier-1 artifacts stay OS-symbol-free (FRZ-3)
+  // tier-1 artifacts stay OS-symbol-free (FRZ-3). Two contracts: the
+  // movement (frozen_*) and the NODE TYPE (AUT-5: a frozen artifact is a
+  // plugin, palette-identical once loaded).
   src +=
       "\n#ifndef SYG_FREESTANDING\n"
       "extern \"C\" {\n"
@@ -227,6 +229,25 @@ emitted emit_frozen(const organs::graph_doc& doc,
       "  static_cast<frozen_movement*>(p)->pump_block(out);\n"
       "}\n"
       "void frozen_destroy(void* p) { delete static_cast<frozen_movement*>(p); }\n"
+      "}\n"
+      "\n#include \"crown.hpp\"\n"
+      "namespace {\n"
+      "void fz_process(void* st, const float* const*, float* const* out,\n"
+      "                int) noexcept {\n"
+      "  static_cast<frozen_movement*>(st)->pump_block(out[0]);\n"
+      "}\n"
+      "void fz_no_num(void*, const char*, double) {}\n"
+      "void fz_no_text(void*, const char*, const char*) {}\n"
+      "const syg::crown::native_type fz_type{\n"
+      "    \"frozen\",\n"
+      "    [] { auto* m = new frozen_movement(); m->init();\n"
+      "         return static_cast<void*>(m); },\n"
+      "    [](void* p) { delete static_cast<frozen_movement*>(p); },\n"
+      "    fz_no_num, fz_no_text, fz_process, nullptr,\n"
+      "    {}, {{\"out\", \"audio\", \"block\"}}};\n"
+      "}  // namespace\n"
+      "extern \"C\" const syg::crown::native_type* syg_plugin_native() {\n"
+      "  return &fz_type;\n"
       "}\n"
       "#endif\n";
   out.source = std::move(src);

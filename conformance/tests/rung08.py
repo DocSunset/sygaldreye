@@ -44,7 +44,9 @@ def _build_so(source, tag):
     (d / "frozen.cpp").write_text(source)
     so = d / "libfrozen.so"
     cc = subprocess.run(
-        ["g++", "-O2", "-fPIC", "-shared", f"-I{ROOT}/src/nodes",
+        ["g++", "-std=c++20", "-O2", "-fPIC", "-shared",
+         f"-I{ROOT}/src/nodes", f"-I{ROOT}/src/crown",
+         f"-I{ROOT}/src/escapement",
          "-o", str(so), str(d / "frozen.cpp")], capture_output=True)
     assert cc.returncode == 0, cc.stderr.decode()
     return so
@@ -224,10 +226,74 @@ int main() {
     assert (d / "chime.elf").exists()
 
 
+def aut51_four_routes_one_registry():
+    # hello-cosine's osc swapped for (a) a subgraph osc, (b) a frozen osc
+    # artifact, (c) a shipped plugin osc — same patch JSON otherwise, same
+    # golden audio. All three routes render BYTE-IDENTICAL to the native
+    # (stronger than the criterion's tolerance; ledgered).
+    import binascii, struct
+    from _helpers import golden_audio_check
+
+    def swapped(t):
+        g = _hello()
+        g["topology"]["nodes"]["osc0"] = {"type": t}
+        return g
+
+    def take(graph, pre_ops=()):
+        r = _peer(list(pre_ops) + [
+            {"op": "set-app", "graph": graph},
+            {"op": "render-take", "blocks": 2250},
+        ])
+        return binascii.unhexlify(r[-1]["hex"])
+
+    base = take(_hello())
+    golden_audio_check(struct.unpack(f"<{len(base) // 4}f", base))
+
+    # (a) the SUBGRAPH route: graphs/osc_sub.json, inlets carry the params
+    sub = take(swapped("osc_sub"))
+    assert sub == base, "the subgraph osc diverged from the native"
+
+    # (b) the FROZEN route: freeze an osc movement; the artifact IS a
+    # plugin (node-type contract emitted alongside the movement contract)
+    osc_only = {"kind": "graph", "lock": {},
+                "topology": {"nodes": {"t0": {"type": "osc"},
+                                       "dac0": {"type": "dac"}},
+                             "edges": [{"from": "t0/out", "to": "dac0/in"}]},
+                "defaults": {"t0/freq": 220.0, "t0/shape": "cosine"}}
+    c, _ = _freeze(osc_only)
+    artifact = c["execution_body"]["artifact"]["/"]
+    source = _peer([{"op": "set-app", "graph": osc_only},
+                    {"op": "open-engine-editor"},
+                    {"op": "engine-edit", "ops": _BACKEND_SPLICE},
+                    {"op": "compile"},
+                    {"op": "cat", "cid": artifact}])[4]["bytes"]
+    frozen_so = _build_so(source, "osc")
+    frozen = take(swapped("osc_frozen"),
+                  pre_ops=[{"op": "load-plugin", "so": str(frozen_so),
+                            "as": "osc_frozen"}])
+    assert frozen == base, "the frozen osc artifact diverged from the native"
+
+    # (c) the SHIPPED PLUGIN route: an out-of-tree .so through the gate
+    plugin_so = _build_so(
+        (ROOT / "conformance" / "fixtures" / "plugin_osc.cpp").read_text(),
+        "plugin")
+    plug = take(swapped("plugin_osc"),
+                pre_ops=[{"op": "load-plugin", "so": str(plugin_so)}])
+    assert plug == base, "the shipped plugin osc diverged from the native"
+
+    # palette-identical: all routes answer from the ONE registry view
+    r = _peer([{"op": "load-plugin", "so": str(plugin_so)},
+               {"op": "load-plugin", "so": str(frozen_so), "as": "osc_frozen"},
+               {"op": "registry-promises", "type": "plugin_osc", "port": "out"},
+               {"op": "registry-promises", "type": "osc_frozen", "port": "out"}])
+    assert r[2]["promises"]["kind"] == "audio"
+    assert r[3]["promises"]["kind"] == "audio"
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
-    "AUT-5.1": None,
+    "AUT-5.1": aut51_four_routes_one_registry,
     "FRZ-1.1": frz11_ab_chime_interpreted_vs_frozen,
     "FRZ-1.2": frz12_unfreeze_is_reading_provenance,
     "FRZ-2.1": frz21_tier_derived_from_native_closure,

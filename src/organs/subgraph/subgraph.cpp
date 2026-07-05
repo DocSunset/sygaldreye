@@ -12,7 +12,7 @@ namespace syg::organs {
 namespace {
 
 const crown::native_type* native_named(const std::string& n) {
-  for (const auto* t : registered_natives())
+  for (const auto* t : all_natives())
     if (n == t->name) return t;
   return nullptr;
 }

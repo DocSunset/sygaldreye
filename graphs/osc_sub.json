@@ -1,0 +1,20 @@
+{
+ "kind": "graph",
+ "lock": {},
+ "topology": {
+  "nodes": {
+   "t0": {
+    "type": "osc"
+   }
+  },
+  "edges": [],
+  "inlets": {
+   "freq": "t0/freq",
+   "shape": "t0/shape"
+  },
+  "outlets": {
+   "out": "t0/out"
+  }
+ },
+ "defaults": {}
+}
