@@ -27,6 +27,51 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   fresh audit per rung; ADR drafts while hot); one peer, many sessions.
 - **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
 
+## 2026-07-05 — Fresh-context rung-7 audit (Judgement §3): findings
+
+Auditor (fresh context, book + diff dce5647..0963210 only) confirmed the
+realization is substantially real (query dissolution, structured lane,
+LNG-11.2/11.3, CMP-3.2 all earned clean) but found **3 blockers + 4
+should-fixes**. Fix-or-flag before rung 8:
+
+**Blockers (fixing now):**
+1. `src/executor/compiler.cpp` — the bespoke walk ADR-034 condemned still
+   compiles and still backs 11 green criteria via `syg compile`; its marker
+   says `dissolves: CMP-9.2` and CMP-9.2 is green → the marker is false.
+   FIX: route `syg compile` through the realized engine (shared core with
+   `syg peer`), structural memo realized as store-memoized work inside the
+   recognize/choose hooks, delete compiler.*, add a runner gate: a
+   scaffolding marker whose dissolution criterion passes = suite failure.
+2. Oracle accepts `cidset` on stream (empirically shown): three
+   hand-maintained copies of the structured-kind set, one drifted.
+   FIX: generator emits `structured_kinds.hpp` from vocabulary/kinds.json;
+   oracle + executor use it; hand copies die; test probes every
+   structured kind in the catalog.
+3. CMP-9.3 carries `... or True` — the one direct witness that the
+   authored pass ran was vacuous (and `pass_ticks` was keyed by
+   pre-expansion ids, so the honest key was absent).
+   FIX: pass_ticks keyed by the PLAN's real instances; assert
+   `aud0.t0` ticked in-session; add full-execution CID equality
+   (the strongest indistinguishability check).
+
+**Should-fixes (doing now):** rules lane is inert transport → choose-adapters
+consumes `block:<id>` region overrides so CMP-9.2's splice has structural
+consequence; `engine_alive` hand-tally → executor-side census of live
+engine plans; realize's `backend` port decoration → read it.
+
+**Flagged (parked as kanban/backlog cards, not fixed now):**
+- engine/query/arbiter natives hand-write port tables (AUT-3's no-hand-tables
+  grep covers only hello_natives) — generation should widen.
+- fanin is a bounded 4-slot gather, not span-style.
+- `note_compile_work` is opt-in instrumentation; window placement chosen by
+  audited code — structural coverage is the standing gap.
+- CMP-9.4's registry-vs-walk equality is true by construction (one in-memory
+  source); becomes falsifiable when types load from committed datasets.
+- residual type-string dispatch in query_eval.cpp / store_session.cpp
+  (data prep, but the policed pattern).
+- graphs/*.json (lift/subgraph defs) are unkeyed compile inputs — should
+  join the recipe as committed datasets (rung 9+ territory).
+
 ## 2026-07-05 — RUNG 5 GREEN — rungs 1–5, 77 criteria, 0 fail
 
 The executor package (src/executor): regions inferred from generated port
