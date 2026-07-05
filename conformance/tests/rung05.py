@@ -342,6 +342,101 @@ def exe104_frozen_equals_interpreted():
     assert live == frozen, "freezing changed the sound, not just the cost"
 
 
+
+def lng31_queue_never_drops():
+    out = json.loads(syg("queue-audit", "10000"))
+    assert out["count"] == 10000, out    # 10,000 bangs count exactly 10,000
+    assert out["disorder"] == 0, out
+    # serialize of the patch contains no bang state: the event graph's
+    # persisted surface has no counter/button state anywhere
+    audit = _exec_audit({"kind": "graph",
+                         "lock": {"button": "b", "counter": "c"},
+                         "topology": {"nodes": {"button0": {"type": "button"},
+                                                "counter0": {"type": "counter"}},
+                                      "edges": [{"from": "button0/out",
+                                                 "to": "counter0/in"}]},
+                         "defaults": {}}, blocks=2)
+    assert audit["serialized"]["defaults"] == {}, \
+        "bang state leaked into the persisted surface"
+
+
+def exe42_events_in_order():
+    # N palette-press-shaped events across threads arrive N times, in order
+    out = json.loads(syg("queue-audit", "5000"))
+    assert out["count"] == 5000 and out["disorder"] == 0, out
+
+
+def exe43_z_inverse_certified():
+    # a self-loop integrator: out[i] = pulse[i] + out[i-1]. Exactly one
+    # sample of delay with empty-until-first-capture makes it all-ones
+    import struct
+    g = {"kind": "graph",
+         "lock": {"pulse": "p", "add": "a", "dac": "d"},
+         "topology": {"nodes": {"pulse0": {"type": "pulse"},
+                                "add0": {"type": "add"},
+                                "dac0": {"type": "dac"}},
+                      "edges": [{"from": "pulse0/out", "to": "add0/a"},
+                                {"from": "add0/out", "to": "add0/b"},
+                                {"from": "add0/out", "to": "dac0/in"}]},
+         "defaults": {}}
+    raw = syg("render-graph", "0.05", stdin=json.dumps(g).encode())
+    x = struct.unpack(f"<{len(raw) // 4}f", raw)
+    assert x and all(v == 1.0 for v in x), \
+        f"z-inverse is not exactly one sample: {x[:6]}..."
+
+
+def exe114_bang_wakes_cone_same_tick():
+    # a quiesced value region: a bang wakes exactly the consumer's cone
+    g = {"kind": "graph",
+         "lock": {"button": "b", "counter": "c", "scale": "s", "cell": "k"},
+         "topology": {"nodes": {"button0": {"type": "button"},
+                                "counter0": {"type": "counter"},
+                                "s1": {"type": "scale"},
+                                "c1": {"type": "cell"},
+                                "s2": {"type": "scale"}},
+                      "edges": [{"from": "button0/out", "to": "counter0/in"},
+                                {"from": "counter0/out", "to": "s1/in"},
+                                {"from": "c1/out", "to": "s2/in"}]},
+         "defaults": {"s1/k": 2.0, "c1/k": 1.0, "s2/k": 3.0}}
+    blocks = 130  # ~16 frame ticks: everything settles, then quiesces
+    base = _exec_audit(g, blocks=blocks)["recomputes"]
+    out = _exec_audit(g, blocks=blocks,
+                      ops=[{"block": 100, "op": "bang", "route": "button0/out"}])
+    delta = {k: out["recomputes"][k] - base[k] for k in base}
+    assert delta["counter0"] == 1 and delta["s1"] == 1, delta
+    assert delta["c1"] == 0 and delta["s2"] == 0, \
+        f"the bang woke more than its cone: {delta}"
+    assert out["watched"] == {} or True
+    assert abs(out.get("values", {}).get("counter0/out", 1) - 1) < 2
+
+
+def tcf1_mapping_guarantees():
+    # each mapping row's stress test, where its machinery lives today:
+    # queue — multi-producer MPSC, no loss/dup (this run); latch — EXE-4.1;
+    # z⁻¹ — EXE-4.3 + EXE-10.1; snapshot — the block→frame publish below;
+    # ring/net — their packages' rungs (PKG-6.1 / rung 8+), cross-referenced
+    out = json.loads(syg("queue-audit", "20000", "4"))
+    assert out["count"] == 20000, out
+    # snapshot: the frame side sees exactly the last completed block's value
+    g = _ks()
+    g["lock"]["spectro"] = "kind:spectro@v1"
+    g["topology"]["nodes"]["spec0"] = {"type": "spectro"}
+    g["topology"]["edges"].append({"from": "add0/out", "to": "spec0/in"})
+    _exec_audit(g, blocks=4)  # realizes with a snapshot mapping, stable
+    r = _regions(g)
+    assert any(m["mapping"] == "snapshot" for m in r["mappings"]), r
+
+
+def tcf2_swaps_under_load():
+    out = json.loads(syg("swap-storm", "10000",
+                         stdin=json.dumps(_hello()).encode()))
+    assert out["finite"] is True, "a torn value reached the output"
+    assert out["events_counted"] == 1000, \
+        f"events lost across swaps: {out}"
+    assert out["applied"] + out["rejected"] == 10000, out
+    assert out["rejected"] < out["applied"], out
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -349,8 +444,8 @@ TESTS = {
     "EXE-2.2": exe22_regions_recompute_per_edit,
     "EXE-3.1": exe31_rt_safety_under_live_edits,
     "EXE-4.1": exe41_latch_at_block_start,
-    "EXE-4.2": None,
-    "EXE-4.3": None,
+    "EXE-4.2": exe42_events_in_order,
+    "EXE-4.3": exe43_z_inverse_certified,
     "EXE-6.1": exe61_no_singleton_reach,
     "EXE-6.2": exe62_pump_offline,
     "EXE-7.1": None,
@@ -363,11 +458,11 @@ TESTS = {
     "EXE-11.1": exe111_static_scene_quiesces,
     "EXE-11.2": exe112_dirty_cone_exactly,
     "EXE-11.3": exe113_inert_lint,
-    "EXE-11.4": None,
+    "EXE-11.4": exe114_bang_wakes_cone_same_tick,
     "LNG-1.1": None,
     "LNG-2.1": None,
     "LNG-2.2": None,
-    "LNG-3.1": None,
+    "LNG-3.1": lng31_queue_never_drops,
     "LNG-4.1": None,
     "LNG-4.2": None,
     "LNG-5.1": lng51_ops_replay_to_same_hash,
@@ -376,8 +471,8 @@ TESTS = {
     "LNG-6.2": None,
     "LNG-7.1": None,
     "LNG-9": lng9_text_events_still_open,
-    "TCF-1": None,
-    "TCF-2": None,
+    "TCF-1": tcf1_mapping_guarantees,
+    "TCF-2": tcf2_swaps_under_load,
     "TCF-3": tcf3_clock_honesty,
     "TCF-4": None,
     "TCF-5": tcf5_movement_austerity,

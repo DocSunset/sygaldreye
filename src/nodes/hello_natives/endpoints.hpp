@@ -53,6 +53,16 @@ struct spectro {  // block-override: consumes its block whole (FFT-shaped)
   au::out<au::audio, au::block> out;
 };
 
+struct button {
+  au::out<au::bang, au::event> out;
+};
+
+struct counter {
+  au::in<au::bang, au::event> in;
+  au::out<au::scalar, au::value> out;
+  au::out<au::scalar, au::value> errors;
+};
+
 struct cell {
   au::in<au::scalar, au::value> k;
   au::out<au::scalar, au::value> out;

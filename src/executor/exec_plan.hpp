@@ -6,6 +6,7 @@
 
 #include "crown.hpp"
 #include "parser/parser.hpp"
+#include "mpsc.hpp"
 #include "regions.hpp"
 
 namespace syg::executor {
@@ -32,9 +33,9 @@ class exec_plan {
  public:
   exec_plan(organs::graph_doc doc, int rate, int block);
   ~exec_plan();
-  exec_plan(exec_plan&&) noexcept;
 
-  void submit(edit_op o);
+  void submit(edit_op o);            // any thread (the arbiter's inlet)
+  void post_event(const std::string& out_route, double v);  // any thread
 
   // one block: boundary (drain inlet) -> frame tick if due -> latch ->
   // block segments. Returns the sink's samples (dac input).
@@ -47,6 +48,7 @@ class exec_plan {
   long recomputes(const std::string& id) const;  // EXE-11 counters
   float value_of(const std::string& id_port) const;  // frame cell peek
   long process_calls() const;  // kernel invocations (EXE-10.2 observability)
+  long rejected_ops() const { return rejected_; }  // precondition losers
   const std::vector<applied_op>& log() const { return log_; }
   std::size_t log_cursor() const { return cursor_; }
   void undo();  // move the cursor back, applying inverses (ADR-018:
@@ -61,6 +63,9 @@ class exec_plan {
   std::unique_ptr<impl> im_;
   std::vector<applied_op> log_;
   std::size_t cursor_ = 0;
+  long rejected_ = 0;
+  mpsc<edit_op> inlet_q_;
+  mpsc<std::pair<std::string, double>> event_q_;
   std::map<std::string, std::string> param_journal_;  // route -> last value
   organs::graph_doc doc_;
   region_map regions_;

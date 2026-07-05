@@ -1,5 +1,7 @@
 #include <cstdio>
+#include <cmath>
 #include <map>
+#include <thread>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -275,6 +277,8 @@ int cmd_exec_audit() {
       const std::string what = op->value("op", "set_param");
       if (what == "undo")
         p.undo();
+      else if (what == "bang")
+        p.post_event(op->at("route"), op->value("payload", 0.0));
       else if (what == "set_param")
         p.submit({what, op->at("route"), op->at("value"),
                   op->value("author", "")});
@@ -317,6 +321,96 @@ int cmd_exec_audit() {
                               {"log", log},
                               {"serialized", syg::organs::serialize_graph(p.doc())}}
                    .dump() << "\n";
+  return 0;
+}
+
+nlohmann::json event_graph() {
+  return {{"kind", "graph"},
+          {"lock", {{"button", "kind:button@v1"}, {"counter", "kind:counter@v1"}}},
+          {"topology",
+           {{"nodes", {{"button0", {{"type", "button"}}},
+                       {"counter0", {{"type", "counter"}}}}},
+            {"edges", {{{"from", "button0/out"}, {"to", "counter0/in"}}}}}},
+          {"defaults", nlohmann::json::object()}};
+}
+
+int cmd_queue_audit(long n_events, int n_threads) {
+  // LNG-3.1 / EXE-4.2 / TCF-1: bangs cross a real thread boundary through
+  // the queue mapping; nothing drops, duplicates, or (single-producer)
+  // reorders. Multi-producer certifies MPSC loss/dup freedom.
+  syg::executor::exec_plan p(syg::organs::parse_graph(event_graph()), 48000, 128);
+  std::vector<std::thread> producers;
+  for (int t = 0; t < n_threads; ++t)
+    producers.emplace_back([&, t] {
+      long share = n_events / n_threads;
+      for (long i = 1; i <= share; ++i)
+        p.post_event("button0/out",
+                     n_threads == 1 ? static_cast<double>(i) : 0.0);
+    });
+  long blocks = 0;
+  while (std::lround(p.value_of("counter0/out")) < n_events && blocks < 200000) {
+    p.pump_block();
+    ++blocks;
+  }
+  for (auto& pr : producers) pr.join();
+  for (int i = 0; i < 20; ++i) p.pump_block();  // settle the tail
+  std::cout << nlohmann::json{
+                   {"count", std::lround(p.value_of("counter0/out"))},
+                   {"disorder", std::lround(p.value_of("counter0/errors"))},
+                   {"blocks", blocks}}.dump() << "\n";
+  return 0;
+}
+
+int cmd_swap_storm(int n_ops) {
+  // TCF-2: random swaps under load — in-flight ticks complete, values
+  // never tear, queued events survive the swaps
+  auto g = event_graph();
+  auto hello = nlohmann::json::parse(read_stdin());
+  for (auto& [id, rec] : hello.at("topology").at("nodes").items())
+    g["topology"]["nodes"][id] = rec;
+  for (auto& e : hello.at("topology").at("edges")) g["topology"]["edges"].push_back(e);
+  for (auto& [k, v] : hello.at("defaults").items()) g["defaults"][k] = v;
+  for (auto& [k, v] : hello.at("lock").items()) g["lock"][k] = v;
+  syg::executor::exec_plan p(syg::organs::parse_graph(g), 48000, 128);
+  std::atomic<bool> done{false};
+  std::thread editor([&] {
+    unsigned lcg = 12345;
+    for (int i = 0; i < n_ops; ++i) {
+      lcg = lcg * 1103515245 + 12345;
+      switch ((lcg >> 16) % 3) {
+        case 0:
+          p.submit({"set_param", "osc0/freq",
+                    std::to_string(200 + (lcg >> 20) % 400), "storm"});
+          break;
+        case 1:
+          p.submit({"add_node", "n" + std::to_string(i), "noise", "storm"});
+          break;
+        default:
+          p.submit({"remove_node", "n" + std::to_string(i - 1), "", "storm"});
+      }
+    }
+    done = true;
+  });
+  std::thread poker([&] {
+    for (long i = 1; i <= 1000; ++i) p.post_event("button0/out", 0.0);
+  });
+  long blocks = 0;
+  bool finite = true;
+  while (!done || std::lround(p.value_of("counter0/out")) < 1000) {
+    const float* out = p.pump_block();
+    for (int i = 0; i < 128; ++i)
+      if (!std::isfinite(out[i])) finite = false;
+    if (++blocks > 200000) break;
+  }
+  editor.join();
+  poker.join();
+  for (int i = 0; i < 20; ++i) p.pump_block();
+  std::cout << nlohmann::json{
+                   {"blocks", blocks},
+                   {"finite", finite},
+                   {"events_counted", std::lround(p.value_of("counter0/out"))},
+                   {"applied", p.log().size()},
+                   {"rejected", p.rejected_ops()}}.dump() << "\n";
   return 0;
 }
 
@@ -385,6 +479,9 @@ int main(int argc, char** argv) {
     if (cmd == "regions") return cmd_regions();
     if (cmd == "render-graph" && argc > 2) return cmd_render_graph(std::stod(argv[2]));
     if (cmd == "exec-audit") return cmd_exec_audit();
+    if (cmd == "queue-audit" && argc > 2)
+      return cmd_queue_audit(std::atol(argv[2]), argc > 3 ? std::atoi(argv[3]) : 1);
+    if (cmd == "swap-storm" && argc > 2) return cmd_swap_storm(std::atoi(argv[2]));
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

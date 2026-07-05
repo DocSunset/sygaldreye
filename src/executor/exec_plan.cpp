@@ -54,11 +54,17 @@ struct exec_plan::impl {
     const float* src_buf;  // producer's block buffer base
     std::unique_ptr<float> cell;
   };
+  struct event_edge {  // out route -> (consumer frame idx, in-port name)
+    std::string from;
+    std::size_t dst;
+    std::string port;
+  };
 
   std::vector<block_node> blocks;  // fused per-node segments, topo order
   std::vector<frame_node> frames;
   std::vector<latch> latches;
   std::vector<snapshot> snapshots;
+  std::vector<event_edge> event_edges;
   std::vector<std::pair<std::size_t, std::size_t>> frame_edges;  // src, dst
   std::vector<std::unique_ptr<std::vector<float>>> latch_bufs;
   std::vector<float> silence;
@@ -173,6 +179,21 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
     auto sport = from.substr(from.find('/') + 1);
     auto did = to.substr(0, to.find('/'));
     auto dport = to.substr(to.find('/') + 1);
+    {
+      // event-discipline edges route through the applier path, not buffers
+      auto* sf0 = im->frame_of(sid);
+      auto* df0 = im->frame_of(did);
+      const crown::port_decl* op_decl = nullptr;
+      if (sf0)
+        for (const auto& pd : sf0->type->out_ports)
+          if (sport == pd.name) op_decl = &pd;
+      if (op_decl && std::string(op_decl->discipline) == "event") {
+        if (!df0) throw std::runtime_error("event edge needs a frame consumer");
+        im->event_edges.push_back(
+            {from, static_cast<std::size_t>(df0 - im->frames.data()), dport});
+        continue;
+      }
+    }
     if (snapped.count(i)) {
       auto* sb = im->block_of(sid);
       auto* df = im->frame_of(did);
@@ -321,9 +342,12 @@ exec_plan::exec_plan(organs::graph_doc doc, int rate, int block)
 }
 
 exec_plan::~exec_plan() = default;
-exec_plan::exec_plan(exec_plan&&) noexcept = default;
 
-void exec_plan::submit(edit_op o) { im_->inlet.push_back(std::move(o)); }
+void exec_plan::submit(edit_op o) { inlet_q_.push(std::move(o)); }
+
+void exec_plan::post_event(const std::string& out_route, double v) {
+  event_q_.push({out_route, v});
+}
 
 void exec_plan::undo() {
   if (cursor_ == 0) return;
@@ -331,7 +355,7 @@ void exec_plan::undo() {
   for (auto it = inv.rbegin(); it != inv.rend(); ++it) {
     auto o = *it;
     o.undo_replay = true;  // a cursor move, never new history
-    im_->inlet.push_back(std::move(o));
+    inlet_q_.push(std::move(o));
   }
 }
 
@@ -418,10 +442,11 @@ void exec_plan::rebuild() {
 }
 
 const float* exec_plan::pump_block() {
-  // 1. the boundary: drain the inlet
+  // 1. the boundary: drain the arbiter inlet (arrival order is the order)
   bool structural = false;
-  auto pending = std::move(im_->inlet);
-  im_->inlet.clear();
+  auto& pending = im_->inlet;
+  pending.clear();
+  inlet_q_.drain(pending);
   for (const auto& o : pending) {
     if (o.op == "set_param") {
       im_->set_param(o.a, std::strtod(o.b.c_str(), nullptr));
@@ -436,11 +461,28 @@ const float* exec_plan::pump_block() {
       }
       param_journal_[o.a] = o.b;
     } else {
-      apply_structural(o);
-      structural = true;
+      try {
+        apply_structural(o);
+        structural = true;
+      } catch (const std::exception&) {
+        ++rejected_;  // the precondition loser fails loudly, others proceed
+      }
     }
   }
   if (structural) rebuild();
+  // appliers run before process: deliver queued events into their cones
+  {
+    thread_local std::vector<std::pair<std::string, double>> evs;
+    evs.clear();
+    event_q_.drain(evs);
+    for (const auto& [route, v] : evs)
+      for (const auto& e : im_->event_edges)
+        if (e.from == route) {
+          auto& f = im_->frames[e.dst];
+          if (f.type->apply) f.type->apply(f.state, e.port.c_str(), v);
+          f.dirty = true;  // the bang wakes exactly its cone (EXE-11.4)
+        }
+  }
   // 2. frame tick when due
   double block_dt = static_cast<double>(block_) / rate_;
   if (im_->t >= im_->next_frame) {

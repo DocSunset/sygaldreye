@@ -35,6 +35,9 @@ struct native_type {
   // whole-block interior (FFT-shaped): a cycle through it demands an
   // explicit delay at edit time (ADR-013)
   bool block_override = false;
+  // the event applier hook (ch. 13): consume events, write state; runs
+  // before process at the consumer's boundary, never mid-tick
+  void (*apply)(void* state, const char* port, double v) = nullptr;
 };
 
 // One op record (the five appliers; the tape and every editor speak this).
