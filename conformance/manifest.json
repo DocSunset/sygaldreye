@@ -193,6 +193,16 @@
   "rung": 12,
   "text": "Movement-level and peer-level conformance run"
  },
+ "COR-5": {
+  "chapter": "16-the-core.md",
+  "criteria": {
+   "COR-5.1": "a gate scans native sources for a declared clause marker",
+   "COR-5.2": "a native claiming no clause a reviewer accepts is rejected in"
+  },
+  "name": "native ledger discipline, ADR-033",
+  "rung": 2,
+  "text": "Every native declares its"
+ },
  "EDR-1": {
   "chapter": "09-editor-documents.md",
   "criteria": {

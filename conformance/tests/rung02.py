@@ -23,4 +23,8 @@ TESTS = {
     "SZ-1.1": None,
     # 06-stage0-boot.md: at most 10 lines each; CI line-count gate.
     "SZ-6": None,
+    # 16-the-core.md: a gate scans native sources for a declared clause marker
+    "COR-5.1": None,
+    # 16-the-core.md: a native claiming no clause a reviewer accepts is rejected in
+    "COR-5.2": None,
 }
