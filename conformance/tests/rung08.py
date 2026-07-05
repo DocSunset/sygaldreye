@@ -457,6 +457,61 @@ def pkg71_placement_is_fallthrough():
         [m["edge"] for m in xr["mappings"]], "the boundary walk itself moved"
 
 
+def pkg51_worker_placement_by_capability():
+    # a peer without the worker capability schedules a heavy analysis
+    # derivation; with worker advertised only by "linux", placement falls
+    # through there and the result dataset comes back BY HASH (fetched,
+    # re-verified, then locally present)
+    def store(ops):
+        return json.loads(syg("store", stdin=json.dumps(
+            {"peers": {"quest": {}, "linux": {}}, "ops": ops}).encode()))["results"]
+    r = store([
+        {"op": "place-derivation", "peer": "quest",
+         "workers": {"quest": False, "linux": True},
+         "graph": _chime(), "blocks": 200},
+    ])
+    placed = r[0]
+    assert placed["placed_on"] == "linux", placed
+    out_cid, take_cid = placed["output"], placed["take"]
+    r = store([
+        {"op": "place-derivation", "peer": "quest",
+         "workers": {"quest": False, "linux": True},
+         "graph": _chime(), "blocks": 200},
+        {"op": "has", "peer": "quest", "cid": out_cid},
+        {"op": "fetch", "peer": "quest", "from": "linux", "cid": out_cid},
+        {"op": "has", "peer": "quest", "cid": out_cid},
+        {"op": "fetch", "peer": "quest", "from": "linux", "cid": take_cid},
+        {"op": "has", "peer": "quest", "cid": take_cid},
+        {"op": "read", "peer": "quest", "cid": out_cid},
+    ])
+    assert r[1]["has"] is False, "the requester had the result before fetching"
+    assert r[2]["moved"] >= 1 and r[3]["has"] is True
+    assert r[5]["has"] is True, "the take dataset did not come back by hash"
+    body = r[6]
+    analysis = body.get("node", body)
+    assert analysis.get("kind") == "analysis" and \
+        analysis.get("rms_blocks") == 200, analysis
+    # determinism: re-placing is a memo hit on the worker
+    r2 = store([
+        {"op": "place-derivation", "peer": "quest",
+         "workers": {"quest": False, "linux": True},
+         "graph": _chime(), "blocks": 200},
+        {"op": "place-derivation", "peer": "quest",
+         "workers": {"quest": False, "linux": True},
+         "graph": _chime(), "blocks": 200},
+    ])
+    assert r2[1]["memo"] is True and r2[1]["output"] == out_cid
+    # nobody home: no worker anywhere is a LOUD refusal
+    import subprocess as sp
+    exe = ROOT / "syg"
+    rr = sp.run([str(exe), "store"], input=json.dumps(
+        {"peers": {"quest": {}, "linux": {}},
+         "ops": [{"op": "place-derivation", "peer": "quest",
+                  "workers": {"quest": False, "linux": False},
+                  "graph": _chime()}]}).encode(), capture_output=True)
+    assert rr.returncode != 0 and b"worker" in rr.stderr
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
@@ -472,7 +527,7 @@ TESTS = {
     "PKG-3.2": None,
     "PKG-4.1": pkg41_gl_boundary_gate,
     "PKG-4.2": pkg42_unchained_draw_does_not_render,
-    "PKG-5.1": None,
+    "PKG-5.1": pkg51_worker_placement_by_capability,
     "PKG-6.1": None,
     "PKG-7.1": pkg71_placement_is_fallthrough,
     "PKG-8.1": None,
