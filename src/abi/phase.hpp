@@ -29,4 +29,16 @@ void rt_lock_probe() noexcept;  // lock shims call this
 // fail loud). Anywhere else: the allocation-discipline abort (ABI-2.2).
 int acquire_device(const char* name);
 
+// The hook scope (ADR-034 / CMP-9.1): the executor wraps every node hook;
+// compile machinery notes its work, tagged by whether a hook is live.
+struct hook_scope {
+  bool prev;
+  hook_scope() noexcept;
+  ~hook_scope() noexcept;
+};
+bool in_hook() noexcept;
+void note_compile_work() noexcept;
+long compile_work_outside_hooks() noexcept;
+void reset_compile_work() noexcept;
+
 }  // namespace syg::abi

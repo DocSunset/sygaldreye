@@ -1,6 +1,8 @@
 // clause: machinery — executor package (plans, pacing, mappings)
 #include "regions.hpp"
 
+#include "phase.hpp"
+
 #include <map>
 #include <set>
 
@@ -20,6 +22,7 @@ const crown::port_decl* find_port(const std::vector<crown::port_decl>& ports,
 }  // namespace
 
 region_map infer_regions(const organs::graph_doc& g) {
+  abi::note_compile_work();
   region_map out;
   std::map<std::string, const crown::native_type*> types;
   for (const auto& [id, tname] : g.nodes) {

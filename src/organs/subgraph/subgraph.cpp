@@ -1,6 +1,8 @@
 // clause: machinery — the subgraph organ
 #include "subgraph/subgraph.hpp"
 
+#include "phase.hpp"
+
 #include <set>
 #include <stdexcept>
 
@@ -72,6 +74,7 @@ graph_doc expand(graph_doc doc, const template_loader& load,
 }  // namespace
 
 graph_doc expand_subgraphs(graph_doc doc, const template_loader& load) {
+  abi::note_compile_work();
   std::set<std::string> stack;
   return expand(std::move(doc), load, stack);
 }

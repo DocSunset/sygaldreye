@@ -1,5 +1,5 @@
 add_library(syg_organs arbiter/arbiter_inlet_native.cpp parser/parser.cpp query/query.cpp query/query_natives.cpp reflection/graph_source_native.cpp subgraph/subgraph.cpp parser/parser_native.cpp slot/slot.cpp slot/slot_native.cpp resolver/naive_resolver_native.cpp registry_face/registry_face_native.cpp supervisor/supervisor_native.cpp registry_face/registry_face.cpp resolver/naive_resolver.cpp)
 target_include_directories(syg_organs PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(syg_organs PUBLIC nlohmann_json::nlohmann_json syg_cid syg_crown syg_store)
+target_link_libraries(syg_organs PUBLIC nlohmann_json::nlohmann_json syg_abi syg_cid syg_crown syg_store)
 target_include_directories(syg_organs PRIVATE ${CMAKE_BINARY_DIR}/generated)
 add_dependencies(syg_organs generated)

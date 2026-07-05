@@ -284,6 +284,9 @@ void emit_registration(const std::filesystem::path& dir) {
   const std::vector<std::string> organ_natives{
       "parser", "naive_resolver", "registry-face", "slot", "supervisor",
       "graph_source", "arbiter_inlet", "seed", "traverse", "filter", "join", "fixpoint"};
+  const std::vector<std::string> executor_natives{
+      "receive", "fanin", "recognize-region", "construct-context",
+      "choose-adapters", "realize"};
   auto sym = [](std::string n) {
     for (auto& c : n)
       if (c == '-') c = '_';
@@ -291,6 +294,7 @@ void emit_registration(const std::filesystem::path& dir) {
   };
   ordered_json manifest = natives;
   for (const auto& n : organ_natives) manifest.push_back(n);
+  for (const auto& n : executor_natives) manifest.push_back(n);
   std::string leaf_externs, leaf_refs;
   emit_leaves(dir, manifest, leaf_externs, leaf_refs);
   std::string tu =
@@ -300,13 +304,18 @@ void emit_registration(const std::filesystem::path& dir) {
   for (const auto& n : natives)
     tu += "extern const syg::crown::native_type " + sym(n) + "_native;\n";
   tu += "}\nnamespace syg::generated_leaves {\n" + leaf_externs +
-        "}\nnamespace syg::organs {\n";
+        "}\nnamespace syg::executor {\n";
+  for (const auto& n : executor_natives)
+    tu += "extern const syg::crown::native_type " + sym(n) + "_native;\n";
+  tu += "}\nnamespace syg::organs {\n";
   for (const auto& n : organ_natives)
     tu += "extern const syg::crown::native_type " + sym(n) + "_native;\n";
   tu += "const std::vector<const syg::crown::native_type*>& registered_natives() {\n"
         "  static const std::vector<const syg::crown::native_type*> all{";
   for (const auto& n : natives) tu += "&syg::nodes::" + sym(n) + "_native, ";
   for (const auto& n : organ_natives) tu += "&syg::organs::" + sym(n) + "_native, ";
+  for (const auto& n : executor_natives)
+    tu += "&syg::executor::" + sym(n) + "_native, ";
   tu += leaf_refs;
   tu += "};\n  return all;\n}\n}  // namespace syg::organs\n";
   std::ofstream(dir / "registration.cpp") << tu;

@@ -1,20 +1,16 @@
 {
  "add_nodes": {
-  "audio_recognize0": {
-   "type": "audio-region-rules"
-  },
-  "audio_adapters0": {
-   "type": "audio-adapter-rules"
+  "audio_rules0": {
+   "type": "text_cell"
   }
  },
  "add_edges": [
   {
-   "from": "audio_recognize0/out",
-   "to": "recognize0/in"
-  },
-  {
-   "from": "audio_adapters0/out",
-   "to": "adapters0/in"
+   "from": "audio_rules0/out",
+   "to": "recognize0/in0"
   }
- ]
+ ],
+ "add_defaults": {
+  "audio_rules0/value": "audio"
+ }
 }

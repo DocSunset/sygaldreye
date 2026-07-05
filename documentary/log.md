@@ -183,3 +183,30 @@ five live edits while sounding: a fifth up (phase continuous, jump
 compiler's latch swapped for a musical smoother mid-performance, noise
 out, tonic home. Any time we must restart the app to change it, we are
 failing. We did not restart. [agent]
+
+## 2026-07-05 — the engine ticks (rung 7 re-earned)
+
+The halt was right. My first rung-7 pass had the compiler walking
+engine-v0 like a tourist with a map — the data was graph-shaped, but no
+pass was ever a node, and the order test compared the walker's diary
+against the walker. Travis's audit caught it in minutes from fresh
+context; from inside the session it had looked like architecture.
+
+The correction, in the order the instructions taught: first the LANE
+(kind-tagged payloads on the contract, zero-copy, generated accessors —
+a graph value crossed between two instances with a zero encode delta and
+the RT path paid nothing), then the leaves (twenty one-line natives from
+a generator table), then the arbiter's mouth as a node — a bang in one
+graph adding a node to another, authorship on the log, no privileged
+surface. The query four became instances; the bespoke evaluator's
+scaffolding marker is gone from the tree.
+
+And then the moment: compiling hello-cosine ran seven pass INSTANCES,
+each ticking exactly once, in wiring order, traced by the executor
+itself — with the outside-hook-work counter reading zero. The engine
+compiled a graph while being a ticking graph. An edit op splicing one
+text_cell into a fan-in changed the next compile's output; removing it
+restored the exact hash. A pass authored as a dataset was
+indistinguishable from the native one. The locks now carry real CIDs.
+
+Two stars now. The second one cost a halt to learn. Worth it. [agent]

@@ -23,6 +23,20 @@ void reset_counts() noexcept {
 void count_alloc() noexcept { ++counts(cur).allocs; }
 void rt_lock_probe() noexcept { ++counts(cur).locks; }
 
+namespace {
+thread_local bool hook_live = false;
+long outside_work = 0;
+}  // namespace
+
+hook_scope::hook_scope() noexcept : prev(hook_live) { hook_live = true; }
+hook_scope::~hook_scope() noexcept { hook_live = prev; }
+bool in_hook() noexcept { return hook_live; }
+void note_compile_work() noexcept {
+  if (!hook_live) ++outside_work;
+}
+long compile_work_outside_hooks() noexcept { return outside_work; }
+void reset_compile_work() noexcept { outside_work = 0; }
+
 int acquire_device(const char* name) {
   if (cur != phase::prepare) {
     std::fprintf(stderr,

@@ -1,6 +1,8 @@
 // clause: machinery — executor package (plans, pacing, mappings)
 #include "lift.hpp"
 
+#include "phase.hpp"
+
 #include <set>
 #include <stdexcept>
 
@@ -40,6 +42,7 @@ std::string in_port_kind(const std::string& type, const std::string& port,
 
 organs::graph_doc lift_expand(organs::graph_doc doc,
                               const organs::template_loader& load) {
+  abi::note_compile_work();
   auto type_of = [&](const std::string& id) {
     for (const auto& [nid, t] : doc.nodes)
       if (nid == id) return t;

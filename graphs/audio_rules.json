@@ -1,0 +1,18 @@
+{
+ "kind": "graph",
+ "lock": {},
+ "topology": {
+  "nodes": {
+   "t0": {
+    "type": "text_cell"
+   }
+  },
+  "edges": [],
+  "outlets": {
+   "out": "t0/out"
+  }
+ },
+ "defaults": {
+  "t0/value": "audio"
+ }
+}

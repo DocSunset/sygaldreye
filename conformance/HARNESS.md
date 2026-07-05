@@ -44,6 +44,7 @@ import or port them into the implementation).
 | 2 | `syg kernel-audit` | the AUT-1 kernel contract, exercised directly: bounded outputs, stage machines, delay-at-N, slew clamps, and N=1 == N=128 per native → `{"suite","checks"}` |
 | 7 | *(exec-audit gains)* | `watch` reads structured cells (text shown, others as `<kind>`); output gains `encodes` (canonical-encode delta — the LNG-11.1 zero-copy witness) |
 | 7 | `syg graph-edits-graph` | `{target, editor, arbiter, bang}` → bang the editor graph; its op event flows into the TARGET's arbiter inlet; returns the target's op log + doc (LNG-11.3) |
+| 7 | `syg peer` | ONE peer per session: store + committed type nodes + lazily resident engine level. Ops: set-app, compile (a derivation-mode run of the REALIZED engine plan → per-instance tick counts, executor trace, outside-hook-work witness), open/close-engine-editor, engine-edit (ops into the engine's arbiter), engine-doc, render, commit-app (honest locks), type-promises/registry-promises (one committed declaration) |
 | 1 | `syg pins` | no stdin → one-line JSON of the frozen ch. 14 pins (multicodec/multihash numbers, multibase, chunk size, escape set, tape records, edit ops, wire kinds) — the FMT-5 freeze surface |
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 

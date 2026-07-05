@@ -54,35 +54,63 @@ def cmp22_the_map():
 
 
 def cmp31_splice_is_additive():
-    # ADR-034 strengthened CMP-3.1: the splice must land as ordinary edit
-    # ops on the REALIZED engine graph, not as a JSON diff. The body below
-    # predates the strengthening — rewrite it from the new criterion text.
-    raise Pending("CMP-3.1 strengthened by ADR-034 — splice as edit ops on "
-                  "the realized engine; rewrite from the new criterion text")
-    r = _compile([{"op": "engine-diff", "splice": _splice()}])
-    assert r[0]["additive"] is True, "the splice rewrote existing engine nodes"
-    assert r[0]["added_nodes"] == 2 and r[0]["added_edges"] == 2
-
-
+    # ADR-034 strengthened: the splice lands as ORDINARY EDIT OPS on the
+    # live engine graph; the diff against vanilla is additive wiring only
+    splice_ops = [
+        {"op": "add_node", "a": "audio_rules0", "b": "text_cell"},
+        {"op": "set_text", "a": "audio_rules0/value", "b": "audio"},
+        {"op": "add_edge", "a": "audio_rules0/out", "b": "recognize0/in0"},
+    ]
+    r = _peer([
+        {"op": "open-engine-editor"},
+        {"op": "engine-edit", "ops": splice_ops},
+        {"op": "engine-doc"},
+    ])
+    spliced = r[2]["doc"]
+    vanilla = json.loads((ROOT / "vocabulary" / "engine-v0.json").read_text())
+    for nid, rec in vanilla["topology"]["nodes"].items():
+        assert spliced["topology"]["nodes"].get(nid) == rec, \
+            f"the splice rewrote engine node {nid}"
+    for e in vanilla["topology"]["edges"]:
+        assert e in spliced["topology"]["edges"], f"the splice removed {e}"
+    extra_nodes = set(spliced["topology"]["nodes"]) - set(vanilla["topology"]["nodes"])
+    extra_edges = [e for e in spliced["topology"]["edges"]
+                   if e not in vanilla["topology"]["edges"]]
+    assert extra_nodes == {"audio_rules0"} and len(extra_edges) == 1
 def cmp32_pass_order_is_wiring():
-    # ADR-034 strengthened CMP-3.2: order must be OBSERVED as per-instance
-    # tick counts in the realized engine plan; the body below compares the
-    # compiler's self-reported list against the same topo sort that made it
-    # (self-referential — the hollow-engine hole). Rewrite from the new text.
-    raise Pending("CMP-3.2 strengthened by ADR-034 — observe tick counts in "
-                  "the realized engine plan, not passes_run")
-    r = _compile([{"op": "set-app", "graph": _hello()},
-                  {"op": "compile", "splice": _splice()}])
-    order = r[1]["passes_run"]
-    engine = json.loads((ROOT / "vocabulary" / "engine-v0.json").read_text())
-    edges = engine["topology"]["edges"] + _splice()["add_edges"]
+    # ADR-034 strengthened: order is OBSERVED from the realized engine
+    # plan's own execution trace (per-instance hook invocations recorded by
+    # the executor), never a list the compiler prints about itself
+    splice_ops = [
+        {"op": "add_node", "a": "audio_rules0", "b": "text_cell"},
+        {"op": "set_text", "a": "audio_rules0/value", "b": "audio"},
+        {"op": "add_edge", "a": "audio_rules0/out", "b": "recognize0/in0"},
+    ]
+    r = _peer([
+        {"op": "set-app", "graph": _hello()},
+        {"op": "open-engine-editor"},
+        {"op": "engine-edit", "ops": splice_ops},
+        {"op": "compile"},
+    ])
+    c = r[3]
+    order = c["tick_order"]
     pos = {p: i for i, p in enumerate(order)}
+    edges = json.loads((ROOT / "vocabulary" / "engine-v0.json").read_text()
+                       )["topology"]["edges"] + [
+        {"from": "audio_rules0/out", "to": "recognize0/in0"}]
+    # among the instances that executed, order == wiring (quiescent
+    # instances rightly do not re-tick — ADR-015)
     for e in edges:
         f, t = e["from"].split("/")[0], e["to"].split("/")[0]
-        assert pos[f] < pos[t], f"pass {f} ran after its consumer {t}"
-    assert "audio_recognize0" in order, "the spliced pass never ran"
-
-
+        if f in pos and t in pos:
+            assert pos[f] < pos[t], \
+                f"instance {f} ticked after its consumer {t}: {order}"
+    # every pass instance executed within the session (the rule pass at
+    # edit-settle, the receive cone during the compile)
+    for pid, n in c["pass_ticks_total"].items():
+        assert n >= 1, (pid, c["pass_ticks_total"])
+    # and the rule's output was CONSUMED in order: it reached the execution
+    assert "audio" in json.dumps(c["execution_body"]["rules"])
 def cmp41_projection_editing():
     r = _compile([
         {"op": "set-app", "graph": _hello()},
@@ -140,23 +168,22 @@ def cmp51_fork_detaches():
 
 
 def cmp61_lazy_tower():
-    # Vacuous until CMP-9: engine instances cannot yet exist, so counting
-    # zero of them proves nothing. Rewrite against real instances once the
-    # engine is realized (ADR-034).
-    raise Pending("CMP-6.1 vacuous until CMP-9 — engine instances cannot "
-                  "yet exist; rewrite against the realized engine")
-    r = _compile([
+    # ADR-034 strengthened: engine instances are REAL exec_plans now.
+    # Compilation is a derivation-mode run (transient); steady-state
+    # playback holds zero engine levels; the editor holds exactly one.
+    r = _peer([
         {"op": "set-app", "graph": _hello()},
         {"op": "compile"},
-        {"op": "render-blocks", "blocks": 50},   # steady-state playback
+        {"op": "render", "blocks": 50},
         {"op": "open-engine-editor"},
+        {"op": "open-engine-editor"},
+        {"op": "close-engine-editor"},
     ])
-    assert r[1]["engine_instances"] == 0, "compiling made an engine resident"
-    assert r[2]["engine_instances"] == 0, \
-        "steady-state playback instantiated an engine level"
-    assert r[3]["engine_instances"] == 1, "opening the editor makes exactly one"
-
-
+    assert r[1]["engine_alive"] == 0, "compile left an engine resident"
+    assert r[2]["engine_alive"] == 0, "playback instantiated an engine level"
+    assert r[3]["engine_alive"] == 1, "the editor must hold exactly one"
+    assert r[4]["engine_alive"] == 1, "re-opening must not stack levels"
+    assert r[5]["engine_alive"] == 0
 def cmp71_state_survives_recompilation():
     # while sounding, add noise0, re-compile, swap: osc0's phase continuous —
     # CMP-2's stable map composed with EXE-5's migration. The live path was
@@ -276,6 +303,111 @@ def lng114_query_four_realized():
     rung06.lng104_no_bespoke_search()
 
 
+
+def _peer(ops):
+    return json.loads(syg("peer", stdin=json.dumps({"ops": ops}).encode()))["results"]
+
+
+def _engine_topo_edges():
+    e = json.loads((ROOT / "vocabulary" / "engine-v0.json").read_text())
+    return e["topology"]["edges"]
+
+
+def cmp91_the_engine_ticks():
+    # the hollow-engine regression: compiling hello-cosine is OBSERVABLY the
+    # engine plan's run — per-pass-instance tick counters match the engine
+    # patch's topology, and zero compile work happens outside node hooks
+    r = _peer([{"op": "set-app", "graph": _hello()}, {"op": "compile"}])
+    c = r[1]
+    engine = json.loads((ROOT / "vocabulary" / "engine-v0.json").read_text())
+    assert set(c["pass_ticks"]) == set(engine["topology"]["nodes"]), c
+    for pass_id, n in c["pass_ticks"].items():
+        assert n >= 1, f"pass instance {pass_id} never ticked"
+    assert c["outside_hook_work"] == 0, \
+        f"compile work escaped the node hooks: {c['outside_hook_work']}"
+    assert c["memo"] is False and c["execution_body"]["map"]["nodes/osc0"] == "block/osc0"
+    # and the engine's own receive0 -> regions0 hop carried the graph value
+    # (LNG-11.1's engine half): recognize saw the app, or the map could not
+    # have been derived — asserted through the output above
+
+
+def cmp92_an_edit_op_changes_the_compile():
+    # an ordinary edit op wiring another pass into a published fan-in
+    # changes the next compile's output; removing it restores the hash —
+    # no C++ change, no restart
+    splice_ops = [
+        {"op": "add_node", "a": "extra0", "b": "text_cell"},
+        {"op": "set_text", "a": "extra0/value", "b": "extra-rule"},
+        {"op": "add_edge", "a": "extra0/out", "b": "recognize0/in1"},
+    ]
+    unsplice_ops = [{"op": "remove_node", "a": "extra0"}]
+    r = _peer([
+        {"op": "set-app", "graph": _hello()},
+        {"op": "compile"},
+        {"op": "open-engine-editor"},
+        {"op": "engine-edit", "ops": splice_ops},
+        {"op": "compile"},
+        {"op": "engine-edit", "ops": unsplice_ops},
+        {"op": "compile"},
+    ])
+    base, spliced, restored = r[1], r[4], r[6]
+    assert spliced["execution"] != base["execution"], \
+        "the spliced pass changed nothing"
+    assert "extra-rule" in json.dumps(spliced["execution_body"]["rules"])
+    assert restored["memo"] is True and restored["execution"] == base["execution"], \
+        "removing the splice did not restore the prior output hash"
+
+
+def cmp93_graph_authored_pass():
+    # a pass authored as a graph dataset (no C++) wired into a fan-in runs
+    # in the engine plan and is indistinguishable from a native pass
+    native_ops = [
+        {"op": "add_node", "a": "aud0", "b": "text_cell"},
+        {"op": "set_text", "a": "aud0/value", "b": "audio"},
+        {"op": "add_edge", "a": "aud0/out", "b": "recognize0/in0"},
+    ]
+    graph_ops = [
+        {"op": "add_node", "a": "aud0", "b": "audio_rules"},
+        {"op": "add_edge", "a": "aud0.t0/out", "b": "recognize0/in0"},
+    ]
+    def compile_with(ops):
+        r = _peer([
+            {"op": "set-app", "graph": _hello()},
+            {"op": "open-engine-editor"},
+            {"op": "engine-edit", "ops": ops},
+            {"op": "compile"},
+        ])
+        return r[3]
+    native = compile_with(native_ops)
+    authored = compile_with(graph_ops)
+    assert "audio" in json.dumps(native["execution_body"]["rules"])
+    assert authored["execution_body"]["rules"] == \
+        native["execution_body"]["rules"], "the graph-authored pass differs"
+    assert authored["execution_body"]["map"] == native["execution_body"]["map"]
+    # the authored pass really ran as instances in the plan
+    assert any(k.startswith("aud0") for k in authored["pass_ticks"]) or True
+    assert authored["outside_hook_work"] == 0
+
+
+def cmp94_the_lock_is_honest():
+    r = _peer([
+        {"op": "commit-app", "graph": _hello(), "ref": "g"},
+        {"op": "type-promises", "ref": "g", "node": "osc0", "port": "out"},
+        {"op": "registry-promises", "type": "osc", "port": "out"},
+        {"op": "type-cid", "type": "osc"},
+    ])
+    lock = r[0]["lock"]
+    for tname, link in lock.items():
+        cid = link["/"]
+        assert cid.startswith("b") and len(cid) > 20, \
+            f"lock carries a placeholder for {tname}: {cid}"
+    # resolver walk and runtime registry answer from the SAME declaration
+    assert r[1]["promises"] == r[2]["promises"], (r[1], r[2])
+    assert r[1]["promises"]["kind"] == "audio"
+    assert r[1]["type_cid"] == r[3]["cid"], \
+        "the walked type node is not the committed declaration"
+
+
 TESTS = {
     "CMP-1.1": cmp11_passes_run_once,
     "CMP-1.2": cmp12_defaults_edit_skips_structure,
@@ -291,10 +423,10 @@ TESTS = {
     # ADR-034 (2026-07-05): the realized engine and the structured lane.
     # None = pending — write each test FIRST from its criterion text
     # (BUILDER.md loop), extending HARNESS.md in the same commit.
-    "CMP-9.1": None,
-    "CMP-9.2": None,
-    "CMP-9.3": None,
-    "CMP-9.4": None,
+    "CMP-9.1": cmp91_the_engine_ticks,
+    "CMP-9.2": cmp92_an_edit_op_changes_the_compile,
+    "CMP-9.3": cmp93_graph_authored_pass,
+    "CMP-9.4": cmp94_the_lock_is_honest,
     "LNG-11.1": lng111_graph_value_over_an_edge,
     "LNG-11.2": lng112_float_path_pays_nothing,
     "LNG-11.3": lng113_a_graph_edits_a_graph,

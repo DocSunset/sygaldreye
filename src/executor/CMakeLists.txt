@@ -1,4 +1,4 @@
-add_library(syg_executor ../organs/query/query_eval.cpp compiler.cpp exec_plan.cpp freezer.cpp lift.cpp regions.cpp)
+add_library(syg_executor ../organs/query/query_eval.cpp compiler.cpp engine_passes.cpp exec_plan.cpp freezer.cpp lift.cpp regions.cpp)
 target_include_directories(syg_executor PRIVATE ${CMAKE_BINARY_DIR}/generated)
 add_dependencies(syg_executor generated)
 target_link_libraries(syg_executor PUBLIC syg_store)

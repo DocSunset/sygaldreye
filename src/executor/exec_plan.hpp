@@ -46,6 +46,9 @@ class exec_plan {
   // aim an arbiter_inlet instance at ANOTHER plan's queue (LNG-11.3)
   void point_arbiter(const std::string& id, exec_plan& target);
   void set_store(const void* store);  // inject the store into the seam
+  // the executor's own trace of the last frame tick (instance ids, in
+  // execution order) — CMP-3.2's witness, never a self-report
+  const std::vector<std::string>& last_tick_order() const;
   long process_calls() const;  // kernel invocations (EXE-10.2 observability)
   long rejected_ops() const { return rejected_; }  // precondition losers
   const std::vector<std::string>& faults() const { return faults_; }
@@ -70,7 +73,7 @@ class exec_plan {
   int consecutive_overruns_ = 0;
   mpsc<edit_op> inlet_q_;
   mpsc<std::pair<std::string, double>> event_q_;
-  std::map<std::string, std::string> param_journal_;  // route -> last value
+  std::map<std::string, std::pair<std::string, bool>> param_journal_;  // route -> (value, is_text)
   organs::graph_doc doc_;       // the app graph (persisted surface)
   organs::graph_doc expanded_;  // subgraphs cloned open (derived)
   region_map regions_;

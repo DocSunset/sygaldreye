@@ -85,6 +85,8 @@ struct exec_plan::impl {
   std::vector<event_edge> event_edges;
   std::vector<param_latch> param_latches;
   std::vector<std::pair<std::size_t, std::size_t>> frame_edges;  // src, dst
+  std::vector<std::size_t> frame_order;      // dependency order (computed)
+  std::vector<std::string> last_tick_order;  // the executor's own trace
   std::vector<std::unique_ptr<std::vector<float>>> latch_bufs;
   std::vector<float> silence;
   std::map<std::string, std::vector<float>> param_bufs;  // route -> buffer
@@ -308,6 +310,24 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
     for (auto& ob : b.out_bufs) b.outs.push_back(ob.data());
   for (auto& b : im->blocks)
     if (b.type->out_ports.empty() && !b.ins.empty()) im->sink = b.ins[0];
+  // frame evaluation order: dependencies first (value cycles wait a tick)
+  {
+    std::set<std::size_t> done;
+    while (im->frame_order.size() < im->frames.size()) {
+      bool grew = false;
+      for (std::size_t i = 0; i < im->frames.size(); ++i) {
+        if (done.count(i)) continue;
+        bool ready = true;
+        for (const auto& [src, dst] : im->frame_edges)
+          if (dst == i && !done.count(src)) ready = false;
+        if (ready) im->frame_order.push_back(i), done.insert(i), grew = true;
+      }
+      if (!grew) {  // a value cycle: remaining nodes in doc order (z⁻¹-ish)
+        for (std::size_t i = 0; i < im->frames.size(); ++i)
+          if (!done.count(i)) im->frame_order.push_back(i), done.insert(i);
+      }
+    }
+  }
 
   // --- segments (ADR-013): SCCs are per-sample islands ---
   // an explicit delay of at least a block breaks the cycle at its input
@@ -476,6 +496,10 @@ void exec_plan::undo() {
 
 long exec_plan::process_calls() const { return im_->process_calls; }
 
+const std::vector<std::string>& exec_plan::last_tick_order() const {
+  return im_->last_tick_order;
+}
+
 long exec_plan::recomputes(const std::string& id) const {
   for (const auto& f : im_->frames)
     if (f.id == id) return f.recomputed;
@@ -569,7 +593,10 @@ void exec_plan::rebuild() {
   inject_context();
   // defaults re-applied by build; the param journal replays the live edits
   for (const auto& [route, v] : param_journal_)
-    im_->set_param(route, std::strtod(v.c_str(), nullptr));
+    if (v.second)
+      im_->set_text_param(route, v.first);
+    else
+      im_->set_param(route, std::strtod(v.first.c_str(), nullptr));
 }
 
 const float* exec_plan::pump_block() {
@@ -591,18 +618,25 @@ const float* exec_plan::pump_block() {
       structural = true;
     } else if (o.op == "set_text") {
       im_->set_text_param(o.a, o.b);
+      if (!o.undo_replay) {
+        std::string prev = param_journal_.count(o.a)
+                               ? param_journal_[o.a].first : "";
+        log_.push_back({o, {{"set_text", o.a, prev, o.author}}});
+        cursor_ = log_.size();
+      }
+      param_journal_[o.a] = {o.b, true};
     } else if (o.op == "set_param") {
       im_->set_param(o.a, std::strtod(o.b.c_str(), nullptr));
       std::string prev = "0";
       if (param_journal_.count(o.a))
-        prev = param_journal_[o.a];
+        prev = param_journal_[o.a].first;
       else if (doc_.defaults.contains(o.a) && doc_.defaults[o.a].is_number())
         prev = std::to_string(doc_.defaults[o.a].get<double>());
       if (!o.undo_replay) {
         log_.push_back({o, {{"set_param", o.a, prev, o.author}}});
         cursor_ = log_.size();
       }
-      param_journal_[o.a] = o.b;
+      param_journal_[o.a] = {o.b, false};
     } else {
       try {
         apply_structural(o);
@@ -647,21 +681,30 @@ const float* exec_plan::pump_block() {
   double block_dt = static_cast<double>(block_) / rate_;
   if (im_->t >= im_->next_frame) {
     double dt = 1.0 / 60.0;
-    for (std::size_t fi = 0; fi < im_->frames.size(); ++fi) {
+    im_->last_tick_order.clear();
+    for (std::size_t fi : im_->frame_order) {
       auto& f = im_->frames[fi];
       if (!f.clocked && !f.dirty) continue;  // quiescent (EXE-11)
       if (f.type->svalue_tick && f.has_structured) {
         for (std::size_t i = 0; i < f.sins.size(); ++i)
           f.sin_vals[i] = f.sins[i] ? *f.sins[i] : crown::svalue{};
-        f.type->svalue_tick(f.state, f.sin_vals.data(), f.souts.data());
+        {
+          abi::hook_scope in_hook;
+          f.type->svalue_tick(f.state, f.sin_vals.data(), f.souts.data());
+        }
         ++f.recomputed;
+        im_->last_tick_order.push_back(f.id);
         for (const auto& [src, dst] : im_->frame_edges)
           if (src == fi) im_->frames[dst].dirty = true;
       } else if (f.type->value_tick) {
         for (std::size_t i = 0; i < f.ins.size(); ++i)
           f.in_vals[i] = f.ins[i] ? *f.ins[i] : f.in_defaults[i];
-        f.type->value_tick(f.state, dt, f.in_vals.data(), f.outs.data());
+        {
+          abi::hook_scope in_hook;
+          f.type->value_tick(f.state, dt, f.in_vals.data(), f.outs.data());
+        }
         ++f.recomputed;
+        im_->last_tick_order.push_back(f.id);
         for (const auto& [src, dst] : im_->frame_edges)  // dirty the cone
           if (src == fi) im_->frames[dst].dirty = true;
       }
