@@ -18,6 +18,7 @@ import or port them into the implementation).
 | 1 | `syg verify <cid>` | raw bytes on stdin → `{"ok":bool}` — re-hash equality against the given CID (NAM-6.1) |
 | 1 | `syg chunk-put` | JSON `{"blobs":[<bytes projections>]}` → `{"roots":[cid...],"objects":N,"stored_bytes":M}` — pinned 256 KiB chunking into a deduping object directory (NAM-6.2) |
 | 1 | `syg naming` | scripted resolution session (NAM-1..5): JSON `{"objects":{name:projection},"refs":{refname:"$name"},"ops":[...]}` — objects commit in dependency order (`"$name"` inside link escapes and addresses substitutes the committed cid); ops are `resolve`/`normalize` (→ `{"fixity","normalized","value","io"}` / `{"normalized"}`), `subscribe {addr,as}`, `move-ref {ref,to}`, `events` (drain deliveries) → `{"cids":{name:cid},"results":[...]}` |
+| 1 | `syg connection-legal` | JSON `{"from":[kind,discipline],"to":[kind,discipline]}` → `{"legal":bool,"mapping":name-or-null}` — the NAM-5 promise oracle |
 | 1 | `syg pins` | no stdin → one-line JSON of the frozen ch. 14 pins (multicodec/multihash numbers, multibase, chunk size, escape set, tape records, edit ops, wire kinds) — the FMT-5 freeze surface |
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 

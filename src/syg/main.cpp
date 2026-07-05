@@ -12,6 +12,7 @@
 #include "pins/pins.hpp"
 #include "dagcbor/dagcbor.hpp"
 #include "naming_session.hpp"
+#include "oracle/oracle.hpp"
 
 namespace {
 
@@ -69,6 +70,20 @@ int cmd_chunk_put() {
   return 0;
 }
 
+int cmd_connection_legal() {
+  auto in = nlohmann::json::parse(read_stdin());
+  auto p = [&](const char* side) {
+    return syg::naming::promise{in.at(side).at(0), in.at(side).at(1)};
+  };
+  auto v = syg::naming::connection_legal(p("from"), p("to"));
+  nlohmann::json out{{"legal", v.legal},
+                     {"mapping", v.mapping.empty()
+                                     ? nlohmann::json(nullptr)
+                                     : nlohmann::json(v.mapping)}};
+  std::cout << out.dump() << "\n";
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -110,6 +125,7 @@ int main(int argc, char** argv) {
     if (cmd == "hash") return cmd_hash();
     if (cmd == "verify" && argc > 2) return cmd_verify(argv[2]);
     if (cmd == "chunk-put") return cmd_chunk_put();
+    if (cmd == "connection-legal") return cmd_connection_legal();
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

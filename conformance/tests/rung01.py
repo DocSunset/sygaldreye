@@ -196,6 +196,29 @@ def nam41_one_kind_system():
         f"kind hashes differ: {dataset_kind} vs {wire_kind}"
 
 
+def _legal(frm, to):
+    return json.loads(syg("connection-legal", stdin=json.dumps(
+        {"from": list(frm), "to": list(to)}).encode()))
+
+
+def nam51_true_edge():
+    assert _legal(("audio", "block"), ("audio", "block")) == \
+        {"legal": True, "mapping": None}
+
+
+def nam52_latch_boundary():
+    # the ch. 1 walk: frame-rate LFO out meets the block-rate vca gain
+    assert _legal(("scalar", "frame"), ("scalar", "block")) == \
+        {"legal": True, "mapping": "latch"}
+
+
+def nam53_kind_mismatch_illegal():
+    # one shared implementation answers every surface (parse-time validation
+    # and editor wire-drop both call this same first-order program)
+    v = _legal(("draw_call", "frame"), ("audio", "block"))
+    assert v["legal"] is False, v
+
+
 def nam61_rehash_verifies():
     # pinned blake3 vectors (input = repeating 0..250 byte pattern)
     for c in fixture("blake3-vectors.json")["cases"]:
@@ -265,9 +288,9 @@ TESTS = {
     "NAM-2.2": nam22_ref_move_delivers_once,
     "NAM-3.1": nam31_routes_survive_insertion,
     "NAM-4.1": nam41_one_kind_system,
-    "NAM-5.1": None,
-    "NAM-5.2": None,
-    "NAM-5.3": None,
+    "NAM-5.1": nam51_true_edge,
+    "NAM-5.2": nam52_latch_boundary,
+    "NAM-5.3": nam53_kind_mismatch_illegal,
     "NAM-5.4": None,
     "NAM-6.1": nam61_rehash_verifies,
     "NAM-6.2": nam62_chunks_dedup,
