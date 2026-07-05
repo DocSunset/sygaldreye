@@ -16,6 +16,7 @@
 #include "crown.hpp"
 #include "hello_natives/hello_natives.hpp"
 #include "naming_session.hpp"
+#include "parser/parser.hpp"
 #include "hello_cosine/hello_cosine.hpp"
 #include "oracle/oracle.hpp"
 
@@ -173,6 +174,12 @@ int cmd_render_tape(double seconds) {
   return 0;
 }
 
+int cmd_roundtrip() {
+  auto g = syg::organs::parse_graph(nlohmann::json::parse(read_stdin()));
+  std::cout << syg::organs::serialize_graph(g).dump(1) << "\n";
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -225,6 +232,7 @@ int main(int argc, char** argv) {
     if (cmd == "quarantine-audit") return syg::harness::quarantine_audit();
     if (cmd == "replay-tape") return cmd_replay_tape();
     if (cmd == "render-tape" && argc > 2) return cmd_render_tape(std::stod(argv[2]));
+    if (cmd == "roundtrip") return cmd_roundtrip();
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

@@ -1,0 +1,27 @@
+{
+ "kind": "graph",
+ "lock": {
+  "card": "kind:card@v1",
+  "source": "kind:source@v1"
+ },
+ "topology": {
+  "nodes": {
+   "src0": {
+    "type": "source"
+   },
+   "card0": {
+    "type": "card"
+   }
+  },
+  "edges": [
+   {
+    "from": "src0/items",
+    "to": "card0/item"
+   }
+  ],
+  "lift_key": "id"
+ },
+ "defaults": {
+  "card0/scale": 1.0
+ }
+}

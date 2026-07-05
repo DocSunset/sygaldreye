@@ -1,0 +1,42 @@
+{
+ "kind": "graph",
+ "lock": {
+  "osc": "kind:osc@v1",
+  "vca": "kind:vca@v1",
+  "dac": "kind:dac@v1"
+ },
+ "topology": {
+  "nodes": {
+   "osc0": {
+    "type": "osc"
+   },
+   "osc1": {
+    "type": "osc"
+   },
+   "vca0": {
+    "type": "vca"
+   },
+   "dac0": {
+    "type": "dac"
+   }
+  },
+  "edges": [
+   {
+    "from": "osc0/out",
+    "to": "vca0/in"
+   },
+   {
+    "from": "osc1/out",
+    "to": "vca0/gain"
+   },
+   {
+    "from": "vca0/out",
+    "to": "dac0/in"
+   }
+  ]
+ },
+ "defaults": {
+  "osc0/freq": 660.0,
+  "osc1/freq": 3.5
+ }
+}
