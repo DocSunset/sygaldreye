@@ -135,4 +135,11 @@ bytes encode_projection(const nlohmann::json& v) {
   return out;
 }
 
+bytes bytes_of_projection(const nlohmann::json& v) {
+  if (v.is_object() && v.size() == 1 && v.contains("/") && v["/"].is_object() &&
+      v["/"].contains("bytes") && v["/"]["bytes"].is_string())
+    return base64_decode(v["/"]["bytes"].get_ref<const std::string&>());
+  throw std::runtime_error("expected a bytes projection escape");
+}
+
 }  // namespace syg::formats

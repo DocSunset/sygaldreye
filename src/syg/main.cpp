@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <map>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -6,6 +7,7 @@
 #include <nlohmann/json.hpp>
 
 #include "address/address.hpp"
+#include "chunk/chunk.hpp"
 #include "cid/cid.hpp"
 #include "pins/pins.hpp"
 #include "dagcbor/dagcbor.hpp"
@@ -43,6 +45,26 @@ int cmd_verify(const std::string& cid_text) {
   } catch (const std::exception&) {
   }
   std::cout << (ok ? "{\"ok\":true}" : "{\"ok\":false}") << "\n";
+  return 0;
+}
+
+int cmd_chunk_put() {
+  auto in = nlohmann::json::parse(read_stdin());
+  std::map<syg::formats::byte_vec, std::size_t> objects;  // cid -> size
+  nlohmann::json roots = nlohmann::json::array();
+  for (const auto& blob : in.at("blobs")) {
+    auto root = syg::formats::chunk_put(
+        syg::formats::bytes_of_projection(blob),
+        [&](const syg::formats::byte_vec& cid, const syg::formats::byte_vec& obj) {
+          objects.emplace(cid, obj.size());
+        });
+    roots.push_back(syg::formats::cid_to_text(root));
+  }
+  std::size_t stored = 0;
+  for (const auto& [cid, size] : objects) stored += size;
+  nlohmann::ordered_json out{
+      {"roots", roots}, {"objects", objects.size()}, {"stored_bytes", stored}};
+  std::cout << out.dump() << "\n";
   return 0;
 }
 
@@ -86,6 +108,7 @@ int main(int argc, char** argv) {
     if (cmd == "pins") return cmd_pins();
     if (cmd == "hash") return cmd_hash();
     if (cmd == "verify" && argc > 2) return cmd_verify(argv[2]);
+    if (cmd == "chunk-put") return cmd_chunk_put();
   } catch (const std::exception& e) {
     std::cerr << "syg " << cmd << ": " << e.what() << "\n";
     return 1;

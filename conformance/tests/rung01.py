@@ -71,6 +71,30 @@ def nam61_rehash_verifies():
             assert json.loads(syg("verify", got, stdin=bytes(bad))) == {"ok": False}
 
 
+def nam62_chunks_dedup():
+    rng = random.Random(6262)
+    chunk = 256 * 1024
+    shared = rng.randbytes(chunk)          # one full pinned-size chunk
+    take_a = shared + rng.randbytes(600)   # two takes sharing their first chunk
+    take_b = shared + rng.randbytes(4000)
+
+    def put(blobs):
+        return json.loads(syg("chunk-put", stdin=json.dumps(
+            {"blobs": [to_projection(b) for b in blobs]}).encode()))
+
+    one = put([take_a])
+    assert one["objects"] == 3, one        # shared chunk + tail chunk + index
+    both = put([take_a, take_b])
+    assert both["objects"] == 5, both      # NOT 6 — the shared chunk stored once
+    overhead = both["stored_bytes"] - (len(take_a) + len(take_b) - chunk)
+    assert 0 < overhead < 500, f"index overhead out of range: {overhead}"
+    # determinism: same take, same root; small blob is a single raw object
+    assert put([take_a])["roots"] == one["roots"]
+    small = put([b"tiny"])
+    assert small["objects"] == 1 and small["stored_bytes"] == 4
+    assert small["roots"][0] == syg("hash", stdin=b"tiny").decode().strip()
+
+
 def fmt5_pins_frozen():
     # The ch. 14 pins, frozen 2026-07-05, restated here verbatim. If this test
     # ever disagrees with the implementation, the implementation drifted; if
@@ -107,6 +131,6 @@ TESTS = {
     "NAM-5.3": None,
     "NAM-5.4": None,
     "NAM-6.1": nam61_rehash_verifies,
-    "NAM-6.2": None,
+    "NAM-6.2": nam62_chunks_dedup,
     "NAM-7.1": None,
 }

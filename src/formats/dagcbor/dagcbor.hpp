@@ -14,4 +14,7 @@ namespace syg::formats {
 // Throws std::runtime_error on values the canonical form forbids.
 std::vector<std::uint8_t> encode_projection(const nlohmann::json& v);
 
+// Decode the projection's bytes escape {"/": {"bytes": "<base64>"}}.
+std::vector<std::uint8_t> bytes_of_projection(const nlohmann::json& v);
+
 }  // namespace syg::formats
