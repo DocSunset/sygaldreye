@@ -4,3 +4,4 @@ probe/worktree
 probe/.venv-melotts
 probe/assets/models/
 probe/result
+architecture/*.pdf
