@@ -54,7 +54,8 @@ mesh, terminating in someone's senses. Near-term: a live-patchable
 audio/visual/XR environment across Linux host, Quest 3, and browser peers.
 Far-term: the hypermedium (see `planning/vision.md`).
 
-**Building the greenfield? Read `BUILDER.md` first, then run
+**Building the greenfield? A capable agent starts at `HANDOFF.md`;
+everyone reads `BUILDER.md`; then run
 `python3 conformance/run.py` — its output is the to-do list.**
 
 # Architecture — where truth lives
