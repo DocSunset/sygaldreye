@@ -88,8 +88,13 @@ def sz21_registration_by_linkage():
     import shutil, subprocess, tempfile
     manifest = json.loads((ROOT / "build" / "generated" / "registration.json")
                           .read_text())
-    # the palette equals the manifest (both project the one generated list)
-    assert json.loads(syg("palette")) == manifest
+    # the palette equals the manifest plus graphs_dir datasets (LNG-6):
+    # every native in the manifest is present, and every extra palette
+    # entry is a graph dataset on disk — nothing appears from nowhere
+    palette = json.loads(syg("palette"))
+    assert [p for p in palette if p in manifest] == manifest
+    for extra in (set(palette) - set(manifest)):
+        assert (ROOT / "graphs" / f"{extra}.json").exists(), extra
     gxx = shutil.which("g++")
     if not gxx:
         raise Pending("no C++ compiler for the linkage audit")
@@ -132,7 +137,9 @@ def sz41_unfreeze_stage0():
     src = (ROOT / "src" / "stage0" / "boot.tape").read_text()
     assert out["tape"] == src, "embedded tape diverged from its source"
     assert out["tape_cid"] == syg("hash", stdin=src.encode()).decode().strip()
-    assert out["manifest"] == json.loads(syg("palette")), \
+    reg = json.loads((ROOT / "build" / "generated" / "registration.json")
+                     .read_text())
+    assert out["manifest"] == reg, \
         "stage-0 manifest is not the linked registry"
     # re-derive the manifest cid: canonical-encode, hash, re-assemble under
     # the dag-cbor multicodec (digest extracted via the cid oracle)

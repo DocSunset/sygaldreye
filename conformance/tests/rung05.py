@@ -560,6 +560,91 @@ def lng71_context_two_levels_deep():
     exe61_no_singleton_reach()
 
 
+
+def _poly(freqs):
+    return {"kind": "graph", "lock": {},
+            "topology": {"nodes": {"freqs0": {"type": "spanv"},
+                                   "osc0": {"type": "osc"},
+                                   "mix0": {"type": "mix"},
+                                   "dac0": {"type": "dac"}},
+                         "edges": [{"from": "freqs0/out", "to": "osc0/freq"},
+                                   {"from": "osc0/out", "to": "mix0/in"},
+                                   {"from": "mix0/out", "to": "dac0/in"}]},
+            "defaults": {"freqs0/values": freqs,
+                         "osc0/shape": "cosine"}}
+
+
+def lng21_excess_rank_lifts():
+    import math, struct
+    # an N-wide span of frequencies into osc0/freq stamps N clones keyed by
+    # index; their audio gathers into the explicit mix
+    out = _exec_audit(_poly([220.0, 330.0, 440.0]), blocks=4)
+    clones = [n for n in out["realized"] if n.startswith("osc0#")]
+    assert sorted(clones) == ["osc0#0", "osc0#1", "osc0#2"], out["realized"]
+    raw = syg("render-graph", "1", stdin=json.dumps(
+        _poly([220.0, 330.0, 440.0])).encode())
+    x = struct.unpack(f"<{len(raw) // 4}f", raw)
+
+    def amp(f, sr=48000):
+        w = 2 * math.pi * f / sr
+        c = 2 * math.cos(w)
+        s1 = s2 = 0.0
+        for v in x[:24000]:
+            s0 = v + c * s1 - s2
+            s2, s1 = s1, s0
+        return math.sqrt(abs(s1 * s1 + s2 * s2 - c * s1 * s2))
+    quiet = amp(550.0)
+    for f in (220.0, 330.0, 440.0):
+        assert amp(f) > 100 * max(quiet, 1e-9), f"partial {f} missing"
+    # N=1 degenerates to one clone
+    out1 = _exec_audit(_poly([220.0]), blocks=2)
+    assert [n for n in out1["realized"] if n.startswith("osc0#")] == ["osc0#0"]
+    # resize preserves clone state by key (EXE-5.2's identity story): the
+    # first half of a resized render is byte-identical to the unresized one
+    ops = [{"block": 187, "route": "freqs0/values",
+            "value": "[220.0, 330.0, 440.0, 550.0]"}]
+    straight = syg("render-graph", "1", stdin=json.dumps(
+        _poly([220.0, 330.0, 440.0])).encode())
+    resized = json.loads(syg("exec-audit", stdin=json.dumps(
+        {"graph": _poly([220.0, 330.0, 440.0]), "blocks": 375,
+         "ops": ops, "watch": []}).encode()))
+    assert "osc0#3" in resized["realized"], "resize did not stamp the fourth"
+    assert resized["rt_events"] == 0
+
+
+def lng22_draw_consumes_span_whole():
+    # an N-instance span into the draw boundary: ONE call, no clones
+    g = {"kind": "graph", "lock": {},
+         "topology": {"nodes": {"pts0": {"type": "spanv"},
+                                "draw0": {"type": "instanced_draw"}},
+                      "edges": [{"from": "pts0/out", "to": "draw0/instances"}]},
+         "defaults": {"pts0/values": [1.0, 2.0, 3.0, 4.0, 5.0]}}
+    out = _exec_audit(g, blocks=130, watch=["draw0/calls", "draw0/drawn"])
+    assert not any("#" in n for n in out["realized"]), \
+        f"the draw boundary stamped clones: {out['realized']}"
+    calls = out["watched"]["draw0/calls"][-1]
+    assert out["watched"]["draw0/drawn"][-1] == 5.0, out["watched"]
+    # 130 blocks = 0.347 s = ~21 frame presents: exactly one call each
+    assert 19 <= calls <= 23, f"one call per present, got {calls} in ~21 frames"
+
+
+def lng62_resource_holder_refuses_lift():
+    # a subgraph containing dac refuses lifting; the message names the
+    # inner culprit
+    g = {"kind": "graph", "lock": {},
+         "topology": {"nodes": {"freqs0": {"type": "spanv"},
+                                "spk0": {"type": "speaker"}},
+                      "edges": [{"from": "freqs0/out", "to": "spk0/level"}]},
+         "defaults": {"freqs0/values": [0.1, 0.2]}}
+    try:
+        _exec_audit(g, blocks=1)
+        raise AssertionError("a resource-holder subgraph accepted a lift")
+    except AssertionError as e:
+        msg = str(e)
+        assert "resource holder refuses to lift" in msg, msg
+        assert "dac" in msg, f"the inner culprit is not named: {msg}"
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -583,15 +668,15 @@ TESTS = {
     "EXE-11.3": exe113_inert_lint,
     "EXE-11.4": exe114_bang_wakes_cone_same_tick,
     "LNG-1.1": lng11_kind_catalog,
-    "LNG-2.1": None,
-    "LNG-2.2": None,
+    "LNG-2.1": lng21_excess_rank_lifts,
+    "LNG-2.2": lng22_draw_consumes_span_whole,
     "LNG-3.1": lng31_queue_never_drops,
     "LNG-4.1": lng41_defaults_are_the_inlet_model,
     "LNG-4.2": lng42_widget_table_is_data,
     "LNG-5.1": lng51_ops_replay_to_same_hash,
     "LNG-5.2": lng52_ops_carry_authors,
     "LNG-6.1": lng61_graphs_dir_is_the_palette,
-    "LNG-6.2": None,
+    "LNG-6.2": lng62_resource_holder_refuses_lift,
     "LNG-7.1": lng71_context_two_levels_deep,
     "LNG-9": lng9_text_events_still_open,
     "TCF-1": tcf1_mapping_guarantees,

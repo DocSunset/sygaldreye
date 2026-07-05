@@ -13,7 +13,10 @@ long lookup_count() { return lookups; }
 
 verdict connection_legal(const promise& from, const promise& to) {
   ++lookups;
-  if (from.kind != to.kind) return {};  // no conversions at this rung
+  // span ports are rank-polymorphic: they accept (or gather) their cell
+  // kind — the catalog's cell_rank refines this when kinds carry payloads
+  if (from.kind != to.kind && from.kind != "span" && to.kind != "span")
+    return {};  // no conversions at this rung
   if (from.discipline == to.discipline) return {true, ""};
   if (from.discipline == "event" || to.discipline == "event") return {};
   if (clocked(to.discipline)) return {true, "latch"};

@@ -1,0 +1,25 @@
+{
+ "kind": "graph",
+ "lock": {},
+ "topology": {
+  "nodes": {
+   "amp": {
+    "type": "vca"
+   },
+   "out0": {
+    "type": "dac"
+   }
+  },
+  "edges": [
+   {
+    "from": "amp/out",
+    "to": "out0/in"
+   }
+  ],
+  "inlets": {
+   "level": "amp/gain",
+   "in": "amp/in"
+  }
+ },
+ "defaults": {}
+}

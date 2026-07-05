@@ -53,6 +53,21 @@ struct spectro {  // block-override: consumes its block whole (FFT-shaped)
   au::out<au::audio, au::block> out;
 };
 
+struct spanv {  // a span-valued source: its values list drives lifting
+  au::out<au::span, au::value> out;
+};
+
+struct mix {  // consumes a span of audio WHOLE: an N-ary sum, no clones
+  au::in<au::span, au::block> in;
+  au::out<au::audio, au::block> out;
+};
+
+struct instanced_draw {  // the draw boundary consumes the span whole
+  au::in<au::span, au::value> instances;
+  au::out<au::scalar, au::value> calls;
+  au::out<au::scalar, au::value> drawn;
+};
+
 struct graph_source {  // the reflection seam: sees its enclosing graph
   au::out<au::scalar, au::value> keys;
 };

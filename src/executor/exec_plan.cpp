@@ -8,6 +8,7 @@
 #include <fstream>
 
 #include "registry_face/registry_face.hpp"
+#include "lift.hpp"
 #include "subgraph/subgraph.hpp"
 
 namespace syg::executor {
@@ -177,6 +178,7 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
       b.ins[i] = buf.data();
     }
   // wiring; inferred boundaries get latches (visible via regions())
+  std::set<std::string> spans_started;
   std::set<std::size_t> latched, snapped;
   for (const auto& m : regions.mappings) {
     if (m.mapping == "latch") latched.insert(m.edge);
@@ -235,7 +237,16 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
       auto* sb = im->block_of(sid);
       if (!sb) throw std::runtime_error("unmapped cross-region edge " + from);
       auto dp_i = port_index(db->type->in_ports, dport);
-      db->ins[dp_i] = sb->out_bufs[port_index(sb->type->out_ports, sport)].data();
+      if (std::string(db->type->in_ports[dp_i].kind) == "span") {
+        // whole-by-kind fan-in: gathered clone outputs, edge order = key order
+        if (spans_started.insert(did).second) db->ins.clear();
+        db->ins.push_back(
+            sb->out_bufs[port_index(sb->type->out_ports, sport)].data());
+        db->type->set_num(db->state, "n",
+                          static_cast<double>(db->ins.size()));
+      } else {
+        db->ins[dp_i] = sb->out_bufs[port_index(sb->type->out_ports, sport)].data();
+      }
       im->block_edges.push_back(
           {static_cast<std::size_t>(sb - im->blocks.data()),
            static_cast<std::size_t>(db - im->blocks.data()), dp_i});
@@ -363,7 +374,8 @@ std::optional<nlohmann::json> graphs_dir_loader(const std::string& type) {
 
 exec_plan::exec_plan(organs::graph_doc doc, int rate, int block)
     : doc_(std::move(doc)), rate_(rate), block_(block) {
-  expanded_ = organs::expand_subgraphs(doc_, graphs_dir_loader);
+  expanded_ = organs::expand_subgraphs(
+      lift_expand(doc_, graphs_dir_loader), graphs_dir_loader);
   regions_ = infer_regions(expanded_);
   if (!regions_.errors.empty())
     throw std::runtime_error("cannot realize: " + regions_.errors.front());
@@ -452,7 +464,8 @@ void exec_plan::apply_structural(const edit_op& o) {
 }
 
 void exec_plan::rebuild() {
-  expanded_ = organs::expand_subgraphs(doc_, graphs_dir_loader);
+  expanded_ = organs::expand_subgraphs(
+      lift_expand(doc_, graphs_dir_loader), graphs_dir_loader);
   regions_ = infer_regions(expanded_);
   if (!regions_.errors.empty())
     throw std::runtime_error("cannot realize: " + regions_.errors.front());
@@ -487,7 +500,17 @@ const float* exec_plan::pump_block() {
   pending.clear();
   inlet_q_.drain(pending);
   for (const auto& o : pending) {
-    if (o.op == "set_param") {
+    if (o.op == "set_param" && !o.b.empty() && o.b.front() == '[') {
+      // an array param (a span's values): a structural default edit
+      std::string prev = doc_.defaults.contains(o.a)
+                             ? doc_.defaults[o.a].dump() : "[]";
+      doc_.defaults[o.a] = nlohmann::json::parse(o.b);
+      if (!o.undo_replay) {
+        log_.push_back({o, {{"set_param", o.a, prev, o.author}}});
+        cursor_ = log_.size();
+      }
+      structural = true;
+    } else if (o.op == "set_param") {
       im_->set_param(o.a, std::strtod(o.b.c_str(), nullptr));
       std::string prev = "0";
       if (param_journal_.count(o.a))
