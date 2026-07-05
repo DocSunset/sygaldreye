@@ -344,7 +344,7 @@ def cmp92_an_edit_op_changes_the_compile():
     # no C++ change, no restart
     splice_ops = [
         {"op": "add_node", "a": "extra0", "b": "text_cell"},
-        {"op": "set_text", "a": "extra0/value", "b": "extra-rule"},
+        {"op": "set_text", "a": "extra0/value", "b": "block:lfo0"},
         {"op": "add_edge", "a": "extra0/out", "b": "recognize0/in1"},
     ]
     unsplice_ops = [{"op": "remove_node", "a": "extra0"}]
@@ -360,7 +360,12 @@ def cmp92_an_edit_op_changes_the_compile():
     base, spliced, restored = r[1], r[4], r[6]
     assert spliced["execution"] != base["execution"], \
         "the spliced pass changed nothing"
-    assert "extra-rule" in json.dumps(spliced["execution_body"]["rules"])
+    # the rule has CONSEQUENCE, not just echo: the pass's `block:lfo0`
+    # claim moved lfo0's placement in the compiled structure
+    assert base["execution_body"]["map"]["nodes/lfo0"] == "frame/lfo0"
+    assert spliced["execution_body"]["map"]["nodes/lfo0"] == "block/lfo0", \
+        spliced["execution_body"]["map"]
+    assert "block:lfo0" in json.dumps(spliced["execution_body"]["rules"])
     assert restored["memo"] is True and restored["execution"] == base["execution"], \
         "removing the splice did not restore the prior output hash"
 

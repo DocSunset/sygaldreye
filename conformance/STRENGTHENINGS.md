@@ -28,3 +28,11 @@ vocabulary/kinds.json — the ONE copy, honoring the catalog's own charter
 ("read as data by the oracle; no hardcoded switch anywhere"); both hand
 copies deleted. Test strengthened: probes EVERY structured kind in the
 catalog, both directions, instead of graph only.
+
+## CMP-9.2 — 2026-07-05 (rung-7 audit)
+The rules lane was inert transport: nothing consumed `__rules`, so the
+spliced pass changed only an echoed string (hash change without compile
+consequence). Now `block:<id>` rules claim an instance for the block
+region in choose-adapters, and the test asserts lfo0's placement actually
+moves (frame → block) and moves back on unsplice. realize's `backend`
+port is read instead of decorative.

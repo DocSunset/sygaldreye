@@ -77,24 +77,36 @@ void context_tick(void* s, const crown::svalue* ins, crown::svalue* outs) {
   outs[0] = gen::make_graph(std::move(doc));
 }
 
-// choose-adapters: regions + boundary mappings join the carried doc
+// choose-adapters: regions + boundary mappings join the carried doc; the
+// rules lane has CONSEQUENCE here — a `block:<id>` rule claims an instance
+// for the block region, so a spliced rule pass changes placement (CMP-9.2)
 void choose_tick(void*, const crown::svalue* ins, crown::svalue* outs) {
   if (!ins[0].value) return;
   auto doc = gen::as_graph(ins[0]);
-  auto regions = infer_regions(doc);
-  if (!regions.errors.empty())
-    throw std::runtime_error("compile: " + regions.errors.front());
-  nlohmann::json maps = nlohmann::json::array();
-  for (const auto& m : regions.mappings)
-    maps.push_back({{"edge", m.edge}, {"mapping", m.mapping}});
-  doc.defaults["__regions"] = {{"block", regions.block},
-                               {"frame", regions.frame}};
-  doc.defaults["__mappings"] = maps;
   if (ins[1].value && !gen::as_text(ins[1]).empty()) {
     std::string rules = doc.defaults.value("__rules", "");
     doc.defaults["__rules"] =
         rules.empty() ? gen::as_text(ins[1]) : rules + ";" + gen::as_text(ins[1]);
   }
+  auto regions = infer_regions(doc);
+  if (!regions.errors.empty())
+    throw std::runtime_error("compile: " + regions.errors.front());
+  std::set<std::string> block(regions.block.begin(), regions.block.end());
+  std::set<std::string> frame(regions.frame.begin(), regions.frame.end());
+  const std::string rules = doc.defaults.value("__rules", "");
+  for (std::size_t i = 0; i < rules.size();) {
+    auto j = rules.find_first_of(",;", i);
+    if (j == std::string::npos) j = rules.size();
+    auto tok = rules.substr(i, j - i);
+    if (tok.rfind("block:", 0) == 0 && frame.erase(tok.substr(6)))
+      block.insert(tok.substr(6));
+    i = j + 1;
+  }
+  nlohmann::json maps = nlohmann::json::array();
+  for (const auto& m : regions.mappings)
+    maps.push_back({{"edge", m.edge}, {"mapping", m.mapping}});
+  doc.defaults["__regions"] = {{"block", block}, {"frame", frame}};
+  doc.defaults["__mappings"] = maps;
   outs[0] = gen::make_graph(std::move(doc));
 }
 
@@ -125,7 +137,9 @@ void realize_tick(void*, const crown::svalue* ins, crown::svalue* outs) {
       {"defaults", defaults},
       {"rules", doc.defaults.value("__rules", "")},
       {"context", doc.defaults.value("__context", nlohmann::ordered_json::object())},
-      {"backend", "interpret"}};
+      {"backend", ins[1].value && !gen::as_text(ins[1]).empty()
+                      ? gen::as_text(ins[1])
+                      : "interpret"}};
   outs[0] = gen::make_text(execution.dump());
 }
 
