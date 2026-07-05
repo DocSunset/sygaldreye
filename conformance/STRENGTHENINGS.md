@@ -18,3 +18,13 @@ is ADR-gated, always; nothing here may relax an assertion.
   the live plan recomputes zero times while the seeded cone recomputes.
   Strictly stronger: the old proxy could pass with the control chain
   churning.
+
+## LNG-11.1 — 2026-07-05 (rung-7 audit, blocker)
+The oracle's structured-kind mirror omitted `cidset`: a cidset legally rode
+the block clock (empirically shown, `mapping: snapshot`). Three hand copies
+existed (kinds.json, crown.hpp, oracle.cpp); the catalog itself lacked
+`text`. Fix: the generator now emits `structured_kinds.hpp` from
+vocabulary/kinds.json — the ONE copy, honoring the catalog's own charter
+("read as data by the oracle; no hardcoded switch anywhere"); both hand
+copies deleted. Test strengthened: probes EVERY structured kind in the
+catalog, both directions, instead of graph only.

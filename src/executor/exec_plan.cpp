@@ -1,4 +1,5 @@
 // clause: machinery — executor package (plans, pacing, mappings)
+#include "structured_kinds.hpp"
 #include "exec_plan.hpp"
 
 #include <cstdlib>
@@ -175,9 +176,9 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
       f.sins.assign(t->in_ports.size(), nullptr);
       f.sin_vals.resize(t->in_ports.size());
       for (const auto& p : t->in_ports)
-        if (crown::structured_kind(p.kind)) f.has_structured = true;
+        if (generated::structured_kind(p.kind)) f.has_structured = true;
       for (const auto& p : t->out_ports)
-        if (crown::structured_kind(p.kind)) f.has_structured = true;
+        if (generated::structured_kind(p.kind)) f.has_structured = true;
       f.clocked = t->clocked;
     }
   }
@@ -297,7 +298,7 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
       if (!sf) throw std::runtime_error("unmapped cross-region edge " + from);
       auto sp_i = port_index(sf->type->out_ports, sport);
       auto dp_i = port_index(df->type->in_ports, dport);
-      if (crown::structured_kind(sf->type->out_ports[sp_i].kind))
+      if (generated::structured_kind(sf->type->out_ports[sp_i].kind))
         df->sins[dp_i] = &sf->souts[sp_i];  // zero-copy: the shared value
       else
         df->ins[dp_i] = &sf->outs[sp_i];
@@ -518,7 +519,7 @@ float exec_plan::value_of(const std::string& id_port) const {
   for (const auto& f : im_->frames)
     if (f.id == id) {
       auto i = port_index(f.type->out_ports, port);
-      if (crown::structured_kind(f.type->out_ports[i].kind))
+      if (generated::structured_kind(f.type->out_ports[i].kind))
         throw std::runtime_error("structured cell: " + id_port);
       return f.outs[i];
     }

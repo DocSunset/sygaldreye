@@ -235,14 +235,21 @@ def lng111_graph_value_over_an_edge():
     assert out["watched"]["n0/out"][-1] == "4", out["watched"]
     assert out["encodes"] == 0, \
         f"the in-process hop serialized: {out['encodes']} canonical encodes"
-    # the oracle refuses structured payloads on stream
-    v = _legal(("graph", "value"), ("graph", "value"))
-    assert v["legal"] is True
-    for disc in ("block", "frame"):
-        v = _legal(("graph", disc), ("graph", "value"))
-        assert v["legal"] is False, f"a graph rode the {disc} clock: {v}"
-        v = _legal(("graph", "value"), ("graph", disc))
-        assert v["legal"] is False
+    # the oracle refuses structured payloads on stream — EVERY structured
+    # kind in the catalog, both directions (a hand-mirrored subset already
+    # drifted once: cidset rode the block clock until the rung-7 audit)
+    kinds = json.loads((ROOT / "vocabulary" / "kinds.json").read_text())["kinds"]
+    structured = [k for k, s in kinds.items()
+                  if s.get("constraints", {}).get("structured")]
+    assert {"graph", "ops", "text", "cidset"} <= set(structured)
+    for k in structured:
+        v = _legal((k, "value"), (k, "value"))
+        assert v["legal"] is True, (k, v)
+        for disc in ("block", "frame"):
+            v = _legal((k, disc), (k, "value"))
+            assert v["legal"] is False, f"a {k} rode the {disc} clock: {v}"
+            v = _legal((k, "value"), (k, disc))
+            assert v["legal"] is False, (k, disc, v)
 
 
 def lng112_float_path_pays_nothing():

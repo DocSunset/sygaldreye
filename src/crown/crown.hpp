@@ -37,15 +37,6 @@ struct node_context {
   void* plan = nullptr;
 };
 
-// mirrors the catalog's non-float set (ADR-034): these ride event/value
-// only; the oracle refuses them on stream
-inline bool structured_kind(const char* k) {
-  const std::string_view v(k);
-  return v == "graph" || v == "ops" || v == "text" || v == "mesh" ||
-         v == "texture" || v == "surface" || v == "draw_call" ||
-         v == "cidset";
-}
-
 // A port declaration with its promises (generated from the endpoints
 // struct — AUT-3; the crown reads names, the executor reads promises).
 struct port_decl {

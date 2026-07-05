@@ -74,6 +74,10 @@
    ],
    "widget": {
     "default": "field"
+   },
+   "constraints": {
+    "structured": true,
+    "adr": "034"
    }
   },
   "bang": {
@@ -110,7 +114,9 @@
     "default": "wire"
    },
    "constraints": {
-    "pins_region": "render"
+    "pins_region": "render",
+    "structured": true,
+    "adr": "034"
    }
   },
   "draw_call": {
@@ -120,7 +126,9 @@
     "default": "wire"
    },
    "constraints": {
-    "pins_region": "render"
+    "pins_region": "render",
+    "structured": true,
+    "adr": "034"
    }
   },
   "mesh": {
@@ -130,6 +138,10 @@
    ],
    "widget": {
     "default": "wire"
+   },
+   "constraints": {
+    "structured": true,
+    "adr": "034"
    }
   },
   "surface": {
@@ -139,6 +151,10 @@
    ],
    "widget": {
     "default": "wire"
+   },
+   "constraints": {
+    "structured": true,
+    "adr": "034"
    }
   },
   "span": {
