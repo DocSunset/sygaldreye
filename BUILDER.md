@@ -63,6 +63,26 @@ rungs. Do not start rung N+1 while rung N's gate is unmet.
 - `planning/lexicon.md` — the vocabulary. Use the ratified words; retired
   prose is binding.
 
+## Your environment
+
+`nix develop` at the repo root gives you the toolchain. CI runs
+`conformance/gates.sh` and the runner on every push — pending is fine,
+failing or uncovered is not. The tests for the early rungs are ALREADY
+WRITTEN: `conformance/reference/` holds slow, obviously-correct oracle
+implementations (they ARE the spec — never port or import them), and your
+implementation talks to the suite through the `./syg` binary contract in
+`conformance/HARNESS.md`. You do not need to understand canonical CBOR;
+you need to match the oracle, byte for byte, and the test will tell you
+the first value you get wrong.
+
+## When you are stuck
+
+If a criterion resists for more than a working session: write `STUCK.md`
+at root — the criterion id, what you tried, the exact error — commit it,
+and move to the NEXT criterion in the SAME rung. Never to the next rung;
+never by weakening the test. A recorded dead-end is recoverable work;
+a silent workaround is damage.
+
 ## What done means
 
 Rung 12 green: the suite runs as datasets inside the system it verifies, and

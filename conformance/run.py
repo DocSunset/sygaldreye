@@ -25,6 +25,10 @@ RUNG_NAMES = {
 
 manifest = json.loads((HERE / "manifest.json").read_text())
 
+sys.path.insert(0, str(HERE / "tests"))
+sys.path.insert(0, str(HERE))          # so tests can `from reference import ...`
+from _helpers import Pending  # noqa: E402
+
 # Gather registered tests from tests/rung*.py
 tests = {}
 for f in sorted((HERE / "tests").glob("rung*.py")):
@@ -63,6 +67,8 @@ for rung in sorted(by_rung):
             try:
                 fn()
                 results["pass"].append(acid)
+            except Pending as e:
+                results["pending"].append(acid)
             except Exception:
                 results["fail"].append((acid, traceback.format_exc(limit=2)))
     n = sum(len(v) for v in results.values())
@@ -87,4 +93,5 @@ if first_unmet:
     print("write or fix exactly enough to turn it green, and re-run.")
 else:
     print("\nAll gates green. The suite is the system; the system exists.")
-sys.exit(1 if (total["fail"] or first_unmet) else 0)
+# CI semantics: pending work is not failure; broken or uncovered is.
+sys.exit(1 if (total["fail"] or total["uncovered"]) else 0)

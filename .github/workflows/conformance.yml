@@ -1,0 +1,11 @@
+name: conformance
+on: [push, pull_request]
+jobs:
+  gates-and-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: law gates
+        run: ./conformance/gates.sh
+      - name: conformance suite (pending is fine; failing or uncovered is not)
+        run: python3 conformance/run.py
