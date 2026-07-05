@@ -53,6 +53,21 @@ region_map infer_regions(const organs::graph_doc& g) {
   }
   for (const auto& [id, tname] : g.nodes)
     (block.count(id) ? out.block : out.frame).push_back(id);
+  // the inert lint (EXE-11.3): demand flows backward from the block region
+  std::set<std::string> demanded(block.begin(), block.end());
+  bool more = true;
+  while (more) {
+    more = false;
+    for (const auto& [from, to] : g.edges) {
+      auto src = from.substr(0, from.find('/'));
+      auto dst = to.substr(0, to.find('/'));
+      if (demanded.count(dst) && !demanded.count(src))
+        demanded.insert(src), more = true;
+    }
+  }
+  for (const auto& id : out.frame)
+    if (!demanded.count(id) && types.count(id) && !types[id]->clocked)
+      out.inert.push_back(id);
   // boundary mappings: the one promise oracle, per edge
   for (std::size_t i = 0; i < g.edges.size(); ++i) {
     const auto& [from, to] = g.edges[i];

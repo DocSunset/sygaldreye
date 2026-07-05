@@ -8,6 +8,6 @@ extern const syg::crown::native_type slot_native;
 const syg::crown::native_type slot_native{
     "slot", [] { return static_cast<void*>(nullptr); }, [](void*) {},
     [](void*, const char*, double) {}, [](void*, const char*, const char*) {},
-    [](void*, const float* const*, float* const*, int) noexcept {}, {}, {}};
+    [](void*, const float* const*, float* const*, int) noexcept {}, nullptr, {}, {}};
 
 }  // namespace syg::organs

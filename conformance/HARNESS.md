@@ -34,6 +34,8 @@ import or port them into the implementation).
 | 4 | `syg unfreeze-stage0` | `{"tape","manifest","tape_cid","manifest_cid"}` — the artifact links its tape + native manifest by hash (SZ-4.1) |
 | 4 | `syg park-audit` | spawn-and-park: 100 kills/restarts of stage 1; a stage-0-addressed edit refused with the named error (SZ-5) |
 | 5 | `syg regions` | JSON `{"graph":<interchange>,"edits":[...]}` → `{"block","frame","mappings","errors"}` — inference recomputed after the edits apply (EXE-2); boundary mappings from the one promise oracle |
+| 5 | `syg render-graph <seconds>` | interchange JSON on stdin → EXECUTOR semantics (regions, latch, quiescence) → raw float32 mono (distinct from the naive render-tape) |
+| 5 | `syg exec-audit` | scripted executor run: `{"graph","blocks","ops":[{block,route,value}],"watch":[cells or "out"]}` → `{"watched","recomputes","rt_events","serialized"}` (EXE-1/3/4/11) |
 | 1 | `syg pins` | no stdin → one-line JSON of the frozen ch. 14 pins (multicodec/multihash numbers, multibase, chunk size, escape set, tape records, edit ops, wire kinds) — the FMT-5 freeze surface |
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 

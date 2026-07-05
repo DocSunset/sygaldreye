@@ -25,7 +25,13 @@ struct native_type {
   void (*set_num)(void*, const char* port, double v);
   void (*set_text)(void*, const char* port, const char* v);
   escapement::node::process_fn process;
+  // value-discipline behavior (frame side): recompute outs from ins after
+  // dt; null for pure stream natives
+  void (*value_tick)(void* state, double dt, const float* ins, float* outs);
   std::vector<port_decl> in_ports, out_ports;
+  // time-dependent: wired to its executor's clock (ADR-015 — the visible
+  // clock-input wiring arrives with the engine graph; this flag stands in)
+  bool clocked = false;
 };
 
 // One op record (the five appliers; the tape and every editor speak this).

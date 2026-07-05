@@ -114,6 +114,9 @@ def golden_audio_check(x, sr=48000):
            for i in range(0, len(x) - hop, hop)]
     mid = (max(env) + min(env)) / 2
     rises = [i for i in range(1, len(env)) if env[i - 1] < mid <= env[i]]
+    # debounce: a stepped (frame-latched) envelope can graze the midline
+    # twice at one rising edge; crossings within 0.5 s are one edge
+    rises = [r for i, r in enumerate(rises) if i == 0 or r - rises[i - 1] > 50]
     periods = [(b - a) / 100 for a, b in zip(rises, rises[1:])]
     assert periods, "no envelope period observed"
     assert all(abs(p - 2.0) <= 0.1 for p in periods), \

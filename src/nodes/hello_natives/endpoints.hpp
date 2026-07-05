@@ -38,4 +38,15 @@ struct add {
   au::out<au::audio, au::block> out;
 };
 
+struct cell {
+  au::in<au::scalar, au::value> k;
+  au::out<au::scalar, au::value> out;
+};
+
+struct scale {
+  au::in<au::scalar, au::value> in;
+  au::in<au::scalar, au::value> k;
+  au::out<au::scalar, au::value> out;
+};
+
 }  // namespace syg::nodes::decl

@@ -15,6 +15,7 @@ struct boundary {
 struct region_map {
   std::vector<std::string> block, frame;
   std::vector<boundary> mappings;   // derived; NEVER persisted
+  std::vector<std::string> inert;   // no demanded output, no clock (EXE-11.3)
   std::vector<std::string> errors;  // illegal edges, named
 };
 

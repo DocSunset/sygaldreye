@@ -15,6 +15,6 @@ extern const syg::crown::native_type dac_native;
 const syg::crown::native_type dac_native{
     "dac", [] { return static_cast<void*>(nullptr); }, [](void*) {},
     [](void*, const char*, double) {}, [](void*, const char*, const char*) {},
-    dac_process, syg::generated::dac_in_ports, syg::generated::dac_out_ports};
+    dac_process, nullptr, syg::generated::dac_in_ports, syg::generated::dac_out_ports};
 
 }  // namespace syg::nodes

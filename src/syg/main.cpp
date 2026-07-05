@@ -20,6 +20,8 @@
 #include "stage0_audits.hpp"
 #include "naming_session.hpp"
 #include "parser/parser.hpp"
+#include "exec_plan.hpp"
+#include "phase.hpp"
 #include "regions.hpp"
 #include "resolver/naive_resolver.hpp"
 #include "hello_cosine/hello_cosine.hpp"
@@ -237,7 +239,67 @@ int cmd_regions() {
   std::cout << nlohmann::json{{"block", r.block},
                               {"frame", r.frame},
                               {"mappings", maps},
+                              {"inert", r.inert},
                               {"errors", r.errors}}.dump() << "\n";
+  return 0;
+}
+
+int cmd_render_graph(double seconds) {
+  // the EXECUTOR semantics (regions + latch), unlike the naive render-tape
+  syg::executor::exec_plan p(
+      syg::organs::parse_graph(nlohmann::json::parse(read_stdin())), 48000, 128);
+  int blocks = static_cast<int>(seconds * 48000) / 128;
+  for (int i = 0; i < blocks; ++i)
+    std::fwrite(p.pump_block(), sizeof(float), 128, stdout);
+  return 0;
+}
+
+int cmd_exec_audit() {
+  auto in = nlohmann::json::parse(read_stdin());
+  syg::executor::exec_plan p(syg::organs::parse_graph(in.at("graph")), 48000, 128);
+  int blocks = in.value("blocks", 1);
+  auto ops = in.value("ops", nlohmann::json::array());
+  auto watch = in.value("watch", std::vector<std::string>{});
+  nlohmann::json watched;
+  syg::abi::reset_counts();
+  long rt_before = syg::abi::counts(syg::abi::phase::process).allocs +
+                   syg::abi::counts(syg::abi::phase::process).locks;
+  std::map<int, std::vector<const nlohmann::json*>> by_block;
+  for (const auto& o : ops) by_block[o.at("block")].push_back(&o);
+  for (int blk = 0; blk < blocks; ++blk) {
+    for (const auto* op : by_block[blk])
+      p.submit({"set_param", op->at("route"), op->at("value"),
+                op->value("author", "")});
+    const float* out = p.pump_block();
+    (void)out;
+    for (const auto& w : watch) {
+      // record [first, min, max] of the watched block-input buffer
+      auto id = w.substr(0, w.find('/'));
+      // reach the buffer through the sink-independent introspection:
+      // watch is only supported on block in-ports via a probe render — use
+      // the plan's regions to find it; simplest honest probe: re-run isn't
+      // possible, so watch dac0/in == out; other routes via value_of
+      if (w == "out") {
+        watched[w].push_back({out[0], out[127]});
+      } else if (id.find('#') != std::string::npos || true) {
+        try {
+          watched[w].push_back(p.value_of(w));
+        } catch (const std::exception&) {
+          watched[w].push_back(nullptr);
+        }
+      }
+    }
+  }
+  long rt_after = syg::abi::counts(syg::abi::phase::process).allocs +
+                  syg::abi::counts(syg::abi::phase::process).locks;
+  nlohmann::json recomputes;
+  for (const auto& [id, t] : p.doc().nodes)
+    if (p.recomputes(id) >= 0) recomputes[id] = p.recomputes(id);
+  std::cout << nlohmann::json{{"watched", watched},
+                              {"recomputes", recomputes},
+                              {"rt_events", rt_after - rt_before},
+                              {"serialized", syg::organs::serialize_graph(p.doc())}}
+                   .dump() << "\n";
   return 0;
 }
 
@@ -304,6 +366,8 @@ int main(int argc, char** argv) {
     if (cmd == "unfreeze-stage0") return syg::harness::unfreeze_stage0();
     if (cmd == "park-audit") return syg::harness::park_audit();
     if (cmd == "regions") return cmd_regions();
+    if (cmd == "render-graph" && argc > 2) return cmd_render_graph(std::stod(argv[2]));
+    if (cmd == "exec-audit") return cmd_exec_audit();
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

@@ -22,7 +22,7 @@ const syg::crown::native_type supervisor_native{
     "supervisor", [] { return static_cast<void*>(new super_state()); },
     [](void* s) { delete static_cast<super_state*>(s); },
     super_set_num, [](void*, const char*, const char*) {},
-    [](void*, const float* const*, float* const*, int) noexcept {}, {}, {}};
+    [](void*, const float* const*, float* const*, int) noexcept {}, nullptr, {}, {}};
 
 double supervisor_restart_limit(void* state) {
   return static_cast<super_state*>(state)->restart_limit;
