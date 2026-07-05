@@ -1,3 +1,6 @@
+// clause: scaffolding (dissolves: CMP-9.2) — a bespoke walk over the
+// engine doc; ADR-034 retro-mark: compilation becomes a derivation-mode
+// run of the REALIZED engine plan, and this walk retires
 #pragma once
 #include "parser/parser.hpp"
 #include "store.hpp"

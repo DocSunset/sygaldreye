@@ -1,3 +1,4 @@
+// clause: machinery — executor package (plans, pacing, mappings)
 #include "lift.hpp"
 
 #include <set>

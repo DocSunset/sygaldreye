@@ -1,6 +1,4 @@
-// clause: scaffolding — fault-matrix provocateurs (TCF-4): nan_bomb (emits
-// NaN after a set sample count), spin (burns a deterministic iteration
-// budget per block), sleeper (a value tick that never returns)
+// clause: scaffolding (dissolves: CNF-1) — fault-matrix provocateurs (TCF-4): nan_bomb, spin, sleeper
 #include "crown.hpp"
 
 #include <atomic>

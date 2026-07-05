@@ -1,3 +1,4 @@
+// clause: machinery — executor package (plans, pacing, mappings)
 #pragma once
 #include "parser/parser.hpp"
 #include "subgraph/subgraph.hpp"

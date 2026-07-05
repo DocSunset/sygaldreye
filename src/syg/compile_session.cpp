@@ -6,6 +6,7 @@
 
 #include "compiler.hpp"
 #include "exec_plan.hpp"
+#include "freezer.hpp"
 #include "parser/parser.hpp"
 #include "query/query.hpp"
 #include "store.hpp"
@@ -123,6 +124,17 @@ int compile_session(const nlohmann::json& in) {
                            {"determinism", "exact"}},
                           {{"kind", "fork-record"}, {"note", detach}});
       r = {{"fork", c.execution_cid}};
+    } else if (what == "freeze") {
+      auto f = executor::freeze(op.contains("graph") ? op.at("graph") : app, s);
+      r = {{"artifact", f.artifact_cid}, {"provenance", f.provenance_cid},
+           {"tier", f.tier}, {"culprit", f.tier_culprit},
+           {"memo", f.memo}, {"source", f.source}};
+    } else if (what == "unfreeze") {
+      auto obj = s.get(op.at("artifact"));
+      if (!obj) throw std::runtime_error("artifact miss");
+      r = {{"app", executor::unfreeze(std::string(obj->begin(), obj->end()))}};
+    } else if (what == "app-cid") {
+      r = {{"cid", s.put_node(app, false)}};
     } else if (what == "ref") {
       const auto* c = s.ref(op.at("ref"));
       r = {{"cid", c ? *c : ""}};

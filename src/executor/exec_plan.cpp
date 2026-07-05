@@ -1,3 +1,4 @@
+// clause: machinery — executor package (plans, pacing, mappings)
 #include "exec_plan.hpp"
 
 #include <cstdlib>

@@ -1,3 +1,4 @@
+// clause: machinery — executor package (plans, pacing, mappings)
 #include "regions.hpp"
 
 #include <map>

@@ -1,3 +1,4 @@
+// clause: machinery — executor package (plans, pacing, mappings)
 #pragma once
 #include <map>
 #include <memory>

@@ -1,4 +1,4 @@
-// clause: scaffolding — ABI-2/3 audit node bodies
+// clause: scaffolding (dissolves: CNF-1) — ABI-2/3 audit node bodies
 #include "testnodes/testnodes.hpp"
 
 #include <stdexcept>

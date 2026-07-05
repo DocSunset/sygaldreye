@@ -1,4 +1,6 @@
-// clause: machinery — the query four's evaluator
+// clause: scaffolding (dissolves: LNG-11.4) — a bespoke evaluator over
+// query docs; ADR-034 retro-mark: the query four become realized
+// instances exchanging set values over the structured lane
 #include "query/query.hpp"
 
 #include <map>

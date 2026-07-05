@@ -1,5 +1,4 @@
-// clause: scaffolding — ABI-2/3 audit nodes; dissolve when real fallible
-// natives exercise the same shells
+// clause: scaffolding (dissolves: CNF-1) — ABI-2/3 audit nodes; retire when the suite runs as datasets and real fallible natives carry these assertions
 #pragma once
 #include "ports.hpp"
 

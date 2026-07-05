@@ -1,5 +1,4 @@
-// clause: scaffolding — a no-op sink standing where the audio package's real
-// dac (machinery) arrives at rung 8; the harness reads its input buffer
+// clause: scaffolding (dissolves: PKG-2.1) — a no-op sink standing where the audio package's real dac (machinery) arrives; the harness reads its input buffer
 #include "crown.hpp"
 
 #include "native_ports.hpp"

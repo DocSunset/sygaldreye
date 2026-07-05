@@ -1,5 +1,4 @@
-// clause: scaffolding — ABI-1.1's demonstration pair; dissolves when a real
-// node type exercises the same assertion
+// clause: scaffolding (dissolves: CNF-4) — ABI-1.1's demonstration pair; a real kind succession (kind-v2) carries the same assertion
 #pragma once
 #include "ports.hpp"
 

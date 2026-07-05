@@ -1,19 +1,24 @@
 {
  "kind": "graph",
  "lock": {
-  "osc": "kind:osc@v1",
+  "pulse": "kind:pulse@v1",
+  "add": "kind:add@v1",
+  "delay": "kind:delay@v1",
   "vca": "kind:vca@v1",
   "dac": "kind:dac@v1"
  },
  "topology": {
   "nodes": {
-   "osc0": {
-    "type": "osc"
+   "pulse0": {
+    "type": "pulse"
    },
-   "osc1": {
-    "type": "osc"
+   "add0": {
+    "type": "add"
    },
-   "vca0": {
+   "delay0": {
+    "type": "delay"
+   },
+   "fb0": {
     "type": "vca"
    },
    "dac0": {
@@ -22,21 +27,29 @@
   },
   "edges": [
    {
-    "from": "osc0/out",
-    "to": "vca0/in"
+    "from": "pulse0/out",
+    "to": "add0/a"
    },
    {
-    "from": "osc1/out",
-    "to": "vca0/gain"
+    "from": "fb0/out",
+    "to": "add0/b"
    },
    {
-    "from": "vca0/out",
+    "from": "add0/out",
+    "to": "delay0/in"
+   },
+   {
+    "from": "delay0/out",
+    "to": "fb0/in"
+   },
+   {
+    "from": "add0/out",
     "to": "dac0/in"
    }
   ]
  },
  "defaults": {
-  "osc0/freq": 660.0,
-  "osc1/freq": 3.5
+  "delay0/samples": 54.0,
+  "fb0/gain": 0.997
  }
 }
