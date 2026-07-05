@@ -2,6 +2,20 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-07-05 — Rung 4 GREEN too (1–4 green, 39 criteria, 0 fail)
+
+Liveness organs: parser (interchange round-trip), naive resolver
+(verified hash→bytes, package-free), registry-face (palette == generated
+registration manifest; natives present by linkage — nm-proven loud
+omission), slot (swap+migrate keyed by route; mid-render swap and clone
+reorder BYTE-IDENTICAL to uninterrupted renders; defaults re-apply
+idempotently — osc shape became a render-time offset), stage 0 (embedded
+boot tape → live peer over an empty objdir; unfreeze recovers tape +
+manifest by hash; 100 kill/restarts; stage-0 edits refused by name).
+New natives: noise, add. Next: rung 5 (execution semantics, 38 criteria) —
+the plan-as-segments design (HANDOFF): region inference from generated
+port promises, then mappings/islands/quiescence/threads.
+
 ## 2026-07-05 — Rungs 1–3 GREEN (builder session 1, continued)
 
 Suite: 30 pass, 0 fail. Rung 2 (escapement): COR-1 freestanding audit
