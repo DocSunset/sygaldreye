@@ -11,7 +11,9 @@ serialization round-trip.*
 
 **The value vocabulary (payload kinds).** One kind system (NAM-4) spans wires
 and store. The fiat payload kinds: `scalar, bool, vec2, vec3, vec4, quat,
-mat4, text, bang, audio, texture, draw_call, mesh, surface, span, any`. Each
+mat4, text, bang, audio, texture, draw_call, mesh, surface, span, any,
+graph, ops, cidset` (the last three joined with ADR-034's structured
+lane: graphs, edit-op batches, and cid sets as first-class payloads). Each
 is a kind node carrying decoders, affordance metadata, and constraints (audio
 pins block rate; texture/draw_call pin the render region). `any` and
 `unknown` are the honest gradual-typing escape hatches (subgraph outlets

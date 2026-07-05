@@ -442,7 +442,7 @@ def lng11_kind_catalog():
     out = json.loads(syg("kinds"))
     want = {"scalar", "bool", "vec2", "vec3", "vec4", "quat", "mat4", "text",
             "bang", "audio", "texture", "draw_call", "mesh", "surface",
-            "span", "any"}
+            "span", "any", "graph", "ops", "cidset"}  # ADR-034's three
     assert set(out["kinds"]) == want, sorted(set(out["kinds"]) ^ want)
     for name, node in out["kinds"].items():
         assert "decoders" in node and "widget" in node, name

@@ -10,10 +10,11 @@ add_library(syg_hello_natives
   ../nodes/hello_natives/event_natives.cpp
   ../nodes/hello_natives/smoother_native.cpp
   ../nodes/hello_natives/span_natives.cpp
-  ../nodes/hello_natives/fault_natives.cpp)
+  ../nodes/hello_natives/fault_natives.cpp
+  ../nodes/hello_natives/structured_natives.cpp)
 target_include_directories(syg_hello_natives PUBLIC ../nodes)
 target_include_directories(syg_hello_natives PRIVATE ${CMAKE_BINARY_DIR}/generated ${CMAKE_SOURCE_DIR}/src/authoring)
-target_link_libraries(syg_hello_natives PUBLIC syg_crown syg_movements)
+target_link_libraries(syg_hello_natives PUBLIC syg_crown syg_movements syg_organs)
 add_dependencies(syg_hello_natives generated)
 
 add_library(syg_movements

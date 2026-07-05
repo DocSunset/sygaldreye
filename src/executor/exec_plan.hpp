@@ -12,13 +12,7 @@
 
 namespace syg::executor {
 
-// One structured edit op (LNG-5 vocabulary, the arbiter's food — ADR-023).
-struct edit_op {
-  std::string op;  // set_param | add_node | remove_node | add_edge | remove_edge
-  std::string a, b;      // routes / ids / values per op
-  std::string author;    // peer key (attribution, LNG-5.2)
-  bool undo_replay = false;  // inverse application: cursor move, not history
-};
+using edit_op = crown::edit_op;  // the arbiter's food (LNG-5, ADR-023)
 
 // The log entry: every applied op carries its inverse (ADR-018).
 struct applied_op {
@@ -48,6 +42,7 @@ class exec_plan {
   const region_map& regions() const { return regions_; }
   long recomputes(const std::string& id) const;  // EXE-11 counters
   float value_of(const std::string& id_port) const;  // frame cell peek
+  const crown::svalue* svalue_of(const std::string& id_port) const;
   long process_calls() const;  // kernel invocations (EXE-10.2 observability)
   long rejected_ops() const { return rejected_; }  // precondition losers
   const std::vector<std::string>& faults() const { return faults_; }

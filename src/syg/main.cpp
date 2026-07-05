@@ -16,6 +16,7 @@
 #include "pins/pins.hpp"
 #include "dagcbor/dagcbor.hpp"
 #include "codecs.hpp"
+#include "svalue_accessors.hpp"
 #include "abi_audits.hpp"
 #include "crown.hpp"
 #include "registry_face/registry_face.hpp"
@@ -274,6 +275,7 @@ int cmd_exec_audit() {
   auto watch = in.value("watch", std::vector<std::string>{});
   nlohmann::json watched;
   syg::abi::reset_counts();
+  long encodes_before = syg::formats::encode_count();
   long rt_before = syg::abi::counts(syg::abi::phase::process).allocs +
                    syg::abi::counts(syg::abi::phase::process).locks;
   std::map<int, std::vector<const nlohmann::json*>> by_block;
@@ -303,11 +305,18 @@ int cmd_exec_audit() {
       // possible, so watch dac0/in == out; other routes via value_of
       if (w == "out") {
         watched[w].push_back({out[0], out[127]});
-      } else if (id.find('#') != std::string::npos || true) {
+      } else {
         try {
           watched[w].push_back(p.value_of(w));
         } catch (const std::exception&) {
-          watched[w].push_back(nullptr);
+          if (const auto* sv = p.svalue_of(w); sv && sv->value) {
+            if (std::string_view(sv->kind) == "text")
+              watched[w].push_back(syg::generated::as_text(*sv));
+            else
+              watched[w].push_back(std::string("<") + sv->kind + ">");
+          } else {
+            watched[w].push_back(nullptr);
+          }
         }
       }
     }
@@ -327,6 +336,7 @@ int cmd_exec_audit() {
                               {"realized", realized},
                               {"recomputes", recomputes},
                               {"rt_events", rt_after - rt_before},
+                              {"encodes", syg::formats::encode_count() - encodes_before},
                               {"process_calls", p.process_calls()},
                               {"log", log},
                               {"faults", p.faults()},

@@ -36,6 +36,7 @@ const syg::crown::native_type smoother_native{
     [](void* s) { delete static_cast<smoother_state*>(s); },
     smoother_set, [](void*, const char*, const char*) {}, smoother_process,
     nullptr, syg::generated::smoother_in_ports(),
-    syg::generated::smoother_out_ports(), false, false, nullptr, true};
+    syg::generated::smoother_out_ports(), false, false, nullptr, nullptr,
+    nullptr, nullptr, /*is_mapping=*/true};
 
 }  // namespace syg::nodes

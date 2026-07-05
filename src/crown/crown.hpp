@@ -1,5 +1,6 @@
 #pragma once
 #include <map>
+#include <string_view>
 #include <memory>
 #include <string>
 #include <vector>
@@ -7,6 +8,33 @@
 #include "escapement.hpp"
 
 namespace syg::crown {
+
+// The structured lane (ADR-034): a kind-tagged payload riding the event
+// and value disciplines. Zero-copy in-process — the pointer is shared,
+// the value immutable; canonical encoding happens only at commit
+// boundaries (ADR-017). Generated accessors (svalue_accessors.hpp) are
+// the ONLY sanctioned cast: C++ type <-> kind by generated declaration.
+struct svalue {
+  const char* kind = "";                 // catalog kind name
+  std::shared_ptr<const void> value;     // the in-motion form
+};
+
+// One structured edit op (LNG-5, ADR-023): what every arbiter inlet eats.
+struct edit_op {
+  std::string op;  // set_param | add_node | remove_node | add_edge | remove_edge
+  std::string a, b;
+  std::string author;        // peer key (attribution)
+  bool undo_replay = false;  // inverse application: cursor move, not history
+};
+
+// mirrors the catalog's non-float set (ADR-034): these ride event/value
+// only; the oracle refuses them on stream
+inline bool structured_kind(const char* k) {
+  const std::string_view v(k);
+  return v == "graph" || v == "ops" || v == "text" || v == "mesh" ||
+         v == "texture" || v == "surface" || v == "draw_call" ||
+         v == "cidset";
+}
 
 // A port declaration with its promises (generated from the endpoints
 // struct — AUT-3; the crown reads names, the executor reads promises).
@@ -38,6 +66,12 @@ struct native_type {
   // the event applier hook (ch. 13): consume events, write state; runs
   // before process at the consumer's boundary, never mid-tick
   void (*apply)(void* state, const char* port, double v) = nullptr;
+  // the structured lane's hooks (ADR-034, LNG-11): value-discipline
+  // recompute over kind-tagged payloads; structured event applier; pull
+  // hook for event emission (polled after appliers, same boundary)
+  void (*svalue_tick)(void* state, const svalue* ins, svalue* outs) = nullptr;
+  void (*sapply)(void* state, const char* port, const svalue& v) = nullptr;
+  bool (*semit)(void* state, const char* port, svalue* out) = nullptr;
   // a mapping node: its ports are throughpoints; compilation inserts no
   // default mapping where one already sits (L13)
   bool is_mapping = false;

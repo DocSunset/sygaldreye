@@ -45,6 +45,6 @@ const syg::crown::native_type counter_native{
     [](void*, const char*, double) {}, [](void*, const char*, const char*) {},
     no_process, counter_value_tick,
     syg::generated::counter_in_ports(), syg::generated::counter_out_ports(),
-    false, false, counter_apply};
+    false, false, counter_apply};  // apply sits right after block_override
 
 }  // namespace syg::nodes

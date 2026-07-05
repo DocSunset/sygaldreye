@@ -182,6 +182,56 @@ def cmp71_state_survives_recompilation():
     assert live == straight, "the swap was audible: state did not migrate"
 
 
+def _legal(frm, to):
+    return json.loads(syg("connection-legal", stdin=json.dumps(
+        {"from": list(frm), "to": list(to)}).encode()))
+
+
+def _exec_audit(graph, blocks=1, ops=None, watch=None):
+    return json.loads(syg("exec-audit", stdin=json.dumps(
+        {"graph": graph, "blocks": blocks, "ops": ops or [],
+         "watch": watch or []}).encode()))
+
+
+
+def lng111_graph_value_over_an_edge():
+    # a graph value flows between two realized instances; the consumer
+    # reads it through generated accessors; ZERO canonical encodes on the
+    # hop (the commit-boundary witness). CMP-9.1 exercises the same
+    # mechanism on the engine's own receive0 -> regions0 hop.
+    g = {"kind": "graph", "lock": {},
+         "topology": {"nodes": {"g0": {"type": "graph_cell"},
+                                "n0": {"type": "node_count"}},
+                      "edges": [{"from": "g0/out", "to": "n0/in"}]},
+         "defaults": {"g0/name": "hello-cosine"}}
+    out = _exec_audit(g, blocks=10, watch=["n0/out"])
+    assert out["watched"]["n0/out"][-1] == "4", out["watched"]
+    assert out["encodes"] == 0, \
+        f"the in-process hop serialized: {out['encodes']} canonical encodes"
+    # the oracle refuses structured payloads on stream
+    v = _legal(("graph", "value"), ("graph", "value"))
+    assert v["legal"] is True
+    for disc in ("block", "frame"):
+        v = _legal(("graph", disc), ("graph", "value"))
+        assert v["legal"] is False, f"a graph rode the {disc} clock: {v}"
+        v = _legal(("graph", "value"), ("graph", disc))
+        assert v["legal"] is False
+
+
+def lng112_float_path_pays_nothing():
+    # the RT audits and golden audio re-run green after the widening
+    import struct
+    from _helpers import golden_audio_check
+    exe31_rt_safety_under_live_edits()
+    audit = json.loads(syg("tick-audit"))
+    assert audit["lookups"] == 0 and audit["ticks"] > 0
+    raw = syg("render-graph", "6", stdin=json.dumps(_hello()).encode())
+    golden_audio_check(struct.unpack(f"<{len(raw) // 4}f", raw))
+
+
+import rung05
+exe31_rt_safety_under_live_edits = rung05.exe31_rt_safety_under_live_edits
+
 TESTS = {
     "CMP-1.1": cmp11_passes_run_once,
     "CMP-1.2": cmp12_defaults_edit_skips_structure,
@@ -201,8 +251,8 @@ TESTS = {
     "CMP-9.2": None,
     "CMP-9.3": None,
     "CMP-9.4": None,
-    "LNG-11.1": None,
-    "LNG-11.2": None,
+    "LNG-11.1": lng111_graph_value_over_an_edge,
+    "LNG-11.2": lng112_float_path_pays_nothing,
     "LNG-11.3": None,
     "LNG-11.4": None,
 }

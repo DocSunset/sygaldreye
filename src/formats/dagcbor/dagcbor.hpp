@@ -22,4 +22,8 @@ std::vector<std::uint8_t> bytes_of_projection(const nlohmann::json& v);
 // trailing bytes and non-canonical input it can detect.
 nlohmann::json decode_to_projection(const std::vector<std::uint8_t>& bytes);
 
+// instrumentation: canonical encodes since process start (commit-boundary
+// witness — an in-process structured hop must not move this)
+long encode_count();
+
 }  // namespace syg::formats

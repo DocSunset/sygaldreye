@@ -53,6 +53,21 @@ struct spectro {  // block-override: consumes its block whole (FFT-shaped)
   au::out<au::audio, au::block> out;
 };
 
+struct graph_cell {  // a graph-valued source (the structured lane)
+  au::in<au::text, au::value> name;
+  au::out<au::graph, au::value> out;
+};
+
+struct node_count {  // pure structured transform: graph in, text out
+  au::in<au::graph, au::value> in;
+  au::out<au::text, au::value> out;
+};
+
+struct text_cell {
+  au::in<au::text, au::value> value;
+  au::out<au::text, au::value> out;
+};
+
 struct nan_bomb {
   au::in<au::scalar, au::value> at;
   au::out<au::audio, au::block> out;

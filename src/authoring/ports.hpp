@@ -9,6 +9,10 @@ struct scalar { static constexpr const char* name = "scalar"; };
 struct fault { static constexpr const char* name = "fault"; };
 struct bang { static constexpr const char* name = "bang"; };
 struct span { static constexpr const char* name = "span"; };
+struct graph { static constexpr const char* name = "graph"; };
+struct text { static constexpr const char* name = "text"; };
+struct ops { static constexpr const char* name = "ops"; };
+struct cidset { static constexpr const char* name = "cidset"; };
 
 // discipline tags: event / value / a clock name (ADR-020)
 struct event { static constexpr const char* name = "event"; };

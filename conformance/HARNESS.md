@@ -42,6 +42,7 @@ import or port them into the implementation).
 | 6 | `syg store` | scripted multi-peer store session (STO-1..9, LNG-10): put/get, commit-graph (composite; orphaned defaults conflict), compile (memoized committed derivation), record (capture w/ testimony), refs+trails+undo, provide/evict/fetch (chunk-resumable)/forget, backlinks + queries (the query four; standing form incremental) |
 | 7 | `syg compile` | the CMP session: compile as a memoized committed derivation over engine-v0-as-data (two memo stages), the compilation map, projection edits through the inverse map (conflicts on vanished targets), forks, engine-diff (splices are additive), the tower's laziness counter |
 | 2 | `syg kernel-audit` | the AUT-1 kernel contract, exercised directly: bounded outputs, stage machines, delay-at-N, slew clamps, and N=1 == N=128 per native → `{"suite","checks"}` |
+| 7 | *(exec-audit gains)* | `watch` reads structured cells (text shown, others as `<kind>`); output gains `encodes` (canonical-encode delta — the LNG-11.1 zero-copy witness) |
 | 1 | `syg pins` | no stdin → one-line JSON of the frozen ch. 14 pins (multicodec/multihash numbers, multibase, chunk size, escape set, tape records, edit ops, wire kinds) — the FMT-5 freeze surface |
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 

@@ -53,6 +53,11 @@ struct exec_plan::impl {
     long recomputed = 0;
     std::vector<float> in_vals;
     std::vector<float> in_defaults;  // unconnected inputs fall back here
+    // the structured lane (ADR-034): kind-tagged cells beside the floats
+    std::vector<crown::svalue> souts;
+    std::vector<const crown::svalue*> sins;
+    std::vector<crown::svalue> sin_vals;
+    bool has_structured = false;
   };
   struct latch {
     const float* cell;
@@ -154,6 +159,13 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
       f.ins.assign(t->in_ports.size(), nullptr);
       f.in_vals.assign(t->in_ports.size(), 0.0f);
       f.in_defaults.assign(t->in_ports.size(), 0.0f);
+      f.souts.resize(t->out_ports.size());
+      f.sins.assign(t->in_ports.size(), nullptr);
+      f.sin_vals.resize(t->in_ports.size());
+      for (const auto& p : t->in_ports)
+        if (crown::structured_kind(p.kind)) f.has_structured = true;
+      for (const auto& p : t->out_ports)
+        if (crown::structured_kind(p.kind)) f.has_structured = true;
       f.clocked = t->clocked;
     }
   }
@@ -268,8 +280,12 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
     } else if (auto* df = im->frame_of(did)) {
       auto* sf = im->frame_of(sid);
       if (!sf) throw std::runtime_error("unmapped cross-region edge " + from);
-      df->ins[port_index(df->type->in_ports, dport)] =
-          &sf->outs[port_index(sf->type->out_ports, sport)];
+      auto sp_i = port_index(sf->type->out_ports, sport);
+      auto dp_i = port_index(df->type->in_ports, dport);
+      if (crown::structured_kind(sf->type->out_ports[sp_i].kind))
+        df->sins[dp_i] = &sf->souts[sp_i];  // zero-copy: the shared value
+      else
+        df->ins[dp_i] = &sf->outs[sp_i];
       im->frame_edges.emplace_back(
           static_cast<std::size_t>(sf - im->frames.data()),
           static_cast<std::size_t>(df - im->frames.data()));
@@ -435,8 +451,21 @@ float exec_plan::value_of(const std::string& id_port) const {
   auto id = id_port.substr(0, id_port.find('/'));
   auto port = id_port.substr(id_port.find('/') + 1);
   for (const auto& f : im_->frames)
-    if (f.id == id) return f.outs[port_index(f.type->out_ports, port)];
+    if (f.id == id) {
+      auto i = port_index(f.type->out_ports, port);
+      if (crown::structured_kind(f.type->out_ports[i].kind))
+        throw std::runtime_error("structured cell: " + id_port);
+      return f.outs[i];
+    }
   throw std::runtime_error("no frame cell: " + id_port);
+}
+
+const crown::svalue* exec_plan::svalue_of(const std::string& id_port) const {
+  auto id = id_port.substr(0, id_port.find('/'));
+  auto port = id_port.substr(id_port.find('/') + 1);
+  for (const auto& f : im_->frames)
+    if (f.id == id) return &f.souts[port_index(f.type->out_ports, port)];
+  return nullptr;
 }
 
 // structural ops mutate the doc; the plan re-realizes with migration
@@ -567,7 +596,14 @@ const float* exec_plan::pump_block() {
     for (std::size_t fi = 0; fi < im_->frames.size(); ++fi) {
       auto& f = im_->frames[fi];
       if (!f.clocked && !f.dirty) continue;  // quiescent (EXE-11)
-      if (f.type->value_tick) {
+      if (f.type->svalue_tick && f.has_structured) {
+        for (std::size_t i = 0; i < f.sins.size(); ++i)
+          f.sin_vals[i] = f.sins[i] ? *f.sins[i] : crown::svalue{};
+        f.type->svalue_tick(f.state, f.sin_vals.data(), f.souts.data());
+        ++f.recomputed;
+        for (const auto& [src, dst] : im_->frame_edges)
+          if (src == fi) im_->frames[dst].dirty = true;
+      } else if (f.type->value_tick) {
         for (std::size_t i = 0; i < f.ins.size(); ++i)
           f.in_vals[i] = f.ins[i] ? *f.ins[i] : f.in_defaults[i];
         f.type->value_tick(f.state, dt, f.in_vals.data(), f.outs.data());

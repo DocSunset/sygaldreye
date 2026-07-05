@@ -129,7 +129,14 @@ void encode(bytes& out, const nlohmann::json& v) {
 
 }  // namespace
 
+namespace {
+long encodes = 0;
+}  // namespace
+
+long encode_count() { return encodes; }
+
 bytes encode_projection(const nlohmann::json& v) {
+  ++encodes;
   bytes out;
   encode(out, v);
   return out;

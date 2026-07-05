@@ -162,6 +162,46 @@
    "constraints": {
     "gradual": true
    }
+  },
+  "ops": {
+   "cell_rank": 0,
+   "decoders": [
+    "render/oplog"
+   ],
+   "widget": {
+    "default": "wire"
+   },
+   "constraints": {
+    "structured": true,
+    "adr": "034"
+   }
+  },
+  "cidset": {
+   "cell_rank": null,
+   "decoders": [
+    "render/list"
+   ],
+   "widget": {
+    "default": "wire"
+   },
+   "constraints": {
+    "structured": true,
+    "adr": "034"
+   }
+  },
+  "graph": {
+   "cell_rank": null,
+   "decoders": [
+    "render/patch",
+    "traverse/nodes"
+   ],
+   "widget": {
+    "default": "wire"
+   },
+   "constraints": {
+    "structured": true,
+    "adr": "034"
+   }
   }
  }
 }

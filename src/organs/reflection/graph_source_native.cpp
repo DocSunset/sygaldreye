@@ -31,7 +31,7 @@ const syg::crown::native_type graph_source_native{
     [](void*, const char*, double) {}, [](void*, const char*, const char*) {},
     [](void*, const float* const*, float* const*, int) noexcept {},
     gs_value_tick, syg::generated::graph_source_in_ports(),
-    syg::generated::graph_source_out_ports(), false, false, nullptr, false,
-    gs_set_context};
+    syg::generated::graph_source_out_ports(), false, false, nullptr, nullptr,
+    nullptr, nullptr, false, gs_set_context};
 
 }  // namespace syg::organs
