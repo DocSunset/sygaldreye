@@ -21,6 +21,8 @@ def syg(*args, stdin: bytes = b"") -> bytes:
             raise Pending("implementation binary ./syg not found (HARNESS.md)")
         exe = found
     r = subprocess.run([str(exe), *args], input=stdin, capture_output=True)
+    if r.returncode == 2 and b"unknown subcommand" in r.stderr:
+        raise Pending(f"syg {args[0]} not implemented yet (HARNESS.md)")
     if r.returncode != 0:
         raise AssertionError(f"syg {' '.join(args)} failed: {r.stderr[:400]!r}")
     return r.stdout

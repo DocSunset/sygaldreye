@@ -7,5 +7,6 @@ add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
 find_package(nlohmann_json REQUIRED)
 
+add_subdirectory(src/formats/address)
 add_subdirectory(src/formats/dagcbor)
 add_subdirectory(src/syg)
