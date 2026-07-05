@@ -437,6 +437,41 @@ def tcf2_swaps_under_load():
     assert out["rejected"] < out["applied"], out
 
 
+
+def lng11_kind_catalog():
+    out = json.loads(syg("kinds"))
+    want = {"scalar", "bool", "vec2", "vec3", "vec4", "quat", "mat4", "text",
+            "bang", "audio", "texture", "draw_call", "mesh", "surface",
+            "span", "any"}
+    assert set(out["kinds"]) == want, sorted(set(out["kinds"]) ^ want)
+    for name, node in out["kinds"].items():
+        assert "decoders" in node and "widget" in node, name
+    assert out["kinds"]["audio"]["constraints"]["pins_clock"] == "block"
+    assert out["unresolved"] == [], \
+        f"registry promises unknown kinds: {out['unresolved']}"
+
+
+def lng41_defaults_are_the_inlet_model():
+    # EXE-1.2 / EDR-2.1 restated: an edge overrides while connected; the
+    # persisted default never captures live modulation
+    exe12_defaults_never_capture_modulation()
+    # and an unconnected inlet actually holds its default (EXE-4.1's step)
+    out = _exec_audit(_const_hello(with_lfo=False), blocks=3, watch=["out"])
+    assert out["watched"]["out"][2][0] == 0.30000001192092896 or \
+        abs(out["watched"]["out"][2][0] - 0.3) < 1e-6
+
+
+def lng42_widget_table_is_data():
+    # adding range metadata to a scalar inlet switches its widget without
+    # editor code changes — the table is a dataset, keyed by kind + metadata
+    assert json.loads(syg("widget-of", "scalar")) == {"widget": "number"}
+    assert json.loads(syg("widget-of", "scalar", "--range")) == {"widget": "slider"}
+    assert json.loads(syg("widget-of", "bool")) == {"widget": "toggle"}
+    assert json.loads(syg("widget-of", "vec3")) == {"widget": "gizmo"}
+    assert json.loads(syg("widget-of", "bang")) == {"widget": "momentary"}
+    assert json.loads(syg("widget-of", "audio")) == {"widget": "wire"}
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -459,12 +494,12 @@ TESTS = {
     "EXE-11.2": exe112_dirty_cone_exactly,
     "EXE-11.3": exe113_inert_lint,
     "EXE-11.4": exe114_bang_wakes_cone_same_tick,
-    "LNG-1.1": None,
+    "LNG-1.1": lng11_kind_catalog,
     "LNG-2.1": None,
     "LNG-2.2": None,
     "LNG-3.1": lng31_queue_never_drops,
-    "LNG-4.1": None,
-    "LNG-4.2": None,
+    "LNG-4.1": lng41_defaults_are_the_inlet_model,
+    "LNG-4.2": lng42_widget_table_is_data,
     "LNG-5.1": lng51_ops_replay_to_same_hash,
     "LNG-5.2": lng52_ops_carry_authors,
     "LNG-6.1": None,

@@ -414,6 +414,34 @@ int cmd_swap_storm(int n_ops) {
   return 0;
 }
 
+int cmd_kinds() {
+  std::ifstream f("vocabulary/kinds.json");
+  if (!f) throw std::runtime_error("vocabulary/kinds.json not found (run from repo root)");
+  auto catalog = nlohmann::json::parse(f);
+  // every port promise the linked registry makes must resolve in the catalog
+  nlohmann::json unresolved = nlohmann::json::array();
+  for (const auto* n : syg::organs::registered_natives()) {
+    for (const auto& p : n->in_ports)
+      if (!catalog["kinds"].contains(p.kind)) unresolved.push_back(p.kind);
+    for (const auto& p : n->out_ports)
+      if (!catalog["kinds"].contains(p.kind)) unresolved.push_back(p.kind);
+  }
+  std::cout << nlohmann::json{{"kinds", catalog["kinds"]},
+                              {"unresolved", unresolved}}.dump() << "\n";
+  return 0;
+}
+
+int cmd_widget_of(const std::string& kind, bool with_range) {
+  std::ifstream f("vocabulary/kinds.json");
+  auto catalog = nlohmann::json::parse(f);
+  const auto& w = catalog.at("kinds").at(kind).at("widget");
+  std::string which = with_range && w.contains("with_range")
+                          ? w["with_range"].get<std::string>()
+                          : w.at("default").get<std::string>();
+  std::cout << nlohmann::json{{"widget", which}}.dump() << "\n";
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -477,6 +505,9 @@ int main(int argc, char** argv) {
     if (cmd == "unfreeze-stage0") return syg::harness::unfreeze_stage0();
     if (cmd == "park-audit") return syg::harness::park_audit();
     if (cmd == "regions") return cmd_regions();
+    if (cmd == "kinds") return cmd_kinds();
+    if (cmd == "widget-of" && argc > 2)
+      return cmd_widget_of(argv[2], argc > 3 && std::string(argv[3]) == "--range");
     if (cmd == "render-graph" && argc > 2) return cmd_render_graph(std::stod(argv[2]));
     if (cmd == "exec-audit") return cmd_exec_audit();
     if (cmd == "queue-audit" && argc > 2)

@@ -1,0 +1,167 @@
+{
+ "_": "The fiat payload kind catalog (LNG-1): each entry is a kind node \u2014 decoders, widget affordances, constraints. Read as data by the oracle, the lift machinery, and the editor; no hardcoded switch anywhere.",
+ "kinds": {
+  "scalar": {
+   "cell_rank": 0,
+   "decoders": [
+    "render/number",
+    "serialize/f64"
+   ],
+   "widget": {
+    "default": "number",
+    "with_range": "slider"
+   }
+  },
+  "bool": {
+   "cell_rank": 0,
+   "decoders": [
+    "render/toggle"
+   ],
+   "widget": {
+    "default": "toggle"
+   }
+  },
+  "vec2": {
+   "cell_rank": 1,
+   "decoders": [
+    "render/xy"
+   ],
+   "widget": {
+    "default": "pad"
+   }
+  },
+  "vec3": {
+   "cell_rank": 1,
+   "decoders": [
+    "render/gizmo"
+   ],
+   "widget": {
+    "default": "gizmo"
+   }
+  },
+  "vec4": {
+   "cell_rank": 1,
+   "decoders": [
+    "render/gizmo"
+   ],
+   "widget": {
+    "default": "gizmo"
+   }
+  },
+  "quat": {
+   "cell_rank": 1,
+   "decoders": [
+    "render/rotation"
+   ],
+   "widget": {
+    "default": "gizmo"
+   }
+  },
+  "mat4": {
+   "cell_rank": 2,
+   "decoders": [
+    "render/matrix"
+   ],
+   "widget": {
+    "default": "matrix"
+   }
+  },
+  "text": {
+   "cell_rank": 0,
+   "decoders": [
+    "render/text",
+    "traverse/spans"
+   ],
+   "widget": {
+    "default": "field"
+   }
+  },
+  "bang": {
+   "cell_rank": 0,
+   "decoders": [
+    "render/flash"
+   ],
+   "widget": {
+    "default": "momentary"
+   },
+   "constraints": {
+    "stateless": true
+   }
+  },
+  "audio": {
+   "cell_rank": 1,
+   "decoders": [
+    "render/waveform",
+    "render/spectrogram"
+   ],
+   "widget": {
+    "default": "wire"
+   },
+   "constraints": {
+    "pins_clock": "block"
+   }
+  },
+  "texture": {
+   "cell_rank": 2,
+   "decoders": [
+    "render/image"
+   ],
+   "widget": {
+    "default": "wire"
+   },
+   "constraints": {
+    "pins_region": "render"
+   }
+  },
+  "draw_call": {
+   "cell_rank": 1,
+   "decoders": [],
+   "widget": {
+    "default": "wire"
+   },
+   "constraints": {
+    "pins_region": "render"
+   }
+  },
+  "mesh": {
+   "cell_rank": 2,
+   "decoders": [
+    "render/wireframe"
+   ],
+   "widget": {
+    "default": "wire"
+   }
+  },
+  "surface": {
+   "cell_rank": 2,
+   "decoders": [
+    "render/preview"
+   ],
+   "widget": {
+    "default": "wire"
+   }
+  },
+  "span": {
+   "cell_rank": null,
+   "decoders": [
+    "traverse/cells"
+   ],
+   "widget": {
+    "default": "wire"
+   },
+   "constraints": {
+    "carries": "cell kind + count; excess rank lifts"
+   }
+  },
+  "any": {
+   "cell_rank": null,
+   "decoders": [],
+   "widget": {
+    "default": "wire"
+   },
+   "constraints": {
+    "gradual": true
+   }
+  }
+ }
+}
