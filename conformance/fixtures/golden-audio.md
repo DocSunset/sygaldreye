@@ -16,3 +16,9 @@ rendered take by committing it as a capture; thereafter regression compares
 against these properties AND spectral distance to the blessed take within
 the tolerance comparator. The blessing is testimony — signed, dated,
 supersedable.
+
+BLESSED 2026-07-05 by Travis:
+`documentary/media/2026-07-05-hello-cosine-first-take.wav`
+CID `bafkr4ig3d6mp6kh3qezcgrfnhjpow65o3llwjqt5gr2zxju4tm3p76ze3m`
+(blake3-256, raw lane — `./syg hash`). Regression from here: the property
+checks above plus spectral distance to this take.
