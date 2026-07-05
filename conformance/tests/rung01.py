@@ -57,11 +57,32 @@ def fmt2_address_roundtrip():
         assert got == want, f"impl parse differs on {printed!r}"
 
 
+def fmt5_pins_frozen():
+    # The ch. 14 pins, frozen 2026-07-05, restated here verbatim. If this test
+    # ever disagrees with the implementation, the implementation drifted; if
+    # it must change, that is a succession of the spec (ADR-025), never an
+    # edit — amend the book first.
+    got = json.loads(syg("pins"))
+    assert got == {
+        "multicodec": {"dag-cbor": 0x71, "raw": 0x55},
+        "multihash": {"blake3-256": 0x1E},
+        "hash_bytes": 32,
+        "multibase": "b",
+        "chunk_bytes": 256 * 1024,
+        "escape": "%/:# \t\n",
+        "tape_records": ["NODE", "LINK", "SET"],
+        "edit_ops": ["add_node", "remove_node", "add_edge", "remove_edge",
+                     "set_param", "replace_graph"],
+        "wire_kinds": {"PAIR": 1, "HELLO": 2, "SUBSCRIBE": 3, "OPS": 4,
+                       "FETCH": 5, "QUERY": 6, "PLACE": 7, "FAULT": 8},
+    }, f"pin drift: {got}"
+
+
 TESTS = {
     "FMT-1": fmt1_encoder_conformance,
     "FMT-2": fmt2_address_roundtrip,
     "NAM-1.1": fmt2_address_roundtrip,  # same property, book cross-reference
-    "FMT-5": None,
+    "FMT-5": fmt5_pins_frozen,
     "NAM-1.2": None,
     "NAM-2.1": None,
     "NAM-2.2": None,
