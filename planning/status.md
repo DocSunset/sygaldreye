@@ -2,6 +2,36 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-07-05 — RUNG 5 GREEN — rungs 1–5, 77 criteria, 0 fail
+
+The executor package (src/executor): regions inferred from generated port
+promises (block = sink closure through block-discipline stream edges;
+boundary mappings from the ONE promise oracle + region crossings →
+snapshot); exec_plan = the segment plan (fused feedforward loops,
+SCC-detected per-sample islands with z⁻¹ on backward edges, latches at
+boundaries only, value cells with dirty-cone quiescence, param buffers,
+snapshot cells); the op inlet is a lock-free MPSC arbiter queue (any
+thread; boundary drain; append-only op log + cursor undo; precondition
+losers rejected loudly); events route through appliers waking exactly
+their cones; lift expansion (span→cell stamps id#k clones; span-kind
+consumers take spans whole; resource holders refuse, naming the inner
+culprit); subgraph expansion (graphs_dir templates ARE the palette;
+creation-args; context by set_context injection to the ROOT doc);
+derivation mode (derive-render: memoized recipe provenance into an
+objdir); fault machinery (NaN guard severs at the dac; overrun ladder
+mutes the costliest segment; trap/hang audited). KS byte-matches its
+hand-frozen twin. R5 take rendered + sent (live-edits wav in
+documentary/media). Blessing for rung 2 STILL PENDING with Travis.
+
+Two landmines fixed en route: inline-variable dynamic-init order emptied
+generated port tables (now function-local statics); envelope detector
+needed debounce for correct frame-latched envelopes.
+
+Next: rung 6 — the store (STO-1..9 + LNG-10 + STO-4/ADR-018 undo, 16
+criteria). Object machinery exists in pieces (chunk_put, naive resolver,
+derive-render's objdir memo); the store-graph face, commit paths, refs
+with history, and the query four are the new work.
+
 ## 2026-07-05 — Rung 4 GREEN too (1–4 green, 39 criteria, 0 fail)
 
 Liveness organs: parser (interchange round-trip), naive resolver
