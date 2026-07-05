@@ -14,7 +14,7 @@
 #include "codecs.hpp"
 #include "abi_audits.hpp"
 #include "crown.hpp"
-#include "hello_natives/hello_natives.hpp"
+#include "registry_face/registry_face.hpp"
 #include "naming_session.hpp"
 #include "parser/parser.hpp"
 #include "resolver/naive_resolver.hpp"
@@ -134,7 +134,7 @@ int cmd_codec_selftest(const std::string& type) {
 }
 
 syg::crown::plan replayed_plan(const std::string& tape_text, int block) {
-  syg::crown::plan p(syg::nodes::hello_natives(), block);
+  syg::crown::plan p(syg::organs::registered_natives(), block);
   for (auto& o : syg::crown::read_tape(tape_text)) p.submit(std::move(o));
   p.tick(0);  // the boot boundary: apply everything, process nothing yet
   return p;
@@ -240,6 +240,10 @@ int main(int argc, char** argv) {
     if (cmd == "replay-tape") return cmd_replay_tape();
     if (cmd == "render-tape" && argc > 2) return cmd_render_tape(std::stod(argv[2]));
     if (cmd == "roundtrip") return cmd_roundtrip();
+    if (cmd == "palette") {
+      std::cout << syg::organs::palette().dump() << "\n";
+      return 0;
+    }
     if (cmd == "resolve-hash" && argc > 3) return cmd_resolve_hash(argv[2], argv[3]);
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";

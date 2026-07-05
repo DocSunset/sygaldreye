@@ -5,7 +5,7 @@ target_link_libraries(syg_generator PRIVATE Boost::headers nlohmann_json::nlohma
 
 set(GEN_DIR ${CMAKE_BINARY_DIR}/generated)
 add_custom_command(
-  OUTPUT ${GEN_DIR}/codecs.hpp ${GEN_DIR}/bindings.py
+  OUTPUT ${GEN_DIR}/codecs.hpp ${GEN_DIR}/bindings.py ${GEN_DIR}/registration.cpp ${GEN_DIR}/registration.json
          ${GEN_DIR}/widget_a.descriptor.json ${GEN_DIR}/widget_b.descriptor.json
   COMMAND syg_generator ${GEN_DIR}
   DEPENDS syg_generator ${CMAKE_CURRENT_SOURCE_DIR}/../nodes/widgets/widgets.hpp

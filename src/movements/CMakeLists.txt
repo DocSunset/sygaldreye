@@ -1,4 +1,8 @@
-add_library(syg_hello_natives ../nodes/hello_natives/hello_natives.cpp ../nodes/hello_natives/dac_native.cpp)
+add_library(syg_hello_natives
+  ../nodes/hello_natives/osc_native.cpp
+  ../nodes/hello_natives/lfo_native.cpp
+  ../nodes/hello_natives/vca_native.cpp
+  ../nodes/hello_natives/dac_native.cpp)
 target_include_directories(syg_hello_natives PUBLIC ../nodes)
 target_link_libraries(syg_hello_natives PUBLIC syg_crown syg_movements)
 
