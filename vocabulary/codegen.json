@@ -1,5 +1,5 @@
 {
- "_": "The codegen backend's per-native ledger (ADR-014, FRZ): tier from the native closure (1 freestanding, 2 platform-lib, 3 host-bound) + emission templates ($id = state prefix, $in/$a/$b = input expressions, $out = output). Read as DATA by realize's codegen branch — graphs, not C++. The AUT-3 stamp will fold templates into generation (leaves already carry exprs).",
+ "_": "The codegen backend's per-native ledger (ADR-014, FRZ): tier from the native closure (1 freestanding, 2 platform-lib, 3 host-bound) + emission templates ($id = state prefix, $in/$a/$b = input expressions, $out = output). Read as DATA by realize's codegen branch \u2014 graphs, not C++. The AUT-3 stamp will fold templates into generation (leaves already carry exprs).",
  "natives": {
   "osc": {
    "tier": 1,
@@ -16,7 +16,11 @@
    "state": "uint32_t $id_rng = 0x1234567u;",
    "per_sample": "float $out = synth::white_noise($id_rng);"
   },
-  "add": {"tier": 1, "state": "", "per_sample": "float $out = $a + $b;"},
+  "add": {
+   "tier": 1,
+   "state": "",
+   "per_sample": "float $out = $a + $b;"
+  },
   "vca": {
    "tier": 1,
    "state": "float $id_gain = 0;",
@@ -24,12 +28,24 @@
   },
   "delay": {
    "tier": 1,
-   "state": "synth::DelayLine $id_line; int $id_samples = 1;",
+   "state": "synth::DelayLine<$cap> $id_line; int $id_samples = 1;",
    "per_sample": "float $out = $id_line.tick($in, $id_samples, 0.0f);"
   },
-  "mix": {"tier": 1, "state": "", "per_sample": "float $out = $sum;"},
-  "dac": {"tier": 2, "state": "", "per_sample": ""},
-  "tmux": {"tier": 3, "state": "", "per_sample": ""},
+  "mix": {
+   "tier": 1,
+   "state": "",
+   "per_sample": "float $out = $sum;"
+  },
+  "dac": {
+   "tier": 2,
+   "state": "",
+   "per_sample": ""
+  },
+  "tmux": {
+   "tier": 3,
+   "state": "",
+   "per_sample": ""
+  },
   "lfo": {
    "tier": 1,
    "state": "float $id_phase = 0, $id_freq = 440, $id_depth = 1;",
@@ -38,7 +54,7 @@
   "smoother": {
    "tier": 1,
    "state": "float $id_cur = 0, $id_in = 0, $id_rate = 20;",
-   "per_sample": "$id_cur += std::clamp($id_in - $id_cur, -$id_rate / 48000.0f, $id_rate / 48000.0f);\n      float $out = $id_cur;"
+   "per_sample": "$id_cur += synth::clampf($id_in - $id_cur, -$id_rate / 48000.0f, $id_rate / 48000.0f);\n      float $out = $id_cur;"
   }
  }
 }

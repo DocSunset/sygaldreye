@@ -48,16 +48,51 @@ emitted emit_frozen(const organs::graph_doc& doc,
     if (id.starts_with("__")) continue;
     (in_block.count(id) ? blocks : frames).emplace_back(id, type);
   }
+  // the artifact is SELF-CONTAINED (FRZ-3: closure = libc math only) —
+  // kernel math copied verbatim from synth_core (AUT-1's floor), the
+  // delay's capacity BAKED at freeze time (no heap, no <vector>)
   std::string src =
       "// FROZEN by realize's codegen backend (ADR-014) — do not edit;\n"
       "// provenance lives in the store (unfreeze = read it)\n"
-      "#include <algorithm>\n#include <cstdint>\n"
-      "#include \"synth_core/synth_core.hpp\"\n"
-      "#include \"synth_core/kernels.hpp\"\n\n"
+      "#include <stdint.h>\n"
+      "extern \"C\" float sinf(float);  // newlib; <math.h> is hosted-only C++\n\n"
+      "namespace synth {\n"
+      "inline float sine(float phase) { return sinf(phase); }\n"
+      "inline float white_noise(uint32_t& state) {\n"
+      "  state ^= state << 13;\n"
+      "  state ^= state >> 17;\n"
+      "  state ^= state << 5;\n"
+      "  return (static_cast<float>(state) / float(0x80000000u)) - 1.0f;\n"
+      "}\n"
+      "inline float clampf(float v, float lo, float hi) {\n"
+      "  return v < lo ? lo : (hi < v ? hi : v);\n"
+      "}\n"
+      "template <int CAP>\n"
+      "struct DelayLine {  // frozen form: capacity baked, math identical\n"
+      "  float buf[CAP] = {};\n"
+      "  int write = 0;\n"
+      "  float tick(float dry, int delay_samples, float feedback) {\n"
+      "    int len = CAP;\n"
+      "    int rd = (write - delay_samples + len) % len;\n"
+      "    float echo = buf[rd];\n"
+      "    buf[write] = dry + echo * feedback;\n"
+      "    write = (write + 1) % len;\n"
+      "    return echo;\n"
+      "  }\n"
+      "};\n"
+      "}  // namespace synth\n\n"
       "struct frozen_movement {\n";
+  auto baked_cap = [&](const std::string& id) {
+    auto it = doc.defaults.find(id + "/samples");
+    double n = it != doc.defaults.end() && it->is_number() ? it->get<double>()
+                                                           : 1.0;
+    return std::to_string(static_cast<long>(n) + 1);
+  };
   for (const auto& [id, type] : doc.nodes) {
     if (id.starts_with("__")) continue;
     auto st = subst(tmpl(type).value("state", ""), id);
+    for (std::size_t pos; (pos = st.find("$cap")) != std::string::npos;)
+      st.replace(pos, 4, baked_cap(id));
     if (!st.empty()) src += "  " + st + "\n";
   }
   // defaults land in init()
@@ -73,10 +108,6 @@ emitted emit_frozen(const organs::graph_doc& doc,
     else if (v.is_string() && port == "shape" && v == "cosine")
       src += "    " + safe + "_off = 1.57079632679f;\n";
   }
-  for (const auto& [id, type] : doc.nodes)
-    if (type == "delay")
-      src += "    " + subst("$id", id) + "_line.prepare(" +
-             subst("$id", id) + "_samples + 1);\n";
   src += "  }\n";
   // frame state cells + the pump
   src += "  double t = 0, next_frame = 0;\n";

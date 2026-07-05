@@ -181,6 +181,49 @@ def frz21_tier_derived_from_native_closure():
         f"the culprit is unnamed: {x2['tier_culprit']!r}"
 
 
+def frz31_arm_freestanding_link():
+    # arm-none-eabi build of frozen chime links clean (long before real
+    # hardware): the artifact's dependency closure is kernel headers only
+    import shutil
+    if not shutil.which("nix"):
+        raise Pending("nix unavailable for the cross toolchain")
+    r = _peer([
+        {"op": "set-app", "graph": _chime()},
+        {"op": "open-engine-editor"},
+        {"op": "engine-edit", "ops": _BACKEND_SPLICE},
+        {"op": "compile"},
+    ])
+    artifact = r[3]["execution_body"]["artifact"]["/"]
+    source = _peer([
+        {"op": "set-app", "graph": _chime()},
+        {"op": "open-engine-editor"},
+        {"op": "engine-edit", "ops": _BACKEND_SPLICE},
+        {"op": "compile"},
+        {"op": "cat", "cid": artifact}])[4]["bytes"]
+    d = Path(tempfile.mkdtemp(prefix="syg-arm-"))
+    (d / "tu.cpp").write_text(source + """
+int main() {
+  static frozen_movement m;
+  m.init();
+  static float buf[128];
+  for (int b = 0; b < 8; ++b) m.pump_block(buf);
+  volatile float sink = buf[0];
+  (void)sink;
+  return 0;
+}
+""")
+    cc = subprocess.run(
+        ["nix", "shell", "nixpkgs#gcc-arm-embedded", "-c",
+         "arm-none-eabi-g++", "-O2", "-ffreestanding", "-DSYG_FREESTANDING",
+         "--specs=nosys.specs", f"-I{ROOT}/src/nodes",
+         "-o", str(d / "chime.elf"), str(d / "tu.cpp"), "-lm"],
+        capture_output=True, timeout=600)
+    if cc.returncode != 0 and b"could not be found" in cc.stderr:
+        raise Pending("gcc-arm-embedded not fetchable here")
+    assert cc.returncode == 0, cc.stderr.decode()
+    assert (d / "chime.elf").exists()
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
@@ -188,7 +231,7 @@ TESTS = {
     "FRZ-1.1": frz11_ab_chime_interpreted_vs_frozen,
     "FRZ-1.2": frz12_unfreeze_is_reading_provenance,
     "FRZ-2.1": frz21_tier_derived_from_native_closure,
-    "FRZ-3.1": None,
+    "FRZ-3.1": frz31_arm_freestanding_link,
     "FRZ-4.1": None,
     "PKG-1.1": None,
     "PKG-2.1": None,
