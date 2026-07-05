@@ -4,24 +4,28 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
 
 ## RESUME BLOCK (keep this section current at every stopping point)
 
-- **Current rung:** 2 (AUT backfill) → 5 (AUT) → 7 (reopened: LNG-11 then
-  CMP-9), per the halt instructions of 2026-07-05.
-- **In-flight:** housekeeping done (executor clause-marked; compiler.cpp
-  and organs/query retro-marked scaffolding with dissolution criteria;
-  freezer WIP shelved — must be rebuilt on the REAL engine's realize
-  output after CMP-9).
-- **Next action:** AUT-1.1/1.2/3.1 tests (rung 2), then AUT-4.1/4.2
-  (rung 5), then LNG-11 (the structured lane) BEFORE CMP-9, then seed
-  kanban/backlog/leaf_vocabulary.md, then CMP-9.1→9.4, LNG-11.3/11.4,
-  and rewrite the three strengthened tests (CMP-3.1, CMP-3.2, CMP-6.1)
-  observing the realized plan, never a self-report.
-- **Active disciplines (new since the halt):** L22 (make graphs, not
-  C++); ADR-034 realization rule; BUILDER.md Judgement section is binding
-  (strengthen freely → conformance/STRENGTHENINGS.md; flag before green;
-  fresh-context audit at each rung gate; ADR drafts while hot). From
-  rung 7 on: one peer, many sessions — every syg subcommand is a session
-  against ONE booted peer; mutations are ops into an arbiter.
-- **Blessed:** Travis blessed the rung-2 take (fixtures/golden-audio.md).
+- **Current state:** rungs 1–7 GREEN (117 criteria, 0 fail) — rung 7
+  re-earned under ADR-034: the engine is REALIZED (pass node types ticked
+  by the plan; compile = derivation-mode run; syg peer is the one-peer
+  session), the structured lane (svalue) landed, the query four realized,
+  20 generated leaf natives, honest locks.
+- **In-flight:** fresh-context rung-7 audit (Judgement §3) running as a
+  sub-agent; findings land here. Rung 8 opens only after fix-or-flag.
+- **Next action:** process audit findings → rung 8 (packages & freezer,
+  18 criteria incl. AUT-2.1/2.2/5.1 backfill). The freezer WIP is SHELVED
+  (src/executor/freezer.* marked scaffolding dissolves: FRZ-1.1) and must
+  be rebuilt to fuse the REAL engine's realize output. Hardware-bound
+  criteria (PKG-3.x on-device XR) will pend honestly on this machine.
+- **Known deliberate gaps (flag duty):** the peer session is peer-SHAPED
+  (store + engine slot + instances) but not yet booted from the stage-0
+  tape — the tape→organs→engine-slot integration lands with SZ/CNF work;
+  engine-v0.json's own lock still carries placeholder strings (committed
+  APP graphs get honest locks; committing the ENGINE with honest locks
+  joins CMP-9.4's follow-through when the engine dataset is stored).
+- **Active disciplines:** L22 (graphs, not C++); ADR-034 realization rule;
+  Judgement section binding (STRENGTHENINGS.md ledger; flag before green;
+  fresh audit per rung; ADR drafts while hot); one peer, many sessions.
+- **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
 
 ## 2026-07-05 — RUNG 5 GREEN — rungs 1–5, 77 criteria, 0 fail
 
