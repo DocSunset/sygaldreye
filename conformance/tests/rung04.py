@@ -109,7 +109,8 @@ def sz21_registration_by_linkage():
         undefined = subprocess.run(["nm", "-uC", str(obj)], capture_output=True,
                                    text=True, check=True).stdout
         for native in manifest:
-            assert f"{native}_native" in undefined, \
+            symbol = native.replace("-", "_") + "_native"
+            assert symbol in undefined, \
                 f"registration does not require {native}'s object at link time"
         # and actually linking without the objects fails, naming the symbol
         main = pathlib.Path(td) / "main.cpp"
@@ -124,14 +125,79 @@ def sz21_registration_by_linkage():
             "omitting a native's object did not break the link by name"
 
 
+def sz41_unfreeze_stage0():
+    out = json.loads(syg("unfreeze-stage0"))
+    # rebuild compares: the embedded tape is the source file, byte for byte,
+    # and both hashes re-derive from the repo
+    src = (ROOT / "src" / "stage0" / "boot.tape").read_text()
+    assert out["tape"] == src, "embedded tape diverged from its source"
+    assert out["tape_cid"] == syg("hash", stdin=src.encode()).decode().strip()
+    assert out["manifest"] == json.loads(syg("palette")), \
+        "stage-0 manifest is not the linked registry"
+    # re-derive the manifest cid: canonical-encode, hash, re-assemble under
+    # the dag-cbor multicodec (digest extracted via the cid oracle)
+    import base64
+    from reference import cid as cidref
+    raw_cid = syg("hash", stdin=syg("encode", stdin=json.dumps(
+        out["manifest"]).encode())).decode().strip()
+    digest = base64.b32decode(raw_cid[1:].upper() + "=" * (-len(raw_cid[1:]) % 8))[-32:]
+    assert out["manifest_cid"] == cidref.text(
+        cidref.cid_bytes(cidref.DAG_CBOR, digest)), "manifest cid mismatch"
+
+
+def sz51_spawn_and_park():
+    out = json.loads(syg("park-audit"))
+    assert out["kills"] == 100 and out["restarts"] == 100, out
+    # SZ-5.2: edits addressed at stage 0 are refused with a clear error
+    assert "stage 0 rejects runtime edits" in out["stage0_edit_refused"], out
+
+
+def sz7_boot_without_store():
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:  # an EMPTY object directory
+        out = json.loads(syg("boot-audit", td))
+        assert not any(pathlib.Path(td).iterdir()), "boot touched the store"
+    ids = {n.split(":")[0] for n in out["nodes"]}
+    assert {"parser0", "resolver0", "registry0", "engine0", "super0"} <= ids, \
+        f"liveness organs not instated: {out['nodes']}"
+    assert out["post_boot_op_landed"] is True, "the booted peer is not live"
+
+
+def sz8_the_ladder():
+    import shutil, struct, subprocess
+    from _helpers import golden_audio_check
+    # (a) the boot path is op application only: every node the peer holds
+    # was built by replaying the embedded tape's records
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        out = json.loads(syg("boot-audit", td))
+    tape_records = [ln for ln in (ROOT / "src" / "stage0" / "boot.tape")
+                    .read_text().splitlines()
+                    if ln.strip() and not ln.startswith("#")]
+    assert out["boot_ops"] == len(tape_records)
+    assert len(out["nodes"]) == sum(1 for r in tape_records if r.startswith("NODE"))
+    # (b) a crownless movement build passes movement-level conformance only:
+    # the sealed binary renders the golden take and links NO crown at all
+    firmware = ROOT / "build" / "hello-cosine-movement"
+    if not firmware.exists():
+        raise Pending("sealed movement binary not built yet")
+    raw = subprocess.run([str(firmware), "6"], capture_output=True,
+                         check=True).stdout
+    golden_audio_check(struct.unpack(f"<{len(raw) // 4}f", raw))
+    if shutil.which("nm"):
+        syms = subprocess.run(["nm", "-C", str(firmware)], capture_output=True,
+                              text=True).stdout
+        assert "crown" not in syms, "a sealed movement must omit the crown"
+
+
 TESTS = {
     "EXE-5.1": exe51_state_survives_swap,
     "EXE-5.2": exe52_clones_keyed_survive_reorder,
     "LNG-8.1": lng81_roundtrip,
     "SZ-2.1": sz21_registration_by_linkage,
     "SZ-3.1": sz31_naive_resolver,
-    "SZ-4.1": None,
-    "SZ-5.1": None,
-    "SZ-7": None,
-    "SZ-8": None,
+    "SZ-4.1": sz41_unfreeze_stage0,
+    "SZ-5.1": sz51_spawn_and_park,
+    "SZ-7": sz7_boot_without_store,
+    "SZ-8": sz8_the_ladder,
 }

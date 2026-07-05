@@ -1,0 +1,6 @@
+// GENERATED at build time from src/stage0/boot.tape (SZ-4: the artifact
+// links its tape by content) — do not edit
+#pragma once
+namespace syg::stage0 {
+inline constexpr const char* boot_tape = R"tape(@BOOT_TAPE@)tape";
+}

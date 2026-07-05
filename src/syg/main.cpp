@@ -17,6 +17,7 @@
 #include "crown.hpp"
 #include "registry_face/registry_face.hpp"
 #include "slot/slot.hpp"
+#include "stage0_audits.hpp"
 #include "naming_session.hpp"
 #include "parser/parser.hpp"
 #include "resolver/naive_resolver.hpp"
@@ -269,6 +270,9 @@ int main(int argc, char** argv) {
     }
     if (cmd == "resolve-hash" && argc > 3) return cmd_resolve_hash(argv[2], argv[3]);
     if (cmd == "swap-audit" && argc > 3) return cmd_swap_audit(argv[2], std::stod(argv[3]));
+    if (cmd == "boot-audit" && argc > 2) return syg::harness::boot_audit(argv[2]);
+    if (cmd == "unfreeze-stage0") return syg::harness::unfreeze_stage0();
+    if (cmd == "park-audit") return syg::harness::park_audit();
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;
