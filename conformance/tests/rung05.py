@@ -472,6 +472,36 @@ def lng42_widget_table_is_data():
     assert json.loads(syg("widget-of", "audio")) == {"widget": "wire"}
 
 
+
+def exe81_boundary_replaceable():
+    # the auto latch is visible as derived structure; replacing it with a
+    # smoother persists as an app-graph edit and survives re-compilation
+    r = _regions(_hello())
+    assert any(m["mapping"] == "latch" for m in r["mappings"])
+    replace = [
+        {"block": 20, "op": "remove_edge", "a": "lfo0/out", "b": "vca0/gain"},
+        {"block": 20, "op": "add_node", "a": "smoother0", "b": "smoother"},
+        {"block": 20, "op": "set_param", "route": "smoother0/rate", "value": "3"},
+        {"block": 20, "op": "add_edge", "a": "lfo0/out", "b": "smoother0/in"},
+        {"block": 20, "op": "add_edge", "a": "smoother0/out", "b": "vca0/gain"},
+        # a later unrelated structural edit forces another re-compilation
+        {"block": 60, "op": "add_node", "a": "n0", "b": "noise"},
+    ]
+    out = _exec_audit(_const_hello(), blocks=120, ops=replace, watch=["out"])
+    doc = out["serialized"]
+    assert "smoother0" in doc["topology"]["nodes"], "the edit did not persist"
+    assert {"from": "smoother0/out", "to": "vca0/gain"} in doc["topology"]["edges"]
+    # re-compiling inserts NO latch at that boundary: the smoother sits there
+    r2 = _regions(doc)
+    assert not any(m["mapping"] == "latch" for m in r2["mappings"]), r2
+    # and the sound says so: post-replacement blocks RAMP within the block
+    # (slew) where the latch held them flat
+    flat = out["watched"]["out"][10]
+    ramped = [s for s in out["watched"]["out"][70:] if s[0] != s[1]]
+    assert flat[0] == flat[1], "pre-replacement latch was not flat"
+    assert ramped, "the smoother never smoothed"
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -484,7 +514,7 @@ TESTS = {
     "EXE-6.1": exe61_no_singleton_reach,
     "EXE-6.2": exe62_pump_offline,
     "EXE-7.1": None,
-    "EXE-8.1": None,
+    "EXE-8.1": exe81_boundary_replaceable,
     "EXE-9.1": exe91_existence_is_reference,
     "EXE-10.1": exe101_island_pitch,
     "EXE-10.2": exe102_explicit_delay_opts_out,

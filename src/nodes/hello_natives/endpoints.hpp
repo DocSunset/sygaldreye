@@ -53,6 +53,12 @@ struct spectro {  // block-override: consumes its block whole (FFT-shaped)
   au::out<au::audio, au::block> out;
 };
 
+struct smoother {  // a user-suppliable boundary mapping (EXE-8, CMP-4)
+  au::in<au::scalar, au::value> in;
+  au::in<au::scalar, au::value> rate;
+  au::out<au::scalar, au::block> out;
+};
+
 struct button {
   au::out<au::bang, au::event> out;
 };

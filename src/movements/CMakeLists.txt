@@ -7,7 +7,8 @@ add_library(syg_hello_natives
   ../nodes/hello_natives/add_native.cpp
   ../nodes/hello_natives/value_natives.cpp
   ../nodes/hello_natives/loop_natives.cpp
-  ../nodes/hello_natives/event_natives.cpp)
+  ../nodes/hello_natives/event_natives.cpp
+  ../nodes/hello_natives/smoother_native.cpp)
 target_include_directories(syg_hello_natives PUBLIC ../nodes)
 target_include_directories(syg_hello_natives PRIVATE ${CMAKE_BINARY_DIR}/generated ${CMAKE_SOURCE_DIR}/src/authoring)
 target_link_libraries(syg_hello_natives PUBLIC syg_crown syg_movements)

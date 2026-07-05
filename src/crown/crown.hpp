@@ -38,6 +38,9 @@ struct native_type {
   // the event applier hook (ch. 13): consume events, write state; runs
   // before process at the consumer's boundary, never mid-tick
   void (*apply)(void* state, const char* port, double v) = nullptr;
+  // a mapping node: its ports are throughpoints; compilation inserts no
+  // default mapping where one already sits (L13)
+  bool is_mapping = false;
 };
 
 // One op record (the five appliers; the tape and every editor speak this).

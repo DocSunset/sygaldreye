@@ -59,12 +59,18 @@ struct exec_plan::impl {
     std::size_t dst;
     std::string port;
   };
+  struct param_latch {  // frame cell -> a block node's value port, at boundary
+    const float* cell;
+    std::size_t dst;
+    std::size_t port;  // in-port index
+  };
 
   std::vector<block_node> blocks;  // fused per-node segments, topo order
   std::vector<frame_node> frames;
   std::vector<latch> latches;
   std::vector<snapshot> snapshots;
   std::vector<event_edge> event_edges;
+  std::vector<param_latch> param_latches;
   std::vector<std::pair<std::size_t, std::size_t>> frame_edges;  // src, dst
   std::vector<std::unique_ptr<std::vector<float>>> latch_bufs;
   std::vector<float> silence;
@@ -204,10 +210,18 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
       df->ins[port_index(df->type->in_ports, dport)] = sn.cell.get();
       continue;
     }
-    if (latched.count(i)) {
+    if (latched.count(i) || (im->frame_of(sid) && im->block_of(did))) {
       auto* f = im->frame_of(sid);
       auto* b = im->block_of(did);
       if (!f || !b) throw std::runtime_error("latch endpoints missing");
+      auto dp = port_index(b->type->in_ports, dport);
+      if (std::string(b->type->in_ports[dp].discipline) == "value") {
+        // a value port on a clocked node: deliver the cell at the boundary
+        im->param_latches.push_back(
+            {&f->outs[port_index(f->type->out_ports, sport)],
+             static_cast<std::size_t>(b - im->blocks.data()), dp});
+        continue;
+      }
       im->latch_bufs.push_back(std::make_unique<std::vector<float>>(
           static_cast<std::size_t>(block), 0.0f));
       auto* buf = im->latch_bufs.back().get();
@@ -505,6 +519,11 @@ const float* exec_plan::pump_block() {
   im_->t += block_dt;
   // 3. latches apply at the block boundary, never mid-block (EXE-4.1)
   for (auto& l : im_->latches) l.target->assign(l.target->size(), *l.cell);
+  for (auto& pl : im_->param_latches) {
+    auto& b = im_->blocks[pl.dst];
+    b.type->set_num(b.state, b.type->in_ports[pl.port].name,
+                    static_cast<double>(*pl.cell));
+  }
   // 4. the segments, RT-audited: fused feedforward loops; islands
   // sample-interleaved with z⁻¹ on backward edges (ADR-013)
   {

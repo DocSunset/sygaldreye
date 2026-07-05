@@ -46,8 +46,10 @@ region_map infer_regions(const organs::graph_doc& g) {
       if (!types.count(src_id) || !types.count(dst_id)) continue;
       const auto* sp = find_port(types[src_id]->out_ports,
                                  from.substr(from.find('/') + 1));
-      if (sp && std::string(sp->kind) == "audio" &&
-          std::string(sp->discipline) == "block")
+      // stream edges at the block clock carry membership upstream —
+      // "audio edges" generalized to the discipline (a scalar stream at
+      // block cadence is block-region work all the same)
+      if (sp && std::string(sp->discipline) == "block")
         block.insert(src_id), grew = true;
     }
   }
@@ -87,8 +89,13 @@ region_map infer_regions(const organs::graph_doc& g) {
     if (!v.legal) {
       out.errors.push_back("illegal edge " + std::to_string(i) + ": " + from +
                            " -> " + to);
+    } else if (types.count(dst_id) && types[dst_id]->is_mapping) {
+      // a mapping already sits at this boundary: insert nothing (L13)
     } else if (!v.mapping.empty()) {
-      out.mappings.push_back({i, v.mapping});
+      auto mapping = v.mapping;
+      if (mapping == "snapshot" && block.count(dst_id))
+        mapping = "latch";  // the consumer is clocked: deliver at its boundary
+      out.mappings.push_back({i, mapping});
     } else if (block.count(src_id) && !block.count(dst_id)) {
       // a region crossing with matching promises still needs its mapping:
       // the frame side sees the last COMPLETED block (ch. 4, snapshot)
