@@ -196,6 +196,32 @@ def nam41_one_kind_system():
         f"kind hashes differ: {dataset_kind} vs {wire_kind}"
 
 
+def nam71_spans_survive_edits():
+    objs = {
+        "line1": "the first line\n",
+        "line2": "the second line\n",
+        "new-top": "a line inserted at the top\n",
+        "v1": {"kind": "text", "pieces": [{"/": "$line1"}, {"/": "$line2"}]},
+        "v2": {"kind": "text", "pieces": [{"/": "$new-top"}, {"/": "$line1"},
+                                          {"/": "$line2"}]},
+    }
+    pos = len(objs["line1"]) + 4  # "second" inside line2, via v1 positions
+    cids, r = _naming(objs, {}, [
+        {"op": "span", "of": "$v1", "at": [pos, 6]},
+        {"op": "span-text", "of": "$v1",
+         "span": {"piece": "$line2", "start": 4, "len": 6}},
+        {"op": "span-text", "of": "$v2",
+         "span": {"piece": "$line2", "start": 4, "len": 6}},
+    ])
+    # the minted span is hash-identified, not position-identified
+    assert r[0]["span"] == {"piece": cids["line2"], "start": 4, "len": 6}, r[0]
+    # same characters in both versions; the position is derived per version
+    assert r[1]["text"] == r[2]["text"] == "second"
+    assert r[2]["position"] == r[1]["position"] + len(objs["new-top"])
+    # structural sharing: both versions answer the span from the SAME piece
+    # object (one cid, stored once) — that is what let the link survive
+
+
 def _legal(frm, to):
     return json.loads(syg("connection-legal", stdin=json.dumps(
         {"from": list(frm), "to": list(to)}).encode()))
@@ -294,5 +320,5 @@ TESTS = {
     "NAM-5.4": None,
     "NAM-6.1": nam61_rehash_verifies,
     "NAM-6.2": nam62_chunks_dedup,
-    "NAM-7.1": None,
+    "NAM-7.1": nam71_spans_survive_edits,
 }

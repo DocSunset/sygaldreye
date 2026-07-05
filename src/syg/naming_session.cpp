@@ -5,6 +5,7 @@
 
 #include "environment/environment.hpp"
 #include "resolver/resolver.hpp"
+#include "spans/spans.hpp"
 
 namespace syg::harness {
 namespace {
@@ -72,6 +73,17 @@ nlohmann::json naming_session(const nlohmann::json& input) {
       for (auto& e : env.move_ref(op.at("ref"), named_cid(op.at("to"))))
         events.push_back(e);
       results.push_back(nullptr);
+    } else if (what == "span") {
+      auto s = naming::span_at(env, env.fetch(named_cid(op.at("of"))),
+                               op.at("at").at(0), op.at("at").at(1));
+      results.push_back({{"span", {{"piece", s.piece_cid},
+                                   {"start", s.start},
+                                   {"len", s.len}}}});
+    } else if (what == "span-text") {
+      naming::span s{named_cid(op.at("span").at("piece")),
+                     op.at("span").at("start"), op.at("span").at("len")};
+      auto loc = naming::span_text(env, env.fetch(named_cid(op.at("of"))), s);
+      results.push_back({{"text", loc.text}, {"position", loc.position}});
     } else if (what == "events") {
       results.push_back(events);
       events = nlohmann::json::array();
