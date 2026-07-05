@@ -140,12 +140,38 @@ def aut22_stamp_preserves_block_semantics():
     golden_audio_check(struct.unpack(f"<{len(raw) // 4}f", raw))
 
 
+def frz12_unfreeze_is_reading_provenance():
+    # unfreeze(artifact) yields the source graph hash; re-freezing is a
+    # memo hit — one session, one store, ordinary ops throughout
+    r = _peer([
+        {"op": "set-app", "graph": _chime()},
+        {"op": "open-engine-editor"},
+        {"op": "engine-edit", "ops": _BACKEND_SPLICE},
+        {"op": "compile"},
+        {"op": "app-cid"},
+    ])
+    c, app_cid = r[3], r[4]["cid"]
+    artifact = c["execution_body"]["artifact"]["/"]
+    r2 = _peer([
+        {"op": "set-app", "graph": _chime()},
+        {"op": "open-engine-editor"},
+        {"op": "engine-edit", "ops": _BACKEND_SPLICE},
+        {"op": "compile"},
+        {"op": "unfreeze", "artifact": artifact},
+        {"op": "compile"},
+        {"op": "app-cid"},
+    ])
+    assert r2[4]["app"] == r2[6]["cid"] == app_cid, \
+        "unfreezing did not walk provenance back to the source graph"
+    assert r2[5]["memo"] is True, "re-freezing missed the memo"
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
     "AUT-5.1": None,
     "FRZ-1.1": frz11_ab_chime_interpreted_vs_frozen,
-    "FRZ-1.2": None,
+    "FRZ-1.2": frz12_unfreeze_is_reading_provenance,
     "FRZ-2.1": None,
     "FRZ-3.1": None,
     "FRZ-4.1": None,
