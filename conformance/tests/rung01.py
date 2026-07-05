@@ -160,6 +160,42 @@ def nam22_ref_move_delivers_once():
     assert r[6]["value"] == 440.0, "subscriber-visible state did not move"
 
 
+def nam31_routes_survive_insertion():
+    objs = _hello_objects()
+    # insert nodes/noise0 into the topology (and its vocabulary into the lock)
+    objs["noise-type"] = {"kind": "node-type", "name": "noise",
+                          "ports": {"out": {"kind": {"/": "$audio"},
+                                            "discipline": "block"}}}
+    objs["lock2"] = dict(objs["lock"], noise={"/": "$noise-type"})
+    topo2 = json.loads(json.dumps(objs["topology"]))
+    topo2["nodes"]["noise0"] = {"type": "noise"}
+    objs["topology2"] = topo2
+    objs["hello2"] = dict(objs["hello"], topology={"/": "$topology2"},
+                          lock={"/": "$lock2"})
+    _, r = _naming(objs, {}, [
+        {"op": "resolve", "addr": "$hello/nodes/osc0/freq"},
+        {"op": "resolve", "addr": "$hello2/nodes/osc0/freq"},
+    ])
+    # the same name-keyed route means the same thing after the insertion
+    # (an index-based scheme would have shifted)
+    assert r[0]["value"] == r[1]["value"], f"{r[0]} != {r[1]}"
+    assert r[0]["value"]["discipline"] == "value"
+
+
+def nam41_one_kind_system():
+    objs = _hello_objects()
+    # a committed scalar dataset: same kind node the wire promise links to
+    objs["reading"] = {"kind": {"/": "$scalar"}, "value": 21.5}
+    cids, r = _naming(objs, {}, [
+        {"op": "resolve", "addr": "$reading/kind"},
+        {"op": "resolve", "addr": "$hello/nodes/osc0/freq"},
+    ])
+    dataset_kind = r[0]["value"]
+    wire_kind = r[1]["value"]["kind"]
+    assert dataset_kind == wire_kind == {"/": cids["scalar"]}, \
+        f"kind hashes differ: {dataset_kind} vs {wire_kind}"
+
+
 def nam61_rehash_verifies():
     # pinned blake3 vectors (input = repeating 0..250 byte pattern)
     for c in fixture("blake3-vectors.json")["cases"]:
@@ -227,8 +263,8 @@ TESTS = {
     "NAM-1.2": nam12_location_independence,
     "NAM-2.1": nam21_live_fixed_memo,
     "NAM-2.2": nam22_ref_move_delivers_once,
-    "NAM-3.1": None,
-    "NAM-4.1": None,
+    "NAM-3.1": nam31_routes_survive_insertion,
+    "NAM-4.1": nam41_one_kind_system,
     "NAM-5.1": None,
     "NAM-5.2": None,
     "NAM-5.3": None,

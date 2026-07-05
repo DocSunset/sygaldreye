@@ -42,7 +42,7 @@ resolution resolve(environment& env, const formats::address& addr) {
   for (const auto& step : addr.route) {
     if (!cur->is_object())
       throw std::runtime_error("cannot step into a leaf at '" + step + "'");
-    if (cur->value("kind", "") == "graph" && step == "nodes") {
+    if (step == "nodes" && cur->contains("kind") && cur->at("kind") == "graph") {
       lock_cid = link_cid(cur->at("lock"));
       cur = &follow(env, cur->at("topology")).at("nodes");
       continue;
