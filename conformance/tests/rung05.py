@@ -616,11 +616,16 @@ def lng21_excess_rank_lifts():
 
 
 def lng22_draw_consumes_span_whole():
-    # an N-instance span into the draw boundary: ONE call, no clones
+    # an N-instance span into the draw boundary: ONE call, no clones.
+    # (2026-07-05, PKG-4 retrofit: the present is driven by render_head's
+    # chain — ADR-015's clocks-are-inputs — so the head joins the fixture;
+    # every assertion below is unchanged.)
     g = {"kind": "graph", "lock": {},
-         "topology": {"nodes": {"pts0": {"type": "spanv"},
+         "topology": {"nodes": {"head0": {"type": "render_head"},
+                                "pts0": {"type": "spanv"},
                                 "draw0": {"type": "instanced_draw"}},
-                      "edges": [{"from": "pts0/out", "to": "draw0/instances"}]},
+                      "edges": [{"from": "pts0/out", "to": "draw0/instances"},
+                                {"from": "head0/frame", "to": "draw0/tick"}]},
          "defaults": {"pts0/values": [1.0, 2.0, 3.0, 4.0, 5.0]}}
     out = _exec_audit(g, blocks=130, watch=["draw0/calls", "draw0/drawn"])
     assert not any("#" in n for n in out["realized"]), \

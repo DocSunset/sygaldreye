@@ -74,3 +74,10 @@ authoring routes; the test asserts BYTE-IDENTITY of all three swapped
 renders against the native baseline (subgraph expansion, frozen artifact
 via its emitted node-type contract, shipped plugin through the gate),
 plus golden properties on the baseline and one-registry promise checks.
+
+## LNG-2.2 fixture amendment — 2026-07-05 (PKG-4 retrofit)
+instanced_draw was self-clocked ("presents per frame" via clocked=true) —
+exactly the "always dirty as node property" ADR-015 retired. The present
+is now driven by render_head's chain (clocks are INPUTS, visible as
+wiring). LNG-2.2's fixture gains the head + one edge; every assertion
+unchanged. PKG-4.2 pins the consequence: an unchained draw renders zero.

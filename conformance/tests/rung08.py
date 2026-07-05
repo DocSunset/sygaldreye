@@ -348,6 +348,66 @@ def pkg21_audio_package_no_behavior_change():
         f"package shape drifted: {sorted((full - omitted) ^ audio)}"
 
 
+def pkg41_gl_boundary_gate():
+    # render_region is the GL boundary and the ONLY place that says GL.
+    # The greenfield carries no GL yet — this gate STANDS so the first
+    # gl*/EGL call outside the render package's region machinery fails
+    # the suite the day it lands.
+    hits = []
+    for f in sorted((ROOT / "src").rglob("*")):
+        if f.suffix not in {".cpp", ".hpp", ".c", ".h"}:
+            continue
+        if "render_region" in f.name:
+            continue
+        for i, ln in enumerate(f.read_text().splitlines(), 1):
+            if re.search(r"\bgl[A-Z]\w*\s*\(", ln) or \
+               re.search(r"\b(eglMakeCurrent|glesv?2?|GLES\d)\b", ln):
+                hits.append(f"{f.relative_to(ROOT)}:{i}")
+    assert not hits, f"GL escaped the render boundary: {hits}"
+    # and the draw vocabulary belongs to the render package alone: every
+    # type promising a draw/frame chain port is declared there
+    pkgs = json.loads((ROOT / "vocabulary" / "packages.json").read_text())
+    render = set(pkgs["packages"]["render"])
+    chain_types = set()
+    for d in (ROOT / "build" / "generated").glob("*.descriptor.json"):
+        desc = json.loads(d.read_text())
+        for pname, port in desc.get("ports", {}).items():
+            if pname in ("tick", "chain", "frame") and \
+               port.get("kind") == "bang" and port.get("discipline") == "event":
+                chain_types.add(desc["type"])
+    assert chain_types == render, \
+        f"draw-chain vocabulary escaped the render package: {sorted(chain_types ^ render)}"
+
+
+def pkg42_unchained_draw_does_not_render():
+    # a draw node not wired into the head's chain does not render; the
+    # chain propagates the SAME frame through wired draws, in order
+    g = {"kind": "graph", "lock": {},
+         "topology": {"nodes": {"head0": {"type": "render_head"},
+                                "draw0": {"type": "instanced_draw"},
+                                "draw1": {"type": "instanced_draw"},
+                                "stray0": {"type": "instanced_draw"}},
+                      "edges": [{"from": "head0/frame", "to": "draw0/tick"},
+                                {"from": "draw0/chain", "to": "draw1/tick"}]},
+         "defaults": {}}
+    out = _exec_audit(g, blocks=130,
+                      watch=["draw0/calls", "draw1/calls", "stray0/calls"])
+    chained0 = out["watched"]["draw0/calls"][-1]
+    chained1 = out["watched"]["draw1/calls"][-1]
+    stray = out["watched"]["stray0/calls"][-1]
+    assert chained0 >= 19, f"the head's chain never presented: {chained0}"
+    assert chained1 == chained0, \
+        f"the chain broke between draws: {chained0} vs {chained1}"
+    assert stray == 0.0, \
+        f"an unchained draw rendered {stray} times — the chain is decorative"
+
+
+def _exec_audit(graph, blocks=1, ops=None, watch=None):
+    return json.loads(syg("exec-audit", stdin=json.dumps(
+        {"graph": graph, "blocks": blocks, "ops": ops or [],
+         "watch": watch or []}).encode()))
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
@@ -361,8 +421,8 @@ TESTS = {
     "PKG-2.1": pkg21_audio_package_no_behavior_change,
     "PKG-3.1": None,
     "PKG-3.2": None,
-    "PKG-4.1": None,
-    "PKG-4.2": None,
+    "PKG-4.1": pkg41_gl_boundary_gate,
+    "PKG-4.2": pkg42_unchained_draw_does_not_render,
     "PKG-5.1": None,
     "PKG-6.1": None,
     "PKG-7.1": None,

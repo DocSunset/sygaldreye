@@ -92,10 +92,19 @@ struct mix {  // consumes a span of audio WHOLE: an N-ary sum, no clones
   au::out<au::audio, au::block> out;
 };
 
-struct instanced_draw {  // the draw boundary consumes the span whole
+struct instanced_draw {  // the draw boundary consumes the span whole;
+  // it PRESENTS when the head's chain reaches it (PKG-4: draw order is
+  // the event chain from render_head; unchained draws never render)
   au::in<au::span, au::value> instances;
+  au::in<au::bang, au::event> tick;
   au::out<au::scalar, au::value> calls;
   au::out<au::scalar, au::value> drawn;
+  au::out<au::bang, au::event> chain;
+};
+
+struct render_head {  // the render package's published frame clock
+  // (ADR-015: clocks are INPUTS — "always dirty" is visible dataflow)
+  au::out<au::bang, au::event> frame;
 };
 
 struct graph_source {  // the reflection seam: sees its enclosing graph

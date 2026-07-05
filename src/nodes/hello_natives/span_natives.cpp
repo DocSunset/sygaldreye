@@ -32,15 +32,47 @@ void mix_process(void* s, const float* const* in, float* const* out,
 struct draw_state {
   int n = 0;
   long calls = 0;
+  int pending = 0;
 };
 void draw_set(void* s, const char* port, double v) {
   if (!std::strcmp(port, "n")) static_cast<draw_state*>(s)->n = int(v);
 }
+// the present happens when the HEAD'S CHAIN reaches this draw (PKG-4.2):
+// one call per chain bang, however many instances; the bang forwards so
+// draws downstream in the chain present the same frame, in wiring order
+void draw_sapply(void* s, const char* port, const syg::crown::svalue&) {
+  if (std::strcmp(port, "tick")) return;
+  auto* st = static_cast<draw_state*>(s);
+  ++st->calls;
+  ++st->pending;
+}
+bool draw_semit(void* s, const char* port, syg::crown::svalue* out) {
+  if (std::strcmp(port, "chain")) return false;
+  auto* st = static_cast<draw_state*>(s);
+  if (!st->pending) return false;
+  --st->pending;
+  *out = {"bang", nullptr};
+  return true;
+}
 void draw_value_tick(void* s, double, const float*, float* outs) {
   auto* st = static_cast<draw_state*>(s);
-  ++st->calls;  // ONE call per present, however many instances
   outs[0] = static_cast<float>(st->calls);
   outs[1] = static_cast<float>(st->n);
+}
+
+struct head_state {
+  int pending = 0;
+};
+void head_value_tick(void* s, double, const float*, float*) {
+  ++static_cast<head_state*>(s)->pending;  // one frame bang per frame tick
+}
+bool head_semit(void* s, const char* port, syg::crown::svalue* out) {
+  if (std::strcmp(port, "frame")) return false;
+  auto* st = static_cast<head_state*>(s);
+  if (!st->pending) return false;
+  --st->pending;
+  *out = {"bang", nullptr};
+  return true;
 }
 void no_process(void*, const float* const*, float* const*, int) noexcept {}
 
@@ -66,6 +98,17 @@ const syg::crown::native_type instanced_draw_native{
     [](void* s) { delete static_cast<draw_state*>(s); },
     draw_set, [](void*, const char*, const char*) {}, no_process,
     draw_value_tick, syg::generated::instanced_draw_in_ports(),
-    syg::generated::instanced_draw_out_ports(), true};  // presents per frame
+    syg::generated::instanced_draw_out_ports(), false, false, nullptr,
+    nullptr, draw_sapply, draw_semit};
+
+extern const syg::crown::native_type render_head_native;
+const syg::crown::native_type render_head_native{
+    "render_head", [] { return static_cast<void*>(new head_state()); },
+    [](void* s) { delete static_cast<head_state*>(s); },
+    [](void*, const char*, double) {}, [](void*, const char*, const char*) {},
+    no_process, head_value_tick,
+    syg::generated::render_head_in_ports(),
+    syg::generated::render_head_out_ports(), true, false, nullptr, nullptr,
+    nullptr, head_semit};
 
 }  // namespace syg::nodes

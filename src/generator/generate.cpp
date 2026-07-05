@@ -320,7 +320,7 @@ void emit_registration(const std::filesystem::path& dir,
       i = j + 1;
     }
   }
-  const std::vector<std::string> all_natives_list{"osc", "lfo", "vca", "dac", "noise", "add", "cell", "scale", "delay", "pulse", "spectro", "button", "counter", "smoother", "spanv", "mix", "instanced_draw", "nan_bomb", "spin", "sleeper", "graph_cell", "node_count", "text_cell", "op_button", "tmux"};
+  const std::vector<std::string> all_natives_list{"osc", "lfo", "vca", "dac", "noise", "add", "cell", "scale", "delay", "pulse", "spectro", "button", "counter", "smoother", "spanv", "mix", "instanced_draw", "render_head", "nan_bomb", "spin", "sleeper", "graph_cell", "node_count", "text_cell", "op_button", "tmux"};
   const std::vector<std::string> all_organ_natives{
       "parser", "naive_resolver", "registry-face", "slot", "supervisor",
       "graph_source", "arbiter_inlet", "seed", "traverse", "filter", "join", "fixpoint"};
@@ -394,6 +394,7 @@ int main(int argc, char** argv) {
   emit<syg::nodes::decl::spanv>(o, "spanv", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::mix>(o, "mix", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::instanced_draw>(o, "instanced_draw", {}, "syg::nodes::decl");
+  emit<syg::nodes::decl::render_head>(o, "render_head", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::graph_source>(o, "graph_source", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::smoother>(o, "smoother", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::button>(o, "button", {}, "syg::nodes::decl");
