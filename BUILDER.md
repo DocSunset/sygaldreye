@@ -19,7 +19,7 @@ in order.
 The build order is `architecture/18-appendix-greenfield.md`. Do not skip
 rungs. Do not start rung N+1 while rung N's gate is unmet.
 
-## The three rules
+## The four rules
 
 1. **Never edit a law, a requirement, or a test to make something pass.**
    If a requirement seems wrong, STOP and record the problem as a proposed
@@ -32,6 +32,12 @@ rungs. Do not start rung N+1 while rung N's gate is unmet.
 3. **Everything you make must round-trip.** If you write bytes by hand, or
    serialize outside the generated codec, you have already failed FMT-1 —
    even if the test hasn't caught you yet.
+4. **Make graphs, not C++** (L22 — the second guiding star, equal in rank
+   to no-restarts). Every new behavior defaults to a graph; a native needs
+   a declared clause (ADR-033); anything called a graph is realized
+   through the one contract (ADR-034). If you cannot author it as a graph
+   yet, THAT is the bug: build the missing vocabulary as nodes so that you
+   can — then author it.
 
 ## The trap list — shortcuts that feel right and violate the law
 
@@ -121,7 +127,7 @@ sygaldreye-N can derive sygaldreye-N+1. Before that, "done" for any session
 is: the runner's YOU ARE HERE moved forward, gates green, work committed
 with the criterion id in the message.
 
-If you keep the three rules, the worst you can build is something small,
+If you keep the four rules, the worst you can build is something small,
 honest, and unfinished — which is recoverable. The design already survived
 its designers arguing with it; it will survive you. Good luck, and make it
 sing — literally, at rung 2.

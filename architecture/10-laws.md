@@ -103,6 +103,12 @@ Derived from `planning/vision.md` and the dream it serves.
 - **L21 (The suite is the system).** Conformance defines sygaldreye; the
   suite is written in the system; blessing is testimony; the candidate is
   a peer.
+- **L22 (Graphs first).** The default form of every behavior is a graph;
+  a native requires a declared clause (ADR-033); anything called a graph
+  is realized through the one contract (ADR-034). When something cannot
+  be authored as a graph, the missing vocabulary is the bug — build the
+  nodes that make it authorable, then author it. (The second guiding
+  star, ch. 1.)
 
 **Mesh**
 
@@ -176,7 +182,7 @@ Association, requirement to laws to needs:
 | CMP-6 | L11 | N6 |
 | CMP-7 | L12 | N1 |
 | CMP-8 | L7, L11 | N6 |
-| CMP-9 | L11, L14 | N1, N2 |
+| CMP-9 | L11, L14, L22 | N1, N2 |
 | SZ-1, SZ-6 | L11 | N2, N6 |
 | SZ-2 | L6, L15 | N2, N8 |
 | SZ-3 | L6 | N6, N5 |
@@ -211,7 +217,7 @@ Association, requirement to laws to needs:
 | LNG-8 | L7 | N5, N6 |
 | LNG-9 | L8 | N1 (open) |
 | LNG-10 | L1, L8 | N2, N5, N7 |
-| LNG-11 | L1, L3, L7 | N1, N2, N4 |
+| LNG-11 | L1, L3, L7, L22 | N1, N2, N4 |
 | AUT-1, AUT-2 | L7, L9 | N6 |
 | AUT-3 | L3, L7 | N2, N6 |
 | AUT-4 | L12 | N1, N2 |
@@ -227,6 +233,7 @@ Association, requirement to laws to needs:
 | FMT-1…5 | L2, L7 | N3, N5, N6 |
 | TCF-1…5 | L8, L9, L19 | N6, N1 |
 | COR-1…4 | L6, L11, L18 | N2, N6 |
+| COR-5 | L22 | N2, N6 |
 | CNF-1…5 | L7, L20, L21 | N5, N6, N2 |
 | CNF-6 | L20, L21 | N5, N2 |
 

@@ -8,8 +8,8 @@ through 12 of `architecture/18-appendix-greenfield.md`, in this repo, until
 system; the system exists."
 
 This file is peer-to-peer context transfer. `BUILDER.md` is the floor (the
-loop, the three rules, the trap list — they bind you too); this file is
-what I'd tell myself.
+loop, the four rules, the trap list, the Judgement mandate — they bind
+you too); this file is what I'd tell myself.
 
 ## Authority stack
 

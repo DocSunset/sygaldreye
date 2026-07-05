@@ -17,10 +17,19 @@ through one graph model. The far goal is a general medium: the same data model
 carrying documents, media, analyses, and ML artifacts (the rhizome layer,
 ch. 9), honest at web scale (ch. 8).
 
-The guiding star, binding on every design decision: **any time we must restart
-the app to change or extend it, we are failing a crucial test.** Always ask
-what would need to have been changed before, so the change could land without
-restarting — and fix that.
+Two guiding stars, equal in rank, binding on every design decision and
+every line of implementation:
+
+1. **Any time we must restart the app to change or extend it, we are
+   failing a crucial test.** Always ask what would need to have been
+   changed before, so the change could land without restarting — and fix
+   that.
+2. **Make graphs, not C++.** Every new behavior defaults to a graph; a
+   native requires a declared clause (ADR-033), and anything called a
+   graph is realized through the one contract (ADR-034). When something
+   cannot yet be authored as a graph, the missing vocabulary is the bug:
+   build the reusable pieces as nodes so that it can — then author it
+   (L22).
 
 ## 2. The running example
 
