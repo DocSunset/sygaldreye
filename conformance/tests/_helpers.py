@@ -43,6 +43,20 @@ def random_value(depth=0, rng=random):
             for _ in range(rng.randint(0, 4))}
 
 
+def to_projection(v):
+    """Python value -> the JSON projection syg speaks (HARNESS.md, DAG-JSON):
+    bytes become {"/": {"bytes": <base64, no padding>}}. The oracle keeps
+    seeing raw Python values; only the implementation surface is projected."""
+    import base64
+    if isinstance(v, bytes):
+        return {"/": {"bytes": base64.b64encode(v).decode().rstrip("=")}}
+    if isinstance(v, list):
+        return [to_projection(x) for x in v]
+    if isinstance(v, dict):
+        return {k: to_projection(x) for k, x in v.items()}
+    return v
+
+
 def fixture(name):
     p = FIX / name
     return p.read_text() if not name.endswith(".json") else json.loads(p.read_text())

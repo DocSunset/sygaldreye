@@ -12,6 +12,7 @@
         default = pkgs.mkShell {
           packages = with pkgs; [
             gcc cmake ninja pkg-config
+            nlohmann_json
             python3
             git
           ];

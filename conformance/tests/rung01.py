@@ -4,7 +4,7 @@ they verify the oracle against fixtures always, then differentially test the
 implementation binary (HARNESS.md) — Pending until ./syg exists. Never
 weaken a test; amend the book by ADR instead."""
 import json, random
-from _helpers import Pending, syg, random_value, fixture
+from _helpers import Pending, syg, random_value, fixture, to_projection
 from reference import dagcbor, address
 
 
@@ -25,7 +25,8 @@ def fmt1_encoder_conformance():
     for _ in range(200):
         v = random_value(rng=rng)
         want = dagcbor.encode(v)
-        got = syg("encode", stdin=json.dumps(v).encode())  # Pending if no ./syg
+        # bytes cannot ride json.dumps raw; the projection carries them (HARNESS.md)
+        got = syg("encode", stdin=json.dumps(to_projection(v)).encode())  # Pending if no ./syg
         assert got == want, f"impl != oracle on {v!r}"
 
 

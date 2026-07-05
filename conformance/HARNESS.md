@@ -17,4 +17,9 @@ import or port them into the implementation).
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 
 The JSON used on these surfaces is the projection, not the canonical form —
-the bytes that matter are the ones `syg encode` emits.
+the bytes that matter are the ones `syg encode` emits. The projection uses
+the DAG-JSON conventions for what JSON cannot carry natively: a byte string
+is `{"/": {"bytes": "<base64, standard alphabet, no padding>"}}`, a link is
+`{"/": "<cid text>"}`, and the map key `"/"` is reserved — an ordinary map
+may not use it (recorded 2026-07-05 when the FMT-1 differential test first
+carried bytes; `_helpers.to_projection` is the test-side half).
