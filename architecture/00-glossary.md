@@ -39,19 +39,26 @@ family members are links distinguished by DERIVED qualities, never declared:
   containers. Routes are keyed by local names, never positions or byte
   offsets — that is what makes them edit-stable. *Example:
   `nodes/osc0/freq`.*
-- **address** — a link's serialized spelling: **root + route**, where the root
-  is a hash or a ref. *Examples: `#a11/nodes/osc0/out` (fixed);
-  `graphs/hello-cosine:nodes/osc0/out` (live).*
+- **address** — a route, walked from *here* (ADR-029): resolution begins at
+  the resolver's **environment** node (its wired stores, object store, peer
+  table, petnames — astui's ground, per-resolver). What looks like a "root"
+  is the first step, answered by an environment container; the `root:route`
+  spelling is serialization sugar. *Examples: `#a11/nodes/osc0/out` (fixed);
+  `graphs/hello-cosine:nodes/osc0/out` (live, lexical against the wired
+  store); `#key-travis/stores/main:graphs/chime` (self-certifying,
+  peer-qualified).*
 - **ref** — a rebindable link: a node functioning as a mutable name, binding a
   local name to a hash. Its trail of past hashes is undo/history. *Example:
   `graphs/hello-cosine → #a11`, previously `→ #a10`.*
 - **pointer** — prose synonym for link; quarantined, not ratified.
 
-**liveness rule** — an address is *fixed* iff it traverses only hashes and
-immutable containment (it denotes one value forever and may be normalized to a
-hash and memoized); it is *live* iff it traverses at least one ref (it is a
-subscription: a ref move is an event that flows to holders). Mutability is a
-property of the **name**, not the thing.
+**liveness rule** — per step (ADR-029): a step is *fixed* iff its name is
+content-derived (a hash — pinned by re-hash verification, whatever container
+answered it) or conferred by immutable containment; an address is *fixed* iff
+every step is (it denotes one value forever and may be normalized and
+memoized), *live* iff any step crosses a ref (a subscription: a ref move is
+an event that flows to holders). Mutability is a property of the **name**,
+not the thing.
 
 ## Names, instances, state
 

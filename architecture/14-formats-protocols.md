@@ -19,17 +19,24 @@ here; the shapes are decided now.*
   spec is the only flag-day event the system admits, and multiformats exist
   to make even that additive.
 
-## The address grammar (ADR-007)
+## The address grammar (ADR-007, ADR-029)
+
+Semantically an address is a route walked from the resolver's environment
+node; the spellings below are serialization sugar for common first steps:
 
 ```
-address  := root [ ":" route ] | cid [ "/" route ]
-root     := refname                 (ref-rooted, live)
-cid      := multibase CIDv1         (hash-rooted, fixed unless route crosses a ref)
+address  := refname [ ":" route ]        (lexical: first step into the wired store env)
+          | cid [ "/" route ]            (first step into the object store; verified)
+          | "#" peerkey "/" route        (self-certifying: first step into the peer table)
 route    := step ( "/" step )*
-step     := localname               (container-conferred; no positions, no offsets)
+step     := localname                    (container-conferred; no positions, no offsets)
 ```
-Reserved first steps within graphs: `nodes` `edges` `ports` `type` `state`
-`topology` `defaults` `lock`. Escaping ⚑.
+Fixity is per step (content-derived ⇒ fixed; conferred ⇒ fixed iff the
+container is immutable; refs are the conferred-mutable steps). Signed
+ref-state records: `{ peer-key, ref route, bound hash, seq, sig }` — what
+SUBSCRIBE/EVENT and caches carry; verifiable, honestly stale. Reserved first
+steps within graphs: `nodes` `edges` `ports` `type` `state` `topology`
+`defaults` `lock`. Escaping ⚑.
 
 ## Object shapes (all dag-cbor unless noted)
 

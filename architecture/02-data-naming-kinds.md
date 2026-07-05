@@ -11,10 +11,23 @@ ADR-017/025 govern.)*
 
 **Names.** Two primitive name kinds: **hash** (CID/multihash — self-describing
 hash function, chosen precisely so the hash function can migrate) and **local
-name** (conferred by a container). An **address** is root + route; the root is
-a hash or a ref; a route is a sequence of local names. The **liveness rule**:
-fixed iff no ref is traversed; fixed addresses normalize to hashes and are
-memoizable; live addresses are subscriptions.
+name** (conferred by a container). An **address is a route walked from
+HERE** (ADR-029): resolution begins at the resolver's environment node — its
+wired stores, object store, peer table, petnames (astui's ground,
+per-resolver, never global). What looks like a root is the first step,
+answered by an environment container; `root:route` is spelling sugar. The
+**liveness rule**, per step: fixed iff the step's name is content-derived
+(hash — pinned by verification) or conferred by immutable containment; an
+address is fixed iff every step is (normalizable, memoizable), live if any
+step crosses a ref (a subscription).
+
+**Finding first steps.** Unqualified ref-names resolve lexically against the
+wired store environment, like a relative path against a cwd — there is no
+global ref registry. The only mesh-wide namespace is the key space:
+`#peer-key/…` steps are self-certifying (the name carries its verification
+material); ref-states travel signed; each peer is sole authority for its own
+refs (single-writer); discovery is advertisement, never registration;
+petnames humanize keys in a private local store graph.
 
 **Resolution is traversal.** Each step is answered by the node being stepped
 through, according to its kind's traversal vocabulary (a graph answers
@@ -38,8 +51,9 @@ type derived at connect time.
 
 ## Requirements
 
-**NAM-1 (addresses).** Implement the address grammar: hash roots, ref roots,
-local-name routes; parse/print round-trips exactly.
+**NAM-1 (addresses).** Implement the address grammar: first steps of all
+three spellings (lexical ref-name, cid, peer-key), local-name routes;
+parse/print round-trips exactly; resolution starts at the environment node.
 - NAM-1.1: `parse(print(a)) == a` for all addresses (property test).
 - NAM-1.2: `#a11/nodes/osc0/out` resolves identically on any peer holding
   `#a11` (location independence).

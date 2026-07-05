@@ -93,7 +93,8 @@ family members are links distinguished by DERIVED qualities, never declared:
 edge = a link functioning as patch wiring · name = a link functioning as
 designation (hash = content-derived, cannot lie; local name = conferred by a
 container) · route = a composed link (sequence of local names) · address = a
-link's serialized spelling (root + route) · ref = a rebindable link · pointer =
+route walked from HERE, the resolver's environment node (ADR-029; root:route
+spelling is sugar) · ref = a rebindable link · pointer =
 prose synonym, quarantined. Qualities: grounding (derived/conferred),
 composition (step/route), rebindability (ref or not), fixity (fixed iff
 traverses no ref — the liveness rule restated).
