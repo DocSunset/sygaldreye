@@ -157,3 +157,29 @@ runtime rendered SIX SECONDS OF AUDIO BYTE-IDENTICAL to the hand-frozen
 movement. Not close. Identical. `cmp` said nothing at all, which is the
 loudest thing cmp can say. Freezing really is a pure optimizer; ADR-013's
 bet paid out on the first try. Three rungs green in one sitting. [agent]
+
+## 2026-07-05 — rung 5 green: the guiding star holds (38/38)
+
+The mountain rung. The executor grew everything ch. 4 promised: regions
+inferred never declared, the latch landing at block boundaries and
+nowhere else, value scenes that quiesce to zero recomputes, per-sample
+islands (Karplus-Strong rings at exactly 48000/(N+1) — one-sample
+feedback math, and the hand-frozen loop-carried twin is BYTE-identical
+to the interpreter, again), a lock-free arbiter queue that took 10,000
+cross-thread bangs without dropping one, spans lifting into keyed clones
+with an explicit mix, the draw boundary taking five instances in one
+call, and a fault matrix where all six ways to die end exactly as
+documented, with testimony.
+
+Two bugs worth remembering: inline-variable dynamic-init order silently
+emptied the generated port tables (function-local statics now), and the
+first live-edit take clipped at 1.06 because I gave the noise its own vca
+without leaving headroom — the oldest mistake in mixing, made by the
+newest kind of engineer.
+
+The take: media/2026-07-05-hello-cosine-live-edits.wav — twelve seconds,
+five live edits while sounding: a fifth up (phase continuous, jump
+0.026), faster breathing, a noise section spliced in structurally, the
+compiler's latch swapped for a musical smoother mid-performance, noise
+out, tonic home. Any time we must restart the app to change it, we are
+failing. We did not restart. [agent]

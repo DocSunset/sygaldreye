@@ -509,6 +509,26 @@ int cmd_derive_render(const std::string& objdir, double seconds) {
   return 0;
 }
 
+int cmd_render_live(double seconds) {
+  auto in = nlohmann::json::parse(read_stdin());
+  syg::executor::exec_plan p(syg::organs::parse_graph(in.at("graph")), 48000, 128);
+  auto ops = in.value("ops", nlohmann::json::array());
+  std::map<int, std::vector<const nlohmann::json*>> by_block;
+  for (const auto& o : ops) by_block[o.at("block")].push_back(&o);
+  int blocks = static_cast<int>(seconds * 48000) / 128;
+  for (int blk = 0; blk < blocks; ++blk) {
+    for (const auto* op : by_block[blk]) {
+      const std::string what = op->value("op", "set_param");
+      if (what == "set_param")
+        p.submit({what, op->at("route"), op->at("value"), "travis"});
+      else
+        p.submit({what, op->value("a", ""), op->value("b", ""), "travis"});
+    }
+    std::fwrite(p.pump_block(), sizeof(float), 128, stdout);
+  }
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -585,6 +605,7 @@ int main(int argc, char** argv) {
     if (cmd == "widget-of" && argc > 2)
       return cmd_widget_of(argv[2], argc > 3 && std::string(argv[3]) == "--range");
     if (cmd == "render-graph" && argc > 2) return cmd_render_graph(std::stod(argv[2]));
+    if (cmd == "render-live" && argc > 2) return cmd_render_live(std::stod(argv[2]));
     if (cmd == "exec-audit") return cmd_exec_audit();
     if (cmd == "queue-audit" && argc > 2)
       return cmd_queue_audit(std::atol(argv[2]), argc > 3 ? std::atoi(argv[3]) : 1);
