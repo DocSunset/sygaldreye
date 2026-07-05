@@ -1,0 +1,24 @@
+{
+  "_": "Starter canonical dag-cbor vectors (value -> hex of canonical bytes). FMT-1 seed; extend from the IPLD test suite when online. Any conformant encoder must reproduce these exactly.",
+  "vectors": [
+    { "value": null, "hex": "f6" },
+    { "value": true, "hex": "f5" },
+    { "value": false, "hex": "f4" },
+    { "value": 0, "hex": "00" },
+    { "value": 23, "hex": "17" },
+    { "value": 24, "hex": "1818" },
+    { "value": -1, "hex": "20" },
+    { "value": "hello", "hex": "6568656c6c6f" },
+    { "value": [1, 2, 3], "hex": "83010203" },
+    { "value": { "a": 1 }, "hex": "a1616101" },
+    { "value": { "a": 1, "b": 2 }, "hex": "a2616101616202" },
+    { "value": 220.0, "hex": "fb406b800000000000" },
+    { "value": 0.5, "hex": "fb3fe0000000000000" }
+  ],
+  "rules": [
+    "map keys sorted by length then bytewise; string keys only",
+    "definite lengths only; no duplicate keys; minimal-width integers",
+    "floats always 8-byte (major 7, ai 27), canonical bit patterns; no NaN/Inf",
+    "links: tag 42 over the CID bytes with multibase identity prefix 0x00"
+  ]
+}

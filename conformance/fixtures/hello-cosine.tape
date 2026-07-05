@@ -1,0 +1,10 @@
+NODE osc0 osc
+NODE lfo0 lfo
+NODE vca0 vca
+NODE dac0 dac
+LINK osc0/out vca0/in
+LINK lfo0/out vca0/gain
+LINK vca0/out dac0/in
+SET osc0/freq 220.0
+SET osc0/shape cosine
+SET lfo0/freq 0.5

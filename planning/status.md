@@ -2,6 +2,23 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-07-05 — The guarantee package (conformance/ + BUILDER.md)
+
+Insurance against limited time and a less capable successor: the spec is now
+EXECUTABLE and the path unambiguous. conformance/: manifest.json (105
+requirements / 121 criteria, extracted from the book by extract_manifest.py —
+regenerate, never hand-edit), run.py (zero-dep runner; walks the twelve
+rungs, reports the first unmet gate — "YOU ARE HERE"), gates.sh (law gates:
+platform-branch/serializer/singleton greps, core-name manifest vs ch.16,
+manifest freshness), fixtures (hello-cosine interchange + boot tape in the
+now-PINNED formats, dag-cbor starter vectors, golden-audio properties +
+blessing protocol). Ch.14 pins frozen (blake3-256 CIDv1, dag-cbor 0x71/raw
+0x55, 256 KiB chunks, tape record grammar, percent-escaping, varint+cbor ws
+framing). BUILDER.md at root: the loop, the three rules, the trap list.
+Also: ADR-029 (addresses are routes from here), ADR-030 (type dissolves),
+ADR-031 (derivation is the shape; commitment the act) + book-wide sweeps;
+Appendix B genealogy; read-aloud revision + mkpdf --audio.
+
 ## 2026-07-04 — The greenfield session + the great consolidation
 
 ADR-013…028 ratified over two days: per-sample islands, freezing as a

@@ -1,0 +1,28 @@
+{
+  "kind": "graph",
+  "lock": {
+    "osc": "kind:osc@v1",
+    "lfo": "kind:lfo@v1",
+    "vca": "kind:vca@v1",
+    "dac": "kind:dac@v1"
+  },
+  "topology": {
+    "nodes": {
+      "osc0": { "type": "osc" },
+      "lfo0": { "type": "lfo" },
+      "vca0": { "type": "vca" },
+      "dac0": { "type": "dac" }
+    },
+    "edges": [
+      { "from": "osc0/out", "to": "vca0/in" },
+      { "from": "lfo0/out", "to": "vca0/gain" },
+      { "from": "vca0/out", "to": "dac0/in" }
+    ]
+  },
+  "defaults": {
+    "osc0/freq": 220.0,
+    "osc0/shape": "cosine",
+    "lfo0/freq": 0.5
+  },
+  "_": "The canonical worked example (book ch. 1 section 2), in interchange form. Lock values are placeholders until the first kind registry exists; FMT-3 requires tape<->topology equivalence with hello-cosine.tape."
+}

@@ -1,8 +1,8 @@
 # Chapter 14 — Formats and wire protocols (FMT)
 
 *Everything that must be spelled exactly once. Governing ADRs: 007, 017, 018,
-023, 028. Values marked (pin) are pinned at first implementation and recorded
-here; the shapes are decided now.*
+023, 028, 031. All pins were chosen and recorded 2026-07-05 (FMT-5): boring on
+purpose, frozen on purpose.*
 
 ## The canonical encoding (ADR-017)
 
@@ -11,9 +11,10 @@ here; the shapes are decided now.*
   canonical 64-bit floats, no NaN/Inf, links as CID (tag 42). String map
   keys only. The generated encoder is the only writer.
 - Bulk payloads: **raw lane** — kind-specific encodings, hashed as-is,
-  Merkle-DAG chunked above a threshold (pin) (order 256 KiB).
-- Hashes: **CIDv1** — multicodec (dag-cbor | raw (pin)) + multihash
-  (blake3 or sha2-256 (pin)).
+  Merkle-DAG chunked above 256 KiB (pinned): fixed-size 256 KiB chunks, listed
+  by a dag-cbor index node of links — simple, resumable, dedup-friendly.
+- Hashes: **CIDv1** (pinned) — multibase base32; multicodec dag-cbor (0x71)
+  and raw (0x55); multihash **blake3-256** (0x1e).
 - **The header is the one non-self-describing layer**: the CID prefix
   itself, compiled into every reader. Frozen by design; succession of this
   spec is the only flag-day event the system admits, and multiformats exist
@@ -36,7 +37,8 @@ container is immutable; refs are the conferred-mutable steps). Signed
 ref-state records: `{ peer-key, ref route, bound hash, seq, sig }` — what
 SUBSCRIBE/EVENT and caches carry; verifiable, honestly stale. Reserved first
 steps within graphs: `nodes` `edges` `ports` `type` `state` `topology`
-`defaults` `lock`. Escaping (pin).
+`defaults` `lock`. Escaping (pinned): percent-encode `%`, `/`, `:`, `#`, and
+whitespace inside a local name; nothing else is ever escaped.
 
 ## Object shapes (all dag-cbor unless noted)
 
@@ -63,8 +65,10 @@ that must exist/absent), author: peer-key, gesture: id }` — coalescable
 within a gesture bracket; the log is a tree (parent links); commit folds a
 range.
 
-**The boot tape (ADR-028)**: the same ops in a fixed-width, CBOR-free record
-format (pin) replayable by the crown with no decoder — the movement's only
+**The boot tape (ADR-028)**: the same ops in a CBOR-free record format
+(pinned): newline-delimited ASCII records, space-separated fields,
+percent-escaped as above — `NODE id kind`, `LINK from-route to-route`,
+`SET route value` — replayable by the crown with no decoder — the movement's only
 input format. A graph is equivalent to its building ops, so tape and back to topology conversion is
 mechanical.
 
@@ -84,7 +88,8 @@ All messages authenticated under pairing keys (MSH-2); payloads dag-cbor.
 | FAULT | fault records crossing peers (just EVENTs on fault outputs) |
 
 Transport: WebSocket-capable framing (browser constraint), one duplex
-channel per peer pair, message kinds multiplexed (pin).
+channel per peer pair; multiplexing (pinned): each message is one varint
+message-kind (numbered 1-8 in table order above) followed by a dag-cbor body.
 
 ## Compilation map
 
@@ -103,5 +108,5 @@ topology hash as the tape's source graph.
 **FMT-4.** Wire golden transcripts: a recorded two-peer session (pair,
 advertise, subscribe, ops, fetch, place) replays byte-exact against a
 candidate implementation (the peer-level conformance backbone, ch. 17).
-**FMT-5.** Every (pin) pin, once chosen, is recorded in this chapter in the
-same commit as its first implementation.
+**FMT-5.** Every pin above is FROZEN as of 2026-07-05; changing one is a
+succession of this spec (ADR-025), never an edit.
