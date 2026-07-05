@@ -134,6 +134,32 @@ def nam21_live_fixed_memo():
     assert r[3]["normalized"] == want, f"{r[3]} != {want}"
 
 
+def nam22_ref_move_delivers_once():
+    objs = _hello_objects()
+    objs["defaults2"] = dict(objs["defaults"], **{"osc0/freq": 440.0})
+    objs["hello2"] = dict(objs["hello"], defaults={"/": "$defaults2"})
+    objs["note"] = {"kind": "note", "text": "unrelated"}
+    live = "graphs%2Fhello-cosine:defaults/osc0%2Ffreq"  # defaults keys are routes
+    cids, r = _naming(objs, {"graphs/hello-cosine": "$hello", "other": "$note"}, [
+        {"op": "subscribe", "addr": live, "as": "A"},
+        {"op": "subscribe", "addr": "graphs%2Fhello-cosine:nodes/osc0/out", "as": "B"},
+        {"op": "subscribe", "addr": "other:text", "as": "C"},
+        {"op": "resolve", "addr": live},
+        {"op": "move-ref", "ref": "graphs/hello-cosine", "to": "$hello2"},
+        {"op": "events"},
+        {"op": "resolve", "addr": live},
+        {"op": "move-ref", "ref": "graphs/hello-cosine", "to": "$hello"},
+        {"op": "events"},
+    ])
+    assert r[3]["value"] == 220.0
+    first, second = r[5], r[8]
+    for burst, now in ((first, cids["hello2"]), (second, cids["hello"])):
+        got = sorted((e["to"], e["now"]) for e in burst)
+        assert got == [("A", now), ("B", now)], \
+            f"expected exactly one delivery each to A and B: {burst}"
+    assert r[6]["value"] == 440.0, "subscriber-visible state did not move"
+
+
 def nam61_rehash_verifies():
     # pinned blake3 vectors (input = repeating 0..250 byte pattern)
     for c in fixture("blake3-vectors.json")["cases"]:
@@ -200,7 +226,7 @@ TESTS = {
     "FMT-5": fmt5_pins_frozen,
     "NAM-1.2": nam12_location_independence,
     "NAM-2.1": nam21_live_fixed_memo,
-    "NAM-2.2": None,
+    "NAM-2.2": nam22_ref_move_delivers_once,
     "NAM-3.1": None,
     "NAM-4.1": None,
     "NAM-5.1": None,
