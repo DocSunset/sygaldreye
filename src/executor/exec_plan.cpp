@@ -52,6 +52,7 @@ struct exec_plan::impl {
     bool dirty = true;
     long recomputed = 0;
     std::vector<float> in_vals;
+    std::vector<float> in_defaults;  // unconnected inputs fall back here
   };
   struct latch {
     const float* cell;
@@ -152,6 +153,7 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
       f.outs.assign(t->out_ports.size(), 0.0f);
       f.ins.assign(t->in_ports.size(), nullptr);
       f.in_vals.assign(t->in_ports.size(), 0.0f);
+      f.in_defaults.assign(t->in_ports.size(), 0.0f);
       f.clocked = t->clocked;
     }
   }
@@ -164,7 +166,15 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
         t->set_text(state, port.c_str(), v.get_ref<const std::string&>().c_str());
     };
     if (auto* b = im->block_of(id)) apply(b->type, b->state);
-    else if (auto* f = im->frame_of(id)) apply(f->type, f->state);
+    else if (auto* f = im->frame_of(id)) {
+      apply(f->type, f->state);
+      // defaults also land on unconnected inputs (EXE-1): the gather
+      // falls back to them when no cell is wired
+      if (v.is_number())
+        for (std::size_t i = 0; i < f->type->in_ports.size(); ++i)
+          if (port == f->type->in_ports[i].name)
+            f->in_defaults[i] = v.get<float>();
+    }
   }
   // unconnected block in-ports take their DEFAULT as a constant buffer
   std::set<std::string> connected;
@@ -559,7 +569,7 @@ const float* exec_plan::pump_block() {
       if (!f.clocked && !f.dirty) continue;  // quiescent (EXE-11)
       if (f.type->value_tick) {
         for (std::size_t i = 0; i < f.ins.size(); ++i)
-          f.in_vals[i] = f.ins[i] ? *f.ins[i] : 0.0f;
+          f.in_vals[i] = f.ins[i] ? *f.ins[i] : f.in_defaults[i];
         f.type->value_tick(f.state, dt, f.in_vals.data(), f.outs.data());
         ++f.recomputed;
         for (const auto& [src, dst] : im_->frame_edges)  // dirty the cone

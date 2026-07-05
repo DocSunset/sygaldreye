@@ -689,6 +689,37 @@ def tcf4_fault_matrix():
     assert muted and "hog0" in muted[0], f"the ladder did not name the hog: {out['faults']}"
 
 
+
+def aut41_keyed_clone_guarantees():
+    # the three keyed-identity guarantees, composed: cards by id (EXE-5.2),
+    # channels by index (LNG-2.1), and the refusal naming the culprit
+    import rung04
+    rung04.exe52_clones_keyed_survive_reorder()
+    lng21_excess_rank_lifts()
+    lng62_resource_holder_refuses_lift()
+
+
+def aut42_key_span_never_steals_the_lift():
+    # a span into the lift-key port provides clone KEYS; the data span
+    # drives the lift — the key span must not stamp clones of its own
+    g = {"kind": "graph", "lock": {},
+         "topology": {"nodes": {"data0": {"type": "spanv"},
+                                "keys0": {"type": "spanv"},
+                                "scale0": {"type": "scale"}},
+                      "edges": [{"from": "data0/out", "to": "scale0/in"},
+                                {"from": "keys0/out", "to": "scale0/k"}],
+                      "lift_key": "k"},
+         "defaults": {"data0/values": [2.0, 3.0, 5.0],
+                      "keys0/values": ["a", "b", "c"],
+                      "scale0/k": 10.0}}
+    out = _exec_audit(g, blocks=30, watch=["scale0#a/out", "scale0#c/out"])
+    clones = sorted(n for n in out["realized"] if "#" in n)
+    assert clones == ["scale0#a", "scale0#b", "scale0#c"], \
+        f"keys did not name the clones (or the key span lifted): {clones}"
+    assert out["watched"]["scale0#a/out"][-1] == 20.0
+    assert out["watched"]["scale0#c/out"][-1] == 50.0
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -725,8 +756,8 @@ TESTS = {
     "LNG-9": lng9_text_events_still_open,
     "TCF-1": tcf1_mapping_guarantees,
     # AUT joined the manifest 2026-07-05 (extractor prefix gap)
-    "AUT-4.1": None,
-    "AUT-4.2": None,
+    "AUT-4.1": aut41_keyed_clone_guarantees,
+    "AUT-4.2": aut42_key_span_never_steals_the_lift,
     "TCF-2": tcf2_swaps_under_load,
     "TCF-3": tcf3_clock_honesty,
     "TCF-4": tcf4_fault_matrix,

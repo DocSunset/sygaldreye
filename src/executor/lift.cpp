@@ -50,8 +50,10 @@ organs::graph_doc lift_expand(organs::graph_doc doc,
     std::size_t edge;
     std::string target, port;
     nlohmann::ordered_json values;
+    nlohmann::ordered_json keys;  // from a lift-key port, when wired
   };
   std::vector<lift_site> lifts;
+  std::map<std::string, nlohmann::ordered_json> key_spans;  // consumer -> keys
   std::set<std::size_t> drop_edges;
   for (std::size_t i = 0; i < doc.edges.size(); ++i) {
     const auto& [from, to] = doc.edges[i];
@@ -69,6 +71,13 @@ organs::graph_doc lift_expand(organs::graph_doc doc,
       values = doc.defaults[sid + "/values"];
     auto did = to.substr(0, to.find('/'));
     auto dport = to.substr(to.find('/') + 1);
+    // a span into the LIFT-KEY port provides clone KEYS — it never steals
+    // the lift (AUT-4.2, the rung-3 selection bug's regression)
+    if (!doc.lift_key.empty() && dport == doc.lift_key) {
+      key_spans[did] = values;
+      drop_edges.insert(i);
+      continue;
+    }
     auto dkind = in_port_kind(type_of(did), dport, load);
     if (dkind == "span") {
       // whole-by-kind: the consumer takes the span as one unit — no clones
@@ -88,28 +97,36 @@ organs::graph_doc lift_expand(organs::graph_doc doc,
     } else if (native_named(type_of(did))->resource_holder) {
       throw std::runtime_error("resource holder refuses to lift: " + did);
     }
-    lifts.push_back({i, did, dport, values});
+    lifts.push_back({i, did, dport, values, {}});
     drop_edges.insert(i);
   }
-  for (const auto& l : lifts) {
+  for (auto& l : lifts) {
+    if (auto it = key_spans.find(l.target); it != key_spans.end())
+      l.keys = it->second;
     auto n = l.values.size();
     std::string type = type_of(l.target);
-    // clones keyed by index ride the route (EXE-5.2's identity story)
+    // clone identity rides the route: keyed by the lift-key cell value
+    // when a key source is wired, else by index (AUT-4, ch. 12)
+    auto key_of = [&](std::size_t k) {
+      return l.keys.size() > k && l.keys[k].is_string()
+                 ? l.keys[k].get<std::string>()
+                 : std::to_string(k);
+    };
     std::erase_if(doc.nodes, [&](const auto& nd) { return nd.first == l.target; });
     for (std::size_t k = 0; k < n; ++k)
-      doc.nodes.emplace_back(l.target + "#" + std::to_string(k), type);
+      doc.nodes.emplace_back(l.target + "#" + key_of(k), type);
     nlohmann::ordered_json fresh;
     for (const auto& [route, v] : doc.defaults.items()) {
       if (route.starts_with(l.target + "/")) {
         auto rest = route.substr(l.target.size());
         for (std::size_t k = 0; k < n; ++k)
-          fresh[l.target + "#" + std::to_string(k) + rest] = v;
+          fresh[l.target + "#" + key_of(k) + rest] = v;
       } else {
         fresh[route] = v;
       }
     }
     for (std::size_t k = 0; k < n; ++k)
-      fresh[l.target + "#" + std::to_string(k) + "/" + l.port] = l.values[k];
+      fresh[l.target + "#" + key_of(k) + "/" + l.port] = l.values[k];
     doc.defaults = std::move(fresh);
     std::vector<std::pair<std::string, std::string>> edges;
     for (std::size_t i = 0; i < doc.edges.size(); ++i) {
@@ -125,11 +142,11 @@ organs::graph_doc lift_expand(organs::graph_doc doc,
                                    ": the gathered span needs a span-kind "
                                    "consumer (an explicit mix)");
         for (std::size_t k = 0; k < n; ++k)
-          edges.emplace_back(l.target + "#" + std::to_string(k) +
+          edges.emplace_back(l.target + "#" + key_of(k) +
                                  f.substr(l.target.size()), t);
       } else if (tid == l.target) {
         for (std::size_t k = 0; k < n; ++k)
-          edges.emplace_back(f, l.target + "#" + std::to_string(k) +
+          edges.emplace_back(f, l.target + "#" + key_of(k) +
                                     t.substr(l.target.size()));
       } else {
         edges.emplace_back(f, t);
