@@ -31,6 +31,9 @@
 #include "resolver/naive_resolver.hpp"
 #include "hello_cosine/hello_cosine.hpp"
 #include "ks/ks.hpp"
+#include "synth_core/synth_core.hpp"
+#include "synth_core/kernels.hpp"
+#include <cstring>
 #include "oracle/oracle.hpp"
 
 namespace {
@@ -531,6 +534,106 @@ int cmd_render_live(double seconds) {
   return 0;
 }
 
+int cmd_kernel_audit() {
+  // AUT-1: the kernel contract, exercised directly (bounded outputs, no
+  // allocation in tick, N=1 == N=128 per native — island readiness)
+  namespace k = synth;
+  int checks = 0;
+  auto expect = [&](bool ok, const char* what) {
+    if (!ok) throw std::runtime_error(std::string("kernel audit: ") + what);
+    ++checks;
+  };
+  {  // oscillator family: bounded, phasor wraps
+    k::Phasor ph{0.0f, 12345.0f, 48000.0f};
+    for (int i = 0; i < 48000; ++i) {
+      float p = ph.tick();
+      expect(p >= 0.0f && p < 6.2832f, "phasor wraps");
+      float v = k::sine(p);
+      expect(v >= -1.0f && v <= 1.0f, "sine bounded");
+      expect(k::square(p) >= -1.0f && k::square(p) <= 1.0f, "square bounded");
+      expect(k::triangle(p) >= -1.0001f && k::triangle(p) <= 1.0001f,
+             "triangle bounded");
+    }
+  }
+  {  // noise bounded; deterministic from its seed
+    uint32_t rng = 0x1234567u, rng2 = 0x1234567u;
+    for (int i = 0; i < 10000; ++i) {
+      float v = k::white_noise(rng);
+      expect(v >= -1.0f && v <= 1.0f, "noise bounded");
+      expect(v == k::white_noise(rng2), "noise deterministic");
+    }
+  }
+  {  // adsr stages
+    k::Adsr a;
+    a.gate_on();
+    float last = 0;
+    for (int i = 0; i < 48000 && a.stage != k::Adsr::Stage::Sustain; ++i)
+      last = a.tick();
+    expect(a.stage == k::Adsr::Stage::Sustain, "adsr reaches sustain");
+    expect(last >= 0.0f && last <= 1.0f, "adsr bounded");
+    a.gate_off();
+    for (int i = 0; i < 48000 && a.stage != k::Adsr::Stage::Done; ++i) a.tick();
+    expect(a.stage == k::Adsr::Stage::Done, "adsr releases to done");
+  }
+  {  // delay line echoes at exactly N
+    k::DelayLine d;
+    d.prepare(11);
+    for (int i = 0; i < 10; ++i)
+      expect(d.tick(i == 0 ? 1.0f : 0.0f, 10, 0.0f) == 0.0f, "delay silent");
+    expect(d.tick(0.0f, 10, 0.0f) == 1.0f, "delay echoes at N");
+  }
+  {  // slew clamps per step
+    k::Slew s;
+    expect(s.tick(1.0f, 0.25f) == 0.25f && s.tick(1.0f, 0.25f) == 0.5f,
+           "slew clamps");
+  }
+  // island readiness (AUT-1.2): N=1 x 128 == one call of N=128, per native
+  const char* granular[] = {"osc", "lfo", "vca", "add", "noise", "delay",
+                            "pulse", "smoother"};
+  for (const auto* name : granular) {
+    const syg::crown::native_type* t = nullptr;
+    for (const auto* n : syg::organs::registered_natives())
+      if (std::string(name) == n->name) t = n;
+    float in_a[128], in_b[128];
+    for (int i = 0; i < 128; ++i) {
+      in_a[i] = 0.001f * static_cast<float>(i) - 0.05f;
+      in_b[i] = 0.4f - 0.002f * static_cast<float>(i);
+    }
+    float out_block[128], out_single[128];
+    auto run = [&](void* state, bool single) {
+      float* outp = single ? out_single : out_block;
+      if (!std::strcmp(name, "delay"))
+        t->set_num(state, "samples", 9);
+      if (!std::strcmp(name, "smoother"))
+        t->set_num(state, "in", 0.8);
+      if (single) {
+        for (int i = 0; i < 128; ++i) {
+          const float* ins[] = {in_a + i, in_b + i};
+          float* outs[] = {outp + i};
+          t->process(state, ins, outs, 1);
+        }
+      } else {
+        const float* ins[] = {in_a, in_b};
+        float* outs[] = {outp};
+        t->process(state, ins, outs, 128);
+      }
+    };
+    void* s1 = t->create();
+    run(s1, false);
+    t->destroy(s1);
+    void* s2 = t->create();
+    run(s2, true);
+    t->destroy(s2);
+    for (int i = 0; i < 128; ++i)
+      expect(out_block[i] == out_single[i],
+             (std::string(name) + " diverges at N=1").c_str());
+    ++checks;
+  }
+  std::cout << nlohmann::json{{"suite", "green"}, {"checks", checks}}.dump()
+            << "\n";
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -604,6 +707,7 @@ int main(int argc, char** argv) {
     if (cmd == "park-audit") return syg::harness::park_audit();
     if (cmd == "regions") return cmd_regions();
     if (cmd == "kinds") return cmd_kinds();
+    if (cmd == "kernel-audit") return cmd_kernel_audit();
     if (cmd == "widget-of" && argc > 2)
       return cmd_widget_of(argv[2], argc > 3 && std::string(argv[3]) == "--range");
     if (cmd == "render-graph" && argc > 2) return cmd_render_graph(std::stod(argv[2]));

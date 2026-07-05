@@ -1,9 +1,10 @@
 """Rung 2 — the escapement. Tests written from the criterion text as they
 are reached (BUILDER.md loop). Never weaken a test; amend the book by ADR."""
-import pathlib, shutil, struct, subprocess, tempfile
+import json, pathlib, shutil, struct, subprocess, tempfile
 from _helpers import Pending, syg, golden_audio_check, HERE
 
-SRC = HERE.parent / "src"
+ROOT = HERE.parent
+SRC = ROOT / "src"
 
 
 def cor1_escapement_austerity():
@@ -184,12 +185,58 @@ def sz6_trampolines_small():
         assert len(code) <= 10, f"{f} is {len(code)} lines (SZ-6: at most 10)"
 
 
+
+def aut11_kernel_contract():
+    # the kernel suite green, exercised directly against the salvage
+    out = json.loads(syg("kernel-audit"))
+    assert out["suite"] == "green" and out["checks"] > 100000
+    # a kernel holding wall-clock state fails review by grep; the metro
+    # exception, when metro exists, must be documented in-source
+    import re
+    banned = re.compile(r"\btime\(|epoch|wall_?clock", re.I)
+    for f in (SRC / "nodes" / "synth_core").glob("*.[ch]pp"):
+        code = "\n".join(ln.split("//")[0] for ln in f.read_text().split("\n"))
+        for m in banned.finditer(code):  # comments may DISCUSS the rule
+            assert "metro exception" in f.read_text(), \
+                f"wall-clock state in {f.name} without the documented exception"
+
+
+def aut12_n1_granularity():
+    # island readiness: every kernel ticks correctly at N=1 (the audit
+    # compares 128 single-sample calls against one 128-frame call, per
+    # native, byte-equal) — and the islands themselves prove it end to end
+    out = json.loads(syg("kernel-audit"))
+    assert out["suite"] == "green"
+
+
+def aut31_descriptors_generated():
+    import json as _json
+    gen = ROOT / "build" / "generated"
+    if not gen.exists():
+        raise Pending("generated/ not built")
+    # adding a field surfaced port + promises (ABI-1.1's pair) ...
+    db = _json.loads((gen / "widget_b.descriptor.json").read_text())["ports"]
+    assert db["brightness"] == {"dir": "in", "kind": "scalar",
+                                "discipline": "value"}
+    # ... and its WIDGET, derived from kind + metadata through the data
+    # table — no editor or descriptor code changed anywhere
+    w = _json.loads(syg("widget-of", db["brightness"]["kind"]))
+    assert w["widget"] == "number"
+    # zero hand-maintained descriptor tables: every native TU takes its
+    # port lists from the generated header
+    for f in (SRC / "nodes" / "hello_natives").glob("*_native*.cpp"):
+        src = f.read_text()
+        if "in_ports" in src or "out_ports" in src:
+            assert "syg::generated::" in src, \
+                f"{f.name} carries a hand-maintained port table"
+
+
 TESTS = {
     # AUT joined the manifest 2026-07-05 (ch. 12 had been silently absent —
     # extractor prefix gap). None = pending: write each from criterion text.
-    "AUT-1.1": None,
-    "AUT-1.2": None,
-    "AUT-3.1": None,
+    "AUT-1.1": aut11_kernel_contract,
+    "AUT-1.2": aut12_n1_granularity,
+    "AUT-3.1": aut31_descriptors_generated,
     "ABI-1.1": abi11_one_declaration,
     "ABI-1.2": abi12_no_handwritten_serializers,
     "ABI-2.1": abi21_hook_discipline,
