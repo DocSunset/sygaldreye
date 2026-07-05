@@ -128,10 +128,26 @@ nlohmann::json choose_structure(const organs::graph_doc& doc,
       block.insert(tok.substr(6));
     i = j + 1;
   }
+  // placement as FALLTHROUGH (PKG-7): no placement pass exists — when
+  // the environment marks a capability remote, the SAME boundary walk
+  // chooses net-flavored mappings (discipline -> flavor, PKG-6): the
+  // value-discipline latch coalesces; anything else rides sequenced
+  bool audio_remote = false;
+  for (std::size_t i = 0; i < rules.size();) {
+    auto j = rules.find_first_of(",;", i);
+    if (j == std::string::npos) j = rules.size();
+    if (rules.substr(i, j - i) == "remote:audio") audio_remote = true;
+    i = j + 1;
+  }
   nlohmann::json maps = nlohmann::json::array();
-  for (const auto& m : regions.mappings)
-    maps.push_back({{"edge", m.edge}, {"mapping", m.mapping}});
-  return {{"block", block}, {"frame", frame}, {"mappings", maps}};
+  for (const auto& m : regions.mappings) {
+    std::string mapping = m.mapping;
+    if (audio_remote)
+      mapping = mapping == "latch" ? "net:coalescable" : "net:sequenced";
+    maps.push_back({{"edge", m.edge}, {"mapping", mapping}});
+  }
+  return {{"block", block}, {"frame", frame}, {"mappings", maps},
+          {"placement", {{"block", audio_remote ? "remote" : "local"}}}};
 }
 void choose_tick(void* s, const crown::svalue* ins, crown::svalue* outs) {
   if (!ins[0].value) return;
@@ -167,6 +183,8 @@ void choose_tick(void* s, const crown::svalue* ins, crown::svalue* outs) {
   doc.defaults["__regions"] = {{"block", structure["block"]},
                                {"frame", structure["frame"]}};
   doc.defaults["__mappings"] = structure["mappings"];
+  doc.defaults["__placement"] = structure.value(
+      "placement", nlohmann::json{{"block", "local"}});
   outs[0] = gen::make_graph(std::move(doc));
 }
 
@@ -207,6 +225,8 @@ void realize_tick(void* s, const crown::svalue* ins, crown::svalue* outs) {
       {"map", map},
       {"defaults", defaults},
       {"rules", doc.defaults.value("__rules", "")},
+      {"placement", doc.defaults.value("__placement",
+                                        nlohmann::ordered_json{{"block", "local"}})},
       {"context", doc.defaults.value("__context", nlohmann::ordered_json::object())},
       {"backend", ins[1].value && !gen::as_text(ins[1]).empty()
                       ? gen::as_text(ins[1])

@@ -408,6 +408,55 @@ def _exec_audit(graph, blocks=1, ops=None, watch=None):
          "watch": watch or []}).encode()))
 
 
+def pkg71_placement_is_fallthrough():
+    # the same hello-cosine compiles with audio local and with audio
+    # remote (the browser-peer environment of the worked example, here
+    # supplied as the capability rule): diff of engine passes run — NONE;
+    # only the adapter choice differs. No placement-specific pass exists.
+    local = _peer([{"op": "set-app", "graph": _hello()}, {"op": "compile"}])[1]
+    cap_splice = [
+        {"op": "add_node", "a": "cap0", "b": "text_cell"},
+        {"op": "set_text", "a": "cap0/value", "b": "remote:audio"},
+        {"op": "add_edge", "a": "cap0/out", "b": "adapters0/in0"},
+    ]
+    remote = _peer([
+        {"op": "set-app", "graph": _hello()},
+        {"op": "open-engine-editor"},
+        {"op": "engine-edit", "ops": cap_splice},
+        {"op": "compile"},
+    ])[3]
+    # the ENGINE'S passes: same instances, same order — the capability
+    # feed (cap0) is a rule source, not a pass
+    engine_ids = set(json.loads(
+        (ROOT / "vocabulary" / "engine-v0.json").read_text()
+    )["topology"]["nodes"])
+    p_local = [p for p in local["tick_order"] if p in engine_ids]
+    p_remote = [p for p in remote["tick_order"] if p in engine_ids]
+    assert set(p_local) == set(p_remote) == engine_ids, \
+        f"a placement-specific pass appeared: {p_local} vs {p_remote}"
+    # order is wiring in BOTH (the capability feed may legally reorder the
+    # fan-in it joins; engine-v0's own precedence must hold either way)
+    edges = json.loads((ROOT / "vocabulary" / "engine-v0.json").read_text()
+                       )["topology"]["edges"]
+    for order in (p_local, p_remote):
+        pos = {p: i for i, p in enumerate(order)}
+        for e in edges:
+            f, t = e["from"].split("/")[0], e["to"].split("/")[0]
+            if f in pos and t in pos:
+                assert pos[f] < pos[t], (f, t, order)
+    xl, xr = local["execution_body"], remote["execution_body"]
+    # identical structure and map; only adapters + placement differ
+    assert xl["map"] == xr["map"]
+    assert xl["nodes"] == xr["nodes"]
+    assert xl["placement"] == {"block": "local"}
+    assert xr["placement"] == {"block": "remote"}
+    ml = [m["mapping"] for m in xl["mappings"]]
+    mr = [m["mapping"] for m in xr["mappings"]]
+    assert "latch" in ml and "net:coalescable" in mr, (ml, mr)
+    assert [m["edge"] for m in xl["mappings"]] == \
+        [m["edge"] for m in xr["mappings"]], "the boundary walk itself moved"
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
@@ -425,6 +474,6 @@ TESTS = {
     "PKG-4.2": pkg42_unchained_draw_does_not_render,
     "PKG-5.1": None,
     "PKG-6.1": None,
-    "PKG-7.1": None,
+    "PKG-7.1": pkg71_placement_is_fallthrough,
     "PKG-8.1": None,
 }
