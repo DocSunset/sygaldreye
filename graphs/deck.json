@@ -1,0 +1,24 @@
+{
+ "kind": "graph",
+ "lock": {
+  "card": "graphs/card.json",
+  "graph_source": "organ"
+ },
+ "topology": {
+  "nodes": {
+   "inner": {
+    "type": "card"
+   },
+   "gs0": {
+    "type": "graph_source"
+   }
+  },
+  "edges": [],
+  "outlets": {
+   "keys": "gs0/keys"
+  }
+ },
+ "defaults": {
+  "inner/position": 3.0
+ }
+}

@@ -15,6 +15,8 @@ struct graph_doc {
   std::vector<std::pair<std::string, std::string>> nodes;  // id, type
   std::vector<std::pair<std::string, std::string>> edges;  // from, to
   std::string lift_key;             // empty = absent
+  nlohmann::ordered_json inlets;    // outer port -> inner route (templates)
+  nlohmann::ordered_json outlets;   // outer port -> inner route
   nlohmann::ordered_json defaults;  // route -> value
 };
 

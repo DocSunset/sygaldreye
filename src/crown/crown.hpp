@@ -41,6 +41,11 @@ struct native_type {
   // a mapping node: its ports are throughpoints; compilation inserts no
   // default mapping where one already sits (L13)
   bool is_mapping = false;
+  // the context seam (ch. 13, LNG-7): resource holders and reflection
+  // receive their context by injection at pump time — never global reach
+  void (*set_context)(void* state, const void* ctx) = nullptr;
+  // owns a platform resource: refuses to lift (LNG-6.2, AUT-4)
+  bool resource_holder = false;
 };
 
 // One op record (the five appliers; the tape and every editor speak this).

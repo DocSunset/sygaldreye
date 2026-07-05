@@ -524,6 +524,42 @@ def exe71_derivation_mode():
         assert other["memo"] is False and other["output"] != first["output"]
 
 
+
+def lng61_graphs_dir_is_the_palette():
+    # card.json in graphs_dir appears in the palette; spawning clones the
+    # template; the inner position inlet takes the node entry's param
+    pal = json.loads(syg("palette"))
+    assert "card" in pal and "osc" in pal, pal
+    g = {"kind": "graph", "lock": {},
+         "topology": {"nodes": {"card0": {"type": "card"},
+                                "card1": {"type": "card"}}, "edges": []},
+         "defaults": {"card0/position": 7.0, "card1/position": 9.0}}
+    out = _exec_audit(g, blocks=30, watch=["card0.pos/out", "card1.pos/out",
+                                           "card0.look/out"])
+    assert "card0.pos" in out["realized"] and "card1.pos" in out["realized"]
+    assert out["watched"]["card0.pos/out"][-1] == 7.0
+    assert out["watched"]["card1.pos/out"][-1] == 9.0, "clones not independent"
+    assert out["watched"]["card0.look/out"][-1] == 7.0  # inner wiring lives
+    # the persisted surface still holds the COMPOSITE (no clone leakage)
+    assert "card0.pos" not in json.dumps(out["serialized"])
+
+
+def lng71_context_two_levels_deep():
+    # no node reaches a global: context arrives by injection and forwards
+    # through nested subgraphs — graph_source at depth 2 still publishes
+    # the ROOT graph's keys
+    g = {"kind": "graph", "lock": {},
+         "topology": {"nodes": {"deck0": {"type": "deck"},
+                                "c9": {"type": "cell"},
+                                "c10": {"type": "cell"}}, "edges": []},
+         "defaults": {"c9/k": 1.0, "c10/k": 2.0}}
+    out = _exec_audit(g, blocks=30, watch=["deck0.gs0/keys"])
+    assert out["watched"]["deck0.gs0/keys"][-1] == 3.0, \
+        f"the seam did not forward the root context: {out['watched']}"
+    # and the static audit half: no singleton reach anywhere (EXE-6.1)
+    exe61_no_singleton_reach()
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -554,9 +590,9 @@ TESTS = {
     "LNG-4.2": lng42_widget_table_is_data,
     "LNG-5.1": lng51_ops_replay_to_same_hash,
     "LNG-5.2": lng52_ops_carry_authors,
-    "LNG-6.1": None,
+    "LNG-6.1": lng61_graphs_dir_is_the_palette,
     "LNG-6.2": None,
-    "LNG-7.1": None,
+    "LNG-7.1": lng71_context_two_levels_deep,
     "LNG-9": lng9_text_events_still_open,
     "TCF-1": tcf1_mapping_guarantees,
     "TCF-2": tcf2_swaps_under_load,

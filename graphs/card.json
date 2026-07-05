@@ -1,0 +1,33 @@
+{
+ "kind": "graph",
+ "lock": {
+  "cell": "kind:cell@v1",
+  "scale": "kind:scale@v1"
+ },
+ "topology": {
+  "nodes": {
+   "pos": {
+    "type": "cell"
+   },
+   "look": {
+    "type": "scale"
+   }
+  },
+  "edges": [
+   {
+    "from": "pos/out",
+    "to": "look/in"
+   }
+  ],
+  "inlets": {
+   "position": "pos/k"
+  },
+  "outlets": {
+   "view": "look/out"
+  }
+ },
+ "defaults": {
+  "pos/k": 0.0,
+  "look/k": 1.0
+ }
+}

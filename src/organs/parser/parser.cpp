@@ -15,6 +15,8 @@ graph_doc parse_graph(const nlohmann::json& j) {
   for (const auto& e : topo.value("edges", nlohmann::json::array()))
     g.edges.emplace_back(e.at("from"), e.at("to"));
   g.lift_key = topo.value("lift_key", "");
+  g.inlets = topo.value("inlets", nlohmann::json::object());
+  g.outlets = topo.value("outlets", nlohmann::json::object());
   g.defaults = j.value("defaults", nlohmann::json::object());
   for (const auto& [k, v] : j.items())
     if (k != "kind" && k != "lock" && k != "topology" && k != "defaults")
@@ -30,6 +32,8 @@ nlohmann::ordered_json serialize_graph(const graph_doc& g) {
   for (const auto& [f, t] : g.edges) edges.push_back({{"from", f}, {"to", t}});
   topo["edges"] = edges;
   if (!g.lift_key.empty()) topo["lift_key"] = g.lift_key;
+  if (!g.inlets.empty()) topo["inlets"] = g.inlets;
+  if (!g.outlets.empty()) topo["outlets"] = g.outlets;
   return {{"kind", g.kind}, {"lock", g.lock},
           {"topology", topo}, {"defaults", g.defaults}};
 }

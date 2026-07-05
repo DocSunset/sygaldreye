@@ -5,7 +5,10 @@
 #include <stdexcept>
 
 #include "phase.hpp"
+#include <fstream>
+
 #include "registry_face/registry_face.hpp"
+#include "subgraph/subgraph.hpp"
 
 namespace syg::executor {
 
@@ -347,12 +350,32 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
   return im;
 }
 
+namespace {
+
+// graphs_dir templates register as node types (LNG-6): a .json IS a plugin
+std::optional<nlohmann::json> graphs_dir_loader(const std::string& type) {
+  std::ifstream f("graphs/" + type + ".json");
+  if (!f) return std::nullopt;
+  return nlohmann::json::parse(f);
+}
+
+}  // namespace
+
 exec_plan::exec_plan(organs::graph_doc doc, int rate, int block)
-    : doc_(std::move(doc)), regions_(infer_regions(doc_)), rate_(rate),
-      block_(block) {
+    : doc_(std::move(doc)), rate_(rate), block_(block) {
+  expanded_ = organs::expand_subgraphs(doc_, graphs_dir_loader);
+  regions_ = infer_regions(expanded_);
   if (!regions_.errors.empty())
     throw std::runtime_error("cannot realize: " + regions_.errors.front());
-  im_ = build_impl(doc_, regions_, block_);
+  im_ = build_impl(expanded_, regions_, block_);
+  inject_context();
+}
+
+void exec_plan::inject_context() {
+  for (auto& f : im_->frames)
+    if (f.type->set_context) f.type->set_context(f.state, &doc_);
+  for (auto& b : im_->blocks)
+    if (b.type->set_context) b.type->set_context(b.state, &doc_);
 }
 
 exec_plan::~exec_plan() = default;
@@ -429,10 +452,11 @@ void exec_plan::apply_structural(const edit_op& o) {
 }
 
 void exec_plan::rebuild() {
-  regions_ = infer_regions(doc_);
+  expanded_ = organs::expand_subgraphs(doc_, graphs_dir_loader);
+  regions_ = infer_regions(expanded_);
   if (!regions_.errors.empty())
     throw std::runtime_error("cannot realize: " + regions_.errors.front());
-  auto fresh = build_impl(doc_, regions_, block_);
+  auto fresh = build_impl(expanded_, regions_, block_);
   // migrate state by route: same id, same type -> the old state comes home
   for (auto& n : fresh->blocks)
     if (auto* old = im_->block_of(n.id); old && old->type == n.type) {
@@ -450,6 +474,7 @@ void exec_plan::rebuild() {
   fresh->t = im_->t;
   fresh->next_frame = im_->next_frame;
   im_ = std::move(fresh);
+  inject_context();
   // defaults re-applied by build; the param journal replays the live edits
   for (const auto& [route, v] : param_journal_)
     im_->set_param(route, std::strtod(v.c_str(), nullptr));

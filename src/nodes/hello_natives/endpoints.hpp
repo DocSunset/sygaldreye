@@ -53,6 +53,10 @@ struct spectro {  // block-override: consumes its block whole (FFT-shaped)
   au::out<au::audio, au::block> out;
 };
 
+struct graph_source {  // the reflection seam: sees its enclosing graph
+  au::out<au::scalar, au::value> keys;
+};
+
 struct smoother {  // a user-suppliable boundary mapping (EXE-8, CMP-4)
   au::in<au::scalar, au::value> in;
   au::in<au::scalar, au::value> rate;

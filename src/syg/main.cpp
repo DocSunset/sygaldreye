@@ -309,6 +309,9 @@ int cmd_exec_audit() {
   }
   long rt_after = syg::abi::counts(syg::abi::phase::process).allocs +
                   syg::abi::counts(syg::abi::phase::process).locks;
+  nlohmann::json realized = nlohmann::json::array();
+  for (const auto& id : p.regions().block) realized.push_back(id);
+  for (const auto& id : p.regions().frame) realized.push_back(id);
   nlohmann::json recomputes, log = nlohmann::json::array();
   for (const auto& [id, t] : p.doc().nodes)
     if (p.recomputes(id) >= 0) recomputes[id] = p.recomputes(id);
@@ -316,6 +319,7 @@ int cmd_exec_audit() {
     log.push_back({{"op", a.op.op}, {"a", a.op.a}, {"b", a.op.b},
                    {"author", a.op.author}, {"inverse_ops", a.inverse.size()}});
   std::cout << nlohmann::json{{"watched", watched},
+                              {"realized", realized},
                               {"recomputes", recomputes},
                               {"rt_events", rt_after - rt_before},
                               {"process_calls", p.process_calls()},
@@ -558,7 +562,14 @@ int main(int argc, char** argv) {
     if (cmd == "render-tape" && argc > 2) return cmd_render_tape(std::stod(argv[2]));
     if (cmd == "roundtrip") return cmd_roundtrip();
     if (cmd == "palette") {
-      std::cout << syg::organs::palette().dump() << "\n";
+      auto pal = syg::organs::palette();
+      // a .json in graphs_dir IS a plugin (LNG-6): the registry face reads
+      // the store; graphs_dir stands in for it until rung 6
+      if (std::filesystem::is_directory("graphs"))
+        for (const auto& e : std::filesystem::directory_iterator("graphs"))
+          if (e.path().extension() == ".json")
+            pal.push_back(e.path().stem().string());
+      std::cout << pal.dump() << "\n";
       return 0;
     }
     if (cmd == "resolve-hash" && argc > 3) return cmd_resolve_hash(argv[2], argv[3]);

@@ -58,6 +58,7 @@ class exec_plan {
   struct impl;
   static std::unique_ptr<impl> build_impl(const organs::graph_doc&,
                                           const region_map&, int block);
+  void inject_context();
   void apply_structural(const edit_op& o);
   void rebuild();  // re-realize, migrating state by route
   std::unique_ptr<impl> im_;
@@ -67,7 +68,8 @@ class exec_plan {
   mpsc<edit_op> inlet_q_;
   mpsc<std::pair<std::string, double>> event_q_;
   std::map<std::string, std::string> param_journal_;  // route -> last value
-  organs::graph_doc doc_;
+  organs::graph_doc doc_;       // the app graph (persisted surface)
+  organs::graph_doc expanded_;  // subgraphs cloned open (derived)
   region_map regions_;
   int rate_, block_;
 };

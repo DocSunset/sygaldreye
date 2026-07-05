@@ -159,7 +159,8 @@ void emit_registration(const std::filesystem::path& dir) {
   // palette equals this manifest by construction.
   const std::vector<std::string> natives{"osc", "lfo", "vca", "dac", "noise", "add", "cell", "scale", "delay", "pulse", "spectro", "button", "counter", "smoother"};
   const std::vector<std::string> organ_natives{
-      "parser", "naive_resolver", "registry-face", "slot", "supervisor"};
+      "parser", "naive_resolver", "registry-face", "slot", "supervisor",
+      "graph_source"};
   auto sym = [](std::string n) {
     for (auto& c : n)
       if (c == '-') c = '_';
@@ -196,6 +197,7 @@ int main(int argc, char** argv) {
   emit<syg::nodes::decl::dac>(o, "dac", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::noise>(o, "noise", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::add>(o, "add", {}, "syg::nodes::decl");
+  emit<syg::nodes::decl::graph_source>(o, "graph_source", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::smoother>(o, "smoother", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::button>(o, "button", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::counter>(o, "counter", {}, "syg::nodes::decl");
