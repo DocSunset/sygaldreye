@@ -111,6 +111,10 @@ with Travis; one concern per message; breadcrumb the next step.
   it is what makes nodes-working-with-nodes the path of least resistance.
   If a subcommand can't be expressed that way, an organ is missing; build
   the organ, not a side-door.
+- **Seed the leaf vocabulary the moment the lane lands**
+  (kanban/backlog/leaf_vocabulary.md): the generated one-liner natives +
+  schema structs for the catalog kinds. Authoring-as-graph only wins when
+  the leaves it composes already exist.
 
 ## Milestones that matter (report these; skip noise)
 

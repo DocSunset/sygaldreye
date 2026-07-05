@@ -88,6 +88,32 @@ and move to the NEXT criterion in the SAME rung. Never to the next rung;
 never by weakening the test. A recorded dead-end is recoverable work;
 a silent workaround is damage.
 
+## Judgement (2026-07-05 — the license is asymmetric by design)
+
+You are a strong model; the loop harnesses your diligence, this section
+your judgement.
+
+1. **Strengthen freely.** You may add criteria and tighten tests at any
+   time without asking — a one-way ratchet, the same shape as L18 and
+   rule 1. Record every strengthening in `conformance/STRENGTHENINGS.md`
+   (id, what, why); Travis reviews after the fact. Weakening,
+   reinterpreting, or routing around stays ADR-gated, always.
+2. **The flag duty.** When a criterion's letter is satisfiable in a way
+   its spirit is not, either build the spirit or record the gap (a
+   proposed criterion or ADR draft) BEFORE taking the green. Green with a
+   recorded reservation is honest work; silent hollow green is the one
+   sin.
+3. **The rung audit.** Before opening rung N+1, audit rung N from FRESH
+   context: a sub-agent (or a cold re-read) holding only the book and the
+   diff, asked — what got walked instead of realized? what is decorative?
+   does each demo prove its criterion or restate it? Findings go in
+   status.md; fix or flag before proceeding. The hollow engine was
+   invisible from inside its session and obvious to a fresh reading in
+   minutes: context, not capability, is the limiting reagent.
+4. **Design residue.** When you hit an unanswered design question, write
+   the ADR draft while the context is hot, even though you build something
+   else meanwhile. Drafts survive sessions; hot context doesn't.
+
 ## What done means
 
 Rung 12 green: the suite runs as datasets inside the system it verifies, and

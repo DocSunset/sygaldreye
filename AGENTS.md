@@ -77,6 +77,17 @@ everyone reads `BUILDER.md`; then run
 
 Work items are located in the `kanban` directory, one markdown file per work item. Move items to develop when you are developing them. If the item requires human review, move it to review when it is done. If it does not require human participation in the review process, move it to done when you are done working on it.
 
+# Continuity (context is a cache)
+
+The repo is the memory; your context window is a cache of it and must
+round-trip. After any compaction, and whenever in doubt, the resume
+protocol is: re-read `HANDOFF.md` and `BUILDER.md` in full (the Judgement
+section is binding), then `planning/status.md`, then run
+`python3 conformance/run.py`. Keep status.md's TOP section a resume block
+— current rung, in-flight criterion, next action, active disciplines —
+updated at every stopping point. Anything load-bearing that exists only in
+conversation is already lost; write it down before it matters.
+
 # Remember
 
 Be brief. Less is more. Say less.
