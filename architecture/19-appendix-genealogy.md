@@ -25,9 +25,9 @@ are visible mappings), the rigid control/signal wall (regions are inferred).
 **Faust / gen~.** Took: per-sample kernel fusion, feedback as loop-carried
 variables, the conviction that a patch can compile to austere portable code
 (the freezer, movements). Refused: freezing as a different *language* — ours
-is a backend of the same compilation, pure optimizer by law (ADR-013/014).
+is a backend of the same compilation, pure optimizer by law (ADR-013 and 014).
 
-**APL.** Took: rank polymorphism — conformability lifting; an N×3 span into
+**APL.** Took: rank polymorphism — conformability lifting; an N-by-3 span into
 a vec3 port stamps N instances the way APL lifts a scalar function over an
 array. Refused: the implicit everything — lifts are visible in the plan and
 keyed for identity.
@@ -39,8 +39,8 @@ the mesh is the program's own fabric.
 
 ## The systems ancestors
 
-**Unix / Plan 9.** Took: the ontology — everything is a file ≈ everything is
-a node; small tools composed ≈ small nodes wired; the calling convention as
+**Unix / Plan 9.** Took: the ontology — everything is a file roughly equals everything is
+a node; small tools composed roughly equals small nodes wired; the calling convention as
 the only universal (the escapement). Refused: the semantics — in-place
 mutation, no provenance, untyped bytes with conventions held in folklore.
 We kept the shape and repaired the physics.

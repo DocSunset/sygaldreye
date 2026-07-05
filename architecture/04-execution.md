@@ -33,9 +33,9 @@ node with no demanded output and no clock input is provably inert (edit-time
 lint). This dissolves hot/cold-inlet conventions and trigger-object
 sequencing into the type system and order-is-wiring.
 
-**EXE-11 (quiescence & demand, ADR-015).**
+**EXE-11 (quiescence and demand, ADR-015).**
 - EXE-11.1: a static scene (no clock-wired nodes, no incoming events)
-  performs zero node recomputations across 10³ frames while still
+  performs zero node recomputations across 1,000 frames while still
   presenting (the plan replays cached draw state).
 - EXE-11.2: one param write recomputes exactly the dirty downstream cone,
   nothing else (counter per node).
@@ -60,7 +60,7 @@ before process() in topological order, so an event reaches a downstream node
 in the same tick — which is why a linear event chain is a legal ordering
 declaration (order is wiring).
 
-**Per-sample islands (ADR-013).** Within a region, the default z⁻¹ delays ONE
+**Per-sample islands (ADR-013).** Within a region, the default z-inverse delays ONE
 SAMPLE. The planner detects each cycle (strongly-connected island) and
 executes it sample-interleaved: per-sample kernels ticked once around the
 loop per sample; feedforward stretches keep fused per-node block loops.
@@ -71,7 +71,7 @@ block delay at that edge, loudly, at edit time. Islands are rendered visibly
 in the editor, like regions (cost transparency).
 
 **Mappings are visible.** Compilation inserts canonical mappings at inferred
-boundaries — z⁻¹ (cycle), latch (frame→block), snapshot (block→frame), queue
+boundaries — z-inverse (cycle), latch (frame to block), snapshot (block to frame), queue
 (event cross-thread, never drops), ring (stream cross-thread), net (cross-
 peer), probe (observer) — as patchable nodes, replaceable by the user, never
 persisted (derived, shown as derived).
@@ -88,7 +88,7 @@ re-apply; the swap is atomic from the ticking thread's view. Exec and spawn
 are its two call sites; spawn parks a fallback with restart policy
 (Erlang-shaped supervision).
 
-**Lifting** (unrelated to compile): excess-rank edges (span producer →
+**Lifting** (unrelated to compile): excess-rank edges (span producer  to 
 cell-kind consumer, not whole) stamp N clones keyed by lift-key cell value or
 index; resource holders refuse to lift with a hard, messaged error.
 
@@ -103,20 +103,20 @@ round-trips to the source graph (defaults, never live values).
   current sample.
 
 **EXE-2 (region inference).** Recomputed on every edit; dac upstream closure
-through audio edges → block; else frame; queue-implied worker.
+through audio edges to block; else frame; queue-implied worker.
 - EXE-2.1: hello-cosine infers {osc0, vca0, dac0} block, {lfo0} frame.
-- EXE-2.2: deleting edge 2 (vca0→dac0) moves osc0/vca0 out of the block
+- EXE-2.2: deleting edge 2 (vca0 to dac0) moves osc0/vca0 out of the block
   region on the very next edit application.
 
 **EXE-3 (real-time safety).** The block region allocates nothing and takes no
 locks after first-tick init.
 - EXE-3.1: instrumented allocator + lock detector report zero events across
-  10⁴ callbacks of hello-cosine under live param edits.
+  10,000 callbacks of hello-cosine under live param edits.
 
 **EXE-4 (canonical mappings).** Latch applies at block start; snapshot
 exposes the last completed block; queue never drops events; ring carries
-streams SPSC; z⁻¹ delays exactly one tick with empty-until-first-capture.
-- EXE-4.1: step lfo0 to a constant 0.7 → vca0 sees exactly 0.7 from the next
+streams SPSC; z-inverse delays exactly one tick with empty-until-first-capture.
+- EXE-4.1: step lfo0 to a constant 0.7 to vca0 sees exactly 0.7 from the next
   block boundary, never mid-block.
 - EXE-4.2: N palette-press events across threads arrive N times, in order.
 - EXE-4.3: a feedback cycle certifies tick-1 delay semantics (existing
@@ -163,8 +163,8 @@ block-override membership rejected at edit time with a forced explicit delay.
   drops to per-node-per-block).
 - EXE-10.3: wiring a spectrogram (block-override) into a cycle yields an
   edit-time error naming the edge that needs an explicit delay.
-- EXE-10.4: frozen vs interpreted render of the same feedback patch:
-  spectrogram diff ≈ 0 (the freezer changed cost, not sound).
+- EXE-10.4: frozen versus interpreted render of the same feedback patch:
+  spectrogram diff roughly equals 0 (the freezer changed cost, not sound).
 
 ## Worked example (test seed)
 

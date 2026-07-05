@@ -7,7 +7,7 @@ the promise oracle.*
 ## Design
 
 *(Encoding and grammar are pinned in ch. 14; evolution in ch. 17 —
-ADR-017/025 govern.)*
+ADR-017 and 025 govern.)*
 
 **Names.** Two primitive name kinds: **hash** (CID/multihash — self-describing
 hash function, chosen precisely so the hash function can migrate) and **local
@@ -16,15 +16,15 @@ HERE** (ADR-029): resolution begins at the resolver's environment node — its
 wired stores, object store, peer table, petnames (astui's ground,
 per-resolver, never global). What looks like a root is the first step,
 answered by an environment container; `root:route` is spelling sugar. The
-**liveness rule**, per step: fixed iff the step's name is content-derived
+**liveness rule**, per step: fixed if and only if the step's name is content-derived
 (hash — pinned by verification) or conferred by immutable containment; an
-address is fixed iff every step is (normalizable, memoizable), live if any
+address is fixed if and only if every step is (normalizable, memoizable), live if any
 step crosses a ref (a subscription).
 
 **Finding first steps.** Unqualified ref-names resolve lexically against the
 wired store environment, like a relative path against a cwd — there is no
 global ref registry. The only mesh-wide namespace is the key space:
-`#peer-key/…` steps are self-certifying (the name carries its verification
+`#peer-key/...` steps are self-certifying (the name carries its verification
 material); ref-states travel signed; each peer is sole authority for its own
 refs (single-writer); discovery is advertisement, never registration;
 petnames humanize keys in a private local store graph.
@@ -41,7 +41,7 @@ survive editing.
 **Kinds.** One kind system for port payloads and datasets. A kind is a node:
 links to decoder programs (render/traverse/serialize/validate) and conventions
 (port layout, rate constraints). Kind-of-kind is `kind`; the fiat kinds
-(`bytes`, `kind`, `scalar`, `audio`, `graph`, …) are sacred-ground nodes.
+(`bytes`, `kind`, `scalar`, `audio`, `graph`, ...) are sacred-ground nodes.
 
 **Port promises (ADR-030 — "type" dissolved).** A port declaration attaches
 its promises directly as links: `ports/foo/kind` and `ports/foo/discipline`
@@ -83,10 +83,10 @@ against the same kind registry.
 discipline) pairs and
 `boundary_mapping(from, to)` are one shared first-order implementation used by
 both parse-time validation and editor wire-drop.
-- NAM-5.1: `osc0/out (audio·block) → vca0/in (audio·block)` legal, true edge.
-- NAM-5.2: `lfo0/out (scalar·frame) → vca0/gain (scalar·block)` legal via
+- NAM-5.1: `osc0/out (audio, block) to vca0/in (audio, block)` legal, true edge.
+- NAM-5.2: `lfo0/out (scalar, frame) to vca0/gain (scalar, block)` legal via
   `latch` (returned as the boundary mapping).
-- NAM-5.3: `draw_call → audio` is ILLEGAL (both surfaces reject identically).
+- NAM-5.3: `draw_call to audio` is ILLEGAL (both surfaces reject identically).
 - NAM-5.4: no kind/promise lookup occurs during tick (assert via instrumentation
   in debug builds).
 
@@ -105,9 +105,9 @@ stable under edits, with structural sharing between versions.
 ## Worked example (test seed)
 
 The glossary's hello-cosine store fragment, plus: resolve
-`graphs/hello-cosine:nodes/vca0/gain` → walk ref → #a11 → topology #b22 →
-`vca0` → declaration lookup via `type → vca` → `ports/gain/kind → scalar`,
-`ports/gain/discipline → stream`. Assert: the full walk touches exactly the
+`graphs/hello-cosine:nodes/vca0/gain` to walk ref to #a11 to topology #b22  to 
+`vca0` to declaration lookup via `type to vca` to `ports/gain/kind to scalar`,
+`ports/gain/discipline to stream`. Assert: the full walk touches exactly the
 containers named;
 normalizing after pinning the ref yields a fixed address; the promise pair
 compares legal against `lfo0/out` only through `latch`.

@@ -8,8 +8,8 @@ validation targets.*
 ## Design
 
 **The editor is graphs editing graphs.** Cards, wires, gestures, palette,
-labels are node compositions (shipped 2026-06-15: graph_source → lifted card
-subgraph keyed by id → draw chain; gesture nodes emitting structured edit
+labels are node compositions (shipped 2026-06-15: graph_source to lifted card
+subgraph keyed by id to draw chain; gesture nodes emitting structured edit
 ops). Inlets carry two derived qualities — persistence (a default, in the
 defaults node) and affordance (widget derived from kind + metadata; connected
 inlets render as meters, unconnected as widgets). Editing a connected inlet
@@ -24,9 +24,9 @@ edits write back through the inverse compilation map; a write-back conflict
 is presented as such (rebase semantics); "make this a pass" and "fork this"
 are explicit, deliberate gestures — never defaults.
 
-**The store browser is the astui walker.** here (a single node) · path
-(breadcrumb history, not a menu) · frontier (everything reachable from here,
-recomputed each step, labeled by outward-reading edge) · mark (the authoring
+**The store browser is the astui walker.** here (a single node), path
+(breadcrumb history, not a menu), frontier (everything reachable from here,
+recomputed each step, labeled by outward-reading edge), mark (the authoring
 primitive: the marked subgraph + hand-authored links = the durable map, a
 dataset like any other). Movement chooses a destination, not a direction.
 The ground is the synthetic node connected to all nodes; walks begin there.
@@ -37,7 +37,7 @@ program is a declinable graph run in the reader's advertised vocabulary
 (MSH-3). Bidirectional links: attach to hashes, derive per-version positions
 through the version map (NAM-7), index back-links per store (STO-9).
 Validation targets inherited from the rhizome probe: the **round-trip
-metric** (C++ ⇄ document form, byte-identical) and the **trace** (a user's or
+metric** (C++  and back  document form, byte-identical) and the **trace** (a user's or
 agent's remixed transcluded path through a corpus, itself a committable
 dataset).
 
@@ -47,11 +47,11 @@ human can, and vice versa.
 
 ## Open directions (inherited from the rhizome probe, undesigned)
 
-Authoring hand-made connections (a *focus* notion vs connecting among
-marked lines) · embedding vectors — LLM-derived geometry for
-similarity-based movement (promising, not committed) · git-repo frontend
+Authoring hand-made connections (a *focus* notion versus connecting among
+marked lines), embedding vectors — LLM-derived geometry for
+similarity-based movement (promising, not committed), git-repo frontend
 and a read-only FUSE adapter as free inspection surfaces (rendering/
-controller adapter directions) · the agent trace as a first-class shareable
+controller adapter directions), the agent trace as a first-class shareable
 dataset (the walker's path, committed — partially covered by the worked
 example below).
 
@@ -80,9 +80,9 @@ CMP-4/5 have explicit UI.
 
 **EDR-5 (store browser).** here/path/frontier/mark over any store graph;
 frontier latency stays interactive (demand-driven, memoized).
-- EDR-5.1: walk ground → graphs/hello-cosine → topology → osc0 → type osc →
+- EDR-5.1: walk ground to graphs/hello-cosine to topology to osc0 to type osc  to 
   ports; mark osc0; the marked map persists as a dataset and re-opens.
-- EDR-5.2: frontier of a node with 10⁵ links paginates without blocking the
+- EDR-5.2: frontier of a node with 100,000 links paginates without blocking the
   frame region.
 
 **EDR-6 (documents).** Transclusion renders live and fixed correctly;

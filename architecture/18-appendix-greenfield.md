@@ -6,7 +6,7 @@ until the previous rung's gate is green. The probe (siloed under `probe/`)
 is a deprecated design probe: mined for kernels, tests, and golden outputs;
 never migrated.*
 
-1. **Formats first** (ch. 14): the generator (declarations → codecs +
+1. **Formats first** (ch. 14): the generator (declarations to codecs +
    descriptors + bindings), dag-cbor profile, address grammar, op records,
    tape format. Gate: FMT-1..3 property tests in C++ and one host binding.
 2. **The escapement** (chs. 13, 16): node contract + tick over a constexpr
@@ -23,7 +23,7 @@ never migrated.*
    10/11, TCF-1/2, golden-audio hello-cosine with live edits.
 6. **The store** (ch. 3): object machinery + store-graph face + commit
    paths + refs + op-tree history. Gate: STO-1..9, ADR-018 undo tests.
-7. **Compile & realize** (ch. 5): engine v0 as data, deterministic compile
+7. **Compile and realize** (ch. 5): engine v0 as data, deterministic compile
    + map, projection editing, interpret backend. Gate: CMP-1..7.
 8. **Packages, in probe-proven order** (ch. 7): audio first (kernels
    salvaged from synth_core — they survive verbatim), then render, worker,

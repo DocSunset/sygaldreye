@@ -66,9 +66,9 @@ taxonomy of roles).
 Names come in two kinds, and **mutability lives in the name**: a *hash*
 (content-derived) names an immutable value; a *route* (composed of
 container-conferred local names) names a place whose content may change. An
-*address* = root + route; it is *fixed* iff it traverses no ref, else *live* —
+*address* = root + route; it is *fixed* if and only if it traverses no ref, else *live* —
 a subscription. This one rule generates the store's immutability, the
-patch's editability, undo (a ref's hash trail), quotation vs subscription,
+patch's editability, undo (a ref's hash trail), quotation versus subscription,
 and the identity story for compilation — with no special cases.
 
 ## 4. The data model (chapters 2–3)
@@ -103,7 +103,7 @@ authoring surface; declarations are generated from it.
 
 Rates (event/frame/block) induce **regions** — inferred, never declared — and
 where regions meet, compilation inserts visible, replaceable **mappings**
-(latch, snapshot, queue, ring, net, z⁻¹). An **executor** node owns each
+(latch, snapshot, queue, ring, net, z-inverse). An **executor** node owns each
 region's pacing and platform resource (audio device callback, XR frame loop,
 worker thread); inside it the whole story recurses.
 
@@ -113,7 +113,7 @@ App, engine, and execution graph are **roles**: every graph is defined,
 compiled by an engine graph, realized on hardware — including engine graphs
 themselves. The tower is lazy (levels instantiate only when edited) and
 grounds at stage 0. Compilation is deterministic and emits a **compilation
-map** (app route → execution route) so state survives re-compilation — the
+map** (app route to execution route) so state survives re-compilation — the
 main engineering risk, and the enabler of **projection editing**: realized
 views are editing surfaces whose edits write back through the inverse map;
 conditional-on-compilation behavior is a deliberate pass; refusing write-back
@@ -159,7 +159,7 @@ navigation model (here / path / frontier / mark). Documents are graphs;
 transclusion is an address-valued edge; every document's "proposed program to
 render" is a declinable graph run in the reader's advertised vocabulary.
 Agents are peers, not backdoors: they act through the same source nodes as a
-hand, and the LLM codegen loop (write node → cross-compile → ship → live-load)
+hand, and the LLM codegen loop (write node to cross-compile to ship to live-load)
 rides the plugin channel under provenance policy.
 
 ## 10. How to read the rest
@@ -187,5 +187,5 @@ rides the plugin channel under provenance policy.
 Each part chapter gives context, design, **enumerated requirements**
 (`XXX-n`), **acceptance criteria** (`XXX-n.m`, phrased to become automated
 tests), and worked examples. Chapter 10 states the fundamental needs
-(`N1–N8`) and laws and maps every requirement to them. ADR-013…028 (the
+(`N1–N8`) and laws and maps every requirement to them. ADR-013 through 028 (the
 greenfield session, 2026-07-03/04) govern throughout.

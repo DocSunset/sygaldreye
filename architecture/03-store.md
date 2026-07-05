@@ -46,7 +46,7 @@ bounded by trust domain).
 
 **STO-1 (object machinery).** Content-addressed put/get over the object
 directory; verification is re-hashing.
-- STO-1.1: put(bytes) → hash; get(hash) → identical bytes; get of unknown
+- STO-1.1: put(bytes) to hash; get(hash) to identical bytes; get of unknown
   hash is a clean miss (triggering fetch, STO-6).
 
 **STO-2 (store-graph face).** get = wiring, put = graph edit, ref = named
@@ -64,9 +64,9 @@ or testimony (capture); a stream cannot be committed directly.
   carries peer key + wiring route `nodes/dac0/in`; attempting to "commit the
   adc stream" without a recorder node is a type error.
 
-**STO-4 (refs and undo).** Refs bind local name → hash; every rebind appends
+**STO-4 (refs and undo).** Refs bind local name to hash; every rebind appends
 to the trail; undo = rebind to trail predecessor.
-- STO-4.1: edit hello-cosine (freq 220→330), commit, undo: ref points at
+- STO-4.1: edit hello-cosine (freq 220 to 330), commit, undo: ref points at
   #a11 again; both versions remain fetchable.
 
 **STO-5 (provide/compatible).** Peers advertise provided datasets alongside
@@ -88,7 +88,7 @@ single-file JSON remains the interchange form.
 - STO-7.2: deleting osc0 from the topology surfaces a conflict for the
   orphaned default `osc0/freq` (rebase semantics), not silence.
 
-**STO-8 (retention & forgetting).** Unpin-everywhere converges: after all
+**STO-8 (retention and forgetting).** Unpin-everywhere converges: after all
 providers drop a dataset and caches cycle, the hash is unfetchable in-mesh.
 - STO-8.1: integration test across three peers confirms convergence and that
   provenance records referencing the forgotten hash still parse (dangling is
@@ -104,6 +104,6 @@ the take.
 
 Three-peer scenario: Linux (provide-everything), Quest (cache), browser
 (cache). Author hello-cosine on Linux; run on Quest (fetch by hash); record a
-take on Quest (capture, provisional → provided after sync); edit freq; undo;
+take on Quest (capture, provisional to provided after sync); edit freq; undo;
 evict on Quest; re-fetch; forget the take deliberately. Each step's assertions
 are the STO acceptance criteria above, in order.

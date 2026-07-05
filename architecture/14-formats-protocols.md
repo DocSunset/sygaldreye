@@ -1,7 +1,7 @@
 # Chapter 14 — Formats and wire protocols (FMT)
 
 *Everything that must be spelled exactly once. Governing ADRs: 007, 017, 018,
-023, 028. Values marked ⚑ are pinned at first implementation and recorded
+023, 028. Values marked (pin) are pinned at first implementation and recorded
 here; the shapes are decided now.*
 
 ## The canonical encoding (ADR-017)
@@ -11,9 +11,9 @@ here; the shapes are decided now.*
   canonical 64-bit floats, no NaN/Inf, links as CID (tag 42). String map
   keys only. The generated encoder is the only writer.
 - Bulk payloads: **raw lane** — kind-specific encodings, hashed as-is,
-  Merkle-DAG chunked above a threshold ⚑ (order 256 KiB).
-- Hashes: **CIDv1** — multicodec (dag-cbor | raw ⚑) + multihash
-  (blake3 or sha2-256 ⚑).
+  Merkle-DAG chunked above a threshold (pin) (order 256 KiB).
+- Hashes: **CIDv1** — multicodec (dag-cbor | raw (pin)) + multihash
+  (blake3 or sha2-256 (pin)).
 - **The header is the one non-self-describing layer**: the CID prefix
   itself, compiled into every reader. Frozen by design; succession of this
   spec is the only flag-day event the system admits, and multiformats exist
@@ -31,21 +31,21 @@ address  := refname [ ":" route ]        (lexical: first step into the wired sto
 route    := step ( "/" step )*
 step     := localname                    (container-conferred; no positions, no offsets)
 ```
-Fixity is per step (content-derived ⇒ fixed; conferred ⇒ fixed iff the
+Fixity is per step (content-derived implies fixed; conferred implies fixed if and only if the
 container is immutable; refs are the conferred-mutable steps). Signed
 ref-state records: `{ peer-key, ref route, bound hash, seq, sig }` — what
 SUBSCRIBE/EVENT and caches carry; verifiable, honestly stale. Reserved first
 steps within graphs: `nodes` `edges` `ports` `type` `state` `topology`
-`defaults` `lock`. Escaping ⚑.
+`defaults` `lock`. Escaping (pin).
 
 ## Object shapes (all dag-cbor unless noted)
 
-- **topology** `{ nodes: {id → {type: name-into-lock}}, edges: […],
+- **topology** `{ nodes: {id to {type: name-into-lock}}, edges: [...],
   lift_key? }`
-- **defaults** `{ route → value }`
-- **lock** `{ name → type CID }` (ADR-026 vocabulary lock)
+- **defaults** `{ route to value }`
+- **lock** `{ name to type CID }` (ADR-026 vocabulary lock)
 - **graph** (composite) `{ kind, topology, defaults, lock, provenance }`
-- **recipe provenance** `{ op, inputs: {name → CID}, determinism-class,
+- **recipe provenance** `{ op, inputs: {name to CID}, determinism-class,
   output(s), signer }` (ADR-021: approximate recipes may list multiple
   outputs)
 - **testimony** `{ peer-key, wiring-route, wallclock (descriptive only),
@@ -64,8 +64,8 @@ within a gesture bracket; the log is a tree (parent links); commit folds a
 range.
 
 **The boot tape (ADR-028)**: the same ops in a fixed-width, CBOR-free record
-format ⚑ replayable by the crown with no decoder — the movement's only
-input format. A graph ≡ its building ops, so tape ↔ topology conversion is
+format (pin) replayable by the crown with no decoder — the movement's only
+input format. A graph is equivalent to its building ops, so tape and back to topology conversion is
 mechanical.
 
 ## Wire protocol (peer-level conformance surface)
@@ -84,24 +84,24 @@ All messages authenticated under pairing keys (MSH-2); payloads dag-cbor.
 | FAULT | fault records crossing peers (just EVENTs on fault outputs) |
 
 Transport: WebSocket-capable framing (browser constraint), one duplex
-channel per peer pair, message kinds multiplexed ⚑.
+channel per peer pair, message kinds multiplexed (pin).
 
 ## Compilation map
 
-`{ app-route → execution-route }`, dag-cbor, emitted with every compile
+`{ app-route to execution-route }`, dag-cbor, emitted with every compile
 (CMP-2), consumed by migration and projection editing. Deterministic: same
-compile inputs → byte-identical map (exact-class derivation).
+compile inputs to byte-identical map (exact-class derivation).
 
 ## Requirements
 
 **FMT-1.** Encoder conformance: a corpus of value/bytes pairs (grown per
 kind automatically — ADR-017) round-trips in every host language binding.
-**FMT-2.** Address grammar: parse∘print identity property test (NAM-1.1)
+**FMT-2.** Address grammar: parse-after-print identity property test (NAM-1.1)
 against a generated corpus including all reserved steps and escapes.
-**FMT-3.** Boot tape: tape → crown replay → serialize yields the same
+**FMT-3.** Boot tape: tape to crown replay to serialize yields the same
 topology hash as the tape's source graph.
 **FMT-4.** Wire golden transcripts: a recorded two-peer session (pair,
 advertise, subscribe, ops, fetch, place) replays byte-exact against a
 candidate implementation (the peer-level conformance backbone, ch. 17).
-**FMT-5.** Every ⚑ pin, once chosen, is recorded in this chapter in the
+**FMT-5.** Every (pin) pin, once chosen, is recorded in this chapter in the
 same commit as its first implementation.

@@ -17,8 +17,8 @@ iff it passes. Two profiles (ADR-028):
 
 **The suite is written in the system** (ADR-027): a test is a derivation —
 test graph + blessed expected outputs + a comparison program — with
-comparison semantics per determinism class (ADR-021): exact → hash
-equality; approximate → tolerance graphs (spectral diff for audio,
+comparison semantics per determinism class (ADR-021): exact to hash
+equality; approximate to tolerance graphs (spectral diff for audio,
 perceptual for images). **The harness boots the candidate as a peer** and
 exercises it over the wire: conformance testing and interop testing are one
 act. The suite evolves by succession, provenance-tracked; any conformant
@@ -39,7 +39,7 @@ double-compilation. Structural answer, standing.
   lazy, memoized, provenance-recorded derivation; structural migrations are
   exact-class so upgrades hash identically mesh-wide.
 - **Vocabulary upgrades are one lock swap** (ADR-026): a graph's lock
-  object maps names → type CIDs; a vocabulary migration rewrites locks,
+  object maps names to type CIDs; a vocabulary migration rewrites locks,
   never topologies.
 - **Mixed-version mesh**: peers advertise the kinds/contracts they speak;
   compatibility = reachability over supersedes/migrates-from (a fixpoint

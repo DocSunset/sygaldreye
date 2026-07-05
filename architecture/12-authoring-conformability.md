@@ -27,7 +27,7 @@ Kernels live in synth_core; ADR-013 makes them load-bearing for the
 **The shell stamps (both halves have a compile-time stamp).** PROCESSORS:
 `Lift<K>` — one kernel instance per channel (map axis) scanning frames (time
 axis). GENERATORS: `Gen` — the source authors a per-sample body; the shell
-owns dt→frame clamping and the mono buffer. Documented exceptions only:
+owns dt to frame clamping and the mono buffer. Documented exceptions only:
 metro (time/event node — per-sample gate-edge timestamps), spatialize
 (axis-consuming whole-block HRTF), dac (resource holder — never lifted). No
 hand-written block loops outside these.
@@ -44,8 +44,8 @@ Convention: processor audio in = `audio`, out = `audio_out`.
 inside opaque descriptors, so lifting lives in the descriptor machinery and
 the planner:
 
-- Excess-rank detection at plan time (span producer → cell-kind consumer,
-  not whole) creates a LiftGroup; the plan replays it via N desc→create()
+- Excess-rank detection at plan time (span producer to cell-kind consumer,
+  not whole) creates a LiftGroup; the plan replays it via N desc to create()
   clones — builtins AND subgraphs — outputs gathered into a plan-owned span.
 - Clone state survives reorder, resize, and migration, keyed by the lift-key
   cell value when a key source is wired (a card keyed by node id), else by
@@ -98,7 +98,7 @@ node types are palette-identical and patch-interchangeable.
 
 ## Worked example (test seed)
 
-The forest, both routes: (route 2) one tree mesh + an N×3 positions span into
+The forest, both routes: (route 2) one tree mesh + an N-by-3 positions span into
 the instanced draw — one draw call (LNG-2.2); (route 1) an N-seed span into a
 lifted tree_generator — N distinct meshes, clone state keyed by seed
 (AUT-4.1); resize N live and watch identity hold. The same test then swaps

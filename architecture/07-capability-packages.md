@@ -11,7 +11,7 @@ spliced into the main engine at runtime when its capability is observed. Three
 parts, always:
 
 1. **Vocabulary** — its node types (dac/adc, xr_session, draw, store_*,
-   ws/mdns…), present only where linked (SZ-2's manifest is the capability
+   ws/mdns...), present only where linked (SZ-2's manifest is the capability
    claim).
 2. **Passes** — wired into the engine's published fan-ins: recognize its
    region in an app graph (dac-closure inference, generalized), construct its
@@ -78,8 +78,8 @@ pipelines (EXE-7) and is placeable cross-peer.
 
 **PKG-6 (net package).** Peers exchange advertised node types and provided
 datasets; proxies instantiate remote types; net mappings are flavored by
-inferred type (value→coalescable, event→reliable-ordered,
-stream→sequenced+jitter).
+inferred type (value to coalescable, event to reliable-ordered,
+stream to sequenced+jitter).
 - PKG-6.1: two-peer test — consumer patch drives a cube from a provider lfo
   through a proxy; kill and reconnect the link; event edges lose nothing,
   value edges resume at latest.

@@ -12,7 +12,7 @@ Two orthogonal properties, never conflated again:
   composition of other vocabulary may bear the name. Governed by this
   chapter.
 - **Present** — linked into a given target and instated by its tape/boot
-  graph. ALWAYS a per-target choice; nothing is imposed (ADR-016/028).
+  graph. ALWAYS a per-target choice; nothing is imposed (ADR-016 and 028).
 
 ## Stratum 0 — the escapement (unconditional)
 
@@ -22,17 +22,17 @@ A **movement** is a frozen realized graph the escapement ticks.
 
 ## Stratum 1 — the crown (the minimal self-modification)
 
-The plan as mutable data · one applier primitive (instantiate-linked-native,
-link, unlink, remove, write-default; applied at tick boundaries) · an op
+The plan as mutable data, one applier primitive (instantiate-linked-native,
+link, unlink, remove, write-default; applied at tick boundaries), an op
 inlet. Boot input is the **tape** (FMT-3). The full slot is the crown grown
 up. A sealed movement omits the crown entirely.
 
 ## Stratum 2 — the specs (definitional, code nowhere)
 
-naming · canonical encoding · kind model (port promises) · three disciplines ·
-provenance grammar (derive/capture, determinism classes, succession) ·
-edit-op vocabulary · the native contract · the wire protocol · the
-compilation contract · the conformance harness shape. Each is a spec node,
+naming, canonical encoding, kind model (port promises), three disciplines,
+provenance grammar (derive/capture, determinism classes, succession),
+edit-op vocabulary, the native contract, the wire protocol, the
+compilation contract, the conformance harness shape. Each is a spec node,
 succeeded like anything (ADR-025); the CID header convention alone is
 frozen by design.
 
@@ -55,22 +55,22 @@ Nineteen names. Everything else in the universe — every executor, every
 kind in the catalog (data!), the engine pipeline (data!), math, the store,
 the mesh, the freezer, the editor, fault handling — is a **complication**.
 
-## The ratchet process (ADR-026 §3)
+## The ratchet process (ADR-026 section 3)
 
 - Admission: a written no-composition proof, recorded here and in adr.md,
   in the same commit.
 - Standing **shrink list** (candidates for eviction when composition
   catches up): reflection seam (possibly a standing query over the live op
-  stream); parser (a graph ≡ its ops — the tape already bypasses it; a
+  stream); parser (a graph is equivalent to its ops — the tape already bypasses it; a
   parser may reduce to a projection decoder); registry-face (possibly a
   store query over a frozen store-graph).
 - Review trigger: any new admission requires re-testing the shrink list.
 
 ## Engine v0 (data, not core — recorded here for the greenfield build)
 
-The initial engine pipeline ships as a dataset: `receive → compile →
+The initial engine pipeline ships as a dataset: `receive to compile  to 
 realize`, publishing the three fan-ins (recognize-region,
-construct-context, choose-adapters) and the realize backends (interpret ·
+construct-context, choose-adapters) and the realize backends (interpret,
 codegen). CMP governs its contract; packages populate it.
 
 ## Requirements

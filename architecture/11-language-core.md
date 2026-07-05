@@ -17,11 +17,11 @@ pins block rate; texture/draw_call pin the render region). `any` and
 `unknown` are the honest gradual-typing escape hatches (subgraph outlets
 report unknown until resolved).
 
-**Spans and rank.** A `span` is an N×cell array with a named cell kind.
+**Spans and rank.** A `span` is an N-by-cell array with a named cell kind.
 Rank is derived from kind (`cell_rank`); **excess rank drives lifting**: a
 span producer wired to a cell-kind consumer stamps N clones (EXE/AUT), and a
 span into a draw node's per-instance input becomes one instanced draw.
-`whole<T>` is the opt-out for a future consumer that takes an N×cell array as
+`whole<T>` is the opt-out for a future consumer that takes an N-by-cell array as
 a unit (reduce/gather/flocking); today no node needs it — whole-by-kind falls
 out for audio/mesh/texture/etc. Axis discipline: channels map, frames scan;
 named axes are the planned disambiguation (deferred work item).
@@ -40,7 +40,7 @@ persistence-only.
 category).** An inlet whose payload has value semantics carries a persisted
 DEFAULT — the value it holds when unconnected; the defaults node (STO-7) is
 exactly the map of these. The editor derives a WIDGET from payload + metadata
-(scalar+range → slider, bool → toggle, text → field, vec3 → gizmo, bang →
+(scalar+range to slider, bool to toggle, text to field, vec3 to gizmo, bang  to 
 momentary; stream/GPU payloads get a wire handle only). An edge into an inlet
 OVERRIDES its default while connected (summing is an `add` node, explicitly —
 not VCV's implicit sum); editing a connected inlet updates the fallback;
@@ -53,7 +53,7 @@ its root.
 **The edit vocabulary.** All mutation flows through structured edit ops:
 `add_node, remove_node, add_edge, remove_edge, set_param` (and whole-graph
 replace as the degenerate case). Ops are data — queueable, serializable,
-attributable, replayable; they carry INVERSES and PRECONDITIONS (ADR-018/023);
+attributable, replayable; they carry INVERSES and PRECONDITIONS (ADR-018 and 023);
 gestures are transactions (coalescing brackets); history is the op tree,
 linearity a view; the editor's gestures, remote peers, agents, and projection
 editing (CMP-4) all emit the same vocabulary, toward each live instance's one
@@ -77,11 +77,11 @@ This is the one sanctioned way a node sees "the graph it lives in"
 this seam).
 
 **Interchange form.** The composite graph (topology + defaults) serializes as
-the single-file graph JSON: `nodes` (id → type + params), `edges`, optional
+the single-file graph JSON: `nodes` (id to type + params), `edges`, optional
 `lift_key`, subgraph inlets/outlets. Serialization captures DEFAULTS, never
 edge-driven live values; derived structure (auto-inserted mappings, regions,
 islands) appears only in derived output (serialize shows a `mappings` array,
-never persisted). parse ∘ serialize = identity on the persisted surface.
+never persisted). parse -after- serialize = identity on the persisted surface.
 
 ## Requirements
 
@@ -92,16 +92,16 @@ one kind system; constraints (rate pins, region pins) live on the kind node.
   the legality oracle reads kind nodes).
 
 **LNG-2 (span semantics).** cell_rank derives from kind; excess-rank edges
-lift; span→cell and cell→span are legal; whole-by-kind never lifts.
-- LNG-2.1: N×3 span → vec3 input stamps N clones; N=1 degenerates to one;
+lift; span to cell and cell to span are legal; whole-by-kind never lifts.
+- LNG-2.1: N-by-3 span to vec3 input stamps N clones; N=1 degenerates to one;
   resize preserves clone state by key (EXE-5.2).
-- LNG-2.2: N×3 span → color_mesh instance input draws N instances in ONE
+- LNG-2.2: N-by-3 span to color_mesh instance input draws N instances in ONE
   call (no clones — the draw boundary consumes the span whole).
 
 **LNG-3 (event discipline).** Events never drop or duplicate across any
 legal path; bangs carry no state.
-- LNG-3.1: 10⁴ bangs through [button → queue → counter across threads]
-  count exactly 10⁴; serialize of the patch contains no bang state.
+- LNG-3.1: 10,000 bangs through [button to queue to counter across threads]
+  count exactly 10,000; serialize of the patch contains no bang state.
 
 **LNG-4 (inlet model).** Defaults persist; edges override; connected inlets
 meter; affordances derive from kind + metadata.
@@ -130,7 +130,7 @@ injection and forwards through nested subgraphs.
 - LNG-7.1: static audit (EXE-6.1's grep) plus: a subgraph two levels deep
   containing graph_source still publishes the root graph's keys.
 
-**LNG-8 (round-trip).** parse ∘ serialize = identity on the persisted
+**LNG-8 (round-trip).** parse -after- serialize = identity on the persisted
 surface; derived structure never persists.
 - LNG-8.1: property test over the graphs_dir corpus: serialize(parse(j))
   is JSON-equal to j modulo key order; no `mappings` key in any persisted
@@ -156,7 +156,7 @@ ADR-015).
 
 ## Worked example (test seed)
 
-A polyphonic hello-cosine without new machinery: wire an 8×1 span of
+A polyphonic hello-cosine without new machinery: wire an 8-by-1 span of
 frequencies into osc0/freq — LNG-2.1 stamps 8 clones keyed by index; their
 audio mixes (an explicit `mix` node) into vca0. Save/reload (LNG-8.1),
 replay the session's edit ops (LNG-5.1), and confirm the palette spawned it

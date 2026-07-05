@@ -41,7 +41,7 @@ Derived from `planning/vision.md` and the dream it serves.
   functions; every other concept is a role. Never reify a function as a form;
   form affords function.
 - **L2 (Mutability lives in the name).** Hashes name immutable values; routes
-  name editable places; an address is live iff it traverses a ref. No other
+  name editable places; an address is live if and only if it traverses a ref. No other
   mutability mechanism exists.
 - **L3 (Declarations one level up).** Types/schemas are links *about* link
   names held by the node type; instances hold the links. Checked at
@@ -82,7 +82,7 @@ Derived from `planning/vision.md` and the dream it serves.
   including engine graphs. The tower is lazy and grounds at the frozen
   stage 0, whose sole irreducible property is pre-existence.
 - **L12 (Identity-preserving compilation).** Compilation is a deterministic,
-  memoizable derivation emitting a route→route map; state survives
+  memoizable derivation emitting a route to route map; state survives
   re-compilation through it.
 - **L13 (One definition).** Realized views are editing surfaces writing back
   through the inverse map; defaults insert only where absent; conditional
@@ -91,7 +91,7 @@ Derived from `planning/vision.md` and the dream it serves.
 - **L14 (Ports and wiring).** Engine extension points are published ports;
   packages wire in; order is wiring, visible as structure.
 
-**Greenfield (ADR-013…028)**
+**Greenfield (ADR-013 through 028)**
 
 - **L18 (The ratchet).** The core only shrinks: admission requires a
   no-composition proof (ch. 16); presence is always a tape choice; nothing
@@ -126,24 +126,24 @@ metadata and decoding data to derive other data — grounded in stage 0, paced
 by executors, shared by a mesh, terminating in someone's senses.* Its
 concrete protocol surfaces, each governed by the laws cited:
 
-- **Naming & resolution** (L2, L3, L7): CID/multihash; root+route addresses;
+- **Naming and resolution** (L2, L3, L7): CID/multihash; root+route addresses;
   traversal per kind; normalization/memoization of fixed addresses.
-- **Commit & provenance** (L4, L5): recipe and testimony headers; hashes
+- **Commit and provenance** (L4, L5): recipe and testimony headers; hashes
   only in provenance; memoization keyed by input hashes.
-- **Store & fetch** (L7, L10, L15): store-as-graph access; provide/compatible
+- **Store and fetch** (L7, L10, L15): store-as-graph access; provide/compatible
   advertisement; content-addressed, chunked, resumable fetch; back-link
   indexing at commit.
-- **Compile & realize** (L11–L14): engine fan-ins; compilation maps;
+- **Compile and realize** (L11–L14): engine fan-ins; compilation maps;
   swap+migrate keyed by route and lift key.
 - **Mesh session** (L15–L17): pairing, authenticated transport, three-list
   advertisement, typed refusal, plugin gate.
-- **Boot** (L6, L11): trampoline → frozen stage 0 → spawn-and-park → observe,
+- **Boot** (L6, L11): trampoline to frozen stage 0 to spawn-and-park to observe,
   splice, receive, compile, realize.
 
 ## IV. Traceability
 
 Requirements live in chapters 2–9 (`NAM, STO, EXE, CMP, SZ, PKG, MSH, EDR`).
-Association, requirement → laws → needs:
+Association, requirement to laws to needs:
 
 | Requirement | Laws | Needs |
 |---|---|---|
@@ -332,18 +332,18 @@ preclude them)**
   model, dataset, or algorithm authored, explored, and shipped as an
   interactive thing in one medium — research artifact and app are the same
   patch. The notes, each riding machinery this book specifies:
-  *musical instruments* (VR lutherie on the audio substrate; EXE, ADR-013) ·
+  *musical instruments* (VR lutherie on the audio substrate; EXE, ADR-013),
   *game engine* and *physics sandbox* (the patch is the game / the physics
-  is the content) · *CAD, sculpting + slicer* and *3D scanner + LLM model
-  viewer* (scan → sculpt → print; geometry as wirable content; agents
-  seeing models via EDR-8-style rendered views) · *robotics firmware, 3D
+  is the content), *CAD, sculpting + slicer* and *3D scanner + LLM model
+  viewer* (scan to sculpt to print; geometry as wirable content; agents
+  seeing models via EDR-8-style rendered views), *robotics firmware, 3D
   printers* and *robot gardening* (one medium from motor loops to behavior —
-  frozen peers, FRZ, are the firmware story) · *home automation* (devices
-  and sensors as edges; the mesh reaching the house) · *ML authoring
+  frozen peers, FRZ, are the firmware story), *home automation* (devices
+  and sensors as edges; the mesh reaching the house), *ML authoring
   environment* ("Wekinator 2026": hand-author interpretable layers, tweak
-  live, train as derivations) · *code/document explorer + hypertext editor*
+  live, train as derivations), *code/document explorer + hypertext editor*
   and *web UI/hypertext content* (the rhizome layer's reading and authoring
-  faces; EDR-6) · *social appliverse* (patches as places people inhabit
+  faces; EDR-6), *social appliverse* (patches as places people inhabit
   together — MSH-8's graded circles grown up).
 
 **A medium, not just an app**

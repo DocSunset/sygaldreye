@@ -2,12 +2,12 @@
 
 The project's vocabulary, exhaustively, with definitions and worked examples.
 Ratification ledger: `planning/lexicon.md` (names were ratified there first;
-definitions land here). Organizing principle throughout: **form vs function**
+definitions land here). Organizing principle throughout: **form versus function**
 (Kevin Austin) — one form, many roles; never reify a function as a form.
 
 Running example, used in every entry that needs one: **hello-cosine** — a 220 Hz
 cosine oscillator, amplitude waved by a 0.5 Hz LFO, into the speakers
-(`architecture/01-overview.md` §2 gives it in full).
+(`architecture/01-overview.md` section 2 gives it in full).
 
 ---
 
@@ -16,7 +16,7 @@ cosine oscillator, amplitude waved by a 0.5 Hz LFO, into the speakers
 **data** — the fundamental medium; the only form. Bytes stored somewhere,
 probably meaning something to someone. Just bits somewhere. Traces. Meaning is
 never *in* data — meaning is a relation: data means a kind to a reader who is
-compatible with it (see *decode*). *Example: the 16 bytes `0x0000dc43…` are
+compatible with it (see *decode*). *Example: the 16 bytes `0x0000dc43...` are
 data; only a reader holding the `scalar` kind's decoder sees "220.0".*
 
 ## The two primal functions
@@ -24,13 +24,13 @@ data; only a reader holding the `scalar` kind's decoder sees "220.0".*
 **node** — data read as a container: a bag of named links, possibly with data
 of its own. Everything in the system is a node: graphs, datasets, kinds, types,
 programs, provenance records, refs. *Example: `osc0` is a node whose bag holds
-`type → osc`, `freq → 220`.*
+`type to osc`, `freq to 220`.*
 
 **link** — data read as a reference: data that refers to other data. The link
 family members are links distinguished by DERIVED qualities, never declared:
 
 - **edge** — a link functioning as patch wiring. *Example:
-  `osc0/out → vca0/in`.*
+  `osc0/out to vca0/in`.*
 - **name** — a link functioning as designation. Two groundings: a **hash**
   (content-derived — computed from its target, so it cannot lie) and a **local
   name** (conferred by a container — meaningful one step at a time). *Example:
@@ -49,14 +49,14 @@ family members are links distinguished by DERIVED qualities, never declared:
   peer-qualified).*
 - **ref** — a rebindable link: a node functioning as a mutable name, binding a
   local name to a hash. Its trail of past hashes is undo/history. *Example:
-  `graphs/hello-cosine → #a11`, previously `→ #a10`.*
+  `graphs/hello-cosine to #a11`, previously ` to  #a10`.*
 - **pointer** — prose synonym for link; quarantined, not ratified.
 
-**liveness rule** — per step (ADR-029): a step is *fixed* iff its name is
+**liveness rule** — per step (ADR-029): a step is *fixed* if and only if its name is
 content-derived (a hash — pinned by re-hash verification, whatever container
 answered it) or conferred by immutable containment; an address is *fixed* iff
 every step is (it denotes one value forever and may be normalized and
-memoized), *live* iff any step crosses a ref (a subscription: a ref move is
+memoized), *live* if and only if any step crosses a ref (a subscription: a ref move is
 an event that flows to holders). Mutability is a property of the **name**,
 not the thing.
 
@@ -73,9 +73,9 @@ Route-named state is historyless *by construction* (that's what route-naming
 means); committing is opt-in history. Survives graph swaps by migration, keyed
 by route. *Example: osc0's phase accumulator.*
 
-**declaration vs binding (the level cut)** — a node type declares *about* link
-names, one level up (`ports/freq/kind → scalar`); an instance *holds*
-the links (`freq → 220`). Same name, two bags, correlated through the
+**declaration versus binding (the level cut)** — a node type declares *about* link
+names, one level up (`ports/freq/kind to scalar`); an instance *holds*
+the links (`freq to 220`). Same name, two bags, correlated through the
 instance's `type` link — the C++ class/object move, and how PFR endpoint
 structs already work.
 
@@ -91,16 +91,16 @@ conventions (port-name layout, rate constraints). Interpretation is conferred
 by linking context, never intrinsic to bytes. Kind-of-kind is `kind`
 (harmless first-order fixed point). ONE kind system spans port payloads and
 datasets: a port value is small, transient, uncommitted data of the same kind
-family (`scalar`, `audio`, `wav`, `graph`, …).
+family (`scalar`, `audio`, `wav`, `graph`, ...).
 
 **port promises** (formerly "type" — DISSOLVED, ADR-030) — a port declaration
-attaches its promises directly as links: `ports/freq/kind → scalar`,
-`ports/freq/discipline → value`. The oracle checks (kind, discipline) pairs
+attaches its promises directly as links: `ports/freq/kind to scalar`,
+`ports/freq/discipline to value`. The oracle checks (kind, discipline) pairs
 at edit time; compiled away at runtime. There is no type bundle and no
 freestanding concept named "type"; **node type** survives as the idiom for a
 kind that carries behavior.
 
-**derivation** — a committed computation: inputs (hashes) → program → output
+**derivation** — a committed computation: inputs (hashes) to program to output
 dataset, with provenance recorded as a *recipe*. Re-derivable, memoizable
 (lookup keyed by input hashes), safe to evict. *Example: compiling
 hello-cosine's app graph is a derivation; so is freezing it to C++.*
@@ -167,7 +167,7 @@ every edit. *Example: hello-cosine's `osc0–vca0–dac0` closure is the block
 region; `lfo0` stays frame-side.*
 
 **mapping** — a node whose ports are throughpoints; provides behavior at a
-connection: `z⁻¹` (cycle), `latch` (frame→block), `snapshot` (block→frame),
+connection: `z-inverse` (cycle), `latch` (frame to block), `snapshot` (block to frame),
 `queue` (event across threads), `ring` (stream across threads), `net` (across
 peers), `probe` (to observers). Auto-inserted by compilation at inferred
 boundaries but always visible and replaceable in the editor.
@@ -200,7 +200,7 @@ by lift key. UNRELATED to compile (the reason "lowering" was retired).
 **compile** — the graph-level meaning, unqualified: an engine graph derives an
 execution graph from an app graph (toolchain use is always qualified:
 cross-compile, C++ compile). Deterministic; emits a **compilation map**
-(route → route, app instance → execution instance) so state survives
+(route to route, app instance to execution instance) so state survives
 re-compilation.
 
 **app / engine / execution graph** — ROLES in the compilation relationship,
@@ -259,7 +259,7 @@ cannot be edited away.
 
 **boot graph** (derived) — the graph stage 0 ticks first; embedded per target.
 
-**naive resolver** — hash → bytes in the local object directory; grounds
+**naive resolver** — hash to bytes in the local object directory; grounds
 resolution-as-graphs; independently invokable forever (debugger of last
 resort).
 
@@ -286,7 +286,7 @@ context internals). Splicing one in is an ordinary engine-graph edit driven by
 environment observation. When absent locally, compilation may place the region
 on a remote peer advertising the capability.
 
-**graphs vs plugins** — two speech acts: a graph arriving over the mesh is
+**graphs versus plugins** — two speech acts: a graph arriving over the mesh is
 bounded composition of what the receiver advertised; a native plugin is new
 capability injection, gated by provenance policy (signed, chain-of-derivation).
 
@@ -309,7 +309,7 @@ decompose C++ (or any corpus) into the document form by
 transclusion-to-the-limit and regenerate it byte-identically; every permissive
 codebase is a unit test for the medium.
 
-## The greenfield stratum (ADR-013…028, 2026-07-03/04)
+## The greenfield stratum (ADR-013 through 028, 2026-07-03/04)
 
 **escapement** — the node contract + tick-in-order: the only unconditional
 substrate; a calling convention and a for-loop. **movement** — a frozen,
@@ -320,28 +320,28 @@ inlet. **complication** — everything else, including the liveness organs
 (parser, codec, resolver, registry-face, slot, subgraph, ref, reflection,
 query four, the seven mapping definitions): core-named where uncomposable,
 present only by tape choice. **boot tape** — the boot graph as flat op
-records replayed by the crown (a graph ≡ its building ops). **per-sample
-island** — a cycle executed sample-interleaved; default z⁻¹ = one sample
+records replayed by the crown (a graph is equivalent to its building ops). **per-sample
+island** — a cycle executed sample-interleaved; default z-inverse = one sample
 (ADR-013). **discipline** — one of the three closed semantic categories
-(event push · value dirty-push/demand-pull · stream clocked); cadence is a
-clock, and clocks are open executor outputs (ADR-015/020). **determinism
-class** — a derivation's reproducibility promise: exact · platform-exact ·
-approximate · nondeterministic (ADR-021). **op log / op tree** — history as
+(event push, value dirty-push/demand-pull, stream clocked); cadence is a
+clock, and clocks are open executor outputs (ADR-015 and 020). **determinism
+class** — a derivation's reproducibility promise: exact, platform-exact,
+approximate, nondeterministic (ADR-021). **op log / op tree** — history as
 attributed, inverse-carrying edit ops; gestures are transactions; the tree
 never discards; linearity is a view (ADR-018). **lock** — a graph's
-vocabulary map (name → type CID); upgrades are one link swap (ADR-026).
+vocabulary map (name to type CID); upgrades are one link swap (ADR-026).
 **succession** — how anything evolves: nodes are succeeded, never mutated;
 migrations are lazy derivations; compatibility is reachability (ADR-025).
 **arbiter** — the one op queue per live instance; arrival order is the
 order (ADR-023). **quarantine tier** — fresh plugins realize in subprocess
 regions until trust promotes them (ADR-016). **conformance profiles** —
 movement-level (behavioral) and peer-level (protocol); the suite is the
-system's definition, written in the system (ADR-026/027).
+system's definition, written in the system (ADR-026 and 027).
 
 ## Retired / quarantined prose
 
-**entity** = node · **occurrence** = instance · **contents** = data as a
-node's substance · **component** = unratified thesis vestige (survives as the
-`components/` directory convention) · **lowering** = compile · **pin** =
-provide · **archive** = provide-everything policy · **sandbox** =
-advertisement · **pointer** = link.
+**entity** = node, **occurrence** = instance, **contents** = data as a
+node's substance, **component** = unratified thesis vestige (survives as the
+`components/` directory convention), **lowering** = compile, **pin** =
+provide, **archive** = provide-everything policy, **sandbox** =
+advertisement, **pointer** = link.

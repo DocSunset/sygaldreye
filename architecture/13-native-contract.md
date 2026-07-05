@@ -73,7 +73,7 @@ catch; undeclared throws kill the containment unit and testify.
 **ABI-4 (contract succession).** Plugins record their contract hash;
 loading checks reachability, not integer equality.
 - ABI-4.1: a plugin generated against contract C1 loads on a peer speaking
-  C2 iff C2 declares a migration path from C1; refusal is typed and names
+  C2 if and only if C2 declares a migration path from C1; refusal is typed and names
   the missing path.
 
 **ABI-5 (three packagings, one shell).** The same node source builds as

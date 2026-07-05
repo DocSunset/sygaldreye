@@ -11,7 +11,7 @@ incomplete concurrency notes.*
   kernels receive dt or per-sample increments (AUT-1).
 - Cadence is not typed: three disciplines forever, clocks open (ADR-020).
   Musical/transport time is a package (backlog: transport_package).
-- Cross-peer time: pairwise offset ± uncertainty published as demand-driven
+- Cross-peer time: pairwise offset  plus-or-minus  uncertainty published as demand-driven
   data; event timestamps translate through it; **slew, never step**.
 - Latency-sensitive values are **time-parametric kinds** evaluated at the
   consumer's clock (ADR-022 posed/predicted).
@@ -45,7 +45,7 @@ event delivery; clocked regions are dirty-exempt.
 ## Faults (ADR-016, mechanized)
 
 - **Expected errors are values** on declared fault outputs (ch. 13).
-- **Throws**: declared → record on fault output; undeclared → terminate the
+- **Throws**: declared to record on fault output; undeclared to terminate the
   containment unit.
 - **Traps** (SIGSEGV/FPE/ILL): async-signal-safe testimony write, then
   death; the parent (spawn-and-park) completes testimony and applies its
@@ -57,9 +57,9 @@ event delivery; clocked regions are dirty-exempt.
 - **NaN/Inf**: boundary scans only (dac guard, mapping crossings); detection
   severs the upstream island.
 - **Hangs**: blocking is the worker region's monopoly; elsewhere, stale
-  heartbeat → containment-unit restart. Worker jobs carry deadlines.
+  heartbeat to containment-unit restart. Worker jobs carry deadlines.
 - **Overruns**: two timestamps per region tick + per-island attribution;
-  the executor's deadline ladder (report → mute costliest island →
+  the executor's deadline ladder (report to mute costliest island  to 
   degrade per policy patch).
 - **Quarantine**: fresh plugins realize in subprocess regions; promotion is
   trust policy (MSH-5). Fault handling is a capability package; a sealed
@@ -71,12 +71,12 @@ event delivery; clocked regions are dirty-exempt.
 queue N events cross-thread (no loss/dup/reorder — LNG-3.1); latch
 mid-block write invisibility (EXE-4.1); ring bounded staleness; net
 reconnect discipline (PKG-6.1).
-**TCF-2 (swap safety).** 10⁴ random swaps under load: no torn values, no
+**TCF-2 (swap safety).** 10,000 random swaps under load: no torn values, no
 lost events, in-flight tick always completes (extends EXE-5.1).
 **TCF-3 (clock honesty).** No wall-clock syscalls from any node
 (grep + runtime intercept); executor clocks are monotonic; offset
 translation slews (max slew rate asserted).
-**TCF-4 (fault matrix).** One test per fault class × region kind:
+**TCF-4 (fault matrix).** One test per fault class by region kind:
 declared-throw, undeclared-throw, trap-in-quarantine, NaN at dac, hang in
 frame (watchdog), overrun in block (ladder) — each ends in the documented
 state with testimony written (extends ABI-3, SZ-5).

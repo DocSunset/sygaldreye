@@ -31,14 +31,14 @@ automated tests.
 
 The book was consolidated 2026-07-04: it is now the SOLE design document —
 the pre-book planning docs were folded in and removed (git history keeps
-them). ADR-013…028 (the greenfield session) govern; where an older chapter
+them). ADR-013 through 028 (the greenfield session) govern; where an older chapter
 sentence and an ADR disagree, the ADR wins and the sentence is a bug. The
 probe under `probe/` is a deprecated design probe: reference and
 salvage (see the appendix), never migrated.
 
-Reading order: 0 → 1 → your part → 10. The running example everywhere is
-**hello-cosine** (defined in ch. 1 §2). Sources of truth this book distills:
-`planning/vision.md`, `adr.md` (ADR-001…012), `planning/lexicon.md`,
+Reading order: 0 to 1 to your part to 10. The running example everywhere is
+**hello-cosine** (defined in ch. 1 section 2). Sources of truth this book distills:
+`planning/vision.md`, `adr.md` (ADR-001 through 012), `planning/lexicon.md`,
 `planning/{naming,datasets,trust,bootloader,rhizome,edge_executor.design}.md`.
 Where book and planning docs disagree, the lexicon and adr.md govern; fix the
 loser in the same commit.

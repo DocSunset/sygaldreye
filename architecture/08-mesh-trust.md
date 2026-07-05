@@ -23,7 +23,7 @@ organize; only vocabulary and refs are ever gated — never the data model.
 
 **The escalation.** A *graph* arriving in-mesh is bounded composition of what
 the receiver advertised: flows freely. A *native plugin* (the LLM codegen
-loop: write C++ → cross-compile → ship → live-load) is new capability
+loop: write C++ to cross-compile to ship to live-load) is new capability
 injection: a distinct speech act, gated by **provenance policy** ("load
 plugins whose provenance chains to sources/signers I trust") — plugins are
 datasets with signed recipes, so the gate needs no new machinery.
@@ -66,10 +66,10 @@ node type on a peer absent from that peer's run list.
   instantiations occur outside the advertised set (assert via registry
   audit log).
 
-**MSH-5 (graphs vs plugins).** Graph datasets flow and realize in-mesh
+**MSH-5 (graphs versus plugins).** Graph datasets flow and realize in-mesh
 without prompts; plugin datasets require the provenance-policy gate before
 dlopen/side-module load.
-- MSH-5.1: ship a graph Quest→host: runs. Ship an unsigned .so: refused,
+- MSH-5.1: ship a graph Quest to host: runs. Ship an unsigned .so: refused,
   logged. Sign it with a paired key whose policy is accepted: loads
   hot (existing dlopen hot-reload machinery), and its provenance (source
   dataset, toolchain) is queryable.
