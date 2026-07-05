@@ -21,6 +21,7 @@
 #include "registry_face/registry_face.hpp"
 #include "slot/slot.hpp"
 #include "stage0_audits.hpp"
+#include "compile_session.hpp"
 #include "store_session.hpp"
 #include "naming_session.hpp"
 #include "parser/parser.hpp"
@@ -613,6 +614,8 @@ int main(int argc, char** argv) {
     if (cmd == "swap-storm" && argc > 2) return cmd_swap_storm(std::atoi(argv[2]));
     if (cmd == "derive-render" && argc > 3)
       return cmd_derive_render(argv[2], std::stod(argv[3]));
+    if (cmd == "compile")
+      return syg::harness::compile_session(nlohmann::json::parse(read_stdin()));
     if (cmd == "store")
       return syg::harness::store_session(nlohmann::json::parse(read_stdin()));
     if (cmd == "naming") {

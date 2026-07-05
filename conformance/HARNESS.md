@@ -40,6 +40,7 @@ import or port them into the implementation).
 | 5 | `syg swap-storm <n>` | hello-cosine graph on stdin + n random structural/param ops from an editor thread + 1000 events from a third, under a pumping consumer → conservation + finiteness (TCF-2) |
 | 5 | `syg render-live <seconds>` | `{"graph","ops":[{block,...}]}` on stdin → executor render with scripted live edits → raw float32 (the R5 milestone surface) |
 | 6 | `syg store` | scripted multi-peer store session (STO-1..9, LNG-10): put/get, commit-graph (composite; orphaned defaults conflict), compile (memoized committed derivation), record (capture w/ testimony), refs+trails+undo, provide/evict/fetch (chunk-resumable)/forget, backlinks + queries (the query four; standing form incremental) |
+| 7 | `syg compile` | the CMP session: compile as a memoized committed derivation over engine-v0-as-data (two memo stages), the compilation map, projection edits through the inverse map (conflicts on vanished targets), forks, engine-diff (splices are additive), the tower's laziness counter |
 | 1 | `syg pins` | no stdin → one-line JSON of the frozen ch. 14 pins (multicodec/multihash numbers, multibase, chunk size, escape set, tape records, edit ops, wire kinds) — the FMT-5 freeze surface |
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 

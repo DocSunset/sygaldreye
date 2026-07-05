@@ -1,0 +1,67 @@
+{
+ "kind": "graph",
+ "lock": {
+  "receive": "pass",
+  "fanin": "pass",
+  "recognize-region": "pass",
+  "construct-context": "pass",
+  "choose-adapters": "pass",
+  "realize": "pass"
+ },
+ "topology": {
+  "nodes": {
+   "receive0": {
+    "type": "receive"
+   },
+   "recognize0": {
+    "type": "fanin"
+   },
+   "regions0": {
+    "type": "recognize-region"
+   },
+   "context0": {
+    "type": "construct-context"
+   },
+   "adapters0": {
+    "type": "fanin"
+   },
+   "choose0": {
+    "type": "choose-adapters"
+   },
+   "realize0": {
+    "type": "realize"
+   }
+  },
+  "edges": [
+   {
+    "from": "receive0/out",
+    "to": "regions0/in"
+   },
+   {
+    "from": "recognize0/out",
+    "to": "regions0/rules"
+   },
+   {
+    "from": "regions0/out",
+    "to": "context0/in"
+   },
+   {
+    "from": "context0/out",
+    "to": "choose0/in"
+   },
+   {
+    "from": "adapters0/out",
+    "to": "choose0/rules"
+   },
+   {
+    "from": "choose0/out",
+    "to": "realize0/in"
+   }
+  ]
+ },
+ "defaults": {
+  "realize0/backend": "interpret",
+  "context0/rate": 48000,
+  "context0/block": 128
+ }
+}
