@@ -326,6 +326,28 @@ def pkg11_package_omitted_at_build_time():
         (render.returncode, render.stderr[:200])
 
 
+def pkg21_audio_package_no_behavior_change():
+    # the audio package with no behavior change: region membership (dac
+    # closure), latch/snapshot semantics, and offline pump re-run
+    # UNCHANGED (EXE-2, EXE-4.1, EXE-6.2), and the package's declared
+    # vocabulary is exactly what omission removes from the palette
+    import rung05
+    rung05.exe21_hello_regions()
+    rung05.exe22_regions_recompute_per_edit()
+    rung05.exe41_latch_at_block_start()
+    rung05.exe62_pump_offline()
+    pkgs = json.loads((ROOT / "vocabulary" / "packages.json").read_text())
+    audio = set(pkgs["packages"]["audio"])
+    full = set(json.loads(syg("palette")))
+    omitted_exe = ROOT / "build-omit" / "syg"
+    if not omitted_exe.exists():
+        raise Pending("build-omit target absent (PKG-1.1 builds it)")
+    omitted = set(json.loads(subprocess.run(
+        [str(omitted_exe), "palette"], cwd=ROOT, capture_output=True).stdout))
+    assert full - omitted == audio, \
+        f"package shape drifted: {sorted((full - omitted) ^ audio)}"
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
@@ -336,7 +358,7 @@ TESTS = {
     "FRZ-3.1": frz31_arm_freestanding_link,
     "FRZ-4.1": None,
     "PKG-1.1": pkg11_package_omitted_at_build_time,
-    "PKG-2.1": None,
+    "PKG-2.1": pkg21_audio_package_no_behavior_change,
     "PKG-3.1": None,
     "PKG-3.2": None,
     "PKG-4.1": None,

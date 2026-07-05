@@ -32,6 +32,18 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   rung; ADR drafts while hot); one peer, many sessions.
 - **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
 
+## 2026-07-05 — The dissolution gate bites (dac marker re-aimed)
+
+Turning PKG-2.1 green tripped the new dissolution gate: dac_native.cpp
+was marked `dissolves: PKG-2.1` (rung-2 assumption: the audio package
+brings a real dac). The design settled differently — the dac NODE is a
+passive boundary; device machinery belongs to the audio package's
+EXECUTOR (ADR-015, PKG-1 shape). What genuinely still pends is real
+device output; the marker now names PKG-8.1 (device splice-in), so the
+gate keeps tracking the debt instead of losing it. Not a weakening: the
+no-op sink is the node's final form, the device machinery obligation
+stays gate-enforced.
+
 ## 2026-07-05 — Remediation audit (second fresh-context pass): CLEAR
 
 The remediation itself was audited from fresh context. Verdict: the

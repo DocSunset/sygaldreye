@@ -1,4 +1,8 @@
-// clause: scaffolding (dissolves: PKG-2.1) — a no-op sink standing where the audio package's real dac (machinery) arrives; the harness reads its input buffer
+// clause: scaffolding (dissolves: PKG-8.1) — the dac NODE is a passive
+// boundary by design (the executor owns device machinery — ADR-015/PKG-1);
+// what still pends is the REAL device output the audio package's executor
+// drives. That machinery arrives with environment observation / device
+// splice-in (PKG-8.1); until then the harness reads this sink's buffer.
 #include "crown.hpp"
 
 #include "native_ports.hpp"
