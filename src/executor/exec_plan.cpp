@@ -338,67 +338,19 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
     auto it = doc.defaults.find(id + "/samples");
     return it != doc.defaults.end() && it->is_number() ? it->get<double>() : 0.0;
   };
-  std::vector<std::vector<std::size_t>> adj(im->blocks.size());
+  // the ONE schedule (shared with the codegen backend — FRZ byte-identity)
+  std::vector<std::pair<std::size_t, std::size_t>> cut_edges;
   for (const auto& e : im->block_edges) {
     const auto& dst = im->blocks[e.dst];
     if (std::string(dst.type->name) == "delay" && delay_len(dst.id) >= block)
-      continue;  // cut: the explicit delay decouples the loop
-    adj[e.src].push_back(e.dst);
+      continue;
+    cut_edges.emplace_back(e.src, e.dst);
   }
-  // Tarjan SCC (iterative-enough at this scale: recursive lambda)
-  std::vector<int> comp(im->blocks.size(), -1), low(im->blocks.size()),
-      num(im->blocks.size(), -1);
-  std::vector<std::size_t> stk;
-  std::vector<bool> on(im->blocks.size(), false);
-  int counter = 0, ncomp = 0;
-  auto dfs = [&](auto&& self, std::size_t v) -> void {
-    num[v] = low[v] = counter++;
-    stk.push_back(v);
-    on[v] = true;
-    for (auto w : adj[v]) {
-      if (num[w] < 0) {
-        self(self, w);
-        low[v] = std::min(low[v], low[w]);
-      } else if (on[w]) {
-        low[v] = std::min(low[v], num[w]);
-      }
-    }
-    if (low[v] == num[v]) {
-      while (true) {
-        auto w = stk.back();
-        stk.pop_back();
-        on[w] = false;
-        comp[w] = ncomp;
-        if (w == v) break;
-      }
-      ++ncomp;
-    }
-  };
-  for (std::size_t v = 0; v < im->blocks.size(); ++v)
-    if (num[v] < 0) dfs(dfs, v);
-  // condensation topo order (Kahn), members kept in doc order
-  std::vector<std::set<int>> cadj(static_cast<std::size_t>(ncomp));
-  std::vector<int> indeg(static_cast<std::size_t>(ncomp), 0);
-  for (const auto& e : im->block_edges) {
-    if (comp[e.src] != comp[e.dst] &&
-        cadj[static_cast<std::size_t>(comp[e.src])].insert(comp[e.dst]).second)
-      ++indeg[static_cast<std::size_t>(comp[e.dst])];
-  }
-  std::vector<std::vector<std::size_t>> members(static_cast<std::size_t>(ncomp));
-  for (std::size_t v = 0; v < im->blocks.size(); ++v)
-    members[static_cast<std::size_t>(comp[v])].push_back(v);
-  std::vector<int> ready;
-  for (int c = 0; c < ncomp; ++c)
-    if (indeg[static_cast<std::size_t>(c)] == 0) ready.push_back(c);
-  std::vector<bool> self_loop(static_cast<std::size_t>(ncomp), false);
-  for (const auto& e : im->block_edges)
-    if (e.src == e.dst) self_loop[static_cast<std::size_t>(comp[e.src])] = true;
-  while (!ready.empty()) {
-    int c = ready.back();
-    ready.pop_back();
+  auto sched = scc_order(im->blocks.size(), cut_edges);
+  for (std::size_t ci = 0; ci < sched.components.size(); ++ci) {
     auto& seg = im->segments.emplace_back();
-    seg.nodes = members[static_cast<std::size_t>(c)];
-    seg.island = seg.nodes.size() > 1 || self_loop[static_cast<std::size_t>(c)];
+    seg.nodes = sched.components[ci];
+    seg.island = seg.nodes.size() > 1 || sched.self_loop[ci];
     if (seg.island) {
       // a cycle may not pass through a block-override interior (EXE-10.3)
       for (auto v : seg.nodes)
@@ -422,8 +374,6 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
             order[e.src] >= order[e.dst])
           seg.backward[e.dst].push_back(e.dst_port);
     }
-    for (auto d : cadj[static_cast<std::size_t>(c)])
-      if (--indeg[static_cast<std::size_t>(d)] == 0) ready.push_back(d);
   }
   return im;
 }

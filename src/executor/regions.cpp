@@ -109,4 +109,69 @@ region_map infer_regions(const organs::graph_doc& g) {
   return out;
 }
 
+
+// moved VERBATIM from the interpreter's segment builder (2026-07-05) so
+// the codegen backend shares the schedule instead of re-deriving it
+scc_schedule scc_order(
+    std::size_t n,
+    const std::vector<std::pair<std::size_t, std::size_t>>& edges) {
+  std::vector<std::vector<std::size_t>> adj(n);
+  for (const auto& [s2, d] : edges) adj[s2].push_back(d);
+  std::vector<int> comp(n, -1), low(n), num(n, -1);
+  std::vector<std::size_t> stk;
+  std::vector<bool> on(n, false);
+  int counter = 0, ncomp = 0;
+  auto dfs = [&](auto&& self, std::size_t v) -> void {
+    num[v] = low[v] = counter++;
+    stk.push_back(v);
+    on[v] = true;
+    for (auto w : adj[v]) {
+      if (num[w] < 0) {
+        self(self, w);
+        low[v] = std::min(low[v], low[w]);
+      } else if (on[w]) {
+        low[v] = std::min(low[v], num[w]);
+      }
+    }
+    if (low[v] == num[v]) {
+      while (true) {
+        auto w = stk.back();
+        stk.pop_back();
+        on[w] = false;
+        comp[w] = ncomp;
+        if (w == v) break;
+      }
+      ++ncomp;
+    }
+  };
+  for (std::size_t v = 0; v < n; ++v)
+    if (num[v] < 0) dfs(dfs, v);
+  std::vector<std::set<int>> cadj(static_cast<std::size_t>(ncomp));
+  std::vector<int> indeg(static_cast<std::size_t>(ncomp), 0);
+  for (const auto& [s2, d] : edges)
+    if (comp[s2] != comp[d] &&
+        cadj[static_cast<std::size_t>(comp[s2])].insert(comp[d]).second)
+      ++indeg[static_cast<std::size_t>(comp[d])];
+  std::vector<std::vector<std::size_t>> members(
+      static_cast<std::size_t>(ncomp));
+  for (std::size_t v = 0; v < n; ++v)
+    members[static_cast<std::size_t>(comp[v])].push_back(v);
+  std::vector<bool> self_loop_by_comp(static_cast<std::size_t>(ncomp), false);
+  for (const auto& [s2, d] : edges)
+    if (s2 == d) self_loop_by_comp[static_cast<std::size_t>(comp[s2])] = true;
+  scc_schedule out;
+  std::vector<int> ready;
+  for (int c = 0; c < ncomp; ++c)
+    if (indeg[static_cast<std::size_t>(c)] == 0) ready.push_back(c);
+  while (!ready.empty()) {
+    int c = ready.back();
+    ready.pop_back();
+    out.components.push_back(members[static_cast<std::size_t>(c)]);
+    out.self_loop.push_back(self_loop_by_comp[static_cast<std::size_t>(c)]);
+    for (auto d : cadj[static_cast<std::size_t>(c)])
+      if (--indeg[static_cast<std::size_t>(d)] == 0) ready.push_back(d);
+  }
+  return out;
+}
+
 }  // namespace syg::executor
