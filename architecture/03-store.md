@@ -6,6 +6,9 @@ compatible advertisement, and fetch-by-hash.*
 
 ## Design
 
+*(Object encodings: ch. 14 / ADR-017. History is the op tree: ADR-018.
+Availability naming: provide = pin, per the lexicon.)*
+
 The store is **a graph of dataset nodes** — the store package's vocabulary is
 its face; the on-disk object directory (data_dir on Linux/Quest, IndexedDB in
 browser) is its machinery (the dac relationship). It never ticks and is

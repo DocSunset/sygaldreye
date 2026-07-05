@@ -6,6 +6,9 @@ the type oracle.*
 
 ## Design
 
+*(Encoding and grammar are pinned in ch. 14; evolution in ch. 17 —
+ADR-017/025 govern.)*
+
 **Names.** Two primitive name kinds: **hash** (CID/multihash — self-describing
 hash function, chosen precisely so the hash function can migrate) and **local
 name** (conferred by a container). An **address** is root + route; the root is

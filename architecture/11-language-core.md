@@ -53,9 +53,11 @@ its root.
 **The edit vocabulary.** All mutation flows through structured edit ops:
 `add_node, remove_node, add_edge, remove_edge, set_param` (and whole-graph
 replace as the degenerate case). Ops are data — queueable, serializable,
-attributable, replayable; the editor's gestures, remote peers, agents, and
-projection editing (CMP-4) all emit the same vocabulary. Undo snapshots on
-STRUCTURAL ops; set_param drift never trashes history.
+attributable, replayable; they carry INVERSES and PRECONDITIONS (ADR-018/023);
+gestures are transactions (coalescing brackets); history is the op tree,
+linearity a view; the editor's gestures, remote peers, agents, and projection
+editing (CMP-4) all emit the same vocabulary, toward each live instance's one
+arbiter queue. The boot tape is these ops in fixed-format records (ch. 14).
 
 **Subgraphs (composition).** A subgraph node clones a template graph behind
 slot trampolines: inner inlets/outlets forward through the node's ports;

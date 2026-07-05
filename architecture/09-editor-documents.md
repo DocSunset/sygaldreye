@@ -45,6 +45,16 @@ dataset).
 the same source nodes as human input; every bug an agent can reproduce, a
 human can, and vice versa.
 
+## Open directions (inherited from the rhizome probe, undesigned)
+
+Authoring hand-made connections (a *focus* notion vs connecting among
+marked lines) · embedding vectors — LLM-derived geometry for
+similarity-based movement (promising, not committed) · git-repo frontend
+and a read-only FUSE adapter as free inspection surfaces (rendering/
+controller adapter directions) · the agent trace as a first-class shareable
+dataset (the walker's path, committed — partially covered by the worked
+example below).
+
 ## Requirements
 
 **EDR-1 (editor is nodes).** No editor monolith returns; all editor behavior

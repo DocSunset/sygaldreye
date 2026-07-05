@@ -120,16 +120,19 @@ conditional-on-compilation behavior is a deliberate pass; refusing write-back
 is a fork. The engine pipeline's extension points are **ports** (fan-ins:
 recognize-region, construct-context, choose-adapters) and **order is wiring**.
 
-## 7. Stage 0 and boot (chapter 6)
+## 7. Stage 0 and boot (chapters 6, 16)
 
-Stage 0 is **a frozen realization of the boot graph** — ordinary native nodes
-whose parsing, planning, and instantiation happened at build time (a Nix
-derivation; provenance continues into the flake lock). Its irreducible
-property is pre-existence. It decodes the header, parses, looks up the
-registry, plans naively, ticks naively, swaps-and-migrates slots, resolves
-hashes naively, stashes the platform context — then spawns the engine graph
-and parks as the one tower level that cannot be edited away. Platform entry
-is a <10-line trampoline; stage-0 logic never branches on platform.
+The core, ratcheted to its floor (ADR-028): **the escapement** (node
+contract + tick — the only unconditional substrate; a sealed firmware is
+escapement + a frozen **movement**), **the crown** (mutable plan + one op
+applier + an inlet — the minimal self-modification, fed at boot by a **tape**
+of op records, no parser needed), and **complications** — everything else,
+including the bootloader's own organs, present only by tape choice. Stage 0
+is a frozen realization of that boot tape (a Nix derivation; provenance into
+the flake lock); its irreducible property is pre-existence. It spawns the
+engine graph and parks as the one supervisor that cannot be edited away.
+Platform entry is a <10-line trampoline (including `import sygaldreye`);
+stage-0 logic never branches on platform.
 
 ## 8. Capabilities, mesh, trust (chapters 7–8)
 
@@ -166,14 +169,23 @@ rides the plugin channel under provenance policy.
 | 2 | Data, naming, kinds, types | NAM |
 | 3 | Store, commit, availability | STO |
 | 4 | Execution: plans, regions, mappings, executors | EXE |
-| 5 | Compilation, tower, projection editing | CMP |
+| 5 | Compilation, tower, projection editing, freezing | CMP / FRZ |
 | 6 | Stage 0 and boot | SZ |
 | 7 | Capability packages | PKG |
 | 8 | Mesh and trust | MSH |
 | 9 | Editor and documents | EDR |
 | 10 | Laws ↔ requirements traceability | LAW / N |
+| 11 | The language core | LNG |
+| 12 | Node authoring & conformability | AUT |
+| 13 | The native contract | ABI |
+| 14 | Formats & wire protocols | FMT |
+| 15 | Time, concurrency, memory, faults | TCF |
+| 16 | The Core (escapement · crown · complications) | COR |
+| 17 | Conformance & evolution | CNF |
+| A | The greenfield build order | — |
 
 Each part chapter gives context, design, **enumerated requirements**
 (`XXX-n`), **acceptance criteria** (`XXX-n.m`, phrased to become automated
-tests), and worked examples. Chapter 10 states the fundamental needs (`N1–N8`)
-and laws (`L1–L17`) and maps every requirement to them.
+tests), and worked examples. Chapter 10 states the fundamental needs
+(`N1–N8`) and laws and maps every requirement to them. ADR-013…028 (the
+greenfield session, 2026-07-03/04) govern throughout.

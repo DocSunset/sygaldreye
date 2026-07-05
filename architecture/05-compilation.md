@@ -87,13 +87,10 @@ end-to-end (composition of CMP-2's map with EXE-5's migration).
 - CMP-7.1: while sounding, add noise0 to hello-cosine, re-compile, swap:
   osc0's phase continuous; latch state preserved.
 
-**CMP-8 (migration path fidelity).** The strangler sequence holds: generated
-per-target registration TU → wrap build_plan as one `compile` node
-(receive → compile → realize) → retrofit AudioRegion as the first package →
-stage-0 extraction → declare extension ports → XR package → web → factor the
-`compile` monolith into engine vocabulary.
-- CMP-8.1: after step 2, behavior is bit-identical to the pre-tower system on
-  the full existing test suite (semantically the current system, new shape).
+**CMP-8 (RETIRED 2026-07-04).** The strangler migration path assumed
+refactoring the probe; the ratified greenfield build (appendix,
+18-appendix-greenfield.md) supersedes it. The probe is reference and
+salvage, never migrated. Kept as a numbered tombstone so citations resolve.
 
 ## Freezing (FRZ)
 

@@ -1,102 +1,87 @@
 # Chapter 6 — Stage 0 and boot (SZ)
 
-*A builder implementing this chapter delivers: the frozen kernel, the
-per-target trampolines and generated registration TU, the embedded boot graph,
-and the boot sequence into stage 1.*
+*Rewritten 2026-07-04 for ADR-028. A builder implementing this chapter
+delivers: the escapement, the crown, the per-target trampolines and
+generated registration TU, the boot tape, and the climb to a live peer.*
 
 ## Design
 
-Stage 0 is **a frozen realization of the boot graph**: ordinary native nodes
-whose parsing, planning, and instantiation happened at *build time* (a Nix
-derivation — provenance continues below stage 0 into the flake lock; fiat
-retreats to the toolchain/physics boundary). Its one irreducible property is
-**pre-existence**: something must already be running before anything can be
-derived at runtime. Everything it contains is a node; nothing about it is
-special except *when* it was derived. Per the freezer doctrine it carries its
-source (boot graph + native manifest) for unfreezing/regeneration.
+**Stage 0 is a frozen realization** — ordinary nodes whose instantiation
+happened at build time (a Nix derivation; provenance to the flake lock;
+fiat retreats to the toolchain/physics boundary). Its one irreducible
+property is pre-existence. Composition, by stratum (ch. 16):
 
-Capability manifest (what the frozen graph must contain nodes for):
+- **The escapement**: node contract + tick-in-order. All any target must
+  contain. A sealed firmware is escapement + **movement** (frozen graph),
+  full stop.
+- **The crown**: the plan as mutable data + one applier primitive (ops at
+  tick boundaries) + an op inlet. The minimal self-modification; omitted on
+  sealed movements.
+- **The boot tape**: the boot "graph" as a flat sequence of fixed-format op
+  records the crown replays (a graph ≡ its building ops, ADR-018) — no
+  parser, codec, or resolver required to reach a running, modifiable peer.
+- **Linked liveness organs** (per target, by the generated registration
+  TU): parser, codec, naive resolver, registry-face, ref, subgraph, slot,
+  reflection, query four — nodes like all nodes, instated by the tape when
+  the target wants liveness (ch. 16 stratum 3).
+- **The platform stash**: opaque; only platform natives read it; entry
+  symbols are <10-line trampolines (main / android_main / emscripten /
+  `import sygaldreye` — ADR-019 made the module loader a trampoline too).
 
-1. header decode — the one deliberately non-self-describing layer
-   (multiformats convention, compiled in);
-2. parse (bytes-of-kind-graph → instances);
-3. registry lookup (name → native; populated by the CMake-generated
-   per-target registration TU — loud link failure, readable manifest);
-4. naive plan (flat; links → pointers, topological order);
-5. naive tick (free-running; enough for the control-rate engine graph);
-6. slot swap+migrate (the exec/spawn primitive);
-7. dataset payload (kind + data + provenance reference — graph is the first
-   kind) with primitive query/transform natives;
-8. naive resolver (hash → bytes in the local object directory; independently
-   invokable forever — the debugger of last resort, kept native by policy);
-9. opaque platform-context stash (only platform natives read it).
+**Invariant unchanged**: stage-0 logic never branches on platform;
+per-target variance lives only in trampoline, registration TU, and tape.
 
-**Invariant: stage-0 logic never branches on platform.** Per-platform boot
-graphs and per-target registries are acceptable; entry symbols (main /
-android_main / emscripten) are <10-line trampolines handing the stash to the
-same bootloader. NOT in stage 0: HTTP, files-as-API, GL/XR/audio, store,
-selection logic, region rules — all packages.
-
-**Boot sequence.** Trampoline → stage 0 ticks the embedded boot graph → spawns
-the engine graph into a slot and **parks** as resident fallback (restart
-policy; the one tower level that cannot be edited away) → engine graph
-observes the environment, splices available capability packages (ordinary
-edits into its fan-ins), receives app graphs from instruction sources
-(cli-args stash, http node, ws/peer links, embedded constant), compiles,
-realizes. PeerCore dissolves: registry → stage 0; swap/queues → slot
-machinery; HTTP, mdns, values/probe, screenshots → package nodes. Frozen
-programs bypass the bootloader by design.
+**Boot sequence** (hosted default): trampoline → escapement ticks → crown
+replays the tape → tape instates the liveness organs and a supervisor
+subgraph → spawns the engine graph (data: `receive → compile → realize`)
+into a slot and parks as fallback (the supervision base case, ADR-016) →
+the engine observes the environment, splices capability packages through
+its fan-ins, receives graphs from instruction sources, compiles, realizes.
+Hosted default tapes include the testimony buffer + death-watch nodes;
+freestanding tapes omit them (ADR-016). Frozen movements bypass all of
+this by design; ultimately the codegen backend applied to the boot tape
+IS how stage 0 is built (ADR-014/027).
 
 ## Requirements
 
-**SZ-1 (platform invariance).** One stage-0 compilation unit set, zero
-platform conditionals; per-target variance only in trampoline, registration
-TU, and embedded boot graph.
-- SZ-1.1: grep gate in CI: no `#ifdef` / platform branch in stage-0 sources.
-- SZ-1.2: the same stage-0 object code (per-arch) links into host, Quest, and
-  web targets.
+**SZ-1 (platform invariance).** No platform conditionals in escapement,
+crown, or organ sources; per-target variance only in trampoline, TU, tape.
+- SZ-1.1: CI grep gate. SZ-1.2: same object code (per-arch) links into
+  host, Quest, and web targets.
 
-**SZ-2 (generated registration).** The per-target TU is generated from the
-build graph; adding a node type is one file + build entry; omission is a link
-error naming the symbol.
-- SZ-2.1: deleting a node type's object from the target breaks the link with
-  a readable message (not a runtime lookup miss).
-- SZ-2.2: the three hand-maintained lists (host 106 / quest 92 / web 41
-  register calls) are gone; the palette equals the generated manifest.
+**SZ-2 (generated registration).** The TU is generated; omission is a loud
+link error; the palette equals the manifest.
+- SZ-2.1: deleting a native's object breaks the link naming the symbol.
 
-**SZ-3 (naive resolver).** hash → bytes with verification; no dependency on
-any package; callable from a debug shell even when stage 1 is wedged.
-- SZ-3.1: with the store package deliberately broken, stage 0 still resolves
-  and boots the embedded boot graph and can load a graph by hash from the
-  object directory.
+**SZ-3 (naive resolver, hosted default).** hash → bytes with verification;
+no dependency on any package; independently invokable when stage 1 is
+wedged (the debugger of last resort).
+- SZ-3.1: with the store package broken, the resolver still loads a graph
+  by hash from the object directory.
 
-**SZ-4 (frozen-with-provenance).** The stage-0 artifact embeds (or links by
-hash to) its boot graph source and native manifest; a tool regenerates the
-frozen kernel from them via the Nix derivation.
-- SZ-4.1: `unfreeze(stage0-binary)` recovers boot graph JSON + manifest;
-  `nix build` from them reproduces a bit-identical kernel (or
-  provenance-equal, where toolchain nondeterminism is documented).
+**SZ-4 (frozen-with-provenance).** The stage-0 artifact links its tape +
+native manifest by hash; regeneration via the Nix derivation reproduces it
+(or provenance-equal where the toolchain is honest about nondeterminism —
+ADR-021 platform-exact).
+- SZ-4.1: `unfreeze(stage0)` recovers tape + manifest; rebuild compares.
 
-**SZ-5 (spawn-and-park).** Stage 0 remains resident; engine-graph crash
-triggers restart per policy; stage 0 itself is not editable at runtime.
-- SZ-5.1: kill the stage-1 slot 100×; stage 0 restarts it each time; device
-  audio glitches are bounded to the swap window.
-- SZ-5.2: an edit addressed at stage 0's own graph is rejected with a clear
-  error (the fallback cannot be edited away).
+**SZ-5 (spawn-and-park).** The parked fallback restarts stage 1 per its
+wired policy; stage 0's own graph rejects runtime edits.
+- SZ-5.1: kill stage 1 100×; restart each time; SZ-5.2: edits addressed at
+  stage 0 refused with a clear error.
 
-**SZ-6 (trampolines).** Each platform entry ≤10 lines: gather stash, call
-bootloader.
-- SZ-6.1: line-count gate in CI on the three entry files.
+**SZ-6 (trampolines).** ≤10 lines each; CI line-count gate.
 
-**SZ-7 (boot without store).** A peer with an empty object directory boots to
-a running engine graph from embedded data alone.
-- SZ-7.1: fresh-install boot on all three targets reaches "engine graph
-  ticking" with no network and no prior state.
+**SZ-7 (boot without store).** Empty object directory → live engine graph
+from embedded tape alone, all targets.
 
-## Worked example (test seed)
+**SZ-8 (the ladder, ADR-028).** Escapement + crown + tape reaches full
+liveness with zero code paths outside op application (= COR-2); a
+crownless movement build passes movement-level conformance only (CNF-3).
 
-Cold-boot trace on host: trampoline (≤10 lines) → stage 0 ticks boot graph →
-spawn engine slot → engine splices audio package (observes device) → receives
-hello-cosine via cli-args stash → compiles → realizes → sound. Assert order of
-phases via probe log; then SZ-5.1's crash-restart loop while hello-cosine
-re-arrives from the embedded instruction source.
+## Worked example
+
+Cold boot on host: trampoline → escapement → crown replays tape → organs +
+supervisor instated → engine slot spawned → audio package spliced (device
+observed) → hello-cosine arrives via cli-args stash → compiled → realized →
+sound. Probe log asserts phase order; then SZ-5.1's crash-restart loop.

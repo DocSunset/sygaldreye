@@ -297,6 +297,35 @@ decompose C++ (or any corpus) into the document form by
 transclusion-to-the-limit and regenerate it byte-identically; every permissive
 codebase is a unit test for the medium.
 
+## The greenfield stratum (ADR-013…028, 2026-07-03/04)
+
+**escapement** — the node contract + tick-in-order: the only unconditional
+substrate; a calling convention and a for-loop. **movement** — a frozen,
+flattened, realized graph the escapement ticks; a sealed firmware is
+escapement + movement. **crown** — the minimal self-modification: the plan
+as mutable data + one op-applier primitive (at tick boundaries) + an op
+inlet. **complication** — everything else, including the liveness organs
+(parser, codec, resolver, registry-face, slot, subgraph, ref, reflection,
+query four, the seven mapping definitions): core-named where uncomposable,
+present only by tape choice. **boot tape** — the boot graph as flat op
+records replayed by the crown (a graph ≡ its building ops). **per-sample
+island** — a cycle executed sample-interleaved; default z⁻¹ = one sample
+(ADR-013). **discipline** — one of the three closed semantic categories
+(event push · value dirty-push/demand-pull · stream clocked); cadence is a
+clock, and clocks are open executor outputs (ADR-015/020). **determinism
+class** — a derivation's reproducibility promise: exact · platform-exact ·
+approximate · nondeterministic (ADR-021). **op log / op tree** — history as
+attributed, inverse-carrying edit ops; gestures are transactions; the tree
+never discards; linearity is a view (ADR-018). **lock** — a graph's
+vocabulary map (name → type CID); upgrades are one link swap (ADR-026).
+**succession** — how anything evolves: nodes are succeeded, never mutated;
+migrations are lazy derivations; compatibility is reachability (ADR-025).
+**arbiter** — the one op queue per live instance; arrival order is the
+order (ADR-023). **quarantine tier** — fresh plugins realize in subprocess
+regions until trust promotes them (ADR-016). **conformance profiles** —
+movement-level (behavioral) and peer-level (protocol); the suite is the
+system's definition, written in the system (ADR-026/027).
+
 ## Retired / quarantined prose
 
 **entity** = node · **occurrence** = instance · **contents** = data as a

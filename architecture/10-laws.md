@@ -91,6 +91,21 @@ Derived from `planning/vision.md` and the dream it serves.
 - **L14 (Ports and wiring).** Engine extension points are published ports;
   packages wire in; order is wiring, visible as structure.
 
+**Greenfield (ADR-013…028)**
+
+- **L18 (The ratchet).** The core only shrinks: admission requires a
+  no-composition proof (ch. 16); presence is always a tape choice; nothing
+  is imposed, all the way down.
+- **L19 (Errors are values; failure is death).** Noexcept by default;
+  declared fault outputs; promise-breaking kills the containment unit;
+  supervision policy is wiring; detection is demand-driven overlay.
+- **L20 (Succession).** Nodes are succeeded, never mutated; migrations are
+  lazy derivations; compatibility is reachability; nothing is ever forced
+  to rewrite.
+- **L21 (The suite is the system).** Conformance defines sygaldreye; the
+  suite is written in the system; blessing is testimony; the candidate is
+  a peer.
+
 **Mesh**
 
 - **L15 (Advertisement is permission).** Placement is pull-shaped; a peer
@@ -208,6 +223,14 @@ Association, requirement → laws → needs:
 | EDR-6 | L2, L7 | N7 |
 | EDR-7 | L15 | N4, N8 |
 | EDR-8 | L8 | N4, N6 |
+| ABI-1…5 | L3, L7, L19, L20 | N2, N6, N8 |
+| FMT-1…5 | L2, L7 | N3, N5, N6 |
+| TCF-1…5 | L8, L9, L19 | N6, N1 |
+| COR-1…4 | L6, L11, L18 | N2, N6 |
+| CNF-1…5 | L7, L20, L21 | N5, N6, N2 |
+
+*(New-chapter requirements are traced at chapter granularity; per-item rows
+join as the conformance suite (CNF-1) materializes them as test datasets.)*
 
 Reading the table backward answers "why does this requirement exist": every
 row terminates in the needs, and every need traces to the vision. A proposed

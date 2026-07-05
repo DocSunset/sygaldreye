@@ -48,55 +48,25 @@ Treat all warnings as errors, even if the compiler or linter does not. Fix them 
 
 # Goal
 
-TODO
+Sygaldreye: a protocol for encoding recursive metadata and decoding data to
+derive other data — grounded in stage 0, paced by executors, shared by a
+mesh, terminating in someone's senses. Near-term: a live-patchable
+audio/visual/XR environment across Linux host, Quest 3, and browser peers.
+Far-term: the hypermedium (see `planning/vision.md`).
 
-# Intended Architecture
+# Architecture — where truth lives
 
-The app is a native Android VR application for Meta Quest 3. It runs as a `NativeActivity` using `native_app_glue` from the NDK. XR is managed via the OpenXR API using Meta's OpenXR Mobile SDK. Graphics use OpenGL ES 3.2 / EGL via the `XR_KHR_opengl_es_enable` extension binding. Math uses Eigen.
-
-## Packages
-
-### `platform`
-
-Android entry point. Owns the `NativeActivity` lifecycle and the OpenXR instance and system. Feeds OS events and the XR instance into the rest of the app. No dependency on scene or rendering logic.
-
-Components: `app`
-
-### `xr`
-
-OpenXR session management, frame loop, and input. Drives the per-frame predict/wait/begin/end cycle. Exposes rendered-layer submission and action-set input to other packages.
-
-Depends on: `platform`
-
-Components: `xr_session`, `input`
-
-### `render`
-
-OpenGL ES context (via EGL), swapchain management, and draw calls. Receives projection layer geometry from `xr` and scene content from `scene`.
-
-Depends on: `xr`, `platform`
-
-Components: `renderer`
-
-### `scene`
-
-Application content: geometry, transforms, game logic. No direct dependency on XR or rendering internals — communicates via well-defined ports.
-
-Depends on: nothing above this layer
-
-Components: TBD
-
-## Data flow (per frame)
-
-```
-platform (NativeActivity events)
-    └─► xr_session: xrWaitFrame / xrBeginFrame
-            ├─► input: poll OpenXR action sets → scene
-            └─► renderer: submit projection layers → xrEndFrame
-                    └─► scene: provide draw calls
-```
-
-Architectural evolution should be documented in `adr.md`.
+- **`architecture/` — the book.** The sole design document: glossary,
+  overview, part chapters with enumerated requirements and acceptance
+  criteria, the laws, the greenfield build order. Read its README first.
+- **`adr.md`** — ratified decisions (ADR-001…005 are probe-era platform
+  choices; ADR-006…028 are the current design). Architectural evolution is
+  recorded there and reflected in the book in the same commit.
+- **`planning/lexicon.md`** — the terminology ledger (one name per concept;
+  form vs function; retired prose is binding).
+- **The code under `components/`, `app/`, `sh/` is the DEPRECATED DESIGN
+  PROBE**: reference and salvage (see the book's appendix), never migrated.
+  Its bug cards in `kanban/` are probe-scoped.
 
 # Workflow
 

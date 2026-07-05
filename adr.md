@@ -1,5 +1,9 @@
 # Architecture Decision Record
 
+*ADR-001…005 are PROBE-ERA platform choices (still true of the deprecated
+design probe; open for revisit in the greenfield build, per the book's
+appendix). ADR-006…028 are the current design.*
+
 ## ADR-001: Target platform is Meta Quest 3
 
 Native Android (arm64), no game engine.

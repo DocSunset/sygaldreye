@@ -79,3 +79,26 @@ running before anything can be derived at runtime). Freezing's fixed point: the
 bootloader is itself a frozen program, provenance carried, its build-time
 derivation a Nix derivation — fiat retreats to the toolchain/physics boundary
 [joint: user's demolition, my synthesis]. bootloader.md updated.
+
+## 2026-07-04 21:30
+
+The greenfield run: sixteen ADRs (013–028) in two days, closing every
+discussion item and gap from the "reimplement from scratch" audit. The
+recurring event — gaps *dissolving into packages* (transport, companion,
+faults) because the core already carried them — became the day's quality
+signal, and Travis kept catching my over-engineering: the override dataset
+(dead), universal fault wrappers (dead — "code should be no-except by
+default… ew" [user]), the imposed testimony buffer (demoted to boot-graph
+choice) [user]. His generalizations kept widening mine: kind evolution →
+node succession [user]; "kinds are just nodes" again. The capstone arc:
+perpetual greenfield [user question] → self-hosting closure ("can the core
+be built on top of itself?" [user] — yes, ADR-014 assembled) → ratcheting
+the core, where his firmware instinct ("you might not need slot, subgraph,
+reflection — just a frozen graph ticked forever" [user]) collapsed my
+"seed" into vocabulary and left a core of two things. Then the naming
+session horology handed us: **escapement** (contract + loop), **movement**
+(frozen graph), **crown** (mutable plan + op applier + inlet — and the boot
+graph became a boot TAPE, no parser at rung one), **complications**
+(everything else, chosen never imposed) [joint; "movement" was his].
+Quotable: "it's data flowing through graphs all the way down to the
+trampoline sitting on the ground" [user]. ADR-028 closed the arc.

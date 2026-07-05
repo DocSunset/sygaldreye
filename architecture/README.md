@@ -18,14 +18,22 @@ automated tests.
 | 7. Capability packages (PKG) | 07-capability-packages.md |
 | 8. Mesh & trust (MSH) | 08-mesh-trust.md |
 | 9. Editor & documents (EDR) | 09-editor-documents.md |
-| 10. The Law (needs N1–N8, laws L1–L17, traceability) | 10-laws.md |
+| 10. The Law (needs N1–N8, laws, traceability) | 10-laws.md |
 | 11. The language core (LNG) | 11-language-core.md |
 | 12. Node authoring & conformability (AUT) | 12-authoring-conformability.md |
+| 13. The native contract (ABI) | 13-native-contract.md |
+| 14. Formats & wire protocols (FMT) | 14-formats-protocols.md |
+| 15. Time, concurrency, memory, faults (TCF) | 15-time-concurrency-faults.md |
+| 16. The Core (COR) — escapement · crown · complications | 16-the-core.md |
+| 17. Conformance & evolution (CNF) | 17-conformance-evolution.md |
+| A. The greenfield build order | 18-appendix-greenfield.md |
 
-(Chs. 11–12 and ch. 5's FRZ section added 2026-07-03 after the coverage
-audit: the book covers everything that is part of the graph language, not
-every node. Freezing requirements live in ch. 5; per-sample feedback islands
-are ADR-013, in ch. 4.)
+The book was consolidated 2026-07-04: it is now the SOLE design document —
+the pre-book planning docs were folded in and removed (git history keeps
+them). ADR-013…028 (the greenfield session) govern; where an older chapter
+sentence and an ADR disagree, the ADR wins and the sentence is a bug. The
+probe under components//app/ is a deprecated design probe: reference and
+salvage (see the appendix), never migrated.
 
 Reading order: 0 → 1 → your part → 10. The running example everywhere is
 **hello-cosine** (defined in ch. 1 §2). Sources of truth this book distills:

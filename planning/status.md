@@ -2,6 +2,29 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-07-04 — The greenfield session + the great consolidation
+
+ADR-013…028 ratified over two days: per-sample islands, freezing as a
+realize backend, rate-keyed execution semantics (push/pull/clocked), the
+fault model (errors are values; failure is death; handling is a package),
+two-lane encoding with generated codecs and open projections, op-tree
+history, one-core-many-hosts (Python/JS as trampolines), three disciplines
+forever, determinism classes, QoS placement + posed edges, multi-writer
+(arbiter + merge-as-derivation), queries-as-graphs (core), node succession,
+perpetual greenfield (locks, conformance-as-definition, core ratchet), the
+self-hosting closure, and the horology: **escapement · movement · crown ·
+complications** (ADR-028). Several gaps dissolved into package sketches
+(transport, companion — kanban/backlog).
+
+The book grew chs. 13–17 + the greenfield-build-order appendix and was
+retrofitted throughout; it is now the SOLE design document. Superseded
+planning docs (bootloader, datasets, naming, trust, rhizome, edge_executor,
+kernel/lifting/render docs, subgraph, network_bridge, handoff, sprints) and
+the incomplete concurrency notes were consolidated in and git-removed —
+git history keeps them. AGENTS.md's architecture section now points at the
+book; the probe is officially reference-and-salvage. Strangler path (CMP-8)
+retired in favor of the appendix's greenfield rungs.
+
 ## 2026-07-03 — The Architecture Book (architecture/)
 
 Eleven chapters distilling the ratified design for implementers and builder
