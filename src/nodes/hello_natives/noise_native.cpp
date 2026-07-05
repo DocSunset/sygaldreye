@@ -1,6 +1,8 @@
 // clause: floor — white-noise kernel native (synth_core's xorshift)
 #include "crown.hpp"
 
+#include "native_ports.hpp"
+
 #include "synth_core/synth_core.hpp"
 
 namespace syg::nodes {
@@ -23,6 +25,6 @@ const syg::crown::native_type noise_native{
     "noise", [] { return static_cast<void*>(new noise_state()); },
     [](void* s) { delete static_cast<noise_state*>(s); },
     [](void*, const char*, double) {}, [](void*, const char*, const char*) {},
-    noise_process, {}, {"out"}};
+    noise_process, syg::generated::noise_in_ports, syg::generated::noise_out_ports};
 
 }  // namespace syg::nodes

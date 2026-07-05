@@ -2,6 +2,8 @@
 // stamp exists)
 #include "crown.hpp"
 
+#include "native_ports.hpp"
+
 namespace syg::nodes {
 namespace {
 
@@ -16,6 +18,6 @@ extern const syg::crown::native_type add_native;
 const syg::crown::native_type add_native{
     "add", [] { return static_cast<void*>(nullptr); }, [](void*) {},
     [](void*, const char*, double) {}, [](void*, const char*, const char*) {},
-    add_process, {"a", "b"}, {"out"}};
+    add_process, syg::generated::add_in_ports, syg::generated::add_out_ports};
 
 }  // namespace syg::nodes

@@ -8,6 +8,14 @@
 
 namespace syg::crown {
 
+// A port declaration with its promises (generated from the endpoints
+// struct — AUT-3; the crown reads names, the executor reads promises).
+struct port_decl {
+  const char* name;
+  const char* kind;
+  const char* discipline;
+};
+
 // A linked native: what the registration TU provides. The crown never
 // looks inside; it only instantiates, wires, and parameterizes.
 struct native_type {
@@ -17,7 +25,7 @@ struct native_type {
   void (*set_num)(void*, const char* port, double v);
   void (*set_text)(void*, const char* port, const char* v);
   escapement::node::process_fn process;
-  std::vector<const char*> in_ports, out_ports;
+  std::vector<port_decl> in_ports, out_ports;
 };
 
 // One op record (the five appliers; the tape and every editor speak this).

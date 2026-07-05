@@ -2,6 +2,8 @@
 // this TU's symbol; omitting the object is a loud link error — SZ-2)
 #include "crown.hpp"
 
+#include "native_ports.hpp"
+
 #include <cstring>
 
 #include "ugens/ugens.hpp"
@@ -21,6 +23,7 @@ const syg::crown::native_type lfo_native{
     "lfo",
     [] { return static_cast<void*>(new lfo_state{{0.0f, 440.0f, 48000.0f}, 1.0f}); },
     [](void* s) { delete static_cast<lfo_state*>(s); },
-    lfo_set_num, lfo_no_text, lfo_process, {}, {"out"}};
+    lfo_set_num, lfo_no_text, lfo_process,
+    syg::generated::lfo_in_ports, syg::generated::lfo_out_ports};
 
 }  // namespace syg::nodes

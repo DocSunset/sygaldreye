@@ -79,9 +79,9 @@ void plan::apply(const op& o) {
 
 // Re-derive the escapement wiring from the mutable table (control-rate work).
 void plan::rewire() {
-  auto find_port = [](const std::vector<const char*>& ports, const std::string& p) {
+  auto find_port = [](const std::vector<port_decl>& ports, const std::string& p) {
     for (size_t i = 0; i < ports.size(); ++i)
-      if (p == ports[i]) return i;
+      if (p == ports[i].name) return i;
     throw std::runtime_error("no port: " + p);
   };
   for (auto& [id, inst] : instances_) {
@@ -115,7 +115,7 @@ const float* plan::input_buffer(const std::string& id,
                                 const std::string& port) const {
   const auto& inst = instances_.at(id);
   for (size_t i = 0; i < inst->type->in_ports.size(); ++i)
-    if (port == inst->type->in_ports[i]) return inst->ins[i];
+    if (port == inst->type->in_ports[i].name) return inst->ins[i];
   throw std::runtime_error("no port: " + id + "/" + port);
 }
 
