@@ -1,8 +1,19 @@
-name
-parser · codec · naive resolver · registry-face · loader
+codec
+filter
+fixpoint
+join
+latch
+naive resolver
+net
+parser
+probe
+queue
 ref
 reflection seam
+registry-face
+ring
 slot
+snapshot
 subgraph
-traverse · filter · join · fixpoint
-z⁻¹ · latch · snapshot · queue · ring · net · probe
+traverse
+z⁻¹

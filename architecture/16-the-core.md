@@ -49,7 +49,7 @@ liveness organs a live peer's tape instates:
 | reflection seam | a node seeing its enclosing graph (context injection) |
 | traverse · filter · join · fixpoint | the query four (ADR-024) |
 | z⁻¹ · latch · snapshot · queue · ring · net · probe | the seven mapping *definitions* — their guarantees are core semantics (TCF-1); implementations ride executors |
-| parser · codec · naive resolver · registry-face · loader | the decode organs: each crosses data↔machinery, which composition cannot |
+| parser · codec · naive resolver · registry-face | the decode organs: each crosses data↔machinery, which composition cannot |
 
 Nineteen names. Everything else in the universe — every executor, every
 kind in the catalog (data!), the engine pipeline (data!), math, the store,

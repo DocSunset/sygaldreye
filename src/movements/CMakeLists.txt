@@ -4,3 +4,7 @@ add_library(syg_movements
   ../nodes/ugens/ugens.cpp)
 target_include_directories(syg_movements PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR} ../escapement ../nodes)
+
+add_executable(hello-cosine-movement ../trampoline/host_main.cpp)
+target_link_libraries(hello-cosine-movement PRIVATE syg_movements)
+set_target_properties(hello-cosine-movement PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
