@@ -12,6 +12,7 @@
 #include "pins/pins.hpp"
 #include "dagcbor/dagcbor.hpp"
 #include "naming_session.hpp"
+#include "hello_cosine/hello_cosine.hpp"
 #include "oracle/oracle.hpp"
 
 namespace {
@@ -84,6 +85,30 @@ int cmd_connection_legal() {
   return 0;
 }
 
+void stdout_sink(void*, const float* block, int n) {
+  std::fwrite(block, sizeof(float), static_cast<std::size_t>(n), stdout);
+}
+
+int cmd_render_movement(const std::string& fixture, double seconds) {
+  if (fixture != "hello-cosine")
+    throw std::runtime_error("unknown movement fixture: " + fixture);
+  int frames = static_cast<int>(seconds * syg::movements::hello_cosine_rate);
+  syg::movements::render_hello_cosine(frames, stdout_sink, nullptr);
+  return 0;
+}
+
+int cmd_tick_audit() {
+  // NAM-5.4: tick the frozen movement with the naming instrumentation live.
+  long before = syg::naming::lookup_count();
+  int frames = syg::movements::hello_cosine_rate;  // one second of ticks
+  syg::movements::render_hello_cosine(
+      frames, [](void*, const float*, int) {}, nullptr);
+  nlohmann::json out{{"ticks", frames},
+                     {"lookups", syg::naming::lookup_count() - before}};
+  std::cout << out.dump() << "\n";
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -126,6 +151,9 @@ int main(int argc, char** argv) {
     if (cmd == "verify" && argc > 2) return cmd_verify(argv[2]);
     if (cmd == "chunk-put") return cmd_chunk_put();
     if (cmd == "connection-legal") return cmd_connection_legal();
+    if (cmd == "render-movement" && argc > 3)
+      return cmd_render_movement(argv[2], std::stod(argv[3]));
+    if (cmd == "tick-audit") return cmd_tick_audit();
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

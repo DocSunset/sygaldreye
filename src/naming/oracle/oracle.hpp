@@ -16,4 +16,7 @@ struct verdict {
 // The one first-order oracle (NAM-5): edit-time only, never on a tick path.
 verdict connection_legal(const promise& from, const promise& to);
 
+// Instrumentation (NAM-5.4): total lookups since process start.
+long lookup_count();
+
 }  // namespace syg::naming
