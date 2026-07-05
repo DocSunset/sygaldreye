@@ -4,6 +4,15 @@ WORK IN PROGRESS!
 
 A dataflow authoring environment for empowering humans to understand, explore, and play with computation.
 
+**Repository layout** (since the 2026-07 greenfield ratification):
+`architecture/` — the book, the sole design document (start at its README) ·
+`adr.md` — ratified decisions · `planning/` — vision, lexicon, status ·
+`kanban/` — work items · `probe/` — the complete pre-greenfield
+implementation, preserved as a deprecated design probe (reference and
+salvage; build it from inside `probe/`). The feature bullets below describe
+what the probe demonstrated and the greenfield rebuilds on the ratified
+design.
+
 - (Almost) everything is a node in a dataflow graph, including the graph editor, and also the graph itself
 - Natively supports audio and graphics patching
 - The graph transparently spans across heterogenous peer devices over the local area network

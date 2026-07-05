@@ -2,7 +2,7 @@
 
 *The dependency order for building sygaldreye from an empty repository. Each
 rung's gate is its slice of the conformance suite (ch. 17); no rung starts
-until the previous rung's gate is green. The probe (`components/`, `app/`)
+until the previous rung's gate is green. The probe (siloed under `probe/`)
 is a deprecated design probe: mined for kernels, tests, and golden outputs;
 never migrated.*
 

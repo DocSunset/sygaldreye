@@ -30,14 +30,14 @@ Treat all warnings as errors, even if the compiler or linter does not. Fix them 
 - Packages are groups of components
 - A package should have a `package_name.design.md` document that lists the other packages that components in the package are allowed to depend on.
 
-# Tooling
+# Tooling (probe-scoped — run from inside `probe/`)
 
 - Prefer Nix as package manager for bringing in external dependencies
-- `sh/build.sh [--clean]`: build the application
-- `sh/format.sh [--check]`: auto-formatter
-- `sh/lint.sh`: static analyzers
-- `sh/test.sh`: build test binaries, push to a connected Quest 3 via adb, and run them on-device
-- `sh/run.sh [args]`: run the application interactively
+- `probe/sh/build.sh [--clean]`: build the probe
+- `probe/sh/format.sh [--check]`: auto-formatter
+- `probe/sh/lint.sh`: static analyzers
+- `probe/sh/test.sh`: build test binaries, push to a connected Quest 3 via adb, and run them on-device
+- `probe/sh/run.sh [args]`: run the probe interactively
 
 ## Testing
 
@@ -64,9 +64,10 @@ Far-term: the hypermedium (see `planning/vision.md`).
   recorded there and reflected in the book in the same commit.
 - **`planning/lexicon.md`** — the terminology ledger (one name per concept;
   form vs function; retired prose is binding).
-- **The code under `components/`, `app/`, `sh/` is the DEPRECATED DESIGN
-  PROBE**: reference and salvage (see the book's appendix), never migrated.
-  Its bug cards in `kanban/` are probe-scoped.
+- **`probe/` is the DEPRECATED DESIGN PROBE** (the entire pre-greenfield
+  implementation: components, apps, scripts, assets, its flake): reference
+  and salvage (see the book's appendix), never migrated. Its bug cards in
+  `kanban/` are probe-scoped. Build/run it from inside `probe/`.
 
 # Workflow
 

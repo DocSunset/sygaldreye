@@ -1,5 +1,6 @@
-build
-worktree
+probe/build
+probe/worktree
 .claude/worktrees/
-.venv-melotts
-assets/models/
+probe/.venv-melotts
+probe/assets/models/
+probe/result

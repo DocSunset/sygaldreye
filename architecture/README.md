@@ -32,7 +32,7 @@ The book was consolidated 2026-07-04: it is now the SOLE design document —
 the pre-book planning docs were folded in and removed (git history keeps
 them). ADR-013…028 (the greenfield session) govern; where an older chapter
 sentence and an ADR disagree, the ADR wins and the sentence is a bug. The
-probe under components//app/ is a deprecated design probe: reference and
+probe under `probe/` is a deprecated design probe: reference and
 salvage (see the appendix), never migrated.
 
 Reading order: 0 → 1 → your part → 10. The running example everywhere is
