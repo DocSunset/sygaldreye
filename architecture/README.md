@@ -27,6 +27,7 @@ automated tests.
 | 16. The Core (COR) — escapement · crown · complications | 16-the-core.md |
 | 17. Conformance & evolution (CNF) | 17-conformance-evolution.md |
 | A. The greenfield build order | 18-appendix-greenfield.md |
+| B. Genealogy — ancestors, organs, and the vocabulary map | 19-appendix-genealogy.md |
 
 The book was consolidated 2026-07-04: it is now the SOLE design document —
 the pre-book planning docs were folded in and removed (git history keeps
