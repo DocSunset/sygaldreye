@@ -143,3 +143,112 @@ bytes bytes_of_projection(const nlohmann::json& v) {
 }
 
 }  // namespace syg::formats
+
+namespace syg::formats {
+namespace {
+
+constexpr char b64_alphabet[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+std::string base64_encode(const std::uint8_t* p, std::size_t n) {
+  std::string out;
+  unsigned buf = 0, nbits = 0;
+  for (std::size_t i = 0; i < n; ++i) {
+    buf = buf << 8 | p[i];
+    nbits += 8;
+    while (nbits >= 6) {
+      nbits -= 6;
+      out.push_back(b64_alphabet[buf >> nbits & 0x3f]);
+    }
+  }
+  if (nbits) out.push_back(b64_alphabet[buf << (6 - nbits) & 0x3f]);
+  return out;
+}
+
+struct reader {
+  const std::uint8_t* p;
+  const std::uint8_t* end;
+  std::uint8_t byte() {
+    if (p >= end) throw std::runtime_error("truncated dag-cbor");
+    return *p++;
+  }
+  std::uint64_t arg(std::uint8_t head) {
+    std::uint8_t ai = head & 0x1f;
+    if (ai < 24) return ai;
+    int extra = ai == 24 ? 1 : ai == 25 ? 2 : ai == 26 ? 4 : ai == 27 ? 8 : -1;
+    if (extra < 0) throw std::runtime_error("indefinite length forbidden");
+    std::uint64_t v = 0;
+    for (int i = 0; i < extra; ++i) v = v << 8 | byte();
+    return v;
+  }
+  nlohmann::json value() {
+    std::uint8_t head = byte();
+    switch (head >> 5) {
+      case 0: return arg(head);
+      case 1: return -1 - static_cast<std::int64_t>(arg(head));
+      case 2: {
+        auto n = arg(head);
+        if (p + n > end) throw std::runtime_error("truncated bytes");
+        auto b64 = base64_encode(p, n);
+        p += n;
+        return {{"/", {{"bytes", b64}}}};
+      }
+      case 3: {
+        auto n = arg(head);
+        if (p + n > end) throw std::runtime_error("truncated string");
+        std::string s(reinterpret_cast<const char*>(p), n);
+        p += n;
+        return s;
+      }
+      case 4: {
+        auto n = arg(head);
+        auto out = nlohmann::json::array();
+        for (std::uint64_t i = 0; i < n; ++i) out.push_back(value());
+        return out;
+      }
+      case 5: {
+        auto n = arg(head);
+        auto out = nlohmann::json::object();
+        for (std::uint64_t i = 0; i < n; ++i) {
+          auto k = value();
+          if (!k.is_string()) throw std::runtime_error("non-string map key");
+          out[k.get<std::string>()] = value();
+        }
+        return out;
+      }
+      case 6: {
+        if (arg(head) != 42) throw std::runtime_error("only tag 42 exists");
+        auto inner = value();  // bytes escape: 0x00 + cid
+        auto raw = bytes_of_projection(inner);
+        if (raw.empty() || raw[0] != 0x00)
+          throw std::runtime_error("link without identity multibase prefix");
+        return {{"/", cid_to_text({raw.begin() + 1, raw.end()})}};
+      }
+      case 7:
+        if (head == 0xf6) return nullptr;
+        if (head == 0xf5) return true;
+        if (head == 0xf4) return false;
+        if (head == 0xfb) {
+          std::uint64_t u = 0;
+          for (int i = 0; i < 8; ++i) u = u << 8 | byte();
+          double d;
+          static_assert(sizeof d == sizeof u);
+          std::memcpy(&d, &u, sizeof d);
+          return d;
+        }
+        throw std::runtime_error("unsupported simple value");
+    }
+    throw std::runtime_error("unreachable");
+  }
+};
+
+}  // namespace
+
+nlohmann::json decode_to_projection(const std::vector<std::uint8_t>& bytes) {
+  reader r{bytes.data(), bytes.data() + bytes.size()};
+  auto v = r.value();
+  if (r.p != r.end) throw std::runtime_error("trailing bytes after value");
+  return v;
+}
+
+}  // namespace syg::formats
