@@ -2,6 +2,40 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-07-05 — Greenfield rung 1: 15/16 green (builder session 1)
+
+Construction began. Toolchain: root CMake + the flake (nlohmann_json;
+BLAKE3 reference C impl as a pinned flake input, portable lane). `./syg`
+(symlink → build/syg) implements, per HARNESS.md: encode, parse-address,
+pins, hash, verify, chunk-put, naming (scripted resolution session),
+connection-legal. Source layout: `src/formats/{pins,dagcbor,address,cid,
+chunk}`, `src/naming/{environment,resolver,oracle,spans}`, `src/syg`.
+
+Green: FMT-1/2/5, NAM-1.1/1.2, 2.1/2.2, 3.1, 4.1, 5.1–5.3, 6.1/6.2, 7.1.
+One commit per criterion, id in message, gates green throughout.
+
+**NAM-5.4 is the rung's one pending criterion and it is pending BY
+CONSTRUCTION**: "no kind/promise lookup during tick" needs a tick to
+instrument, and the tick loop is rung 2's escapement. Its test is written
+(`syg tick-audit`, HARNESS.md) and goes green with rung 2's first
+deliverable — the manifest extractor bins all NAM at rung 1, which
+over-reaches the appendix's own rung-1 gate ("FMT-1..3") for exactly this
+one criterion. Recorded here instead of STUCK.md because nothing is stuck:
+the next rung's first commit closes it. No design reopened, no test
+weakened.
+
+Harness repairs made (recorded in HARNESS.md; tests strengthened, never
+weakened): (1) FMT-1's differential corpus crashed json.dumps on raw
+bytes — test values now cross via the DAG-JSON projection ({"/":{"bytes":
+b64}}, links {"/": cid}, "/" reserved); (2) an unknown syg subcommand
+(exit 2) reads as Pending so pre-written later-rung tests pend rather than
+fail while their surface doesn't exist.
+
+Next: rung 2 — the escapement (COR-1 freestanding; hand-frozen
+hello-cosine movement; golden audio; kernels salvaged verbatim from
+probe/components/synth_core). First milestone: render the take, send it to
+Travis for blessing (fixtures/golden-audio.md). Never self-bless.
+
 ## 2026-07-05 — The guarantee package (conformance/ + BUILDER.md)
 
 Insurance against limited time and a less capable successor: the spec is now

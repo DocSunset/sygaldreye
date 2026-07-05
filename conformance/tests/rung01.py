@@ -245,6 +245,17 @@ def nam53_kind_mismatch_illegal():
     assert v["legal"] is False, v
 
 
+def nam54_no_lookup_during_tick():
+    # Structurally guaranteed (COR-1: the escapement links no vocabulary,
+    # so it CANNOT reach the registry), and observably audited: tick the
+    # frozen hello-cosine movement with the naming instrumentation live and
+    # count kind/promise lookups on the tick path. Pending until the
+    # escapement exists (rung 2's first deliverable closes this criterion).
+    out = json.loads(syg("tick-audit"))
+    assert out["ticks"] > 0, out
+    assert out["lookups"] == 0, f"kind/promise lookup on the tick path: {out}"
+
+
 def nam61_rehash_verifies():
     # pinned blake3 vectors (input = repeating 0..250 byte pattern)
     for c in fixture("blake3-vectors.json")["cases"]:
@@ -317,7 +328,7 @@ TESTS = {
     "NAM-5.1": nam51_true_edge,
     "NAM-5.2": nam52_latch_boundary,
     "NAM-5.3": nam53_kind_mismatch_illegal,
-    "NAM-5.4": None,
+    "NAM-5.4": nam54_no_lookup_during_tick,
     "NAM-6.1": nam61_rehash_verifies,
     "NAM-6.2": nam62_chunks_dedup,
     "NAM-7.1": nam71_spans_survive_edits,
