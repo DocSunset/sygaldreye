@@ -17,6 +17,7 @@
 #include "hello_natives/hello_natives.hpp"
 #include "naming_session.hpp"
 #include "parser/parser.hpp"
+#include "resolver/naive_resolver.hpp"
 #include "hello_cosine/hello_cosine.hpp"
 #include "oracle/oracle.hpp"
 
@@ -180,6 +181,12 @@ int cmd_roundtrip() {
   return 0;
 }
 
+int cmd_resolve_hash(const std::string& cid, const std::string& objdir) {
+  auto bytes = syg::organs::naive_resolve(objdir, cid);
+  std::fwrite(bytes.data(), 1, bytes.size(), stdout);
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -233,6 +240,7 @@ int main(int argc, char** argv) {
     if (cmd == "replay-tape") return cmd_replay_tape();
     if (cmd == "render-tape" && argc > 2) return cmd_render_tape(std::stod(argv[2]));
     if (cmd == "roundtrip") return cmd_roundtrip();
+    if (cmd == "resolve-hash" && argc > 3) return cmd_resolve_hash(argv[2], argv[3]);
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

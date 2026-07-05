@@ -27,6 +27,7 @@ import or port them into the implementation).
 | 2 | `syg quarantine-audit` | undeclared throw in a quarantined (subprocess) plan: deaths, wired restart ladder, testimony naming the route (ABI-3.2) |
 | 3 | `syg render-tape <seconds>` | boot tape on stdin → crown builds the plan at runtime → raw float32 mono on stdout; byte-identical to the frozen movement (COR-2 ladder start) |
 | 4 | `syg roundtrip` | composite-graph interchange JSON on stdin → parse → serialize → stdout; identity on the persisted surface, derived structure never emitted (LNG-8.1) |
+| 4 | `syg resolve-hash <cid> <objdir>` | verified hash→bytes from an on-disk object directory; corrupt = loud error, miss = clean miss (SZ-3.1, the debugger of last resort) |
 | 1 | `syg pins` | no stdin → one-line JSON of the frozen ch. 14 pins (multicodec/multihash numbers, multibase, chunk size, escape set, tape records, edit ops, wire kinds) — the FMT-5 freeze surface |
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 
