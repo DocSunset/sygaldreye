@@ -1,0 +1,19 @@
+{
+ "_": "The package registry (PKG-1): every package ships exactly vocabulary + passes + machinery. This file names each package's VOCABULARY (native node types); the generator reads it to (a) stamp package membership into descriptors and (b) omit packages at build time (SYG_OMIT) — the omitted vocabulary is simply absent from the palette, and the linkage registry (SZ-2) drops the unreferenced objects.",
+ "packages": {
+  "core": ["cell", "scale", "button", "counter", "smoother", "spanv",
+           "graph_cell", "node_count", "text_cell", "op_button", "tmux",
+           "parser", "naive_resolver", "registry-face", "slot", "supervisor",
+           "graph_source", "arbiter_inlet"],
+  "audio": ["osc", "lfo", "vca", "dac", "noise", "add", "delay", "pulse",
+            "spectro", "mix",
+            "mul", "sub", "div", "fmin", "fmax", "fmod_", "pow_", "lt", "gt",
+            "eq", "and_", "or_", "wrap01", "abs_", "neg", "not_", "clamp01",
+            "sqrt_", "exp_", "tanh_"],
+  "render": ["instanced_draw"],
+  "query": ["seed", "traverse", "filter", "join", "fixpoint"],
+  "engine": ["receive", "fanin", "recognize-region", "construct-context",
+             "choose-adapters", "realize"],
+  "test": ["nan_bomb", "spin", "sleeper"]
+ }
+}

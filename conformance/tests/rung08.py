@@ -290,6 +290,42 @@ def aut51_four_routes_one_registry():
     assert r[3]["promises"]["kind"] == "audio"
 
 
+def pkg11_package_omitted_at_build_time():
+    # a package can be omitted from a target at build time and the system
+    # boots with that vocabulary simply absent from the palette
+    import shutil, os
+    if not shutil.which("nix"):
+        raise Pending("nix unavailable to configure the omitted target")
+    bd = ROOT / "build-omit"
+    r = subprocess.run(
+        ["nix", "develop", "-c", "sh", "-c",
+         f"cmake -B {bd} -G Ninja -DSYG_OMIT=audio -Wno-dev > /dev/null "
+         f"&& ninja -C {bd} syg"],
+        cwd=ROOT, capture_output=True, timeout=900)
+    assert r.returncode == 0, r.stderr.decode()[-2000:]
+    exe = bd / "syg"
+    pal = json.loads(subprocess.run([str(exe), "palette"],
+                                    cwd=ROOT, capture_output=True).stdout)
+    for t in ("osc", "dac", "delay", "mul", "tanh_"):
+        assert t not in pal, f"omitted audio vocabulary leaked: {t}"
+    for t in ("parser", "slot", "realize", "seed", "text_cell"):
+        assert t in pal, f"non-audio vocabulary vanished: {t}"
+    # the system BOOTS: stage 0 unfreezes and a peer session answers
+    boot = subprocess.run([str(exe), "unfreeze-stage0"],
+                          cwd=ROOT, capture_output=True)
+    assert boot.returncode == 0, boot.stderr.decode()
+    peer = subprocess.run([str(exe), "peer"], cwd=ROOT,
+                          input=b'{"ops": []}', capture_output=True)
+    assert peer.returncode == 0, peer.stderr.decode()
+    # and asking for the absent vocabulary fails LOUDLY, naming it
+    render = subprocess.run([str(exe), "render-graph", "1"], cwd=ROOT,
+                            input=json.dumps(_hello()).encode(),
+                            capture_output=True)
+    assert render.returncode != 0 and \
+        any(t in render.stderr for t in (b"osc", b"dac")), \
+        (render.returncode, render.stderr[:200])
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
@@ -299,7 +335,7 @@ TESTS = {
     "FRZ-2.1": frz21_tier_derived_from_native_closure,
     "FRZ-3.1": frz31_arm_freestanding_link,
     "FRZ-4.1": None,
-    "PKG-1.1": None,
+    "PKG-1.1": pkg11_package_omitted_at_build_time,
     "PKG-2.1": None,
     "PKG-3.1": None,
     "PKG-3.2": None,

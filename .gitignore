@@ -9,3 +9,4 @@ reports/device_logcat_day.txt
 reports/overnight_device_logcat.txt.gz
 reports/*logcat*
 build/
+build-omit/
