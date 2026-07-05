@@ -62,7 +62,7 @@ def aut22_stamp_preserves_block_semantics():
 
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
-    "AUT-2.2": None,
+    "AUT-2.2": aut22_stamp_preserves_block_semantics,
     "AUT-5.1": None,
     "FRZ-1.1": None,
     "FRZ-1.2": None,
