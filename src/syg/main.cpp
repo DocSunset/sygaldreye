@@ -20,6 +20,7 @@
 #include "stage0_audits.hpp"
 #include "naming_session.hpp"
 #include "parser/parser.hpp"
+#include "regions.hpp"
 #include "resolver/naive_resolver.hpp"
 #include "hello_cosine/hello_cosine.hpp"
 #include "oracle/oracle.hpp"
@@ -211,6 +212,35 @@ int cmd_swap_audit(const std::string& tape2_path, double seconds) {
   return 0;
 }
 
+int cmd_regions() {
+  auto in = nlohmann::json::parse(read_stdin());
+  auto doc = syg::organs::parse_graph(in.at("graph"));
+  // edits apply to the doc first — regions recompute on every edit (EXE-2)
+  for (const auto& e : in.value("edits", nlohmann::json::array())) {
+    const std::string what = e.at("op");
+    if (what == "remove_edge")
+      doc.edges.erase(doc.edges.begin() + e.at("index").get<long>());
+    else if (what == "add_node")
+      doc.nodes.emplace_back(e.at("id"), e.at("type"));
+    else if (what == "add_edge")
+      doc.edges.emplace_back(e.at("from"), e.at("to"));
+    else
+      throw std::runtime_error("unknown edit op: " + what);
+  }
+  auto r = syg::executor::infer_regions(doc);
+  nlohmann::json maps = nlohmann::json::array();
+  for (const auto& m : r.mappings)
+    maps.push_back({{"edge", m.edge},
+                    {"from", doc.edges[m.edge].first},
+                    {"to", doc.edges[m.edge].second},
+                    {"mapping", m.mapping}});
+  std::cout << nlohmann::json{{"block", r.block},
+                              {"frame", r.frame},
+                              {"mappings", maps},
+                              {"errors", r.errors}}.dump() << "\n";
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -273,6 +303,7 @@ int main(int argc, char** argv) {
     if (cmd == "boot-audit" && argc > 2) return syg::harness::boot_audit(argv[2]);
     if (cmd == "unfreeze-stage0") return syg::harness::unfreeze_stage0();
     if (cmd == "park-audit") return syg::harness::park_audit();
+    if (cmd == "regions") return cmd_regions();
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;
