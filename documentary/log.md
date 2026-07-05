@@ -102,3 +102,20 @@ graph became a boot TAPE, no parser at rung one), **complications**
 (everything else, chosen never imposed) [joint; "movement" was his].
 Quotable: "it's data flowing through graphs all the way down to the
 trampoline sitting on the ground" [user]. ADR-028 closed the arc.
+
+## 2026-07-05 21:00
+
+The handoff turn. Travis: "we have very limited time and resources left,
+and it's possible a much less capable developer may have to finish the job"
+[user]. The answer was already in the law — the suite IS the system — so we
+made it literal: conformance/ now holds the manifest (105 requirements, 121
+criteria, extracted mechanically from the book), a zero-dependency runner
+whose output is the to-do list ("YOU ARE HERE: rung 1"), law gates that
+constrain from day zero, pinned formats (ch. 14's last open values frozen),
+hello-cosine fixtures including the boot tape, and BUILDER.md — a letter to
+whoever comes next, the three rules, the trap list [agent -> adopted]. The
+design's last act was to make its own builders interchangeable. Earlier
+today: ADR-029 (addresses are routes from here — the astui ground turned
+out to be the resolver's fundamental object), ADR-030 (type dissolved),
+ADR-031 (derivation is the shape, commitment the act — Travis's catch),
+the genealogy appendix, and the audio edition of the book.
