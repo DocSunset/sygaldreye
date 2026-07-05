@@ -12,6 +12,7 @@
 #include "pins/pins.hpp"
 #include "dagcbor/dagcbor.hpp"
 #include "codecs.hpp"
+#include "abi_audits.hpp"
 #include "naming_session.hpp"
 #include "hello_cosine/hello_cosine.hpp"
 #include "oracle/oracle.hpp"
@@ -174,6 +175,10 @@ int main(int argc, char** argv) {
       return cmd_render_movement(argv[2], std::stod(argv[3]));
     if (cmd == "tick-audit") return cmd_tick_audit();
     if (cmd == "codec-selftest" && argc > 2) return cmd_codec_selftest(argv[2]);
+    if (cmd == "hook-audit") return syg::harness::hook_audit();
+    if (cmd == "create-audit" && argc > 2) return syg::harness::create_audit(argv[2]);
+    if (cmd == "fault-audit") return syg::harness::fault_audit();
+    if (cmd == "quarantine-audit") return syg::harness::quarantine_audit();
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

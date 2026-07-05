@@ -71,6 +71,43 @@ def abi11_one_declaration():
         pass
 
 
+def abi21_hook_discipline():
+    import json
+    out = json.loads(syg("hook-audit"))
+    assert out["callbacks"] == 10000
+    c = out["counts"]
+    for rt in ("apply", "process"):  # RT hooks: clean after prepare
+        assert c[rt] == {"allocs": 0, "locks": 0}, (rt, c)
+    assert c["create"]["allocs"] >= 1, "create may allocate state (and did not?)"
+
+
+def abi22_create_never_acquires():
+    import json
+    assert json.loads(syg("create-audit", "good")) == {"ok": True}
+    try:
+        syg("create-audit", "bad")
+        raise AssertionError("create()-time acquisition was not stopped")
+    except AssertionError as e:
+        assert "allocation-discipline" in str(e), e
+
+
+def abi31_declared_fault_converts():
+    import json
+    out = json.loads(syg("fault-audit"))
+    assert out["faults"] == [{"route": "nodes/parsey0", "class": "malformed input"}]
+    assert out["ticks"] == 10 and out["ticks_after_fault"] > 0, \
+        "the region did not keep ticking past the fault"
+
+
+def abi32_undeclared_throw_kills_subprocess():
+    import json
+    out = json.loads(syg("quarantine-audit"))
+    assert out["supervisor_alive"] is True
+    assert out["testimony"]["route"] == "nodes/boom0", out
+    assert out["restarts"] == 2, "supervisor's wired restart ladder (intensity 2)"
+    assert out["deaths"] == 3, "each restart died again; then severance"
+
+
 def _sources(*dirs, drop_generated=True):
     for d in dirs:
         p = SRC / d
@@ -150,10 +187,10 @@ def sz6_trampolines_small():
 TESTS = {
     "ABI-1.1": abi11_one_declaration,
     "ABI-1.2": abi12_no_handwritten_serializers,
-    "ABI-2.1": None,
-    "ABI-2.2": None,
-    "ABI-3.1": None,
-    "ABI-3.2": None,
+    "ABI-2.1": abi21_hook_discipline,
+    "ABI-2.2": abi22_create_never_acquires,
+    "ABI-3.1": abi31_declared_fault_converts,
+    "ABI-3.2": abi32_undeclared_throw_kills_subprocess,
     "COR-1": cor1_escapement_austerity,
     "COR-3": cor3_core_names_match_book,
     "SZ-1.1": sz11_no_platform_branches,
