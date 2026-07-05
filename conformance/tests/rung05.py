@@ -401,13 +401,16 @@ def exe114_bang_wakes_cone_same_tick():
     blocks = 130  # ~16 frame ticks: everything settles, then quiesces
     base = _exec_audit(g, blocks=blocks)["recomputes"]
     out = _exec_audit(g, blocks=blocks,
-                      ops=[{"block": 100, "op": "bang", "route": "button0/out"}])
+                      ops=[{"block": 100, "op": "bang", "route": "button0/out"}],
+                      watch=["counter0/out", "s1/out"])
     delta = {k: out["recomputes"][k] - base[k] for k in base}
     assert delta["counter0"] == 1 and delta["s1"] == 1, delta
     assert delta["c1"] == 0 and delta["s2"] == 0, \
         f"the bang woke more than its cone: {delta}"
-    assert out["watched"] == {} or True
-    assert abs(out.get("values", {}).get("counter0/out", 1) - 1) < 2
+    # and the VALUES landed (was a vacuous `== {} or True` until the
+    # 2026-07-05 audit): the bang counted once, its consumer scaled it
+    assert out["watched"]["counter0/out"][-1] == 1.0, out["watched"]
+    assert out["watched"]["s1/out"][-1] == 2.0, out["watched"]
 
 
 def tcf1_mapping_guarantees():

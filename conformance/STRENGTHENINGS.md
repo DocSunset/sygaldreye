@@ -54,3 +54,16 @@ pins that the FIRST compile does structural work (a dead counter fails).
 `engine_alive` was a hand tally in the session code it audited. Now an
 executor-side census: exec_plan counts live plans whose expanded doc
 contains a realize instance; sessions just read it.
+
+## CMP-9.2 + EXE-11.4 — 2026-07-05 (remediation audit)
+The remediation audit demonstrated a stale-memo hole: live set_text /
+set_param edits never reached the plan's persisted doc, so the compile
+recipe under-covered the engine definition — blanking a rule's text
+memo-hit the OLD execution. Fixed at the root (L13): param ops now fold
+into doc defaults (and die with their node on remove_node); the receive
+inlet is stripped from the engine identity (the app rides the recipe as
+its own input). cmp92 gained the regression: a param-only engine edit
+must miss the memo and undo the placement. Also killed rung05's
+`== {} or True` vacuous assert (exe114 now pins the watched VALUES) and
+tightened the dissolution gate (verb/case variants, trailing digits,
+.c/.cc/.h/.hh/.inl/.py coverage).

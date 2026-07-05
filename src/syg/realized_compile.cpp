@@ -14,7 +14,13 @@ realized realized_compile(store::peer_store& s, executor::exec_plan* resident,
                           const nlohmann::json& app) {
   realized out;
   auto app_cid = s.put_node(app, false);
-  auto engine_cid = s.put_node(organs::serialize_graph(engine_doc), false);
+  // the receive inlet is TRANSPORT, not definition: the app rides the
+  // recipe as its own input, so the injected copy leaves the engine key
+  // (a resident engine would otherwise carry the last session's app)
+  auto key_doc = engine_doc;
+  for (const auto& [id, t] : key_doc.nodes)
+    if (t == "receive") key_doc.defaults.erase(id + "/app");
+  auto engine_cid = s.put_node(organs::serialize_graph(key_doc), false);
   nlohmann::json recipe{{"op", "compile"},
                         {"inputs", {{"app", {{"/", app_cid}}},
                                     {"engine", {{"/", engine_cid}}}}},

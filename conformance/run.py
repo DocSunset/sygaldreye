@@ -87,8 +87,11 @@ for rung in sorted(by_rung):
 # The dissolution gate (ADR-034): scaffolding names the criterion that
 # retires it; the moment that criterion is GREEN the scaffolding must be
 # gone. A live marker naming a passing criterion fails the suite.
-for f in sorted((HERE.parent / "src").rglob("*.[ch]pp")):
-    for m in re.finditer(r"dissolves:\s*([A-Z]+-[\d.]+)", f.read_text()):
+SRC_SUFFIXES = {".c", ".cc", ".cpp", ".h", ".hh", ".hpp", ".inl", ".py"}
+for f in sorted(p for p in (HERE.parent / "src").rglob("*")
+                if p.suffix in SRC_SUFFIXES):
+    for m in re.finditer(r"[Dd]issolve[sd]?:\s*([A-Z]+-[0-9]+(?:\.[0-9]+)*)",
+                         f.read_text()):
         if m.group(1) in passed:
             total["fail"] += 1
             first_unmet = first_unmet or min(by_rung)

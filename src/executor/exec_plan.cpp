@@ -570,10 +570,20 @@ void exec_plan::apply_structural(const edit_op& o) {
     for (const auto& [f, t] : doc_.edges)  // cascade, recorded for undo
       if (f.starts_with(o.a + "/") || t.starts_with(o.a + "/"))
         inverse.push_back({"add_edge", f, t, o.author});
-    for (const auto& [route, v] : doc_.defaults.items())
-      if (route.starts_with(o.a + "/") && v.is_number())
+    for (const auto& [route, v] : doc_.defaults.items()) {
+      if (!route.starts_with(o.a + "/")) continue;
+      if (v.is_number())
         inverse.push_back(
             {"set_param", route, std::to_string(v.get<double>()), o.author});
+      else if (v.is_string())
+        inverse.push_back({"set_text", route, v.get<std::string>(), o.author});
+    }
+    {  // the node's params die with it (their definition is the doc)
+      std::vector<std::string> dead;
+      for (const auto& [route, v] : doc_.defaults.items())
+        if (route.starts_with(o.a + "/")) dead.push_back(route);
+      for (const auto& r : dead) doc_.defaults.erase(r);
+    }
     std::erase_if(doc_.nodes, [&](const auto& n) { return n.first == o.a; });
     std::erase_if(doc_.edges, [&](const auto& e) {
       return e.first.starts_with(o.a + "/") || e.second.starts_with(o.a + "/");
@@ -654,6 +664,9 @@ const float* exec_plan::pump_block() {
         cursor_ = log_.size();
       }
       param_journal_[o.a] = {o.b, true};
+      // the doc IS the definition (L13): the edit reaches the persisted
+      // surface, so every recipe keyed on the doc covers it (no stale memo)
+      doc_.defaults[o.a] = o.b;
     } else if (o.op == "set_param") {
       im_->set_param(o.a, std::strtod(o.b.c_str(), nullptr));
       std::string prev = "0";
@@ -666,6 +679,7 @@ const float* exec_plan::pump_block() {
         cursor_ = log_.size();
       }
       param_journal_[o.a] = {o.b, false};
+      doc_.defaults[o.a] = std::strtod(o.b.c_str(), nullptr);
     } else {
       try {
         apply_structural(o);

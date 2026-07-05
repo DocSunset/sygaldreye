@@ -358,10 +358,13 @@ def cmp92_an_edit_op_changes_the_compile():
         {"op": "open-engine-editor"},
         {"op": "engine-edit", "ops": splice_ops},
         {"op": "compile"},
+        {"op": "engine-edit",
+         "ops": [{"op": "set_text", "a": "extra0/value", "b": ""}]},
+        {"op": "compile"},
         {"op": "engine-edit", "ops": unsplice_ops},
         {"op": "compile"},
     ])
-    base, spliced, restored = r[1], r[4], r[6]
+    base, spliced, blanked, restored = r[1], r[4], r[6], r[8]
     assert spliced["execution"] != base["execution"], \
         "the spliced pass changed nothing"
     # the rule has CONSEQUENCE, not just echo: the pass's `block:lfo0`
@@ -370,6 +373,13 @@ def cmp92_an_edit_op_changes_the_compile():
     assert spliced["execution_body"]["map"]["nodes/lfo0"] == "block/lfo0", \
         spliced["execution_body"]["map"]
     assert "block:lfo0" in json.dumps(spliced["execution_body"]["rules"])
+    # a PARAM-ONLY edit (no topology change) is still an input to the
+    # compile: blanking the rule text must miss the memo and undo the
+    # placement (the remediation audit's stale-memo regression)
+    assert blanked["memo"] is False, \
+        "a live set_text on the engine was invisible to the compile recipe"
+    assert blanked["execution_body"]["map"]["nodes/lfo0"] == "frame/lfo0", \
+        blanked["execution_body"]["map"]
     assert restored["memo"] is True and restored["execution"] == base["execution"], \
         "removing the splice did not restore the prior output hash"
 
