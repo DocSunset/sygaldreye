@@ -13,8 +13,9 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   fixed); CMP-9.3's vacuous assert replaced with instance-counter
   witnesses; engine census lives in the executor; the runner now FAILS if
   a `dissolves:` marker names a green criterion.
-- **In-flight:** fresh-context audit OF THE REMEDIATION (Judgement §3)
-  running; findings land here; fix-or-flag, then rung 8.
+- **In-flight:** nothing — remediation audit CLEAR (its one demonstrated
+  blocker, the stale compile memo on live param edits, is fixed; see the
+  2026-07-05 remediation-audit entry). Rung 7 is closed, twice-audited.
 - **Next action:** rung 8 (packages & freezer, 18 criteria incl.
   AUT-2.1/2.2/5.1 backfill). First: rebuild the SHELVED freezer
   (src/executor/freezer.*, marker dissolves: FRZ-1.1) to fuse the REAL
@@ -30,6 +31,26 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   Judgement binding (STRENGTHENINGS.md; flag before green; fresh audit per
   rung; ADR drafts while hot); one peer, many sessions.
 - **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
+
+## 2026-07-05 — Remediation audit (second fresh-context pass): CLEAR
+
+The remediation itself was audited from fresh context. Verdict: the
+dissolution is real (probed, not just read) — compiler.cpp gone from tree
+and build, syg compile demonstrably runs the engine plan, all witnesses
+honest, hit/miss structural memo byte-identical. It DEMONSTRATED one new
+blocker, now fixed: live set_text/set_param edits never reached the
+plan's doc, so the compile recipe under-covered the engine definition
+(blanking a rule's text memo-hit the stale execution). Fix at the root:
+param ops fold into doc defaults (L13), defaults die with their node on
+remove_node, and the receive inlet is stripped from the engine identity
+(the app rides the recipe as its own input). cmp92 carries the
+regression. Also fixed from its findings: rung05 exe114's vacuous
+`== {} or True` (now pins watched values), dissolution-gate evasions
+(verb/case/extension/trailing-digit), dead splice branch removed.
+Noted, accepted: engine-ness census proxy (a plan holding a `realize`
+instance IS an engine level); pass_ticks_total witnesses settle-time
+ticks (quiescence-correct); non-atomic counters (single-threaded
+harness).
 
 ## 2026-07-05 — Fresh-context rung-7 audit (Judgement §3): findings
 

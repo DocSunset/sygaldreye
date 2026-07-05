@@ -12,16 +12,9 @@
 namespace syg::harness {
 namespace {
 
-organs::graph_doc load_engine(const nlohmann::json& splice) {
+organs::graph_doc load_engine() {
   std::ifstream f("vocabulary/engine-v0.json");
-  auto doc = organs::parse_graph(nlohmann::json::parse(f));
-  if (!splice.is_null()) {  // the well-behaved package: additive wiring only
-    for (const auto& [id, rec] : splice.at("add_nodes").items())
-      doc.nodes.emplace_back(id, rec.at("type"));
-    for (const auto& e : splice.at("add_edges"))
-      doc.edges.emplace_back(e.at("from"), e.at("to"));
-  }
-  return doc;
+  return organs::parse_graph(nlohmann::json::parse(f));
 }
 
 }  // namespace
@@ -39,8 +32,7 @@ int compile_session(const nlohmann::json& in) {
     } else if (what == "compile") {
       // the ONE compiler: a derivation-mode run of the realized engine
       // plan (CMP-9) — the bespoke walk this session used to host is gone
-      auto engine = load_engine(op.value("splice", nlohmann::json()));
-      auto c = realized_compile(s, nullptr, engine, app);
+      auto c = realized_compile(s, nullptr, load_engine(), app);
       r = {{"execution", c.execution_cid},
            {"provenance", c.provenance_cid},
            {"map", c.execution["map"]},
@@ -59,7 +51,7 @@ int compile_session(const nlohmann::json& in) {
     } else if (what == "edit-execution") {
       // CMP-4: an edit in the realized view writes back through the
       // INVERSE map as app-graph edits; a vanished target is a conflict
-      auto c = realized_compile(s, nullptr, load_engine(nlohmann::json()), app);
+      auto c = realized_compile(s, nullptr, load_engine(), app);
       const std::string target = op.at("target");  // an execution route
       std::string app_route;
       for (const auto& [ar, xr] : c.execution["map"].items())
@@ -91,7 +83,7 @@ int compile_session(const nlohmann::json& in) {
       }
     } else if (what == "fork") {
       // CMP-5: rebinding away from the derivation's output, recorded
-      auto c = realized_compile(s, nullptr, load_engine(nlohmann::json()), app);
+      auto c = realized_compile(s, nullptr, load_engine(), app);
       s.bind_ref(op.at("ref"), c.execution_cid);
       auto detach = s.put_node({{"op", "fork"},
                                 {"detached_from", {{"/", c.provenance_cid}}},
