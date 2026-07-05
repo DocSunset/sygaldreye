@@ -62,7 +62,7 @@ or testimony (capture); a stream cannot be committed directly.
   passes run — counter-observable).
 - STO-3.2: recording 2 s of dac output yields a wav dataset whose testimony
   carries peer key + wiring route `nodes/dac0/in`; attempting to "commit the
-  adc stream" without a recorder node is a type error.
+  adc stream" without a recorder node is refused at edit time.
 
 **STO-4 (refs and undo).** Refs bind local name to hash; every rebind appends
 to the trail; undo = rebind to trail predecessor.

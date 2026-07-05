@@ -31,7 +31,7 @@ inputs: time-dependent nodes wire to their executor's published clock, so
 "always dirty" is visible dataflow. Effects live in executors and sinks; a
 node with no demanded output and no clock input is provably inert (edit-time
 lint). This dissolves hot/cold-inlet conventions and trigger-object
-sequencing into the type system and order-is-wiring.
+sequencing into the kind-and-discipline system and order-is-wiring.
 
 **EXE-11 (quiescence and demand, ADR-015).**
 - EXE-11.1: a static scene (no clock-wired nodes, no incoming events)
@@ -46,8 +46,7 @@ sequencing into the type system and order-is-wiring.
 
 **Regions are inferred, never declared** — connected components quotiented by
 rate, recomputed on every edit; a node's region is the strictest rate among
-its ports; declaring both audio and draw_call ports on one node type is a
-type error (the type system enforces decomposition).
+its ports; declaring both audio and draw_call ports on one node type is an edit-time error (the promise oracle enforces decomposition).
 
 **Region machinery.** Block membership = dacs plus their upstream closure
 through audio edges (a node with audio in but no audio out — a spectrogram —

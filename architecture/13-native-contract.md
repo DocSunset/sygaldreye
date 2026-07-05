@@ -9,7 +9,7 @@ plugin packagings, and contract succession. Governing ADRs: 016, 017, 019,
 
 **One declaration.** A node type is authored as one endpoints struct (real
 named fields; PFR now, static reflection later). Everything else is
-generated from it (AUT-3, ADR-017): the descriptor (ports, types, affordance
+generated from it (AUT-3, ADR-017): the descriptor (ports, their promises, affordance
 metadata), the codecs, the bindings, and the shell that adapts the author's
 code to the hooks below. Authors write a struct and behavior; they never
 write serialization, registration, or try/catch.

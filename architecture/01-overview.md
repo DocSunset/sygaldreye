@@ -94,8 +94,7 @@ Merkle-DAG chunking); transport is mesh-local; provenance is Nix-shaped.
 At runtime, the bag of links is never executed — it is **compiled into a
 cache**: a plan with links resolved to raw pointers, defaults applied,
 state structs allocated. Ticking a plan is an *uncommitted derivation*;
-streaming is derivation without commitment. Port types are checked at edit
-time by a plain first-order oracle and consulted never at tick time. This is
+streaming is derivation without commitment. Port promises (kind and discipline) are checked at edit time by a plain first-order oracle and consulted never at tick time. This is
 the practicality doctrine: **the dumb model is the format and the law; every
 runtime is an observationally-equivalent compiled cache of it** (git's
 packfiles; Nix's bash). C++ (PFR endpoint structs, kernels, shells) is the

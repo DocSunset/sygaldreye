@@ -62,7 +62,7 @@ not the thing.
 
 ## Names, instances, state
 
-**instance** — a role word, not a thing-kind: a node in the typed-by
+**instance** — a role word, not a thing-kind: a node in the kinded-by
 relationship — it holds a `type` link to a node type and satisfies that type's
 declarations. Route-named, hence editable; created by an edit that links it in,
 destroyed by unlinking (existence = being referenced). *Example: `osc0` is an
@@ -154,7 +154,7 @@ behavior-recipes.
 **port** — a declared position in a node type's link-name convention: which
 names are interface. **input** = a port bound to received influence;
 **output** = a port whose value the node produces; **throughpoint** — a port
-whose type is *derived from what it is connected to* rather than declared
+whose promises are *derived from what it is connected to* rather than declared
 (the mark of a mapping).
 
 **rate** — a change discipline on a link: `event` (discrete, must-not-drop),
@@ -162,8 +162,7 @@ whose type is *derived from what it is connected to* rather than declared
 kinds constrain rates (audio pins block).
 
 **region** — a maximal subgraph executing synchronously under one scheduler
-(same thread, cadence, context). NEVER declared; inferred from port types on
-every edit. *Example: hello-cosine's `osc0–vca0–dac0` closure is the block
+(same thread, cadence, context). NEVER declared; inferred from port promises on every edit. *Example: hello-cosine's `osc0–vca0–dac0` closure is the block
 region; `lfo0` stays frame-side.*
 
 **mapping** — a node whose ports are throughpoints; provides behavior at a
@@ -183,8 +182,7 @@ Commit turns either into a dataset.
 
 **plan** — the compiled runtime cache of a graph: links resolved to raw
 pointers, order fixed. The bag of links is the format; the plan is the cache;
-round-tripping between them is the law. Nothing consults type nodes or does
-resolution at tick time.
+round-tripping between them is the law. Nothing consults kind or promise lookups, or does resolution, at tick time.
 
 **migration** — carrying state across a graph swap, keyed by route (instances)
 and lift key (clones). The slot primitive "replace the subgraph of slot X,

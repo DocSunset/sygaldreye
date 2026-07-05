@@ -43,7 +43,7 @@ Derived from `planning/vision.md` and the dream it serves.
 - **L2 (Mutability lives in the name).** Hashes name immutable values; routes
   name editable places; an address is live if and only if it traverses a ref. No other
   mutability mechanism exists.
-- **L3 (Declarations one level up).** Types/schemas are links *about* link
+- **L3 (Declarations one level up).** Promises and schemas are links *about* link
   names held by the node type; instances hold the links. Checked at
   edit/commit time by a first-order oracle; never consulted at tick time.
 
@@ -126,7 +126,7 @@ metadata and decoding data to derive other data — grounded in stage 0, paced
 by executors, shared by a mesh, terminating in someone's senses.* Its
 concrete protocol surfaces, each governed by the laws cited:
 
-- **Naming and resolution** (L2, L3, L7): CID/multihash; root+route addresses;
+- **Naming and resolution** (L2, L3, L7): CID/multihash; routes-from-here addresses (root:route as sugar);
   traversal per kind; normalization/memoization of fixed addresses.
 - **Commit and provenance** (L4, L5): recipe and testimony headers; hashes
   only in provenance; memoization keyed by input hashes.

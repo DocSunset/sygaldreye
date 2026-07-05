@@ -9,7 +9,7 @@ incomplete concurrency notes.*
 - Each executor owns a **monotonic clock** and publishes it as an output;
   time-dependent nodes wire to it (ADR-015). No node reads wall-clock;
   kernels receive dt or per-sample increments (AUT-1).
-- Cadence is not typed: three disciplines forever, clocks open (ADR-020).
+- Cadence is not part of any kind's promise: three disciplines forever, clocks open (ADR-020).
   Musical/transport time is a package (backlog: transport_package).
 - Cross-peer time: pairwise offset  plus-or-minus  uncertainty published as demand-driven
   data; event timestamps translate through it; **slew, never step**.

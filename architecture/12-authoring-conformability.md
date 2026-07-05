@@ -35,7 +35,7 @@ hand-written block loops outside these.
 **The endpoints authoring surface.** A node type is authored as one C++
 endpoints struct (reflection via PFR — real named fields, so endpoint structs
 stay authored); the descriptor machinery GENERATES the one-level-up
-declarations (ports, types, affordance metadata) from the struct. The strong
+declarations (ports, their kind and discipline promises, affordance metadata) from the struct. The strong
 compiler verifies inside nodes; the first-order oracle verifies between them;
 the generated descriptor is the border crossing, so it cannot drift (L3, L7).
 Convention: processor audio in = `audio`, out = `audio_out`.
@@ -78,10 +78,9 @@ exceptions; both stamps preserve block semantics exactly.
 - AUT-2.2: ugens test suite unchanged across a stamp refactor (the
   kernel-extraction acceptance, kept green forever).
 
-**AUT-3 (generated descriptors).** Port declarations, types, and affordances
+**AUT-3 (generated descriptors).** Port declarations, promises, and affordances
 are generated from endpoint structs; no hand-maintained descriptor tables.
-- AUT-3.1: adding a field to an endpoints struct surfaces the port, its
-  type, and its widget with zero descriptor edits.
+- AUT-3.1: adding a field to an endpoints struct surfaces the port, its promises, and its widget with zero descriptor edits.
 
 **AUT-4 (lift guarantees).** Keyed clone state survives reorder/resize/
 migration; index-keyed suffices for channels; resource holders refuse.

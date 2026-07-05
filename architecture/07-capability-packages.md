@@ -77,8 +77,7 @@ pipelines (EXE-7) and is placeable cross-peer.
   result dataset comes back by hash.
 
 **PKG-6 (net package).** Peers exchange advertised node types and provided
-datasets; proxies instantiate remote types; net mappings are flavored by
-inferred type (value to coalescable, event to reliable-ordered,
+datasets; proxies instantiate remote types; net mappings are flavored by inferred discipline (value to coalescable, event to reliable-ordered,
 stream to sequenced+jitter).
 - PKG-6.1: two-peer test — consumer patch drives a cube from a provider lfo
   through a proxy; kill and reconnect the link; event edges lose nothing,
