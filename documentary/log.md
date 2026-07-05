@@ -119,3 +119,25 @@ today: ADR-029 (addresses are routes from here — the astui ground turned
 out to be the resolver's fundamental object), ADR-030 (type dissolved),
 ADR-031 (derivation is the shape, commitment the act — Travis's catch),
 the genealogy appendix, and the audio edition of the book.
+
+## 2026-07-05 — first sound (builder session 1)
+
+Construction day one. Rung 1 went green in a single run — sixteen criteria,
+one commit each: the canonical encoder matching the oracle byte-for-byte on
+the first differential run (200 random values, zero mismatches — the kind
+of first try you only get when the spec is executable), the address
+grammar, blake3/CIDs, the chunker deduping two takes sharing a chunk, and
+the resolution engine walking the ch. 2 worked example exactly as written.
+
+Then the escapement. The whole thing is a struct and a for-loop — the
+design said "a calling convention and a for-loop, constexpr-able" and it
+was not exaggerating; the freestanding audit shows an EMPTY undefined
+symbol table. Wired the salvaged Phasor kernel into a hand-frozen
+hello-cosine and rendered headless: 220 Hz towering 95 dB over the noise,
+envelope breathing at exactly 0.5 Hz, not a sample out of place. NAM-5.4
+(no kind lookups during tick) closed itself the moment ticking existed —
+48,000 ticks, zero lookups, because the tick path cannot even name the
+registry. The architecture's central bet, observable in a counter.
+
+The take: media/2026-07-05-hello-cosine-first-take.wav — sent to Travis
+for blessing. The machine hums for the first time. [agent]
