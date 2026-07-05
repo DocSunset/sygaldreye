@@ -47,6 +47,11 @@ class plan {
   }
   const float* input_buffer(const std::string& id, const std::string& port) const;
 
+  // state surgery for the slot organ (EXE-5): exchange an instance's state
+  // pointer; the caller owns what comes back
+  void* exchange_state(const std::string& id, void* replacement);
+  const native_type* type_of(const std::string& id) const;
+
  private:
   struct instance;
   void apply(const op& o);

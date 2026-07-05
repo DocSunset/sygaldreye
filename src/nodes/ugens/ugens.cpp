@@ -6,7 +6,7 @@ namespace syg::nodes {
 void osc_process(void* state, const float* const*, float* const* out,
                  int frames) noexcept {
   auto& s = *static_cast<osc_state*>(state);
-  for (int i = 0; i < frames; ++i) out[0][i] = synth::sine(s.phasor.tick());
+  for (int i = 0; i < frames; ++i) out[0][i] = synth::sine(s.phasor.tick() + s.offset);
 }
 
 void lfo_process(void* state, const float* const*, float* const* out,

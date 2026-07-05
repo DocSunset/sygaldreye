@@ -14,16 +14,17 @@ void osc_set_num(void* s, const char* port, double v) {
   if (!std::strcmp(port, "freq")) static_cast<osc_state*>(s)->phasor.freq = float(v);
 }
 void osc_set_text(void* s, const char* port, const char* v) {
-  // shape: a cosine is the sine kernel started a quarter turn in
+  // shape: a cosine is the sine read a quarter turn ahead — an offset, so
+  // re-applying the default never disturbs migrated phase state (EXE-5)
   if (!std::strcmp(port, "shape") && !std::strcmp(v, "cosine"))
-    static_cast<osc_state*>(s)->phasor.phase = half_pi;
+    static_cast<osc_state*>(s)->offset = half_pi;
 }
 }  // namespace
 
 extern const syg::crown::native_type osc_native;
 const syg::crown::native_type osc_native{
     "osc",
-    [] { return static_cast<void*>(new osc_state{{0.0f, 440.0f, 48000.0f}}); },
+    [] { return static_cast<void*>(new osc_state{{0.0f, 440.0f, 48000.0f}, 0.0f}); },
     [](void* s) { delete static_cast<osc_state*>(s); },
     osc_set_num, osc_set_text, osc_process, {}, {"out"}};
 

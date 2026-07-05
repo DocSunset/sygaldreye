@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <map>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <string>
 
@@ -15,6 +16,7 @@
 #include "abi_audits.hpp"
 #include "crown.hpp"
 #include "registry_face/registry_face.hpp"
+#include "slot/slot.hpp"
 #include "naming_session.hpp"
 #include "parser/parser.hpp"
 #include "resolver/naive_resolver.hpp"
@@ -187,6 +189,27 @@ int cmd_resolve_hash(const std::string& cid, const std::string& objdir) {
   return 0;
 }
 
+int cmd_swap_audit(const std::string& tape2_path, double seconds) {
+  constexpr int block = syg::movements::hello_cosine_block;
+  auto p = replayed_plan(read_stdin(), block);
+  std::ifstream f2(tape2_path);
+  std::ostringstream t2;
+  t2 << f2.rdbuf();
+  int half = static_cast<int>(seconds * syg::movements::hello_cosine_rate) / 2;
+  auto render = [&](int frames) {
+    for (int done = 0; done < frames; done += block) {
+      int n = frames - done < block ? frames - done : block;
+      p.tick(n);
+      std::fwrite(p.input_buffer("dac0", "in"), sizeof(float),
+                  static_cast<std::size_t>(n), stdout);
+    }
+  };
+  render(half);
+  syg::organs::slot_swap(p, syg::crown::read_tape(t2.str()));
+  render(half);
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -245,6 +268,7 @@ int main(int argc, char** argv) {
       return 0;
     }
     if (cmd == "resolve-hash" && argc > 3) return cmd_resolve_hash(argv[2], argv[3]);
+    if (cmd == "swap-audit" && argc > 3) return cmd_swap_audit(argv[2], std::stod(argv[3]));
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

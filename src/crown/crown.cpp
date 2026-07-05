@@ -119,4 +119,18 @@ const float* plan::input_buffer(const std::string& id,
   throw std::runtime_error("no port: " + id + "/" + port);
 }
 
+void* plan::exchange_state(const std::string& id, void* replacement) {
+  auto& inst = instances_.at(id);
+  void* old = inst->state;
+  inst->state = replacement;
+  // the ticklist carries state pointers; rebuild it
+  ticklist_.clear();
+  for (const auto& r : order_) ticklist_.push_back(instances_.at(r.id)->as_node());
+  return old;
+}
+
+const native_type* plan::type_of(const std::string& id) const {
+  return instances_.at(id)->type;
+}
+
 }  // namespace syg::crown

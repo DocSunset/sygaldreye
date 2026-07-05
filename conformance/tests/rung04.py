@@ -18,6 +18,45 @@ def lng81_roundtrip():
         assert json.loads(syg("roundtrip", stdin=json.dumps(back).encode())) == back
 
 
+def _tape(name):
+    return (ROOT / "conformance" / "fixtures" / name).read_text()
+
+
+def _swap_render(tape1, tape2, seconds):
+    import tempfile
+    with tempfile.NamedTemporaryFile("w", suffix=".tape") as f:
+        f.write(tape2)
+        f.flush()
+        return syg("swap-audit", f.name, str(seconds), stdin=tape1.encode())
+
+
+def exe51_state_survives_swap():
+    # while sounding, swap hello-cosine for a version with an added noise0:
+    # osc0's phase (and every migrated state) is continuous — the swapped
+    # render is byte-identical to an uninterrupted one
+    v1 = _tape("hello-cosine.tape")
+    v2 = v1 + "NODE noise0 noise\n"
+    straight = syg("render-tape", "2", stdin=v1.encode())
+    swapped = _swap_render(v1, v2, 2)
+    assert swapped == straight, "state did not survive the swap"
+
+
+def exe52_clones_keyed_survive_reorder():
+    # keyed clones (lift_key rides the route: osc#<key>): reordering the
+    # span leaves each clone's state with its key, not its position
+    nodes_v1 = "NODE osc#a osc\nNODE osc#b osc\nNODE osc#c osc\n"
+    nodes_v2 = "NODE osc#c osc\nNODE osc#b osc\nNODE osc#a osc\n"  # reorder
+    rest = ("NODE mix0 add\nNODE mix1 add\nNODE dac0 dac\n"
+            "LINK osc#a/out mix0/a\nLINK osc#b/out mix0/b\n"
+            "LINK mix0/out mix1/a\nLINK osc#c/out mix1/b\n"
+            "LINK mix1/out dac0/in\n"
+            "SET osc#a/freq 220.0\nSET osc#b/freq 330.0\nSET osc#c/freq 440.0\n")
+    straight = syg("render-tape", "2", stdin=(nodes_v1 + rest).encode())
+    swapped = _swap_render(nodes_v1 + rest, nodes_v2 + rest, 2)
+    assert swapped == straight, \
+        "clone state followed position, not key, across the reorder"
+
+
 def sz31_naive_resolver():
     import tempfile
     # the store package does not exist here (stage 1 "wedged") — the naive
@@ -86,8 +125,8 @@ def sz21_registration_by_linkage():
 
 
 TESTS = {
-    "EXE-5.1": None,
-    "EXE-5.2": None,
+    "EXE-5.1": exe51_state_survives_swap,
+    "EXE-5.2": exe52_clones_keyed_survive_reorder,
     "LNG-8.1": lng81_roundtrip,
     "SZ-2.1": sz21_registration_by_linkage,
     "SZ-3.1": sz31_naive_resolver,

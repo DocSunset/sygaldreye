@@ -29,6 +29,7 @@ import or port them into the implementation).
 | 4 | `syg roundtrip` | composite-graph interchange JSON on stdin → parse → serialize → stdout; identity on the persisted surface, derived structure never emitted (LNG-8.1) |
 | 4 | `syg resolve-hash <cid> <objdir>` | verified hash→bytes from an on-disk object directory; corrupt = loud error, miss = clean miss (SZ-3.1, the debugger of last resort) |
 | 4 | `syg palette` | the registry-face organ: linked native names as data; equals the generated registration manifest (SZ-2) |
+| 4 | `syg swap-audit <tape2> <seconds>` | tape on stdin → render seconds/2 → slot-swap to tape2 (state migrates by route) → render seconds/2; raw float32 (EXE-5) |
 | 1 | `syg pins` | no stdin → one-line JSON of the frozen ch. 14 pins (multicodec/multihash numbers, multibase, chunk size, escape set, tape records, edit ops, wire kinds) — the FMT-5 freeze surface |
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 

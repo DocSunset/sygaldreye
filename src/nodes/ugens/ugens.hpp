@@ -11,7 +11,8 @@ namespace syg::nodes {
 // before the loop (latched per block — the kernel contract).
 
 struct osc_state {
-  synth::Phasor phasor;  // freq/sample_rate set at freeze time
+  synth::Phasor phasor;      // freq/sample_rate set at freeze time
+  float offset = 0.0f;       // waveform phase offset (cosine = quarter turn)
 };
 void osc_process(void* state, const float* const* in, float* const* out,
                  int frames) noexcept;
