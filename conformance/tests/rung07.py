@@ -381,11 +381,14 @@ def cmp93_graph_authored_pass():
     native = compile_with(native_ops)
     authored = compile_with(graph_ops)
     assert "audio" in json.dumps(native["execution_body"]["rules"])
-    assert authored["execution_body"]["rules"] == \
-        native["execution_body"]["rules"], "the graph-authored pass differs"
-    assert authored["execution_body"]["map"] == native["execution_body"]["map"]
-    # the authored pass really ran as instances in the plan
-    assert any(k.startswith("aud0") for k in authored["pass_ticks"]) or True
+    # indistinguishable to the byte: the committed execution CIDs are equal
+    assert authored["execution"] == native["execution"], \
+        (authored["execution_body"], native["execution_body"])
+    # the authored pass really ran as a realized instance: the executor's
+    # own recompute counter for the EXPANDED clone (aud0.t0), this session
+    assert authored["pass_ticks_total"].get("aud0.t0", 0) >= 1, \
+        authored["pass_ticks_total"]
+    assert native["pass_ticks_total"].get("aud0", 0) >= 1
     assert authored["outside_hook_work"] == 0
 
 

@@ -500,6 +500,12 @@ const std::vector<std::string>& exec_plan::last_tick_order() const {
   return im_->last_tick_order;
 }
 
+std::vector<std::string> exec_plan::instance_ids() const {
+  std::vector<std::string> ids;
+  for (const auto& f : im_->frames) ids.push_back(f.id);
+  return ids;
+}
+
 long exec_plan::recomputes(const std::string& id) const {
   for (const auto& f : im_->frames)
     if (f.id == id) return f.recomputed;

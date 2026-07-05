@@ -71,8 +71,11 @@ int peer_session(const nlohmann::json& in) {
       plan = transient.get();
       ++engine_alive;
     }
+    // counters keyed by the PLAN's realized instances (post-expansion) —
+    // a graph-authored pass is witnessed as aud0.t0, not its authored id
+    auto instances = plan->instance_ids();
     std::map<std::string, long> before;
-    for (const auto& [id, t] : engine_doc.nodes)
+    for (const auto& id : instances)
       before[id] = std::max(plan->recomputes(id), 0L);
     abi::reset_compile_work();
     plan->submit({"set_text", "receive0/app", app.dump(), "peer"});
@@ -92,7 +95,7 @@ int peer_session(const nlohmann::json& in) {
     auto c = s.commit_derivation(recipe, execution);
     nlohmann::json ticks, ticks_total;
     long total = 0;
-    for (const auto& [id, t] : engine_doc.nodes) {
+    for (const auto& id : instances) {
       auto abs_n = std::max(plan->recomputes(id), 0L);
       ticks[id] = abs_n - before[id];
       ticks_total[id] = abs_n;

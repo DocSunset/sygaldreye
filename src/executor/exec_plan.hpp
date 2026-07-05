@@ -41,6 +41,7 @@ class exec_plan {
   const organs::graph_doc& doc() const { return doc_; }
   const region_map& regions() const { return regions_; }
   long recomputes(const std::string& id) const;  // EXE-11 counters
+  std::vector<std::string> instance_ids() const;  // realized frame instances
   float value_of(const std::string& id_port) const;  // frame cell peek
   const crown::svalue* svalue_of(const std::string& id_port) const;
   // aim an arbiter_inlet instance at ANOTHER plan's queue (LNG-11.3)
