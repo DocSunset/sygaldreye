@@ -141,8 +141,7 @@ can flow as events; until ratified, text inlets are persistence-only and
 this requirement gates the seq-bump retirement.
 
 **LNG-10 (query vocabulary — core, ADR-024).** traverse, filter, join,
-fixpoint are core node types; queries run as derivations (memoized index
-datasets) or standing reactive values (incrementally maintained under
+fixpoint are core node types; queries run as committed derivations (memoized index datasets) or as standing reactive values (incrementally maintained under
 ADR-015).
 - LNG-10.1: "takes whose lineage includes CID_osc-type" wired from the four
   primitives returns the expected set over a seeded store corpus; re-running

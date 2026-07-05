@@ -100,10 +100,15 @@ at edit time; compiled away at runtime. There is no type bundle and no
 freestanding concept named "type"; **node type** survives as the idiom for a
 kind that carries behavior.
 
-**derivation** — a committed computation: inputs (hashes) to program to output
-dataset, with provenance recorded as a *recipe*. Re-derivable, memoizable
-(lookup keyed by input hashes), safe to evict. *Example: compiling
-hello-cosine's app graph is a derivation; so is freezing it to C++.*
+**derivation** — any application of a program to inputs yielding outputs:
+the general computation shape (ADR-031). A tick is a derivation in time; an
+instantiation is a derivation in space; both uncommitted. A **committed
+derivation** records its recipe: provenance written, memoizable, safe to
+evict, determinism class declared (classes attach at commitment).
+**Derivation mode** = run to completion and commit — deriving with the
+recorder on. *Example: compiling hello-cosine's app graph is a committed
+derivation; so is freezing it to C++; ticking it is a derivation with the
+recorder off.*
 
 **capture** — the other commit path: data whose input was the world (a mic, a
 hand, a moment). Provenance is *testimony*, not a recipe — which peer (a public
@@ -322,8 +327,7 @@ records replayed by the crown (a graph is equivalent to its building ops). **per
 island** — a cycle executed sample-interleaved; default z-inverse = one sample
 (ADR-013). **discipline** — one of the three closed semantic categories
 (event push, value dirty-push/demand-pull, stream clocked); cadence is a
-clock, and clocks are open executor outputs (ADR-015 and 020). **determinism
-class** — a derivation's reproducibility promise: exact, platform-exact,
+clock, and clocks are open executor outputs (ADR-015 and 020). **determinism class** — a committed derivation's reproducibility promise: exact, platform-exact,
 approximate, nondeterministic (ADR-021). **op log / op tree** — history as
 attributed, inverse-carrying edit ops; gestures are transactions; the tree
 never discards; linearity is a view (ADR-018). **lock** — a graph's

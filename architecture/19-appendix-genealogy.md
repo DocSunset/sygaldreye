@@ -137,7 +137,7 @@ optional everything-else, and named them with the right humility.
 | address | URL; file path; JSON pointer | a route walked from the resolver's environment (no global root) |
 | store | .git objects; /nix/store; IPFS repo | a graph, plural and scoped, reached by wiring — never ambient |
 | dataset | git blob/tree; Nix store path | + kind + provenance header; a node playing a committed role |
-| derivation / recipe | Nix derivation; make rule | + determinism classes; memo keys honest about floats |
+| committed derivation / recipe | Nix derivation; make rule | + determinism classes; memo keys honest about floats |
 | capture | git blob you committed; a take | testimony (signed peer, wiring); the irreplaceable ground |
 | commit | git commit | folds an op range; two doors (derive/capture) |
 | memoization | Nix substitution; ccache; build cache | mesh-wide, keyed by input hashes + class fingerprint |

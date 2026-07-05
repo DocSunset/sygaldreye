@@ -74,8 +74,7 @@ and the identity story for compilation — with no special cases.
 ## 4. The data model (chapters 2–3)
 
 A node's data becomes durable by **commit**, through exactly two doors:
-**derivation** (inputs are hashes; provenance is a recipe; re-derivable,
-memoizable, evictable) and **capture** (input was the world; provenance is
+**committed derivation** (a recipe: inputs are hashes; re-derivable, memoizable, evictable) and **capture** (input was the world; provenance is
 testimony; irreplaceable). The law relating derived data to sources is
 **provenance-or-fork**: track, or detach recordedly — never silently. Every
 derivation chain bottoms out in captures and fiat-named nodes: the ground.

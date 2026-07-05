@@ -51,7 +51,7 @@ Derived from `planning/vision.md` and the dream it serves.
 
 - **L4 (Provenance-or-fork).** Every derived thing tracks its sources or has
   recordedly detached. Never silent.
-- **L5 (Two doors).** Data becomes durable only by derivation (recipe) or
+- **L5 (Two doors).** Data becomes durable only by committed derivation (recipe) or
   capture (testimony). Streams cannot promise immutability; commitment is an
   act.
 - **L6 (Ground).** Every regress ends in declared ground: sacred kinds,
@@ -81,8 +81,7 @@ Derived from `planning/vision.md` and the dream it serves.
   compilation relationship; every graph is defined, compiled, realized —
   including engine graphs. The tower is lazy and grounds at the frozen
   stage 0, whose sole irreducible property is pre-existence.
-- **L12 (Identity-preserving compilation).** Compilation is a deterministic,
-  memoizable derivation emitting a route to route map; state survives
+- **L12 (Identity-preserving compilation).** Compilation is a deterministic derivation, committed and hence memoizable, emitting a route to route map; state survives
   re-compilation through it.
 - **L13 (One definition).** Realized views are editing surfaces writing back
   through the inverse map; defaults insert only where absent; conditional
@@ -99,8 +98,7 @@ Derived from `planning/vision.md` and the dream it serves.
 - **L19 (Errors are values; failure is death).** Noexcept by default;
   declared fault outputs; promise-breaking kills the containment unit;
   supervision policy is wiring; detection is demand-driven overlay.
-- **L20 (Succession).** Nodes are succeeded, never mutated; migrations are
-  lazy derivations; compatibility is reachability; nothing is ever forced
+- **L20 (Succession).** Nodes are succeeded, never mutated; migrations are lazy, committed derivations; compatibility is reachability; nothing is ever forced
   to rewrite.
 - **L21 (The suite is the system).** Conformance defines sygaldreye; the
   suite is written in the system; blessing is testimony; the candidate is

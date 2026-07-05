@@ -19,8 +19,7 @@ round-trip.
 **Ticking is uncommitted derivation.** Each region ticks its subset at its
 cadence: block (hard real-time: no allocation, locks, or syscalls), frame,
 worker (may block), net (transport pace). Two pipeline modes on the same
-executors: streaming (live tick) and derivation (run-to-completion with
-provenance recording — the worker region is the build system).
+executors: streaming (live tick, recorder off) and derivation mode (run to completion and commit — the worker region is the build system).
 
 **Rate-keyed semantics (ADR-015).** Event ports push (must-not-drop,
 same-tick topological propagation in-region, queues across threads). Value

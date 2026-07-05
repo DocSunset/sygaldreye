@@ -13,8 +13,8 @@ defined/compiled/realized — a reflective tower grounded at stage 0, **lazy**:
 a level's engine graph is instantiated only when someone edits at that level;
 never N meta-levels resident.
 
-**Compilation is a derivation** (inputs: app graph hash + engine graph hash  to 
-execution graph dataset), so it memoizes like any derivation. It must be
+**Compilation is a committed derivation** (inputs: app graph hash + engine graph hash  to 
+execution graph dataset), so it memoizes like any committed derivation. It must be
 **deterministic** and emit the **compilation map** (app route to execution
 route) — the enabler of state migration across re-compilation and of
 projection editing. Deterministic = compilation assigns stable local names
@@ -43,7 +43,7 @@ early; pull-observability is the substrate; pass order readable off the patch.
 
 ## Requirements
 
-**CMP-1 (compile as derivation).** compile(app, engine) to execution dataset
+**CMP-1 (compile as committed derivation).** compile(app, engine) to execution dataset
 with recipe provenance; memoized on input hashes.
 - CMP-1.1: compiling hello-cosine twice runs passes once (counter).
 - CMP-1.2: editing the *defaults* node only does not re-run structural passes
@@ -94,7 +94,7 @@ salvage, never migrated. Kept as a numbered tombstone so citations resolve.
 
 ## Freezing (FRZ)
 
-Freezing is a derivation whose output kind is C++ — ratified (ADR-014): a
+Freezing is a committed derivation whose output kind is C++ — ratified (ADR-014): a
 **backend of realization**. The engine pipeline ends in realize with two
 backends: *interpret* (instantiate natives + plan) and *codegen* (emit a
 fused, portable, typed C++ class). Same passes, same compilation map, same

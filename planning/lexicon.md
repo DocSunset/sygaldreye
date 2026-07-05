@@ -44,6 +44,8 @@ Roles:       instance · state   (ratified 2026-07-03 — role words, not
              uncommitted derivations — space and time; commit turns either
              into a dataset.)
 Data:        dataset · kind · provenance · capture · commit · fork · store
+             (derivation refined 2026-07-05, ADR-031: the shape, not the
+             act — committed derivation is the recorded case)
 Execution:   executor · region · rate · mapping · compile · pass · migration
              ("compile" ratified 2026-07-03, replacing "lowering" — compiler
              jargon that clashed with the codebase's load-bearing "lifting".
@@ -77,7 +79,7 @@ Horology:    escapement · movement · crown · complication
 - document = graph; transclusion = edge whose value is an address
 - state = an occurrence's contents; preset = a defaults entity
 - pin = provide; archive = a provide-everything peer; sandbox = an advertisement
-- tick = an uncommitted derivation; freeze = a derivation whose output kind is C++
+- tick = an uncommitted derivation; freeze = a committed derivation whose output kind is C++
 - subgraph = a node whose contents are a graph
 - boot graph = the graph stage 0 ticks first
 - entity = node (SUBSUMED 2026-07-03: "entity" was (1) a synonym for node and
