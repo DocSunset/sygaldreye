@@ -2,7 +2,9 @@
 // codegen backend must fuse the REAL engine's realize output once CMP-9
 // lands; this standalone walk is parked, not an endpoint
 #pragma once
-#include "compiler.hpp"
+#include <nlohmann/json.hpp>
+
+#include "store.hpp"
 
 namespace syg::executor {
 

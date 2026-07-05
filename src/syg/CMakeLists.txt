@@ -1,4 +1,4 @@
-add_executable(syg main.cpp abi_audits.cpp compile_session.cpp naming_session.cpp peer_session.cpp stage0_audits.cpp store_session.cpp
+add_executable(syg main.cpp abi_audits.cpp compile_session.cpp naming_session.cpp peer_session.cpp realized_compile.cpp stage0_audits.cpp store_session.cpp
   ${CMAKE_BINARY_DIR}/generated/registration.cpp
   ${CMAKE_BINARY_DIR}/generated/leaf_natives.cpp
   ../abi/audit_alloc.cpp ../nodes/testnodes/testnodes.cpp)

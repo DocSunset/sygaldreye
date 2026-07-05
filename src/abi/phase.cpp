@@ -35,6 +35,12 @@ void note_compile_work() noexcept {
   if (!hook_live) ++outside_work;
 }
 long compile_work_outside_hooks() noexcept { return outside_work; }
+
+namespace {
+long structural_work = 0;
+}  // namespace
+void note_structural_run() noexcept { ++structural_work; }
+long structural_runs() noexcept { return structural_work; }
 void reset_compile_work() noexcept { outside_work = 0; }
 
 int acquire_device(const char* name) {

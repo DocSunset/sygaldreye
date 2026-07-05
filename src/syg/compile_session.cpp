@@ -2,13 +2,11 @@
 
 #include <fstream>
 #include <iostream>
-#include <map>
+#include <set>
 
-#include "compiler.hpp"
 #include "exec_plan.hpp"
-#include "freezer.hpp"
 #include "parser/parser.hpp"
-#include "query/query.hpp"
+#include "realized_compile.hpp"
 #include "store.hpp"
 
 namespace syg::harness {
@@ -31,7 +29,6 @@ organs::graph_doc load_engine(const nlohmann::json& splice) {
 int compile_session(const nlohmann::json& in) {
   store::peer_store s("local");
   nlohmann::json app;  // the app graph, the ONE definition (L13)
-  long engine_instances = 0;
   auto results = nlohmann::json::array();
   for (const auto& op : in.value("ops", nlohmann::json::array())) {
     const std::string what = op.at("op");
@@ -40,34 +37,18 @@ int compile_session(const nlohmann::json& in) {
       app = op.at("graph");
       r = nullptr;
     } else if (what == "compile") {
+      // the ONE compiler: a derivation-mode run of the realized engine
+      // plan (CMP-9) — the bespoke walk this session used to host is gone
       auto engine = load_engine(op.value("splice", nlohmann::json()));
-      auto c = executor::compile(app, engine, s);
+      auto c = realized_compile(s, nullptr, engine, app);
       r = {{"execution", c.execution_cid},
            {"provenance", c.provenance_cid},
            {"map", c.execution["map"]},
            {"mappings", c.execution["mappings"]},
-           {"passes_run", c.passes_run},
+           {"passes_run", c.tick_order},
            {"memo", c.memo},
-           {"structural_memo", c.structural_memo},
-           {"engine_instances", engine_instances}};
-    } else if (what == "engine-diff") {
-      // CMP-3.1: spliced vs vanilla — additive wiring only
-      auto vanilla = load_engine(nlohmann::json());
-      auto spliced = load_engine(op.at("splice"));
-      bool additive = true;
-      std::set<std::pair<std::string, std::string>> vn(vanilla.nodes.begin(),
-                                                       vanilla.nodes.end()),
-          sn(spliced.nodes.begin(), spliced.nodes.end());
-      std::set<std::pair<std::string, std::string>> ve(vanilla.edges.begin(),
-                                                       vanilla.edges.end()),
-          se(spliced.edges.begin(), spliced.edges.end());
-      for (const auto& n : vn)
-        if (!sn.count(n)) additive = false;
-      for (const auto& e : ve)
-        if (!se.count(e)) additive = false;
-      r = {{"additive", additive},
-           {"added_nodes", sn.size() - vn.size()},
-           {"added_edges", se.size() - ve.size()}};
+           {"structural_memo", c.structural_work == 0},
+           {"engine_instances", executor::exec_plan::live_engine_plans()}};
     } else if (what == "edit-app") {
       // an ordinary app edit (defaults or structure)
       if (op.contains("route")) app["defaults"][op.at("route").get<std::string>()] = op.at("value");
@@ -78,8 +59,7 @@ int compile_session(const nlohmann::json& in) {
     } else if (what == "edit-execution") {
       // CMP-4: an edit in the realized view writes back through the
       // INVERSE map as app-graph edits; a vanished target is a conflict
-      auto engine = load_engine(nlohmann::json());
-      auto c = executor::compile(app, engine, s);
+      auto c = realized_compile(s, nullptr, load_engine(nlohmann::json()), app);
       const std::string target = op.at("target");  // an execution route
       std::string app_route;
       for (const auto& [ar, xr] : c.execution["map"].items())
@@ -111,8 +91,7 @@ int compile_session(const nlohmann::json& in) {
       }
     } else if (what == "fork") {
       // CMP-5: rebinding away from the derivation's output, recorded
-      auto engine = load_engine(nlohmann::json());
-      auto c = executor::compile(app, engine, s);
+      auto c = realized_compile(s, nullptr, load_engine(nlohmann::json()), app);
       s.bind_ref(op.at("ref"), c.execution_cid);
       auto detach = s.put_node({{"op", "fork"},
                                 {"detached_from", {{"/", c.provenance_cid}}},
@@ -124,15 +103,6 @@ int compile_session(const nlohmann::json& in) {
                            {"determinism", "exact"}},
                           {{"kind", "fork-record"}, {"note", detach}});
       r = {{"fork", c.execution_cid}};
-    } else if (what == "freeze") {
-      auto f = executor::freeze(op.contains("graph") ? op.at("graph") : app, s);
-      r = {{"artifact", f.artifact_cid}, {"provenance", f.provenance_cid},
-           {"tier", f.tier}, {"culprit", f.tier_culprit},
-           {"memo", f.memo}, {"source", f.source}};
-    } else if (what == "unfreeze") {
-      auto obj = s.get(op.at("artifact"));
-      if (!obj) throw std::runtime_error("artifact miss");
-      r = {{"app", executor::unfreeze(std::string(obj->begin(), obj->end()))}};
     } else if (what == "app-cid") {
       r = {{"cid", s.put_node(app, false)}};
     } else if (what == "ref") {
@@ -146,15 +116,6 @@ int compile_session(const nlohmann::json& in) {
         kinds.push_back(node.value("op", node.value("kind", "?")));
       }
       r = {{"records", set}, {"ops", kinds}};
-    } else if (what == "open-engine-editor") {
-      // the tower is lazy: a level's engine instantiates ONLY when edited
-      ++engine_instances;
-      r = {{"engine_instances", engine_instances}};
-    } else if (what == "render-blocks") {
-      // steady-state playback: realize the app (interpret backend) and pump
-      executor::exec_plan p(organs::parse_graph(app), 48000, 128);
-      for (int i = 0; i < op.value("blocks", 10); ++i) p.pump_block();
-      r = {{"engine_instances", engine_instances}};
     } else {
       throw std::runtime_error("unknown compile op: " + what);
     }

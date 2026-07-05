@@ -13,7 +13,7 @@ THE FIRST UNMET GATE. That gate is the next thing to work on — always.
 Never edit a test to make it pass: amend the book via ADR, regenerate the
 manifest, and let the test follow the book.
 """
-import importlib.util, json, pathlib, sys, traceback
+import importlib.util, json, pathlib, re, sys, traceback
 
 HERE = pathlib.Path(__file__).resolve().parent
 RUNG_NAMES = {
@@ -52,6 +52,7 @@ for rid, req in manifest.items():
         by_rung.setdefault(req["rung"], []).append((rid, req["text"]))
 
 first_unmet = None
+passed = set()
 total = {"pass": 0, "fail": 0, "pending": 0, "uncovered": 0}
 for rung in sorted(by_rung):
     if only and rung != only:
@@ -67,6 +68,7 @@ for rung in sorted(by_rung):
             try:
                 fn()
                 results["pass"].append(acid)
+                passed.add(acid)
             except Pending as e:
                 results["pending"].append(acid)
             except Exception:
@@ -81,6 +83,18 @@ for rung in sorted(by_rung):
         print(f"    FAIL {acid}\n{tb}")
     for k in total:
         total[k] += len(results[k])
+
+# The dissolution gate (ADR-034): scaffolding names the criterion that
+# retires it; the moment that criterion is GREEN the scaffolding must be
+# gone. A live marker naming a passing criterion fails the suite.
+for f in sorted((HERE.parent / "src").rglob("*.[ch]pp")):
+    for m in re.finditer(r"dissolves:\s*([A-Z]+-[\d.]+)", f.read_text()):
+        if m.group(1) in passed:
+            total["fail"] += 1
+            first_unmet = first_unmet or min(by_rung)
+            print(f"DISSOLUTION GATE: {f.relative_to(HERE.parent)} still "
+                  f"carries scaffolding for GREEN {m.group(1)} — the walk "
+                  f"outlived its criterion")
 
 print()
 print(f"pass {total['pass']}  fail {total['fail']}  pending {total['pending']}"

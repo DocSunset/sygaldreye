@@ -50,6 +50,10 @@ class exec_plan {
   // the executor's own trace of the last frame tick (instance ids, in
   // execution order) — CMP-3.2's witness, never a self-report
   const std::vector<std::string>& last_tick_order() const;
+  // executor-side census (CMP-6.1's witness, never a session's hand
+  // tally): plans whose doc realizes the engine pipeline (a `realize`
+  // instance) are engine levels
+  static long live_engine_plans();
   long process_calls() const;  // kernel invocations (EXE-10.2 observability)
   long rejected_ops() const { return rejected_; }  // precondition losers
   const std::vector<std::string>& faults() const { return faults_; }
@@ -72,6 +76,8 @@ class exec_plan {
   long rejected_ = 0;
   std::vector<std::string> faults_;
   int consecutive_overruns_ = 0;
+  bool engine_plan_ = false;
+  void update_census();
   mpsc<edit_op> inlet_q_;
   mpsc<std::pair<std::string, double>> event_q_;
   std::map<std::string, std::pair<std::string, bool>> param_journal_;  // route -> (value, is_text)

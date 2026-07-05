@@ -31,7 +31,11 @@ def cmp12_defaults_edit_skips_structure():
                   {"op": "compile"},
                   {"op": "edit-app", "route": "osc0/freq", "value": 330.0},
                   {"op": "compile"}])
+    # structural_memo is counter-derived (abi structural ledger), not a
+    # self-report: the first compile MUST do structural work...
+    assert r[1]["structural_memo"] is False, "the structural counter is dead"
     assert r[3]["memo"] is False, "the full recipe changed"
+    # ...and the defaults-only recompile answers structure from the store
     assert r[3]["structural_memo"] is True, \
         "a defaults-only edit re-ran the structural passes"
     assert r[3]["map"] == r[1]["map"]

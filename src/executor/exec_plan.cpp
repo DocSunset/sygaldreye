@@ -1,4 +1,6 @@
 // clause: machinery — executor package (plans, pacing, mappings)
+#include <atomic>
+
 #include "structured_kinds.hpp"
 #include "exec_plan.hpp"
 
@@ -437,6 +439,22 @@ std::optional<nlohmann::json> graphs_dir_loader(const std::string& type) {
 
 }  // namespace
 
+namespace {
+std::atomic<long> live_engines{0};
+}  // namespace
+
+long exec_plan::live_engine_plans() { return live_engines.load(); }
+
+void exec_plan::update_census() {
+  bool is_engine = false;
+  for (const auto& [id, t] : expanded_.nodes)
+    if (t == "realize") is_engine = true;
+  if (is_engine != engine_plan_) {
+    live_engines += is_engine ? 1 : -1;
+    engine_plan_ = is_engine;
+  }
+}
+
 exec_plan::exec_plan(organs::graph_doc doc, int rate, int block)
     : doc_(std::move(doc)), rate_(rate), block_(block) {
   expanded_ = organs::expand_subgraphs(
@@ -446,6 +464,7 @@ exec_plan::exec_plan(organs::graph_doc doc, int rate, int block)
     throw std::runtime_error("cannot realize: " + regions_.errors.front());
   im_ = build_impl(expanded_, regions_, block_);
   inject_context();
+  update_census();
 }
 
 namespace {
@@ -477,7 +496,9 @@ void exec_plan::point_arbiter(const std::string& id, exec_plan& target) {
     if (f->type->set_context) f->type->set_context(f->state, &target_ctx_);
 }
 
-exec_plan::~exec_plan() = default;
+exec_plan::~exec_plan() {
+  if (engine_plan_) --live_engines;
+}
 
 void exec_plan::submit(edit_op o) { inlet_q_.push(std::move(o)); }
 
@@ -579,6 +600,7 @@ void exec_plan::rebuild() {
   regions_ = infer_regions(expanded_);
   if (!regions_.errors.empty())
     throw std::runtime_error("cannot realize: " + regions_.errors.front());
+  update_census();
   auto fresh = build_impl(expanded_, regions_, block_);
   // migrate state by route: same id, same type -> the old state comes home
   for (auto& n : fresh->blocks)

@@ -38,6 +38,11 @@ struct hook_scope {
 };
 bool in_hook() noexcept;
 void note_compile_work() noexcept;
+// the structural stage's own honest counter (CMP-1.2): expansion or
+// region inference actually recomputed (memo hits and identity
+// short-circuits don't count)
+void note_structural_run() noexcept;
+long structural_runs() noexcept;
 long compile_work_outside_hooks() noexcept;
 void reset_compile_work() noexcept;
 

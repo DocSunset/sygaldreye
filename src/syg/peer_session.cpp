@@ -7,6 +7,7 @@
 #include "exec_plan.hpp"
 #include "parser/parser.hpp"
 #include "phase.hpp"
+#include "realized_compile.hpp"
 #include "registry_face/registry_face.hpp"
 #include "store.hpp"
 #include "svalue_accessors.hpp"
@@ -47,74 +48,27 @@ int peer_session(const nlohmann::json& in) {
   std::unique_ptr<executor::exec_plan> engine;  // resident only when edited
   std::unique_ptr<executor::exec_plan> app_instance;
   nlohmann::json app;
-  long engine_alive = 0;
+  // the census is the EXECUTOR's (CMP-6.1's witness) — no hand tally here
+  auto engine_alive = [] { return executor::exec_plan::live_engine_plans(); };
 
   auto run_compile = [&](nlohmann::json& r) {
     auto engine_doc = engine ? engine->doc() : pristine_engine();
-    auto app_cid = s.put_node(app, false);
-    auto engine_cid = s.put_node(organs::serialize_graph(engine_doc), false);
-    nlohmann::json recipe{{"op", "compile"},
-                          {"inputs", {{"app", {{"/", app_cid}}},
-                                      {"engine", {{"/", engine_cid}}}}},
-                          {"determinism", "exact"}};
-    if (auto hit = s.memo_lookup(recipe)) {
-      r = {{"execution", hit->output}, {"memo", true}, {"passes_ticked", 0},
-           {"engine_alive", engine_alive}};
+    auto c = realized_compile(s, engine.get(), engine_doc, app);
+    r = {{"execution", c.execution_cid},
+         {"memo", c.memo},
+         {"engine_alive", engine_alive()}};
+    if (c.memo) {
+      r["passes_ticked"] = 0;
       return;
     }
-    // derivation-mode run of the ENGINE PLAN (EXE-7): transient unless the
-    // editor holds the level open
-    executor::exec_plan* plan = engine.get();
-    std::unique_ptr<executor::exec_plan> transient;
-    if (!plan) {
-      transient = std::make_unique<executor::exec_plan>(engine_doc, 48000, 128);
-      plan = transient.get();
-      ++engine_alive;
-    }
-    // counters keyed by the PLAN's realized instances (post-expansion) —
-    // a graph-authored pass is witnessed as aud0.t0, not its authored id
-    auto instances = plan->instance_ids();
-    std::map<std::string, long> before;
-    for (const auto& id : instances)
-      before[id] = std::max(plan->recomputes(id), 0L);
-    abi::reset_compile_work();
-    plan->submit({"set_text", "receive0/app", app.dump(), "peer"});
-    std::vector<std::string> order;
-    std::string result;
-    for (int i = 0; i < 200; ++i) {
-      plan->pump_block();
-      if (plan->last_tick_order().size() > order.size())
-        order = plan->last_tick_order();
-      if (const auto* sv = plan->svalue_of("realize0/out"); sv && sv->value) {
-        result = generated::as_text(*sv);
-        if (!result.empty() && i > 20) break;
-      }
-    }
-    if (result.empty()) throw std::runtime_error("the engine never realized");
-    auto execution = nlohmann::json::parse(result);
-    auto c = s.commit_derivation(recipe, execution);
-    nlohmann::json ticks, ticks_total;
-    long total = 0;
-    for (const auto& id : instances) {
-      auto abs_n = std::max(plan->recomputes(id), 0L);
-      ticks[id] = abs_n - before[id];
-      ticks_total[id] = abs_n;
-      total += abs_n - before[id];
-    }
-    if (transient) {
-      transient.reset();  // derivation mode: run to completion, release
-      --engine_alive;
-    }
-    r = {{"execution", c.output},
-         {"provenance", c.provenance},
-         {"execution_body", execution},
-         {"memo", false},
-         {"pass_ticks", ticks},
-         {"pass_ticks_total", ticks_total},
-         {"passes_ticked", total},
-         {"tick_order", order},
-         {"outside_hook_work", abi::compile_work_outside_hooks()},
-         {"engine_alive", engine_alive}};
+    r["provenance"] = c.provenance_cid;
+    r["execution_body"] = c.execution;
+    r["pass_ticks"] = c.pass_ticks;
+    r["pass_ticks_total"] = c.pass_ticks_total;
+    r["passes_ticked"] = c.passes_ticked;
+    r["tick_order"] = c.tick_order;
+    r["outside_hook_work"] = c.outside_hook_work;
+    r["structural_work"] = c.structural_work;
   };
 
   auto results = nlohmann::json::array();
@@ -130,15 +84,12 @@ int peer_session(const nlohmann::json& in) {
       if (!engine) {
         engine = std::make_unique<executor::exec_plan>(pristine_engine(),
                                                        48000, 128);
-        ++engine_alive;
+        engine->set_store(&s);
       }
-      r = {{"engine_alive", engine_alive}};
+      r = {{"engine_alive", engine_alive()}};
     } else if (what == "close-engine-editor") {
-      if (engine) {
-        engine.reset();
-        --engine_alive;
-      }
-      r = {{"engine_alive", engine_alive}};
+      engine.reset();
+      r = {{"engine_alive", engine_alive()}};
     } else if (what == "engine-edit") {
       if (!engine) throw std::runtime_error("open the engine editor first");
       for (const auto& e : op.at("ops"))
@@ -155,7 +106,7 @@ int peer_session(const nlohmann::json& in) {
             organs::parse_graph(app), 48000, 128);
       for (int i = 0; i < op.value("blocks", 10); ++i)
         app_instance->pump_block();
-      r = {{"engine_alive", engine_alive}};
+      r = {{"engine_alive", engine_alive()}};
     } else if (what == "type-cid") {
       r = {{"cid", type_cids.at(op.at("type"))}};
     } else if (what == "commit-app") {

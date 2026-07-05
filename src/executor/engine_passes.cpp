@@ -10,6 +10,9 @@
 
 #include "crown.hpp"
 #include "lift.hpp"
+#include "phase.hpp"
+#include "registry_face/registry_face.hpp"
+#include "store.hpp"
 #include "parser/parser.hpp"
 #include "regions.hpp"
 #include "subgraph/subgraph.hpp"
@@ -51,11 +54,28 @@ void fanin_tick(void*, const crown::svalue* ins, crown::svalue* outs) {
   outs[0] = gen::make_text(std::move(joined));
 }
 
-// recognize-region: expansion + lifting; rules ride the carried doc
+// recognize-region: expansion + lifting; rules ride the carried doc.
+// Nothing-to-expand is identity BY CONSTRUCTION (no structural work); a
+// real expansion counts on the structural ledger (CMP-1.2's witness)
+bool can_expand(const organs::graph_doc& doc) {
+  for (const auto& [id, t] : doc.nodes) {
+    const crown::native_type* n = nullptr;
+    for (const auto* c : organs::registered_natives())
+      if (t == c->name) n = c;
+    if (!n) return true;  // a graph-authored type: subgraph expansion
+    for (const auto& p : n->out_ports)
+      if (std::string_view(p.kind) == "span") return true;  // lift site
+  }
+  return false;
+}
 void recognize_tick(void*, const crown::svalue* ins, crown::svalue* outs) {
   if (!ins[0].value) return;
-  auto doc = organs::expand_subgraphs(
-      lift_expand(gen::as_graph(ins[0]), graphs_dir), graphs_dir);
+  auto doc = gen::as_graph(ins[0]);
+  if (can_expand(doc)) {
+    abi::note_structural_run();
+    doc = organs::expand_subgraphs(lift_expand(std::move(doc), graphs_dir),
+                                   graphs_dir);
+  }
   doc.defaults["__rules"] = ins[1].value ? gen::as_text(ins[1]) : "";
   outs[0] = gen::make_graph(std::move(doc));
 }
@@ -79,21 +99,26 @@ void context_tick(void* s, const crown::svalue* ins, crown::svalue* outs) {
 
 // choose-adapters: regions + boundary mappings join the carried doc; the
 // rules lane has CONSEQUENCE here — a `block:<id>` rule claims an instance
-// for the block region, so a spliced rule pass changes placement (CMP-9.2)
-void choose_tick(void*, const crown::svalue* ins, crown::svalue* outs) {
-  if (!ins[0].value) return;
-  auto doc = gen::as_graph(ins[0]);
-  if (ins[1].value && !gen::as_text(ins[1]).empty()) {
-    std::string rules = doc.defaults.value("__rules", "");
-    doc.defaults["__rules"] =
-        rules.empty() ? gen::as_text(ins[1]) : rules + ";" + gen::as_text(ins[1]);
-  }
+// for the block region, so a spliced rule pass changes placement (CMP-9.2).
+// The structural derivation is a committed, memoized store derivation
+// keyed on topology + rules (CMP-1.2): a defaults-only edit answers from
+// the store; only a real inference counts on the structural ledger.
+struct choose_state {
+  store::peer_store* store = nullptr;
+};
+void choose_set_context(void* s, const void* ctx) {
+  static_cast<choose_state*>(s)->store =
+      static_cast<store::peer_store*>(const_cast<void*>(
+          static_cast<const crown::node_context*>(ctx)->store));
+}
+nlohmann::json choose_structure(const organs::graph_doc& doc,
+                                const std::string& rules) {
+  abi::note_structural_run();
   auto regions = infer_regions(doc);
   if (!regions.errors.empty())
     throw std::runtime_error("compile: " + regions.errors.front());
   std::set<std::string> block(regions.block.begin(), regions.block.end());
   std::set<std::string> frame(regions.frame.begin(), regions.frame.end());
-  const std::string rules = doc.defaults.value("__rules", "");
   for (std::size_t i = 0; i < rules.size();) {
     auto j = rules.find_first_of(",;", i);
     if (j == std::string::npos) j = rules.size();
@@ -105,8 +130,42 @@ void choose_tick(void*, const crown::svalue* ins, crown::svalue* outs) {
   nlohmann::json maps = nlohmann::json::array();
   for (const auto& m : regions.mappings)
     maps.push_back({{"edge", m.edge}, {"mapping", m.mapping}});
-  doc.defaults["__regions"] = {{"block", block}, {"frame", frame}};
-  doc.defaults["__mappings"] = maps;
+  return {{"block", block}, {"frame", frame}, {"mappings", maps}};
+}
+void choose_tick(void* s, const crown::svalue* ins, crown::svalue* outs) {
+  if (!ins[0].value) return;
+  auto doc = gen::as_graph(ins[0]);
+  if (ins[1].value && !gen::as_text(ins[1]).empty()) {
+    std::string rules = doc.defaults.value("__rules", "");
+    doc.defaults["__rules"] =
+        rules.empty() ? gen::as_text(ins[1]) : rules + ";" + gen::as_text(ins[1]);
+  }
+  const std::string rules = doc.defaults.value("__rules", "");
+  auto* store = static_cast<choose_state*>(s)->store;
+  nlohmann::json structure, recipe;
+  if (store) {
+    nlohmann::ordered_json nodes;
+    for (const auto& [id, t] : doc.nodes) nodes[id] = t;
+    auto edges = nlohmann::json::array();
+    for (const auto& [f, t] : doc.edges)
+      edges.push_back({{"from", f}, {"to", t}});
+    recipe = {{"op", "compile-structure"},
+              {"inputs",
+               {{"topology",
+                 {{"/", store->put_node({{"nodes", nodes}, {"edges", edges}},
+                                        false)}}}}},
+              {"rules", rules},
+              {"determinism", "exact"}};
+    if (auto hit = store->memo_lookup(recipe))
+      structure = store->get_node(hit->output);
+  }
+  if (structure.is_null()) {
+    structure = choose_structure(doc, rules);
+    if (store) store->commit_derivation(recipe, structure);
+  }
+  doc.defaults["__regions"] = {{"block", structure["block"]},
+                               {"frame", structure["frame"]}};
+  doc.defaults["__mappings"] = structure["mappings"];
   outs[0] = gen::make_graph(std::move(doc));
 }
 
@@ -152,10 +211,11 @@ crown::native_type pass(const char* name, void* (*create)(),
                         void (*tick)(void*, const crown::svalue*,
                                      crown::svalue*),
                         std::vector<crown::port_decl> ins,
-                        std::vector<crown::port_decl> outs) {
+                        std::vector<crown::port_decl> outs,
+                        void (*set_context)(void*, const void*) = nullptr) {
   return {name,    create,  destroy, set_num, set_text, no_process,
           nullptr, std::move(ins), std::move(outs), false, false,
-          nullptr, tick,    nullptr, nullptr, false,   nullptr};
+          nullptr, tick,    nullptr, nullptr, false,   set_context};
 }
 void* null_create() { return nullptr; }
 void null_destroy(void*) {}
@@ -189,9 +249,11 @@ const crown::native_type construct_context_native = pass(
     no_text, context_tick, {{"in", "graph", "value"}},
     {{"out", "graph", "value"}});
 const crown::native_type choose_adapters_native = pass(
-    "choose-adapters", null_create, null_destroy, no_num, no_text,
+    "choose-adapters",
+    [] { return static_cast<void*>(new choose_state()); },
+    [](void* s) { delete static_cast<choose_state*>(s); }, no_num, no_text,
     choose_tick, {{"in", "graph", "value"}, {"rules", "text", "value"}},
-    {{"out", "graph", "value"}});
+    {{"out", "graph", "value"}}, choose_set_context);
 const crown::native_type realize_native = pass(
     "realize", null_create, null_destroy, no_num, no_text, realize_tick,
     {{"in", "graph", "value"}, {"backend", "text", "value"}},

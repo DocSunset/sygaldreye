@@ -36,3 +36,21 @@ consequence). Now `block:<id>` rules claim an instance for the block
 region in choose-adapters, and the test asserts lfo0's placement actually
 moves (frame → block) and moves back on unsplice. realize's `backend`
 port is read instead of decorative.
+
+## CMP-9.2 dissolution + CMP-1.2 — 2026-07-05 (rung-7 audit, blocker)
+The bespoke walk (compiler.cpp) still backed 11 green criteria under a
+false `dissolves: CMP-9.2` marker. Retired for real: `syg compile` now
+runs the SAME realized engine plan as `syg peer` (shared core,
+realized_compile.cpp); compiler.cpp is deleted. The structural stage is
+realized as a committed store derivation inside the choose-adapters hook
+(keyed on topology + rules); recognize-region short-circuits to identity
+when nothing can expand. CMP-1.2's `structural_memo` is now derived from
+an abi counter of actual expansion/inference runs — the test additionally
+pins that the FIRST compile does structural work (a dead counter fails).
+`passes_run` became the executor's tick trace. New runner gate: a live
+`dissolves:` marker naming a GREEN criterion fails the suite.
+
+## CMP-6.1 — 2026-07-05 (rung-7 audit)
+`engine_alive` was a hand tally in the session code it audited. Now an
+executor-side census: exec_plan counts live plans whose expanded doc
+contains a realize instance; sessions just read it.
