@@ -152,6 +152,53 @@ def exe113_inert_lint():
     assert r["inert"] == [], "lfo0 is clock-wired and demanded — not inert"
 
 
+
+def exe61_no_singleton_reach():
+    # no ::instance() reach from node code into engine machinery
+    for d in ("nodes", "organs"):
+        base = ROOT / "src" / d
+        for f in list(base.rglob("*.cpp")) + list(base.rglob("*.hpp")):
+            assert "::instance()" not in f.read_text(), f
+
+
+def tcf3_clock_honesty():
+    # no wall-clock syscalls from any node; kernels receive dt/increments
+    import re
+    banned = re.compile(r"\btime\(|gettimeofday|clock_gettime|system_clock")
+    for d in ("nodes", "organs", "escapement", "crown", "executor"):
+        base = ROOT / "src" / d
+        if not base.exists():
+            continue
+        for f in list(base.rglob("*.cpp")) + list(base.rglob("*.hpp")):
+            assert not banned.search(f.read_text()), f"wall-clock in {f}"
+
+
+def tcf5_movement_austerity():
+    # a frozen movement build contains no fault package, no heartbeats, no
+    # dirty bookkeeping — symbol audit proves absence
+    import shutil, subprocess
+    firmware = ROOT / "build" / "hello-cosine-movement"
+    if not firmware.exists() or not shutil.which("nm"):
+        raise Pending("sealed movement binary or nm unavailable")
+    syms = subprocess.run(["nm", "-C", str(firmware)], capture_output=True,
+                          text=True).stdout.lower()
+    for banned in ("fault", "heartbeat", "dirty", "quarantine", "supervisor",
+                   "crown", "arbiter"):
+        assert banned not in syms, f"movement carries '{banned}' machinery"
+
+
+def lng9_text_events_still_open():
+    # LNG-9 is OPEN by design: until text events are ratified, no vocabulary
+    # may declare a text-kind event port — text inlets are persistence-only
+    gen = ROOT / "build" / "generated"
+    if not gen.exists():
+        raise Pending("generated descriptors not built")
+    for f in gen.glob("*.descriptor.json"):
+        for pn, pv in json.loads(f.read_text())["ports"].items():
+            assert not (pv["kind"] == "text" and pv["discipline"] == "event"), \
+                f"{f.name}:{pn} declares the unratified text event payload"
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -161,7 +208,7 @@ TESTS = {
     "EXE-4.1": exe41_latch_at_block_start,
     "EXE-4.2": None,
     "EXE-4.3": None,
-    "EXE-6.1": None,
+    "EXE-6.1": exe61_no_singleton_reach,
     "EXE-6.2": exe62_pump_offline,
     "EXE-7.1": None,
     "EXE-8.1": None,
@@ -185,10 +232,10 @@ TESTS = {
     "LNG-6.1": None,
     "LNG-6.2": None,
     "LNG-7.1": None,
-    "LNG-9": None,
+    "LNG-9": lng9_text_events_still_open,
     "TCF-1": None,
     "TCF-2": None,
-    "TCF-3": None,
+    "TCF-3": tcf3_clock_honesty,
     "TCF-4": None,
-    "TCF-5": None,
+    "TCF-5": tcf5_movement_austerity,
 }
