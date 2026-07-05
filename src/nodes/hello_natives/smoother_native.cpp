@@ -24,6 +24,7 @@ void smoother_process(void* s, const float* const*, float* const* out,
                       int frames) noexcept {
   auto* st = static_cast<smoother_state*>(s);
   float max_step = st->rate / 48000.0f;  // dt clamping lives in the shell
+  // AUT-2 exception: per-sample slew state, a mapping's floor
   for (int i = 0; i < frames; ++i)
     out[0][i] = st->slew.tick(st->target, max_step);
 }

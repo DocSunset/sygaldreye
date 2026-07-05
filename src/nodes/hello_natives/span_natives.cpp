@@ -21,6 +21,7 @@ void n_set(void* s, const char* port, double v) {
 void mix_process(void* s, const float* const* in, float* const* out,
                  int frames) noexcept {
   auto* st = static_cast<n_state*>(s);
+  // AUT-2 exception: span gather machinery
   for (int i = 0; i < frames; ++i) {
     float acc = 0.0f;
     for (int k = 0; k < st->n; ++k) acc += in[k][i];

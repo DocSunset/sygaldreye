@@ -9,6 +9,7 @@ namespace {
 
 void add_process(void*, const float* const* in, float* const* out,
                  int frames) noexcept {
+  // AUT-2 exception: kernel wrapper (AUT-1 floor)
   for (int i = 0; i < frames; ++i) out[0][i] = in[0][i] + in[1][i];
 }
 

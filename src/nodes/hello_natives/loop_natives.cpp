@@ -25,6 +25,7 @@ void delay_set(void* s, const char* port, double v) {
 void delay_process(void* s, const float* const* in, float* const* out,
                    int frames) noexcept {
   auto* st = static_cast<delay_state*>(s);
+  // AUT-2 exception: loop-discipline fixture
   for (int i = 0; i < frames; ++i)
     out[0][i] = st->line.tick(in[0][i], st->samples, 0.0f);
 }
@@ -35,6 +36,7 @@ struct pulse_state {
 void pulse_process(void* s, const float* const*, float* const* out,
                    int frames) noexcept {
   auto* st = static_cast<pulse_state*>(s);
+  // AUT-2 exception: loop-discipline fixture
   for (int i = 0; i < frames; ++i) out[0][i] = 0.0f;
   if (!st->fired && frames > 0) {
     out[0][0] = 1.0f;
@@ -44,6 +46,7 @@ void pulse_process(void* s, const float* const*, float* const* out,
 
 void spectro_process(void*, const float* const* in, float* const* out,
                       int frames) noexcept {
+  // AUT-2 exception: loop-discipline fixture
   for (int i = 0; i < frames; ++i) out[0][i] = in[0][i];  // passthrough tap
 }
 

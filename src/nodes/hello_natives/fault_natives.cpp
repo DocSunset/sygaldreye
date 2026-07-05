@@ -19,6 +19,7 @@ void bomb_set(void* s, const char* port, double v) {
 void bomb_process(void* s, const float* const*, float* const* out,
                   int frames) noexcept {
   auto* st = static_cast<bomb_state*>(s);
+  // AUT-2 exception: fault-injection fixture
   for (int i = 0; i < frames; ++i)
     out[0][i] = ++st->n > st->at ? std::numeric_limits<float>::quiet_NaN()
                                  : 0.4f;
@@ -35,6 +36,7 @@ void spin_process(void* s, const float* const* in, float* const* out,
   auto* st = static_cast<spin_state*>(s);
   volatile long sink = 0;
   for (long i = 0; i < st->iters; ++i) sink += i;
+  // AUT-2 exception: fault-injection fixture
   for (int i = 0; i < frames; ++i) out[0][i] = in[0][i];
 }
 

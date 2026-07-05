@@ -15,6 +15,7 @@ struct noise_state {
 void noise_process(void* s, const float* const*, float* const* out,
                    int frames) noexcept {
   auto& st = *static_cast<noise_state*>(s);
+  // AUT-2 exception: kernel wrapper (AUT-1 floor)
   for (int i = 0; i < frames; ++i) out[0][i] = synth::white_noise(st.rng);
 }
 

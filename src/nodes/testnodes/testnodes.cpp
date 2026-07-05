@@ -8,6 +8,7 @@
 namespace syg::nodes {
 
 void parsey_body(const float* in, float* out, int frames) {
+  // AUT-2 exception: harness fixture
   for (int i = 0; i < frames; ++i) {
     if (in[i] < 0.0f) throw std::runtime_error("malformed input");
     out[i] = in[i];
@@ -15,6 +16,7 @@ void parsey_body(const float* in, float* out, int frames) {
 }
 
 void boom_body(const float* in, float* out, int frames) {
+  // AUT-2 exception: harness fixture
   for (int i = 0; i < frames; ++i) {
     if (in[i] > 0.5f) throw std::runtime_error("undeclared trouble");
     out[i] = in[i];
