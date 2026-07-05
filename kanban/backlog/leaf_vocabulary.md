@@ -6,12 +6,12 @@ is the cheap path from rung 7 onward. Standing work, not a stage —
 ADR-033 and ch. 16's ledger promise it (~30 floor one-liners, half the
 native count) but no rung schedules it.
 
-- Extend the generator with the one-liner stamp: a kernel-lambda table
-  (name, arity, expression) → endpoints struct + native + registration.
-  Adding a leaf must cost ONE table line (AUT-3.1's spirit).
-- Seed set: arithmetic (add sub mul div mod min max abs pow), trig/exp
-  (sin cos tan exp log sqrt), compare/logic (lt gt eq and or not), range
-  (clamp lerp scale wrap), const.
+- [DONE 2026-07-05] The one-liner stamp lives in the generator
+  (`leaves[]` table in generate.cpp → descriptor + native + registration;
+  one line per leaf). Seeded 20: mul sub div fmin fmax fmod_ pow_ lt gt
+  eq and_ or_ wrap01 abs_ neg not_ clamp01 sqrt_ exp_ tanh_ (block lane;
+  `add` predates the stamp; sin/cos ride osc). Value-lane variants and
+  the freezer's leaf templates land when the freezer unshelves.
 - Schema structs for the catalog's struct-shaped kinds (vec2/3/4, quat,
   mat4, text) per ch. 2's kind-authoring paragraph, committed as kind
   nodes through CMP-9.4's machinery — vocabulary/kinds.json becomes
