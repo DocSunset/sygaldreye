@@ -33,6 +33,44 @@ def cor1_escapement_austerity():
     golden_audio_check(struct.unpack(f"<{len(raw) // 4}f", raw))
 
 
+def abi11_one_declaration():
+    # widget_b is widget_a plus one field (src/nodes/widgets/widgets.hpp);
+    # port, codec, and binding must all surface it with no other edits
+    import importlib.util, json
+    gen = HERE.parent / "build" / "generated"
+    if not gen.exists():
+        raise Pending("generated/ not built yet (ninja -C build)")
+    da = json.loads((gen / "widget_a.descriptor.json").read_text())["ports"]
+    db = json.loads((gen / "widget_b.descriptor.json").read_text())["ports"]
+    assert set(db) - set(da) == {"brightness"}, (da, db)
+    assert db["brightness"] == {"dir": "in", "kind": "scalar",
+                                "discipline": "value"}
+    assert {k: v for k, v in db.items() if k != "brightness"} == da, \
+        "the one field changed more than itself"
+    # the generated codec knows the field exactly where it is declared
+    out = json.loads(syg("codec-selftest", "widget_b",
+                         stdin=b'{"gain":0.5,"brightness":0.25}'))
+    assert out["brightness"] == 0.25 and out["gain"] == 0.5
+    try:
+        syg("codec-selftest", "widget_a", stdin=b'{"brightness":0.25}')
+        raise AssertionError("widget_a's codec accepted an undeclared field")
+    except AssertionError as e:
+        assert "no in-port" in str(e), e
+    # the generated binding (the host-language half) surfaces it too
+    spec = importlib.util.spec_from_file_location("bindings", gen / "bindings.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert "brightness" in mod.PORTS["widget_b"]
+    assert "brightness" not in mod.PORTS["widget_a"]
+    b = mod.widget_b.from_projection({"gain": 0.5, "brightness": 0.25})
+    assert b.to_projection()["brightness"] == 0.25
+    try:
+        mod.widget_a.from_projection({"brightness": 0.25})
+        raise AssertionError("widget_a's binding accepted an undeclared field")
+    except ValueError:
+        pass
+
+
 def _sources(*dirs, drop_generated=True):
     for d in dirs:
         p = SRC / d
@@ -110,7 +148,7 @@ def sz6_trampolines_small():
 
 
 TESTS = {
-    "ABI-1.1": None,
+    "ABI-1.1": abi11_one_declaration,
     "ABI-1.2": abi12_no_handwritten_serializers,
     "ABI-2.1": None,
     "ABI-2.2": None,

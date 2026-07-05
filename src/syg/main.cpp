@@ -11,6 +11,7 @@
 #include "cid/cid.hpp"
 #include "pins/pins.hpp"
 #include "dagcbor/dagcbor.hpp"
+#include "codecs.hpp"
 #include "naming_session.hpp"
 #include "hello_cosine/hello_cosine.hpp"
 #include "oracle/oracle.hpp"
@@ -109,6 +110,24 @@ int cmd_tick_audit() {
   return 0;
 }
 
+int cmd_codec_selftest(const std::string& type) {
+  auto j = nlohmann::json::parse(read_stdin());
+  nlohmann::json out;
+  if (type == "widget_a") {
+    syg::nodes::widget_a x;
+    syg::generated::from_projection(j, x);
+    out = syg::generated::to_projection(x);
+  } else if (type == "widget_b") {
+    syg::nodes::widget_b x;
+    syg::generated::from_projection(j, x);
+    out = syg::generated::to_projection(x);
+  } else {
+    throw std::runtime_error("no generated codec for " + type);
+  }
+  std::cout << out.dump() << "\n";
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -154,6 +173,7 @@ int main(int argc, char** argv) {
     if (cmd == "render-movement" && argc > 3)
       return cmd_render_movement(argv[2], std::stod(argv[3]));
     if (cmd == "tick-audit") return cmd_tick_audit();
+    if (cmd == "codec-selftest" && argc > 2) return cmd_codec_selftest(argv[2]);
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;
