@@ -5,6 +5,8 @@
 #include <stdexcept>
 
 #include "phase.hpp"
+#include <chrono>
+#include <cmath>
 #include <fstream>
 
 #include "registry_face/registry_face.hpp"
@@ -88,6 +90,8 @@ struct exec_plan::impl {
     std::map<std::size_t, std::vector<std::size_t>> backward;  // node -> in-ports with z⁻¹
   };
   std::vector<segment> segments;
+  std::set<std::size_t> muted;       // segments the overrun ladder severed
+  bool sink_severed = false;
   struct block_edge { std::size_t src, dst, dst_port; };
   std::vector<block_edge> block_edges;
   long process_calls = 0;
@@ -573,16 +577,26 @@ const float* exec_plan::pump_block() {
                     static_cast<double>(*pl.cell));
   }
   // 4. the segments, RT-audited: fused feedforward loops; islands
-  // sample-interleaved with z⁻¹ on backward edges (ADR-013)
+  // sample-interleaved with z⁻¹ on backward edges (ADR-013). The executor
+  // times its own tick (its monotonic clock, TCF-3) for the overrun ladder.
+  auto tick_began = std::chrono::steady_clock::now();
+  double worst_cost = 0.0;
+  std::size_t costliest = 0;
   {
     abi::phase_guard g(abi::phase::process);
-    for (auto& seg : im_->segments) {
+    for (std::size_t seg_i = 0; seg_i < im_->segments.size(); ++seg_i) {
+      auto& seg = im_->segments[seg_i];
+      if (im_->muted.count(seg_i)) continue;  // severed by the ladder
+      auto seg_began = std::chrono::steady_clock::now();
       if (!seg.island) {
         for (auto v : seg.nodes) {
           auto& b = im_->blocks[v];
           b.type->process(b.state, b.ins.data(), b.outs.data(), block_);
           ++im_->process_calls;
         }
+        double cost = std::chrono::duration<double>(
+                          std::chrono::steady_clock::now() - seg_began).count();
+        if (cost > worst_cost) worst_cost = cost, costliest = seg_i;
         continue;
       }
       thread_local std::vector<const float*> tin;
@@ -601,7 +615,43 @@ const float* exec_plan::pump_block() {
           ++im_->process_calls;
         }
       }
+      double cost = std::chrono::duration<double>(
+                        std::chrono::steady_clock::now() - seg_began).count();
+      if (cost > worst_cost) worst_cost = cost, costliest = seg_i;
     }
+  }
+  // the deadline ladder (TCF-4 overrun): report, then mute the costliest
+  double deadline = static_cast<double>(block_) / rate_;
+  double tick_cost = std::chrono::duration<double>(
+                         std::chrono::steady_clock::now() - tick_began).count();
+  if (tick_cost > deadline) {
+    faults_.push_back("overrun: block tick took " + std::to_string(tick_cost) +
+                      "s of a " + std::to_string(deadline) + "s deadline");
+    if (++consecutive_overruns_ >= 3 && !im_->segments.empty()) {
+      im_->muted.insert(costliest);
+      faults_.push_back("ladder: muted costliest segment (node '" +
+                        im_->blocks[im_->segments[costliest].nodes.front()].id +
+                        "') after 3 consecutive overruns");
+      consecutive_overruns_ = 0;
+    }
+  } else {
+    consecutive_overruns_ = 0;
+  }
+  // NaN/Inf guard at the dac boundary: detection severs the upstream input
+  if (im_->sink && !im_->sink_severed) {
+    for (int i = 0; i < block_; ++i)
+      if (!std::isfinite(im_->sink[i])) {
+        faults_.push_back(
+            "nan-inf at the dac boundary: upstream severed; the sink falls "
+            "back to silence (inlet default)");
+        for (auto& b : im_->blocks)
+          if (b.type->out_ports.empty() && !b.ins.empty() && b.ins[0] == im_->sink) {
+            b.ins[0] = im_->silence.data();
+            im_->sink = im_->silence.data();
+          }
+        im_->sink_severed = true;
+        break;
+      }
   }
   // 5. snapshots publish at period end: frame sees the completed block
   for (auto& sn : im_->snapshots) *sn.cell = sn.src_buf[block_ - 1];

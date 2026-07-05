@@ -645,6 +645,50 @@ def lng62_resource_holder_refuses_lift():
         assert "dac" in msg, f"the inner culprit is not named: {msg}"
 
 
+
+def tcf4_fault_matrix():
+    # one test per fault class by region kind, each ending in the
+    # documented state with testimony written:
+    # 1. declared throw -> fault record on the output; region keeps ticking
+    out = json.loads(syg("fault-audit"))
+    assert out["faults"] and out["ticks_after_fault"] > 0
+    # 2. undeclared throw -> containment-unit death, testified, restarts
+    out = json.loads(syg("quarantine-audit"))
+    assert out["deaths"] == 3 and out["testimony"]["class"] == "undeclared-throw"
+    # 3. trap in quarantine -> SIGSEGV kills the subprocess, testimony
+    #    carries the signal; the supervisor survives
+    out = json.loads(syg("quarantine-audit", "trap"))
+    assert out["testimony"]["class"] == "trap-SIGSEGV", out
+    assert out["testimony"]["signal"] == 11 and out["supervisor_alive"]
+    # 4. NaN at the dac -> boundary scan severs upstream; sink falls back
+    #    to silence; the region keeps ticking
+    g = {"kind": "graph", "lock": {},
+         "topology": {"nodes": {"bomb0": {"type": "nan_bomb"},
+                                "dac0": {"type": "dac"}},
+                      "edges": [{"from": "bomb0/out", "to": "dac0/in"}]},
+         "defaults": {"bomb0/at": 300.0}}
+    out = _exec_audit(g, blocks=10, watch=["out"])
+    assert any("nan-inf" in f for f in out["faults"]), out["faults"]
+    assert out["watched"]["out"][-1] == [0.0, 0.0], "severance did not mute"
+    # 5. hang in the frame region -> stale heartbeat, containment restart
+    out = json.loads(syg("hang-audit"))
+    assert out["hang_detected"] and out["testimony"]["class"] == "hang"
+    # 6. overrun in the block region -> report, then the ladder mutes the
+    #    costliest island after three consecutive misses
+    g = {"kind": "graph", "lock": {},
+         "topology": {"nodes": {"osc0": {"type": "osc"},
+                                "hog0": {"type": "spin"},
+                                "dac0": {"type": "dac"}},
+                      "edges": [{"from": "osc0/out", "to": "hog0/in"},
+                                {"from": "hog0/out", "to": "dac0/in"}]},
+         "defaults": {"osc0/freq": 220.0, "hog0/iters": 50000000.0}}
+    out = _exec_audit(g, blocks=8)
+    overruns = [f for f in out["faults"] if f.startswith("overrun")]
+    muted = [f for f in out["faults"] if f.startswith("ladder")]
+    assert overruns, "the executor never noticed the deadline miss"
+    assert muted and "hog0" in muted[0], f"the ladder did not name the hog: {out['faults']}"
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -682,6 +726,6 @@ TESTS = {
     "TCF-1": tcf1_mapping_guarantees,
     "TCF-2": tcf2_swaps_under_load,
     "TCF-3": tcf3_clock_honesty,
-    "TCF-4": None,
+    "TCF-4": tcf4_fault_matrix,
     "TCF-5": tcf5_movement_austerity,
 }

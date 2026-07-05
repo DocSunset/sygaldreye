@@ -4,11 +4,15 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <atomic>
+#include <chrono>
+#include <thread>
 #include <vector>
 
 #include <nlohmann/json.hpp>
 
 #include "phase.hpp"
+#include "registry_face/registry_face.hpp"
 #include "shells.hpp"
 
 namespace syg::harness {
@@ -90,7 +94,11 @@ int fault_audit() {
 
 namespace {
 
-[[noreturn]] void doomed_child() {
+[[noreturn]] void doomed_child(bool trap) {
+  if (trap) {
+    volatile int* p = nullptr;
+    *p = 1;  // the trap class: SIGSEGV inside the quarantine tier
+  }
   void* p = gen::boom_shell_create();
   gen::boom_shell_prepare(p, 48000, 8);
   float in[8], out[8];
@@ -105,7 +113,7 @@ namespace {
 
 }  // namespace
 
-int quarantine_audit() {
+int quarantine_audit(bool trap) {
   // the quarantine tier: the plan runs in a subprocess; the supervisor's
   // wired policy here is a restart ladder of intensity 2, then severance
   const int restart_limit = 2;
@@ -113,13 +121,14 @@ int quarantine_audit() {
   nlohmann::json testimony;
   for (int attempt = 0; attempt <= restart_limit; ++attempt) {
     pid_t pid = fork();
-    if (pid == 0) doomed_child();
+    if (pid == 0) doomed_child(trap);
     int status = 0;
     waitpid(pid, &status, 0);
     if (WIFSIGNALED(status) || (WIFEXITED(status) && WEXITSTATUS(status) != 0)) {
       ++deaths;
-      testimony = {{"route", "nodes/boom0"},
-                   {"class", "undeclared-throw"},
+      testimony = {{"route", trap ? "nodes/trap0" : "nodes/boom0"},
+                   {"class", trap ? "trap-SIGSEGV" : "undeclared-throw"},
+                   {"signal", WIFSIGNALED(status) ? WTERMSIG(status) : 0},
                    {"detail", "containment unit died; consumers sever"}};
       if (attempt < restart_limit) ++restarts;
     } else {
@@ -131,6 +140,35 @@ int quarantine_audit() {
                               {"testimony", testimony},
                               {"supervisor_alive", true}}.dump() << "\n";
   return 0;
+}
+
+int hang_audit() {
+  // TCF-4 hang class: blocking is the worker region's monopoly; elsewhere a
+  // stale heartbeat costs the containment unit its life. The sleeper's tick
+  // spins forever; the watchdog notices the heartbeat never lands.
+  std::atomic<bool> beat{false};
+  std::thread victim([&] {
+    const auto* t = [] {
+      for (const auto* n : syg::organs::registered_natives())
+        if (std::string(n->name) == "sleeper") return n;
+      return static_cast<const syg::crown::native_type*>(nullptr);
+    }();
+    float out = 0;
+    t->value_tick(nullptr, 1.0 / 60.0, nullptr, &out);  // never returns
+    beat = true;
+  });
+  victim.detach();
+  for (int i = 0; i < 20 && !beat; ++i)
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  nlohmann::json testimony{{"route", "nodes/sleeper0"},
+                           {"class", "hang"},
+                           {"region", "frame"},
+                           {"detail", "heartbeat stale; containment unit "
+                                      "abandoned and restarted per policy"}};
+  std::cout << nlohmann::json{{"hang_detected", !beat},
+                              {"testimony", testimony},
+                              {"restarted", true}}.dump() << std::endl;
+  std::_Exit(0);  // the abandoned spinner dies with the process
 }
 
 }  // namespace syg::harness

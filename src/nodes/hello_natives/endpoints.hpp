@@ -53,6 +53,21 @@ struct spectro {  // block-override: consumes its block whole (FFT-shaped)
   au::out<au::audio, au::block> out;
 };
 
+struct nan_bomb {
+  au::in<au::scalar, au::value> at;
+  au::out<au::audio, au::block> out;
+};
+
+struct spin {
+  au::in<au::audio, au::block> in;
+  au::in<au::scalar, au::value> iters;
+  au::out<au::audio, au::block> out;
+};
+
+struct sleeper {
+  au::out<au::scalar, au::value> out;
+};
+
 struct spanv {  // a span-valued source: its values list drives lifting
   au::out<au::span, au::value> out;
 };

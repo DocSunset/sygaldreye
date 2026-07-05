@@ -324,6 +324,7 @@ int cmd_exec_audit() {
                               {"rt_events", rt_after - rt_before},
                               {"process_calls", p.process_calls()},
                               {"log", log},
+                              {"faults", p.faults()},
                               {"serialized", syg::organs::serialize_graph(p.doc())}}
                    .dump() << "\n";
   return 0;
@@ -557,7 +558,9 @@ int main(int argc, char** argv) {
     if (cmd == "hook-audit") return syg::harness::hook_audit();
     if (cmd == "create-audit" && argc > 2) return syg::harness::create_audit(argv[2]);
     if (cmd == "fault-audit") return syg::harness::fault_audit();
-    if (cmd == "quarantine-audit") return syg::harness::quarantine_audit();
+    if (cmd == "quarantine-audit")
+      return syg::harness::quarantine_audit(argc > 2 && std::string(argv[2]) == "trap");
+    if (cmd == "hang-audit") return syg::harness::hang_audit();
     if (cmd == "replay-tape") return cmd_replay_tape();
     if (cmd == "render-tape" && argc > 2) return cmd_render_tape(std::stod(argv[2]));
     if (cmd == "roundtrip") return cmd_roundtrip();

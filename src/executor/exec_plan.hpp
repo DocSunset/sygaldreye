@@ -49,6 +49,7 @@ class exec_plan {
   float value_of(const std::string& id_port) const;  // frame cell peek
   long process_calls() const;  // kernel invocations (EXE-10.2 observability)
   long rejected_ops() const { return rejected_; }  // precondition losers
+  const std::vector<std::string>& faults() const { return faults_; }
   const std::vector<applied_op>& log() const { return log_; }
   std::size_t log_cursor() const { return cursor_; }
   void undo();  // move the cursor back, applying inverses (ADR-018:
@@ -65,6 +66,8 @@ class exec_plan {
   std::vector<applied_op> log_;
   std::size_t cursor_ = 0;
   long rejected_ = 0;
+  std::vector<std::string> faults_;
+  int consecutive_overruns_ = 0;
   mpsc<edit_op> inlet_q_;
   mpsc<std::pair<std::string, double>> event_q_;
   std::map<std::string, std::string> param_journal_;  // route -> last value
