@@ -166,13 +166,28 @@ def frz12_unfreeze_is_reading_provenance():
     assert r2[5]["memo"] is True, "re-freezing missed the memo"
 
 
+def frz21_tier_derived_from_native_closure():
+    # hello-cosine's block region reports tier 1; add a tmux node and the
+    # enclosing graph reports tier 3 with the culprit named
+    c, _ = _freeze(_hello())
+    x = c["execution_body"]
+    assert x["tier"] == 1, x
+    tainted = _hello()
+    tainted["topology"]["nodes"]["tmux0"] = {"type": "tmux"}
+    c2, _ = _freeze(tainted)
+    x2 = c2["execution_body"]
+    assert x2["tier"] == 3, x2
+    assert "tmux0" in x2["tier_culprit"], \
+        f"the culprit is unnamed: {x2['tier_culprit']!r}"
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
     "AUT-5.1": None,
     "FRZ-1.1": frz11_ab_chime_interpreted_vs_frozen,
     "FRZ-1.2": frz12_unfreeze_is_reading_provenance,
-    "FRZ-2.1": None,
+    "FRZ-2.1": frz21_tier_derived_from_native_closure,
     "FRZ-3.1": None,
     "FRZ-4.1": None,
     "PKG-1.1": None,
