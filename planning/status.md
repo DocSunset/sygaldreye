@@ -4,27 +4,31 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
 
 ## RESUME BLOCK (keep this section current at every stopping point)
 
-- **Current state:** rungs 1–7 GREEN (117 criteria, 0 fail) — rung 7
-  re-earned under ADR-034: the engine is REALIZED (pass node types ticked
-  by the plan; compile = derivation-mode run; syg peer is the one-peer
-  session), the structured lane (svalue) landed, the query four realized,
-  20 generated leaf natives, honest locks.
-- **In-flight:** fresh-context rung-7 audit (Judgement §3) running as a
-  sub-agent; findings land here. Rung 8 opens only after fix-or-flag.
-- **Next action:** process audit findings → rung 8 (packages & freezer,
-  18 criteria incl. AUT-2.1/2.2/5.1 backfill). The freezer WIP is SHELVED
-  (src/executor/freezer.* marked scaffolding dissolves: FRZ-1.1) and must
-  be rebuilt to fuse the REAL engine's realize output. Hardware-bound
-  criteria (PKG-3.x on-device XR) will pend honestly on this machine.
-- **Known deliberate gaps (flag duty):** the peer session is peer-SHAPED
-  (store + engine slot + instances) but not yet booted from the stage-0
-  tape — the tape→organs→engine-slot integration lands with SZ/CNF work;
-  engine-v0.json's own lock still carries placeholder strings (committed
-  APP graphs get honest locks; committing the ENGINE with honest locks
-  joins CMP-9.4's follow-through when the engine dataset is stored).
+- **Current state:** rungs 1–7 GREEN (117 criteria), gates green, and the
+  rung-7 audit's findings REMEDIATED (commits bdf40c2..b58e23d): the
+  bespoke compiler is deleted — `syg compile` and `syg peer` share ONE
+  realized compile core (a derivation-mode run of the engine plan); the
+  structural stage is a store derivation inside the choose hook;
+  structured kinds are generated from the catalog (cidset stream bug
+  fixed); CMP-9.3's vacuous assert replaced with instance-counter
+  witnesses; engine census lives in the executor; the runner now FAILS if
+  a `dissolves:` marker names a green criterion.
+- **In-flight:** fresh-context audit OF THE REMEDIATION (Judgement §3)
+  running; findings land here; fix-or-flag, then rung 8.
+- **Next action:** rung 8 (packages & freezer, 18 criteria incl.
+  AUT-2.1/2.2/5.1 backfill). First: rebuild the SHELVED freezer
+  (src/executor/freezer.*, marker dissolves: FRZ-1.1) to fuse the REAL
+  engine's realize output — the dissolution gate will enforce the marker's
+  death when FRZ-1.1 goes green. Hardware-bound PKG criteria pend honestly.
+- **Known deliberate gaps (flag duty):** peer session is peer-shaped but
+  not yet booted from the stage-0 tape (SZ/CNF work); engine-v0.json's own
+  lock still placeholder (honest-lock follow-through when the engine
+  dataset is stored); graphs/*.json are unkeyed compile inputs (backlog
+  card); CMP-9.4's registry-vs-walk equality true by construction until
+  types load from committed datasets (backlog card).
 - **Active disciplines:** L22 (graphs, not C++); ADR-034 realization rule;
-  Judgement section binding (STRENGTHENINGS.md ledger; flag before green;
-  fresh audit per rung; ADR drafts while hot); one peer, many sessions.
+  Judgement binding (STRENGTHENINGS.md; flag before green; fresh audit per
+  rung; ADR drafts while hot); one peer, many sessions.
 - **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
 
 ## 2026-07-05 — Fresh-context rung-7 audit (Judgement §3): findings
