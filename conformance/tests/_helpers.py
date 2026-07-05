@@ -59,6 +59,69 @@ def to_projection(v):
     return v
 
 
+def fft(x):
+    """Iterative radix-2 FFT over a list of complex (len = power of 2)."""
+    import math
+    n = len(x)
+    x = x[:]
+    j = 0
+    for i in range(1, n):
+        bit = n >> 1
+        while j & bit:
+            j ^= bit
+            bit >>= 1
+        j |= bit
+        if i < j:
+            x[i], x[j] = x[j], x[i]
+    length = 2
+    while length <= n:
+        ang = -2 * math.pi / length
+        wl = complex(math.cos(ang), math.sin(ang))
+        half = length // 2
+        for i in range(0, n, length):
+            w = 1 + 0j
+            for k in range(i, i + half):
+                u, v = x[k], x[k + half] * w
+                x[k], x[k + half] = u + v, u - v
+                w *= wl
+        length <<= 1
+    return x
+
+
+def golden_audio_check(x, sr=48000):
+    """fixtures/golden-audio.md properties 1-3 over float samples."""
+    import math
+    assert not any(math.isnan(v) or math.isinf(v) for v in x), "NaN/Inf in buffer"
+    assert all(-1.0 <= v <= 1.0 for v in x), "sample outside [-1, 1]"
+    n = 1 << 17
+    assert len(x) >= n, "need >= 2.73 s at 48 kHz for the spectral check"
+    w = [0.5 - 0.5 * math.cos(2 * math.pi * i / (n - 1)) for i in range(n)]
+    spec = fft([complex(x[i] * w[i], 0.0) for i in range(n)])
+    mag = [abs(spec[i]) for i in range(n // 2)]
+    res = sr / n
+    peak = max(range(1, n // 2), key=lambda i: mag[i])
+    peak_f, peak_db = peak * res, 20 * math.log10(abs(mag[peak]) + 1e-30)
+    assert abs(peak_f - 220.0) <= 1.0, f"dominant peak at {peak_f:.2f} Hz"
+    def harmonic(f):  # the peak's harmonics carry the signal's own energy
+        return any(abs(f - h * 220.0) <= 2.0 for h in range(1, int(sr / 440) + 1))
+    worst = max((m for i, m in enumerate(mag) if i * res >= 5.0
+                 and not harmonic(i * res)), default=0.0)
+    floor_db = 20 * math.log10(worst + 1e-30)
+    assert peak_db - floor_db >= 40, \
+        f"non-harmonic floor only {peak_db - floor_db:.1f} dB down"
+    hop = sr // 100  # 10 ms RMS envelope
+    env = [math.sqrt(sum(v * v for v in x[i:i + hop]) / hop)
+           for i in range(0, len(x) - hop, hop)]
+    mid = (max(env) + min(env)) / 2
+    rises = [i for i in range(1, len(env)) if env[i - 1] < mid <= env[i]]
+    periods = [(b - a) / 100 for a, b in zip(rises, rises[1:])]
+    assert periods, "no envelope period observed"
+    assert all(abs(p - 2.0) <= 0.1 for p in periods), \
+        f"envelope not 0.5 Hz +-5%: {periods}"
+    depth = (max(env) - min(env)) / (max(env) + min(env))
+    assert depth > 0.9, f"modulation depth {depth:.2f} below the lfo/vca defaults"
+
+
 def fixture(name):
     p = FIX / name
     return p.read_text() if not name.endswith(".json") else json.loads(p.read_text())
