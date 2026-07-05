@@ -127,6 +127,16 @@ struct exec_plan::impl {
       f->dirty = true;  // staleness propagates from the write (ADR-015)
     }
   }
+  void set_text_param(const std::string& route, const std::string& v) {
+    auto id = route.substr(0, route.find('/'));
+    auto port = route.substr(route.find('/') + 1);
+    if (auto* f = frame_of(id)) {
+      f->type->set_text(f->state, port.c_str(), v.c_str());
+      f->dirty = true;
+    } else if (auto* b = block_of(id)) {
+      b->type->set_text(b->state, port.c_str(), v.c_str());
+    }
+  }
   ~impl() {
     for (auto& b : blocks)
       if (b.state) b.type->destroy(b.state);
@@ -174,8 +184,11 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
     auto port = route.substr(route.find('/') + 1);
     auto apply = [&](const crown::native_type* t, void* state) {
       if (v.is_number()) t->set_num(state, port.c_str(), v);
+      else if (v.is_boolean()) t->set_num(state, port.c_str(), v ? 1.0 : 0.0);
       else if (v.is_string())
         t->set_text(state, port.c_str(), v.get_ref<const std::string&>().c_str());
+      else if (v.is_array())
+        t->set_text(state, port.c_str(), v.dump().c_str());
     };
     if (auto* b = im->block_of(id)) apply(b->type, b->state);
     else if (auto* f = im->frame_of(id)) {
@@ -423,17 +436,22 @@ void submit_thunk(void* plan, crown::edit_op op) {
 }  // namespace
 
 void exec_plan::inject_context() {
-  ctx_ = {&doc_, &submit_thunk, this};
+  ctx_ = {&doc_, ctx_.store, &submit_thunk, this};
   for (auto& f : im_->frames)
     if (f.type->set_context) f.type->set_context(f.state, &ctx_);
   for (auto& b : im_->blocks)
     if (b.type->set_context) b.type->set_context(b.state, &ctx_);
 }
 
+void exec_plan::set_store(const void* store) {
+  ctx_.store = store;
+  inject_context();
+}
+
 void exec_plan::point_arbiter(const std::string& id, exec_plan& target) {
   // the LNG-7 injection seam, aimed: this instance's arbiter hook now
   // submits into ANOTHER graph's queue — a wiring choice, not a surface
-  target_ctx_ = {&doc_, &submit_thunk, &target};
+  target_ctx_ = {&doc_, ctx_.store, &submit_thunk, &target};
   if (auto* f = im_->frame_of(id))
     if (f->type->set_context) f->type->set_context(f->state, &target_ctx_);
 }
@@ -571,6 +589,8 @@ const float* exec_plan::pump_block() {
         cursor_ = log_.size();
       }
       structural = true;
+    } else if (o.op == "set_text") {
+      im_->set_text_param(o.a, o.b);
     } else if (o.op == "set_param") {
       im_->set_param(o.a, std::strtod(o.b.c_str(), nullptr));
       std::string prev = "0";

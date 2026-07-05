@@ -7,6 +7,7 @@
 #include "chunk/chunk.hpp"
 #include "dagcbor/dagcbor.hpp"
 #include "exec_plan.hpp"
+#include "svalue_accessors.hpp"
 #include "parser/parser.hpp"
 #include "query/query.hpp"
 #include "registry_face/registry_face.hpp"
@@ -74,11 +75,26 @@ int store_session(const nlohmann::json& in) {
   // query memo (LNG-10.1): a run is a committed derivation over the store
   std::map<std::string, nlohmann::json> query_memo;
   long commit_epoch = 0;
-  // the standing query (LNG-10.2): result + delta maintenance
+  // the standing query (LNG-10.2): a LIVE realized plan; new commits seed
+  // its dirty cone; out-of-cone instances never recompute
   organs::graph_doc standing;
+  std::unique_ptr<syg::executor::exec_plan> standing_plan;
+  std::string standing_sink;
   std::set<std::string> standing_result;
-  bool has_standing = false;
-  long standing_evals = 0;
+  const store::peer_store* standing_store = nullptr;
+  auto standing_read = [&]() {
+    std::set<std::string> out;
+    if (const auto* sv = standing_plan->svalue_of(standing_sink + "/out");
+        sv && sv->value)
+      for (const auto& c : syg::generated::as_cidset(*sv)) out.insert(c);
+    return out;
+  };
+  auto standing_counts = [&]() {
+    std::map<std::string, long> m;
+    for (const auto& [id, t] : standing.nodes)
+      m[id] = standing_plan->recomputes(id);
+    return m;
+  };
 
   auto results = nlohmann::json::array();
   for (const auto& op : in.value("ops", nlohmann::json::array())) {
@@ -227,11 +243,26 @@ int store_session(const nlohmann::json& in) {
       }
     } else if (what == "standing-query") {
       standing = organs::parse_graph(op.at("query"));
-      standing_result = organs::eval_query(standing, s, &standing_evals);
-      has_standing = true;
+      standing_plan = std::make_unique<syg::executor::exec_plan>(
+          standing, 48000, 128);
+      standing_store = &s;
+      standing_plan->set_store(&s);
+      for (int i = 0; i < 80; ++i) standing_plan->pump_block();
+      standing_sink = op.value("sink", "");
+      if (standing_sink.empty()) {
+        for (const auto& [id, t] : standing.nodes) {
+          bool consumed = false;
+          for (const auto& [f2, t2] : standing.edges)
+            if (f2.substr(0, f2.find('/')) == id) consumed = true;
+          if (!consumed) standing_sink = id;
+        }
+      }
+      standing_result = standing_read();
+      long evals = 0;
+      for (const auto& [id, n] : standing_counts()) evals += n;
       r = {{"result", std::vector<std::string>(standing_result.begin(),
                                                standing_result.end())},
-           {"evals", standing_evals}};
+           {"evals", evals}};
     } else if (what == "commit-take-chained") {
       // a new qualifying commit: chained to an existing provenance output
       nlohmann::json recipe{{"op", "render"},
@@ -241,13 +272,35 @@ int store_session(const nlohmann::json& in) {
                             {"determinism", "exact"}};
       auto c = s.commit_derivation(recipe, {{"kind", "take"}, {"n", op.value("n", 0)}});
       r = {{"take", c.output}, {"provenance", c.provenance}};
-      if (has_standing) {
-        // the standing form: the new commit seeds a DELTA pass (LNG-10.2)
-        long evals = 0;
-        std::set<std::string> delta{c.provenance, c.output};
-        auto grown = organs::eval_query(standing, s, &evals, &delta);
+      if (standing_plan && standing_store == &s) {
+        // the new commit seeds the LIVE plan's dirty cone (LNG-10.2):
+        // seeds take the delta; everything outside their cone stays quiet
+        auto before = standing_counts();
+        nlohmann::json delta = nlohmann::json::array();
+        delta.push_back(c.provenance);
+        delta.push_back(c.output);
+        for (const auto& [id, t] : standing.nodes) {
+          // only seeds DECLARING the watch receive commit deltas — the
+          // standing subscription is part of the query graph itself
+          bool watches = standing.defaults.contains(id + "/watch") &&
+                         standing.defaults[id + "/watch"] == true;
+          if (t == "seed" && watches) {
+            standing_plan->submit({"set_param", id + "/all", "0", "standing"});
+            standing_plan->submit({"set_text", id + "/cids", delta.dump(),
+                                   "standing"});
+          }
+        }
+        for (int i = 0; i < 30; ++i) standing_plan->pump_block();
+        auto grown = standing_read();
         standing_result.insert(grown.begin(), grown.end());
+        nlohmann::json deltas;
+        long evals = 0;
+        for (const auto& [id, n] : standing_counts()) {
+          deltas[id] = n - before[id];
+          evals += n - before[id];
+        }
         r["standing_evals"] = evals;
+        r["standing_recomputes"] = deltas;
         r["standing_size"] = standing_result.size();
       }
     } else if (what == "standing-result") {

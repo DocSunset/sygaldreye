@@ -254,6 +254,28 @@ def lng113_a_graph_edits_a_graph():
     assert "noise0" in out["target_doc"]["topology"]["nodes"], out["target_doc"]
 
 
+
+def lng114_query_four_realized():
+    # the query four are registered node types running as realized
+    # instances over the structured lane
+    pal = json.loads(syg("palette"))
+    for organ in ("seed", "traverse", "filter", "join", "fixpoint"):
+        assert organ in pal, f"{organ} is not a registered node type"
+    # the standing query's per-instance recompute counters exist only
+    # because the query IS a plan (LNG-10.2's cone assertions ride them)
+    import rung06
+    rung06.lng102_standing_query_incremental()
+    # the bespoke evaluator DISSOLVED: no scaffolding marker names this
+    # criterion anymore, anywhere in the tree
+    for f in (ROOT / "src").rglob("*.[ch]pp"):
+        assert "dissolves: LNG-11.4" not in f.read_text(), \
+            f"{f} still carries the walk this criterion dissolves"
+    # and LNG-10's criteria stay green through the swap
+    rung06.lng101_lineage_query()
+    rung06.lng103_fixpoint_terminates_on_cycles()
+    rung06.lng104_no_bespoke_search()
+
+
 TESTS = {
     "CMP-1.1": cmp11_passes_run_once,
     "CMP-1.2": cmp12_defaults_edit_skips_structure,
@@ -276,5 +298,5 @@ TESTS = {
     "LNG-11.1": lng111_graph_value_over_an_edge,
     "LNG-11.2": lng112_float_path_pays_nothing,
     "LNG-11.3": lng113_a_graph_edits_a_graph,
-    "LNG-11.4": None,
+    "LNG-11.4": lng114_query_four_realized,
 }

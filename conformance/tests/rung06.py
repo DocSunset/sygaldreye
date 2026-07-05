@@ -272,20 +272,35 @@ def lng101_lineage_query():
 
 
 def lng102_standing_query_incremental():
+    # the standing form is a LIVE realized plan: a new qualifying commit
+    # seeds exactly its dirty cone; a control chain sharing the plan (fed
+    # by an untouched seed) must not recompute at all
     setup = [{"op": "put-node", "node": {"kind": "node-type", "name": "osc"}}]
     r = _store(setup)
     osc_cid = r[0]["cid"]
+    q = _lineage_query(osc_cid)
+    # the out-of-cone control: an independent seed -> filter chain
+    q["topology"]["nodes"]["cs"] = {"type": "seed"}
+    q["topology"]["nodes"]["cf"] = {"type": "filter"}
+    q["topology"]["edges"].append({"from": "cs/out", "to": "cf/in"})
+    q["defaults"]["s0/watch"] = True   # the standing subscription points
+    q["defaults"]["s1/watch"] = True
+    q["defaults"]["cs/cids"] = [osc_cid]
+    q["defaults"]["cf/key"] = "kind"
+    q["defaults"]["cf/equals"] = "nothing"
     ops = setup + [
         {"op": "commit-take-chained", "parent": osc_cid, "n": 1},
-        {"op": "standing-query", "query": _lineage_query(osc_cid)},
+        {"op": "standing-query", "query": q, "sink": "j0"},
         {"op": "commit-take-chained", "parent": osc_cid, "n": 2},
     ]
     r = _store(ops)
-    full_evals = r[2]["evals"]
-    assert r[3]["standing_evals"] < full_evals, \
-        "the standing update recomputed more than its dirty cone"
     assert r[3]["standing_size"] > len(r[2]["result"]), \
         "the standing result did not grow within one demand cycle"
+    deltas = r[3]["standing_recomputes"]
+    assert deltas["cs"] == 0 and deltas["cf"] == 0, \
+        f"out-of-cone instances recomputed: {deltas}"
+    assert deltas["s0"] > 0 and deltas["x0"] > 0, \
+        f"the cone itself did not recompute: {deltas}"
 
 
 def lng103_fixpoint_terminates_on_cycles():

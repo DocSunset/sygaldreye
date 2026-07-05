@@ -45,6 +45,7 @@ class exec_plan {
   const crown::svalue* svalue_of(const std::string& id_port) const;
   // aim an arbiter_inlet instance at ANOTHER plan's queue (LNG-11.3)
   void point_arbiter(const std::string& id, exec_plan& target);
+  void set_store(const void* store);  // inject the store into the seam
   long process_calls() const;  // kernel invocations (EXE-10.2 observability)
   long rejected_ops() const { return rejected_; }  // precondition losers
   const std::vector<std::string>& faults() const { return faults_; }

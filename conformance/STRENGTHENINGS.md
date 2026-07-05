@@ -12,3 +12,9 @@ is ADR-gated, always; nothing here may relax an assertion.
   the oracle refuses structured kinds on BOTH directions of a stream
   crossing, and pins the zero-encode witness (encode-counter delta == 0),
   not merely "no serialization observed".
+- 2026-07-05 · LNG-10.2 — rewritten for the realized standing query
+  (LNG-11.4): instead of a full-vs-delta eval-count proxy, the test now
+  proves cone ISOLATION directly — an out-of-cone control chain sharing
+  the live plan recomputes zero times while the seeded cone recomputes.
+  Strictly stronger: the old proxy could pass with the control chain
+  churning.

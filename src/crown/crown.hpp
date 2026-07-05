@@ -31,7 +31,8 @@ struct edit_op {
 // arbiter submit hook — WHICH plan's arbiter is a wiring choice, which is
 // how a graph edits a graph (LNG-11.3).
 struct node_context {
-  const void* doc = nullptr;  // organs::graph_doc*
+  const void* doc = nullptr;    // organs::graph_doc*
+  const void* store = nullptr;  // store::peer_store* (query organs)
   void (*submit)(void* plan, edit_op op) = nullptr;
   void* plan = nullptr;
 };

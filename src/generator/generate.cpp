@@ -283,7 +283,7 @@ void emit_registration(const std::filesystem::path& dir) {
   const std::vector<std::string> natives{"osc", "lfo", "vca", "dac", "noise", "add", "cell", "scale", "delay", "pulse", "spectro", "button", "counter", "smoother", "spanv", "mix", "instanced_draw", "nan_bomb", "spin", "sleeper", "graph_cell", "node_count", "text_cell", "op_button"};
   const std::vector<std::string> organ_natives{
       "parser", "naive_resolver", "registry-face", "slot", "supervisor",
-      "graph_source", "arbiter_inlet"};
+      "graph_source", "arbiter_inlet", "seed", "traverse", "filter", "join", "fixpoint"};
   auto sym = [](std::string n) {
     for (auto& c : n)
       if (c == '-') c = '_';
