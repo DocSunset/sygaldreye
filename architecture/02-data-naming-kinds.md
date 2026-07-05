@@ -1,8 +1,8 @@
-# Chapter 2 — Data, naming, kinds, types (NAM)
+# Chapter 2 — Data, naming, kinds (NAM)
 
 *The part everything else stands on. A builder implementing this chapter
 delivers: the address grammar, the resolution engine, the kind registry, and
-the type oracle.*
+the promise oracle.*
 
 ## Design
 
@@ -43,11 +43,14 @@ links to decoder programs (render/traverse/serialize/validate) and conventions
 (port layout, rate constraints). Kind-of-kind is `kind`; the fiat kinds
 (`bytes`, `kind`, `scalar`, `audio`, `graph`, …) are sacred-ground nodes.
 
-**Types.** A type is a promise about a link: kind × rate. Reified as a node;
-declared one level up (`ports/foo/type`); **checked at edit/commit time by a
-first-order program** (`connection_legal` reading two type nodes); never
-consulted at tick time. Throughpoints are declarations deliberately absent —
-type derived at connect time.
+**Port promises (ADR-030 — "type" dissolved).** A port declaration attaches
+its promises directly as links: `ports/foo/kind` and `ports/foo/discipline`
+(clock constraints ride the kind node — audio pins block). **Checked at
+edit/commit time by a first-order program** (`connection_legal` reading the
+(kind, discipline) pairs); never consulted at tick time. Throughpoints are
+declarations deliberately absent — promises derived at connect time. And one
+mechanism classifies everything: a node type is a kind that carries behavior;
+an instance's `type` link is its kind link.
 
 ## Requirements
 
@@ -76,14 +79,15 @@ against the same kind registry.
 - NAM-4.1: a `scalar` on a wire and a committed `scalar` dataset carry the
   same kind hash; committing a port value requires no translation step.
 
-**NAM-5 (type oracle).** `connection_legal(from_type, to_type)` and
+**NAM-5 (promise oracle).** `connection_legal(from, to)` over (kind,
+discipline) pairs and
 `boundary_mapping(from, to)` are one shared first-order implementation used by
 both parse-time validation and editor wire-drop.
 - NAM-5.1: `osc0/out (audio·block) → vca0/in (audio·block)` legal, true edge.
 - NAM-5.2: `lfo0/out (scalar·frame) → vca0/gain (scalar·block)` legal via
   `latch` (returned as the boundary mapping).
 - NAM-5.3: `draw_call → audio` is ILLEGAL (both surfaces reject identically).
-- NAM-5.4: no type-node access occurs during tick (assert via instrumentation
+- NAM-5.4: no kind/promise lookup occurs during tick (assert via instrumentation
   in debug builds).
 
 **NAM-6 (hash format).** CID/multihash for all hashes; Merkle-DAG chunking for
@@ -102,7 +106,8 @@ stable under edits, with structural sharing between versions.
 
 The glossary's hello-cosine store fragment, plus: resolve
 `graphs/hello-cosine:nodes/vca0/gain` → walk ref → #a11 → topology #b22 →
-`vca0` → declaration lookup via `type → vca` → `ports/gain/type →
-#t-scalar-block`. Assert: the full walk touches exactly the containers named;
-normalizing after pinning the ref yields a fixed address; the type promise
+`vca0` → declaration lookup via `type → vca` → `ports/gain/kind → scalar`,
+`ports/gain/discipline → stream`. Assert: the full walk touches exactly the
+containers named;
+normalizing after pinning the ref yields a fixed address; the promise pair
 compares legal against `lfo0/out` only through `latch`.

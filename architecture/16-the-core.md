@@ -29,7 +29,7 @@ up. A sealed movement omits the crown entirely.
 
 ## Stratum 2 — the specs (definitional, code nowhere)
 
-naming · canonical encoding · kind/type model · three disciplines ·
+naming · canonical encoding · kind model (port promises) · three disciplines ·
 provenance grammar (derive/capture, determinism classes, succession) ·
 edit-op vocabulary · the native contract · the wire protocol · the
 compilation contract · the conformance harness shape. Each is a spec node,

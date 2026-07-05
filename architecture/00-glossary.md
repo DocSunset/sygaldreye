@@ -74,7 +74,7 @@ means); committing is opt-in history. Survives graph swaps by migration, keyed
 by route. *Example: osc0's phase accumulator.*
 
 **declaration vs binding (the level cut)** — a node type declares *about* link
-names, one level up (`ports/freq/type → #t-scalar-frame`); an instance *holds*
+names, one level up (`ports/freq/kind → scalar`); an instance *holds*
 the links (`freq → 220`). Same name, two bags, correlated through the
 instance's `type` link — the C++ class/object move, and how PFR endpoint
 structs already work.
@@ -93,10 +93,12 @@ by linking context, never intrinsic to bytes. Kind-of-kind is `kind`
 datasets: a port value is small, transient, uncommitted data of the same kind
 family (`scalar`, `audio`, `wav`, `graph`, …).
 
-**type** (derived: kind × rate) — a promise about a link: what its target
-parses as (kind) and when it may change (rate). Reified as a node; declared by
-linking `ports/<name>/type` to it; checked by derivation at edit time; compiled
-away at runtime. *Example: `#t-audio-block = {kind → audio, rate → block}`.*
+**port promises** (formerly "type" — DISSOLVED, ADR-030) — a port declaration
+attaches its promises directly as links: `ports/freq/kind → scalar`,
+`ports/freq/discipline → value`. The oracle checks (kind, discipline) pairs
+at edit time; compiled away at runtime. There is no type bundle and no
+freestanding concept named "type"; **node type** survives as the idiom for a
+kind that carries behavior.
 
 **derivation** — a committed computation: inputs (hashes) → program → output
 dataset, with provenance recorded as a *recipe*. Re-derivable, memoizable
@@ -139,8 +141,11 @@ not a primitive.
 
 ## Execution
 
-**node type** — the abstract node: hash-named, immutable; declares ports and
-state schema one level up; links to its behavior — a graph, or a **native**.
+**node type** — a kind that carries behavior (ADR-030): hash-named,
+immutable; declares ports (kind + discipline links) and state schema one
+level up; links to its behavior — a graph, or a **native**. An instance's
+`type` link is its kind link wearing the traditional name; a data kind is
+the behaviorless case of the same mechanism.
 
 **native** — fiat behavior: compiled code registered by linkage. Natives are
 the captures of the behavior world — behavior-testimony, where graphs are

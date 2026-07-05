@@ -69,7 +69,11 @@ Horology:    escapement · movement · crown · complication
 
 ## Tempting but derived (named by definition when needed, not ratified as primitive)
 
-- type = kind × rate (two promises on a link)
+- type — DISSOLVED (ADR-030): port promises are kind + discipline links
+  attached directly to the port declaration; there is no type bundle. "node
+  type" survives, ratified, = a kind that carries behavior (an instance's
+  `type` link is its kind link wearing the traditional name); bare "type"
+  is retired prose.
 - document = graph; transclusion = edge whose value is an address
 - state = an occurrence's contents; preset = a defaults entity
 - pin = provide; archive = a provide-everything peer; sandbox = an advertisement
