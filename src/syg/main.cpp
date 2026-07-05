@@ -267,9 +267,17 @@ int cmd_exec_audit() {
   std::map<int, std::vector<const nlohmann::json*>> by_block;
   for (const auto& o : ops) by_block[o.at("block")].push_back(&o);
   for (int blk = 0; blk < blocks; ++blk) {
-    for (const auto* op : by_block[blk])
-      p.submit({"set_param", op->at("route"), op->at("value"),
-                op->value("author", "")});
+    for (const auto* op : by_block[blk]) {
+      const std::string what = op->value("op", "set_param");
+      if (what == "undo")
+        p.undo();
+      else if (what == "set_param")
+        p.submit({what, op->at("route"), op->at("value"),
+                  op->value("author", "")});
+      else
+        p.submit({what, op->value("a", ""), op->value("b", ""),
+                  op->value("author", "")});
+    }
     const float* out = p.pump_block();
     (void)out;
     for (const auto& w : watch) {
@@ -292,12 +300,16 @@ int cmd_exec_audit() {
   }
   long rt_after = syg::abi::counts(syg::abi::phase::process).allocs +
                   syg::abi::counts(syg::abi::phase::process).locks;
-  nlohmann::json recomputes;
+  nlohmann::json recomputes, log = nlohmann::json::array();
   for (const auto& [id, t] : p.doc().nodes)
     if (p.recomputes(id) >= 0) recomputes[id] = p.recomputes(id);
+  for (const auto& a : p.log())
+    log.push_back({{"op", a.op.op}, {"a", a.op.a}, {"b", a.op.b},
+                   {"author", a.op.author}, {"inverse_ops", a.inverse.size()}});
   std::cout << nlohmann::json{{"watched", watched},
                               {"recomputes", recomputes},
                               {"rt_events", rt_after - rt_before},
+                              {"log", log},
                               {"serialized", syg::organs::serialize_graph(p.doc())}}
                    .dump() << "\n";
   return 0;

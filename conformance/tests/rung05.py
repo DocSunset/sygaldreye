@@ -199,6 +199,51 @@ def lng9_text_events_still_open():
                 f"{f.name}:{pn} declares the unratified text event payload"
 
 
+
+def exe91_existence_is_reference():
+    # removing lfo0 (its edge cascades in the one op) collects its state;
+    # the severed consumer falls back to its inlet default (silence-shaped);
+    # undo restores from the structural snapshot, not the live cell
+    g = _const_hello()  # constant-1 osc: the output IS the gain
+    ops = [{"block": 50, "op": "remove_node", "a": "lfo0"},
+           {"block": 100, "op": "undo"}]
+    out = _exec_audit(g, blocks=150, ops=ops, watch=["out"])
+    w = out["watched"]["out"]
+    assert len({s[0] for s in w[10:49]}) > 5, "lfo was not modulating"
+    assert all(s[0] == 0.0 for s in w[51:99]), \
+        "severed gain did not fall back to its default"
+    assert len({s[0] for s in w[105:149]}) > 5, "undo did not restore lfo0"
+    # the one remove op recorded its full inverse (node + edge + defaults)
+    rec = [e for e in out["log"] if e["op"] == "remove_node"]
+    assert rec and rec[0]["inverse_ops"] >= 3, rec
+
+
+def lng51_ops_replay_to_same_hash():
+    ops = [{"block": 3, "route": "osc0/freq", "value": "330"},
+           {"block": 5, "op": "add_node", "a": "noise0", "b": "noise"},
+           {"block": 7, "op": "add_edge", "a": "noise0/out", "b": "vca0/in"},
+           {"block": 8, "op": "remove_edge", "a": "noise0/out", "b": "vca0/in"},
+           {"block": 9, "op": "remove_node", "a": "noise0"}]
+    a = _exec_audit(_hello(), blocks=12, ops=ops)["serialized"]
+    b = _exec_audit(_hello(), blocks=12, ops=ops)["serialized"]
+    ha = syg("hash", stdin=syg("encode", stdin=json.dumps(a).encode()))
+    hb = syg("hash", stdin=syg("encode", stdin=json.dumps(b).encode()))
+    assert ha == hb, "replaying the session's ops diverged"
+    # and the replayed session actually went somewhere and came back
+    assert a["topology"]["nodes"] == _hello()["topology"]["nodes"]
+
+
+def lng52_ops_carry_authors():
+    out = _exec_audit(_hello(), blocks=4, ops=[
+        {"block": 1, "route": "osc0/freq", "value": "330",
+         "author": "z6MkTravis"},
+        {"block": 2, "op": "add_node", "a": "noise0", "b": "noise",
+         "author": "z6MkAgent"}])
+    authors = {e["op"]: e["author"] for e in out["log"]}
+    assert authors["set_param"] == "z6MkTravis", out["log"]
+    assert authors["add_node"] == "z6MkAgent", out["log"]
+
+
 TESTS = {
     "EXE-1.1": exe11_plan_cache,
     "EXE-1.2": exe12_defaults_never_capture_modulation,
@@ -212,7 +257,7 @@ TESTS = {
     "EXE-6.2": exe62_pump_offline,
     "EXE-7.1": None,
     "EXE-8.1": None,
-    "EXE-9.1": None,
+    "EXE-9.1": exe91_existence_is_reference,
     "EXE-10.1": None,
     "EXE-10.2": None,
     "EXE-10.3": None,
@@ -227,8 +272,8 @@ TESTS = {
     "LNG-3.1": None,
     "LNG-4.1": None,
     "LNG-4.2": None,
-    "LNG-5.1": None,
-    "LNG-5.2": None,
+    "LNG-5.1": lng51_ops_replay_to_same_hash,
+    "LNG-5.2": lng52_ops_carry_authors,
     "LNG-6.1": None,
     "LNG-6.2": None,
     "LNG-7.1": None,

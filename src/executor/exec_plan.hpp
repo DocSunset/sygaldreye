@@ -15,6 +15,13 @@ struct edit_op {
   std::string op;  // set_param | add_node | remove_node | add_edge | remove_edge
   std::string a, b;      // routes / ids / values per op
   std::string author;    // peer key (attribution, LNG-5.2)
+  bool undo_replay = false;  // inverse application: cursor move, not history
+};
+
+// The log entry: every applied op carries its inverse (ADR-018).
+struct applied_op {
+  edit_op op;
+  std::vector<edit_op> inverse;
 };
 
 // The compiled runtime cache of a graph (EXE-1): the block region as fused
@@ -39,10 +46,21 @@ class exec_plan {
   const region_map& regions() const { return regions_; }
   long recomputes(const std::string& id) const;  // EXE-11 counters
   float value_of(const std::string& id_port) const;  // frame cell peek
+  const std::vector<applied_op>& log() const { return log_; }
+  std::size_t log_cursor() const { return cursor_; }
+  void undo();  // move the cursor back, applying inverses (ADR-018:
+                // the log is append-only; linearity is a view)
 
  private:
   struct impl;
+  static std::unique_ptr<impl> build_impl(const organs::graph_doc&,
+                                          const region_map&, int block);
+  void apply_structural(const edit_op& o);
+  void rebuild();  // re-realize, migrating state by route
   std::unique_ptr<impl> im_;
+  std::vector<applied_op> log_;
+  std::size_t cursor_ = 0;
+  std::map<std::string, std::string> param_journal_;  // route -> last value
   organs::graph_doc doc_;
   region_map regions_;
   int rate_, block_;
