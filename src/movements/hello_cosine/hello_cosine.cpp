@@ -14,7 +14,7 @@ void render_hello_cosine(int frames,
   constexpr float rate = static_cast<float>(hello_cosine_rate);
   float osc_out[block], lfo_out[block], vca_out[block];
 
-  nodes::osc_state osc{{0.0f, 220.0f, rate}};
+  nodes::osc_state osc{{1.57079632679f, 220.0f, rate}};  // cosine: quarter turn in
   nodes::lfo_state lfo{{0.0f, 0.5f, rate}, 1.0f};
 
   float* osc_outs[] = {osc_out};

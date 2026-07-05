@@ -25,6 +25,7 @@ import or port them into the implementation).
 | 2 | `syg create-audit good\|bad` | resource acquisition timing: prepare acquires (ok) vs create acquires (allocation-discipline abort) (ABI-2.2) |
 | 2 | `syg fault-audit` | declared-fallible shell converts a thrown exception to a fault record; region keeps ticking → `{"faults","ticks","ticks_after_fault"}` (ABI-3.1) |
 | 2 | `syg quarantine-audit` | undeclared throw in a quarantined (subprocess) plan: deaths, wired restart ladder, testimony naming the route (ABI-3.2) |
+| 3 | `syg render-tape <seconds>` | boot tape on stdin → crown builds the plan at runtime → raw float32 mono on stdout; byte-identical to the frozen movement (COR-2 ladder start) |
 | 1 | `syg pins` | no stdin → one-line JSON of the frozen ch. 14 pins (multicodec/multihash numbers, multibase, chunk size, escape set, tape records, edit ops, wire kinds) — the FMT-5 freeze surface |
 | 4+ | added per rung when its first test is written; record the contract here in the same commit (FMT-5 discipline applies) |
 

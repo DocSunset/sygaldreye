@@ -13,6 +13,8 @@
 #include "dagcbor/dagcbor.hpp"
 #include "codecs.hpp"
 #include "abi_audits.hpp"
+#include "crown.hpp"
+#include "hello_natives/hello_natives.hpp"
 #include "naming_session.hpp"
 #include "hello_cosine/hello_cosine.hpp"
 #include "oracle/oracle.hpp"
@@ -129,6 +131,48 @@ int cmd_codec_selftest(const std::string& type) {
   return 0;
 }
 
+syg::crown::plan replayed_plan(const std::string& tape_text, int block) {
+  syg::crown::plan p(syg::nodes::hello_natives(), block);
+  for (auto& o : syg::crown::read_tape(tape_text)) p.submit(std::move(o));
+  p.tick(0);  // the boot boundary: apply everything, process nothing yet
+  return p;
+}
+
+int cmd_replay_tape() {
+  auto p = replayed_plan(read_stdin(), 128);
+  nlohmann::ordered_json nodes, defaults;
+  nlohmann::json edges = nlohmann::json::array();
+  for (const auto& r : p.nodes()) nodes[r.id] = {{"type", r.type}};
+  for (const auto& [f, t] : p.edges()) edges.push_back({{"from", f}, {"to", t}});
+  for (const auto& [route, v] : p.defaults()) {
+    char* end = nullptr;
+    double num = std::strtod(v.c_str(), &end);
+    bool numeric = end && *end == 0 && end != v.c_str() &&
+                   (v.find('.') != std::string::npos ||
+                    v.find_first_not_of("-0123456789") == std::string::npos);
+    if (numeric)
+      defaults[route] = num;
+    else
+      defaults[route] = v;
+  }
+  std::cout << nlohmann::ordered_json{{"nodes", nodes}, {"edges", edges},
+                                      {"defaults", defaults}}.dump() << "\n";
+  return 0;
+}
+
+int cmd_render_tape(double seconds) {
+  constexpr int block = syg::movements::hello_cosine_block;
+  auto p = replayed_plan(read_stdin(), block);
+  int frames = static_cast<int>(seconds * syg::movements::hello_cosine_rate);
+  for (int done = 0; done < frames; done += block) {
+    int n = frames - done < block ? frames - done : block;
+    p.tick(n);
+    std::fwrite(p.input_buffer("dac0", "in"), sizeof(float),
+                static_cast<std::size_t>(n), stdout);
+  }
+  return 0;
+}
+
 int cmd_pins() {
   namespace p = syg::formats::pins;
   nlohmann::ordered_json out;
@@ -179,6 +223,8 @@ int main(int argc, char** argv) {
     if (cmd == "create-audit" && argc > 2) return syg::harness::create_audit(argv[2]);
     if (cmd == "fault-audit") return syg::harness::fault_audit();
     if (cmd == "quarantine-audit") return syg::harness::quarantine_audit();
+    if (cmd == "replay-tape") return cmd_replay_tape();
+    if (cmd == "render-tape" && argc > 2) return cmd_render_tape(std::stod(argv[2]));
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

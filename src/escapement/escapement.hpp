@@ -9,11 +9,12 @@ namespace syg::escapement {
 // The ch. 13 calling convention, at the only layer the escapement needs:
 // process reads resolved inputs and writes outputs, noexcept, RT-clean.
 struct node {
+  using process_fn = void (*)(void* state, const float* const* in,
+                              float* const* out, int frames) noexcept;
   void* state;
   const float* const* in;   // resolved input port pointers (frozen wiring)
   float* const* out;        // output port pointers
-  void (*process)(void* state, const float* const* in, float* const* out,
-                  int frames) noexcept;
+  process_fn process;
 };
 
 // A movement: a frozen, flattened, realized graph the escapement ticks.
