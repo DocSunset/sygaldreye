@@ -2,6 +2,31 @@
 
 _Keep this current. Vision and slice plan: `planning/vision.md`._
 
+## 2026-07-05 — Rungs 1–3 GREEN (builder session 1, continued)
+
+Suite: 30 pass, 0 fail. Rung 2 (escapement): COR-1 freestanding audit
+(EMPTY undefined-symbol table), hand-frozen hello-cosine movement renders
+the golden take (stdlib-FFT property checks in _helpers.golden_audio_check,
+negative cases verified); generator (src/generator, PFR walk at build time)
+emits descriptors + C++ codecs + Python bindings + hook shells into
+build/generated/; ABI audits: 10k callbacks zero RT allocs, create()-time
+acquisition aborts, declared fault → value + region keeps ticking,
+undeclared throw kills quarantine subprocess w/ testimony + wired restarts.
+Rung 3 (crown): plan + five appliers at tick boundaries + tape reader;
+render-tape output BYTE-IDENTICAL to the frozen movement.
+
+Blessing PENDING: the 8 s take went to Travis
+(documentary/media/2026-07-05-hello-cosine-first-take.wav). When he says
+"blessed": commit that wav as a capture per fixtures/golden-audio.md.
+
+Book fix (ADR-wins rule): ch. 16 stratum-3 table wrongly listed `loader`
+(20 names vs its own "Nineteen" and ADR-028); removed; core-names.txt
+regenerated; gates.sh COR-3 extraction fixed; COR-5.1 clause gate added.
+
+CI is still python-only (nix flake check doesn't build ./syg) — worth
+upgrading when convenient. Next: rung 4 — liveness organs (SZ-7, EXE-5,
+LNG-8); read the full book first (HANDOFF: "full read before rung 4").
+
 ## 2026-07-05 — Greenfield rung 1: 15/16 green (builder session 1)
 
 Construction began. Toolchain: root CMake + the flake (nlohmann_json;

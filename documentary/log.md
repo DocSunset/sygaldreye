@@ -141,3 +141,19 @@ registry. The architecture's central bet, observable in a counter.
 
 The take: media/2026-07-05-hello-cosine-first-take.wav — sent to Travis
 for blessing. The machine hums for the first time. [agent]
+
+## 2026-07-05 — the tape plays (rungs 2 & 3 green)
+
+Same day, same session. The generator exists — one struct declaration
+walks out as a descriptor, a C++ codec, a Python dataclass, and a hook
+shell, none of them hand-written. The contract audits all bite: create()
+acquiring a device dies with the allocation-discipline message, an
+undeclared throw kills its quarantine subprocess and the testimony names
+the node.
+
+Then the moment worth the log: fed the boot tape to the crown — ten ASCII
+lines, NODE/LINK/SET, no parser anywhere — and the graph it built at
+runtime rendered SIX SECONDS OF AUDIO BYTE-IDENTICAL to the hand-frozen
+movement. Not close. Identical. `cmp` said nothing at all, which is the
+loudest thing cmp can say. Freezing really is a pure optimizer; ADR-013's
+bet paid out on the first try. Three rungs green in one sitting. [agent]
