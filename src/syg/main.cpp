@@ -1,3 +1,6 @@
+#include <dlfcn.h>
+
+#include <chrono>
 #include <cstdio>
 #include <cmath>
 #include <map>
@@ -263,8 +266,78 @@ int cmd_render_graph(double seconds) {
   syg::executor::exec_plan p(
       syg::organs::parse_graph(nlohmann::json::parse(read_stdin())), 48000, 128);
   int blocks = static_cast<int>(seconds * 48000) / 128;
+  auto t0 = std::chrono::steady_clock::now();
   for (int i = 0; i < blocks; ++i)
     std::fwrite(p.pump_block(), sizeof(float), 128, stdout);
+  auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::steady_clock::now() - t0)
+                .count();
+  // the block-time stat (FRZ-1.1): stderr, so byte-compares stay clean
+  std::fprintf(stderr, "{\"ns_per_block\": %ld}\n",
+               blocks ? ns / blocks : 0);
+  return 0;
+}
+
+// the frozen artifact runs LIVE in this session (dlopen): same stream
+// contract as render-graph, same stat on stderr
+struct frozen_handle {
+  void* lib = nullptr;
+  void* inst = nullptr;
+  void (*pump)(void*, float*) = nullptr;
+  void (*destroy)(void*) = nullptr;
+};
+frozen_handle open_frozen(const char* so_path) {
+  frozen_handle h;
+  h.lib = dlopen(so_path, RTLD_NOW | RTLD_LOCAL);
+  if (!h.lib) throw std::runtime_error(std::string("dlopen: ") + dlerror());
+  auto* create = reinterpret_cast<void* (*)()>(dlsym(h.lib, "frozen_create"));
+  h.pump = reinterpret_cast<void (*)(void*, float*)>(
+      dlsym(h.lib, "frozen_pump"));
+  h.destroy =
+      reinterpret_cast<void (*)(void*)>(dlsym(h.lib, "frozen_destroy"));
+  if (!create || !h.pump || !h.destroy)
+    throw std::runtime_error("the artifact lacks the frozen entry points");
+  h.inst = create();
+  return h;
+}
+
+int cmd_render_frozen(const char* so_path, double seconds) {
+  auto h = open_frozen(so_path);
+  int blocks = static_cast<int>(seconds * 48000) / 128;
+  std::vector<float> buf(128);
+  auto t0 = std::chrono::steady_clock::now();
+  for (int i = 0; i < blocks; ++i) {
+    h.pump(h.inst, buf.data());
+    std::fwrite(buf.data(), sizeof(float), 128, stdout);
+  }
+  auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::steady_clock::now() - t0)
+                .count();
+  std::fprintf(stderr, "{\"ns_per_block\": %ld}\n",
+               blocks ? ns / blocks : 0);
+  h.destroy(h.inst);
+  dlclose(h.lib);
+  return 0;
+}
+
+int cmd_render_swap(const char* so_path, double seconds) {
+  // hot-reload swaps it live (FRZ-1.1): ONE process, continuous stream —
+  // interpreted for the first half, then the freshly built artifact loads
+  // and takes over at a block boundary (no restart, no gap)
+  syg::executor::exec_plan p(
+      syg::organs::parse_graph(nlohmann::json::parse(read_stdin())), 48000, 128);
+  int blocks = static_cast<int>(seconds * 48000) / 128;
+  int half = blocks / 2;
+  for (int i = 0; i < half; ++i)
+    std::fwrite(p.pump_block(), sizeof(float), 128, stdout);
+  auto h = open_frozen(so_path);  // the live load, mid-session
+  std::vector<float> buf(128);
+  for (int i = half; i < blocks; ++i) {
+    h.pump(h.inst, buf.data());
+    std::fwrite(buf.data(), sizeof(float), 128, stdout);
+  }
+  h.destroy(h.inst);
+  dlclose(h.lib);
   return 0;
 }
 
@@ -747,6 +820,10 @@ int main(int argc, char** argv) {
     if (cmd == "widget-of" && argc > 2)
       return cmd_widget_of(argv[2], argc > 3 && std::string(argv[3]) == "--range");
     if (cmd == "render-graph" && argc > 2) return cmd_render_graph(std::stod(argv[2]));
+    if (cmd == "render-frozen" && argc > 3)
+      return cmd_render_frozen(argv[2], std::stod(argv[3]));
+    if (cmd == "render-swap" && argc > 3)
+      return cmd_render_swap(argv[2], std::stod(argv[3]));
     if (cmd == "render-live" && argc > 2) return cmd_render_live(std::stod(argv[2]));
     if (cmd == "graph-edits-graph") return cmd_graph_edits_graph();
     if (cmd == "exec-audit") return cmd_exec_audit();

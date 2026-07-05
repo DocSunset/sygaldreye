@@ -8,6 +8,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "codegen.hpp"
 #include "crown.hpp"
 #include "lift.hpp"
 #include "phase.hpp"
@@ -169,8 +170,19 @@ void choose_tick(void* s, const crown::svalue* ins, crown::svalue* outs) {
   outs[0] = gen::make_graph(std::move(doc));
 }
 
-// realize (interpret backend): assemble the execution graph + the map
-void realize_tick(void*, const crown::svalue* ins, crown::svalue* outs) {
+// realize: assemble the execution graph + the map. Two backends
+// (ADR-014): interpret (instantiate natives + plan) and codegen (the
+// freezer — emit a fused C++ movement, committed as a raw artifact whose
+// provenance is the compile recipe itself). Same passes, same map.
+struct realize_state {
+  store::peer_store* store = nullptr;
+};
+void realize_set_context(void* s, const void* ctx) {
+  static_cast<realize_state*>(s)->store =
+      static_cast<store::peer_store*>(const_cast<void*>(
+          static_cast<const crown::node_context*>(ctx)->store));
+}
+void realize_tick(void* s, const crown::svalue* ins, crown::svalue* outs) {
   if (!ins[0].value) return;
   const auto& doc = gen::as_graph(ins[0]);
   nlohmann::ordered_json xnodes, map;
@@ -199,6 +211,21 @@ void realize_tick(void*, const crown::svalue* ins, crown::svalue* outs) {
       {"backend", ins[1].value && !gen::as_text(ins[1]).empty()
                       ? gen::as_text(ins[1])
                       : "interpret"}};
+  if (execution["backend"] == "codegen") {
+    std::ifstream lf("vocabulary/codegen.json");
+    auto ledger = nlohmann::json::parse(lf).at("natives");
+    int block = static_cast<int>(
+        doc.defaults.value("__context", nlohmann::ordered_json::object())
+            .value("block", 128.0));
+    auto e = emit_frozen(doc, ledger, block);
+    auto* store = static_cast<realize_state*>(s)->store;
+    if (!store)
+      throw std::runtime_error("codegen realize needs the store in context");
+    formats::byte_vec bytes(e.source.begin(), e.source.end());
+    execution["artifact"] = {{"/", store->put_raw(bytes, false)}};
+    execution["tier"] = e.tier;
+    execution["tier_culprit"] = e.tier_culprit;
+  }
   outs[0] = gen::make_text(execution.dump());
 }
 
@@ -255,8 +282,10 @@ const crown::native_type choose_adapters_native = pass(
     choose_tick, {{"in", "graph", "value"}, {"rules", "text", "value"}},
     {{"out", "graph", "value"}}, choose_set_context);
 const crown::native_type realize_native = pass(
-    "realize", null_create, null_destroy, no_num, no_text, realize_tick,
-    {{"in", "graph", "value"}, {"backend", "text", "value"}},
-    {{"out", "text", "value"}});
+    "realize",
+    [] { return static_cast<void*>(new realize_state()); },
+    [](void* s) { delete static_cast<realize_state*>(s); }, no_num, no_text,
+    realize_tick, {{"in", "graph", "value"}, {"backend", "text", "value"}},
+    {{"out", "text", "value"}}, realize_set_context);
 
 }  // namespace syg::executor

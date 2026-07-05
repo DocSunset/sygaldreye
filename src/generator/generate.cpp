@@ -299,7 +299,7 @@ void emit_registration(const std::filesystem::path& dir) {
   // SZ-2: natives are present by LINKAGE — this TU references each native's
   // symbol, so a deleted object is a loud link error naming it, and the
   // palette equals this manifest by construction.
-  const std::vector<std::string> natives{"osc", "lfo", "vca", "dac", "noise", "add", "cell", "scale", "delay", "pulse", "spectro", "button", "counter", "smoother", "spanv", "mix", "instanced_draw", "nan_bomb", "spin", "sleeper", "graph_cell", "node_count", "text_cell", "op_button"};
+  const std::vector<std::string> natives{"osc", "lfo", "vca", "dac", "noise", "add", "cell", "scale", "delay", "pulse", "spectro", "button", "counter", "smoother", "spanv", "mix", "instanced_draw", "nan_bomb", "spin", "sleeper", "graph_cell", "node_count", "text_cell", "op_button", "tmux"};
   const std::vector<std::string> organ_natives{
       "parser", "naive_resolver", "registry-face", "slot", "supervisor",
       "graph_source", "arbiter_inlet", "seed", "traverse", "filter", "join", "fixpoint"};
@@ -371,6 +371,7 @@ int main(int argc, char** argv) {
   emit<syg::nodes::decl::pulse>(o, "pulse", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::spectro>(o, "spectro", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::cell>(o, "cell", {}, "syg::nodes::decl");
+  emit<syg::nodes::decl::tmux>(o, "tmux", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::scale>(o, "scale", {}, "syg::nodes::decl");
   emit<syg::nodes::widget_a>(o, "widget_a");
   emit<syg::nodes::widget_b>(o, "widget_b");

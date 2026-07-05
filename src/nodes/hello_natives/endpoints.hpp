@@ -123,6 +123,13 @@ struct cell {
   au::out<au::scalar, au::value> out;
 };
 
+// host-bound terminal placeholder (FRZ-2's tier-3 culprit): a node whose
+// realization needs a host OS — the freezer names it when it taints a tier
+struct tmux {
+  au::in<au::scalar, au::value> in;
+  au::out<au::scalar, au::value> out;
+};
+
 struct scale {
   au::in<au::scalar, au::value> in;
   au::in<au::scalar, au::value> k;

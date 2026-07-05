@@ -75,6 +75,10 @@ peer_store::committed peer_store::commit_derivation(
   if (auto it = memo_.find(recipe_cid); it != memo_.end())
     return {it->second["output"], it->second["provenance"], true};
   auto output = put_node(output_projection, false);
+  // STO-9: BOTH committed nodes index their links — an output that links
+  // an artifact makes the artifact walkable back to its recipe (FRZ-1.2:
+  // unfreezing is reading provenance)
+  index_links(output, output_projection);
   recipe["output"] = {{"/", output}};
   auto provenance = put_node(recipe, false);
   index_links(provenance, recipe);

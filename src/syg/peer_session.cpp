@@ -107,6 +107,25 @@ int peer_session(const nlohmann::json& in) {
       for (int i = 0; i < op.value("blocks", 10); ++i)
         app_instance->pump_block();
       r = {{"engine_alive", engine_alive()}};
+    } else if (what == "app-cid") {
+      r = {{"cid", s.put_node(app, false)}};
+    } else if (what == "cat") {
+      auto obj = s.get(op.at("cid"));
+      if (!obj) throw std::runtime_error("no such object");
+      r = {{"bytes", std::string(obj->begin(), obj->end())}};
+    } else if (what == "unfreeze") {
+      // ADR-014: unfreezing IS reading provenance — artifact -> execution
+      // -> recipe -> the source graph's hash; the artifact carries nothing
+      std::string app_cid;
+      for (const auto& holder : s.backlinks(op.at("artifact")))
+        for (const auto& prov : s.backlinks(holder)) {
+          auto rec = s.get_node(prov);
+          if (rec.contains("inputs") && rec["inputs"].contains("app"))
+            app_cid = rec["inputs"]["app"]["/"];
+        }
+      if (app_cid.empty())
+        throw std::runtime_error("no provenance path from the artifact");
+      r = {{"app", app_cid}};
     } else if (what == "type-cid") {
       r = {{"cid", type_cids.at(op.at("type"))}};
     } else if (what == "commit-app") {

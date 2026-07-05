@@ -1,6 +1,7 @@
 """Rung 8 — packages & freezer. Tests written from the criterion text as
 they are reached (BUILDER.md loop). Never weaken; amend by ADR."""
-import json, re
+import json, re, subprocess, tempfile
+from pathlib import Path
 from _helpers import Pending, syg, HERE
 
 ROOT = HERE.parent
@@ -8,6 +9,85 @@ ROOT = HERE.parent
 
 def _hello():
     return json.loads((ROOT / "graphs" / "hello-cosine.json").read_text())
+
+
+def _chime():
+    return json.loads((ROOT / "graphs" / "chime.json").read_text())
+
+
+def _peer(ops):
+    return json.loads(syg("peer", stdin=json.dumps({"ops": ops}).encode()))["results"]
+
+
+_BACKEND_SPLICE = [
+    {"op": "add_node", "a": "backend0", "b": "text_cell"},
+    {"op": "set_text", "a": "backend0/value", "b": "codegen"},
+    {"op": "add_edge", "a": "backend0/out", "b": "realize0/backend"},
+]
+
+
+def _freeze(graph, extra_ops=()):
+    # freeze = compile with backend codegen (ADR-014): the backend arrives
+    # by WIRING a text cell into realize's published port — ordinary ops
+    r = _peer([
+        {"op": "set-app", "graph": graph},
+        {"op": "open-engine-editor"},
+        {"op": "engine-edit", "ops": _BACKEND_SPLICE + list(extra_ops)},
+        {"op": "compile"},
+        {"op": "app-cid"},
+    ])
+    return r[3], r[4]["cid"]
+
+
+def _build_so(source, tag):
+    d = Path(tempfile.mkdtemp(prefix=f"syg-frozen-{tag}-"))
+    (d / "frozen.cpp").write_text(source)
+    so = d / "libfrozen.so"
+    cc = subprocess.run(
+        ["g++", "-O2", "-fPIC", "-shared", f"-I{ROOT}/src/nodes",
+         "-o", str(so), str(d / "frozen.cpp")], capture_output=True)
+    assert cc.returncode == 0, cc.stderr.decode()
+    return so
+
+
+def _stat(args, stdin=b""):
+    # run syg capturing BOTH streams; stderr carries the block-time stat
+    exe = ROOT / "syg"
+    r = subprocess.run([str(exe), *args], input=stdin, capture_output=True)
+    assert r.returncode == 0, r.stderr.decode()
+    return r.stdout, json.loads(r.stderr.splitlines()[-1])["ns_per_block"]
+
+
+def frz11_ab_chime_interpreted_vs_frozen():
+    # A/B chime interpreted-vs-frozen: spectrogram diff == 0 (byte
+    # identity, stronger); block-time stat shows the speedup; hot-reload
+    # swaps it live (one process, the artifact loads mid-stream)
+    c, _ = _freeze(_chime())
+    x = c["execution_body"]
+    assert x["backend"] == "codegen" and "artifact" in x, x.keys()
+    source = _peer([{"op": "set-app", "graph": _chime()},
+                    {"op": "open-engine-editor"},
+                    {"op": "engine-edit", "ops": _BACKEND_SPLICE},
+                    {"op": "compile"},
+                    {"op": "cat", "cid": x["artifact"]["/"]}])[4]["bytes"]
+    assert "frozen_movement" in source
+    so = _build_so(source, "chime")
+    interp, interp_ns = _stat(["render-graph", "2"],
+                              stdin=json.dumps(_chime()).encode())
+    frozen, frozen_ns = _stat(["render-frozen", str(so), "2"])
+    import struct
+    xs = struct.unpack(f"<{len(interp) // 4}f", interp)
+    assert max(abs(x) for x in xs) > 0.5, "the chime never struck"
+    assert interp == frozen, \
+        "freezing changed the sound, not just the cost (byte diff)"
+    assert frozen_ns < interp_ns,         f"no speedup: frozen {frozen_ns} ns/block vs interpreted {interp_ns}"
+    # hot-reload: ONE process renders interpreted, loads the .so live at a
+    # block boundary, and the artifact takes over the stream (fresh state:
+    # the re-strike is the artifact's own t=0; migration joins EXE-5 later)
+    swap = syg("render-swap", str(so), "2", stdin=json.dumps(_chime()).encode())
+    half = len(interp) // 2
+    assert swap[:half] == interp[:half], "the interpreted half diverged"
+    assert swap[half:] == frozen[:half], "the artifact did not take over live"
 
 
 def aut21_no_raw_frame_loops():
@@ -64,7 +144,7 @@ TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
     "AUT-5.1": None,
-    "FRZ-1.1": None,
+    "FRZ-1.1": frz11_ab_chime_interpreted_vs_frozen,
     "FRZ-1.2": None,
     "FRZ-2.1": None,
     "FRZ-3.1": None,

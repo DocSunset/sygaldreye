@@ -41,4 +41,18 @@ const syg::crown::native_type scale_native{
     knob_set, no_text, no_process, scale_value_tick,
     syg::generated::scale_in_ports(), syg::generated::scale_out_ports()};
 
+namespace {
+void tmux_value_tick(void*, double, const float* ins, float* outs) {
+  outs[0] = ins[0];  // passthrough; the host binding is rung-9+ work
+}
+void no_num(void*, const char*, double) {}
+}  // namespace
+
+extern const syg::crown::native_type tmux_native;
+const syg::crown::native_type tmux_native{
+    "tmux", [] { return static_cast<void*>(nullptr); }, [](void*) {},
+    no_num, no_text, no_process, tmux_value_tick,
+    syg::generated::tmux_in_ports(), syg::generated::tmux_out_ports()};
+
 }  // namespace syg::nodes
+
