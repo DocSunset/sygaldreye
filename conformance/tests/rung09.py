@@ -112,17 +112,55 @@ def msh21_unpaired_probe_refused():
     assert live[2]["ok"], live[2]  # the same surface serves an authenticated peer
 
 
+# ---- MSH-4.1: pull-shaped placement — nothing lands off the run list -------
+def msh41_placement_fuzz_no_escape():
+    # Fuzz the placement API with arbitrary type names; assert via the peer's
+    # registry audit log that ZERO instantiations occur outside its advertised
+    # run set. Advertised requests land; everything else is refused.
+    import random
+    rng = random.Random(90901)
+    advertised = ["osc", "gain", "dac"]
+    peers = {"host": {}, "agent": {}}
+    ops = [
+        {"op": "pair", "a": "host", "b": "agent"},
+        {"op": "advertise", "peer": "host", "run": advertised},
+    ]
+    fuzz = []
+    for _ in range(300):
+        if rng.random() < 0.3:
+            t = rng.choice(advertised)
+        else:
+            t = "".join(rng.choice("abcdefghij_/.$ ") for _ in range(rng.randint(1, 20)))
+        fuzz.append(t)
+        ops.append({"op": "place", "from": "agent", "to": "host", "type": t})
+    ops.append({"op": "audit-log", "peer": "host"})
+    r = _mesh(peers, ops)
+
+    placed = r[-1]["instantiated"]
+    # every audited instantiation is an advertised type — nothing escaped
+    assert set(placed) <= set(advertised), set(placed) - set(advertised)
+    # and every per-request result is consistent with the run list
+    for i, t in enumerate(fuzz):
+        res = r[2 + i]
+        if t in advertised:
+            assert res.get("ok") and res.get("placed_on") == "host", (t, res)
+        else:
+            assert not res.get("ok") and res.get("error") == "not-advertised", (t, res)
+    # the audit log holds exactly the advertised requests, in order
+    expected = [t for t in fuzz if t in advertised]
+    assert placed == expected, (placed[:5], expected[:5])
+
+
 TESTS = {
     "MSH-1.1": msh11_pairing_revocation_restores,
     "MSH-2.1": msh21_unpaired_probe_refused,
+    "MSH-4.1": msh41_placement_fuzz_no_escape,
     # 13-native-contract.md: a plugin generated against contract C1 loads on a peer speaking
     "ABI-4.1": None,
     # 14-formats-protocols.md: Wire golden transcripts: a recorded two-peer session (pair,
     "FMT-4": None,
     # 08-mesh-trust.md: a request to instantiate `shell_exec` on the browser peer (which
     "MSH-3.1": None,
-    # 08-mesh-trust.md: fuzz the placement API with arbitrary type names; zero
-    "MSH-4.1": None,
     # 08-mesh-trust.md: ship a graph Quest to host: runs. Ship an unsigned .so: refused,
     "MSH-5.1": None,
     # 08-mesh-trust.md: the browser peer's plugin form is a WASM side module over the
