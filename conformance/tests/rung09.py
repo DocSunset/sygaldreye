@@ -151,16 +151,55 @@ def msh41_placement_fuzz_no_escape():
     assert placed == expected, (placed[:5], expected[:5])
 
 
+# ---- MSH-3.1: three lists — advertisement enforced, refusal visible --------
+def msh31_shell_exec_refused_falls_through():
+    # The browser peer doesn't advertise `shell_exec` (selective advertisement
+    # IS the sandbox). An engine requesting it there is refused with a TYPED
+    # error visible to the requester; placement falls through to a host that
+    # does advertise it. With no advertiser among the candidates, the engine
+    # reports unplaceable — carrying the refusal trail.
+    peers = {"host": {}, "browser": {}, "agent": {}}
+    ops = [
+        {"op": "pair", "a": "agent", "b": "browser"},
+        {"op": "pair", "a": "agent", "b": "host"},
+        {"op": "advertise", "peer": "browser", "run": ["osc", "gain"]},
+        {"op": "advertise", "peer": "host", "run": ["osc", "shell_exec"]},
+        # ask the browser directly: a typed, visible refusal
+        {"op": "place", "from": "agent", "to": "browser", "type": "shell_exec"},
+        # the engine's placement: browser refuses, falls through to host
+        {"op": "place-fallthrough", "from": "agent",
+         "candidates": ["browser", "host"], "type": "shell_exec"},
+        # no advertiser among the candidates: unplaceable, trail preserved
+        {"op": "place-fallthrough", "from": "agent",
+         "candidates": ["browser"], "type": "shell_exec"},
+    ]
+    r = _mesh(peers, ops)
+
+    direct = r[4]
+    assert not direct["ok"] and direct["error"] == "not-advertised", direct
+    assert direct["type"] == "shell_exec" and direct["peer"] == "browser", direct
+
+    fell = r[5]
+    assert fell["ok"] and fell["placed_on"] == "host", fell
+    # the browser's refusal is visible in the trail even on success
+    assert any(x["peer"] == "browser" and
+               x["refusal"]["error"] == "not-advertised"
+               for x in fell["refusals"]), fell
+
+    none = r[6]
+    assert not none["ok"] and none["unplaceable"], none
+    assert none["refusals"][0]["refusal"]["error"] == "not-advertised", none
+
+
 TESTS = {
     "MSH-1.1": msh11_pairing_revocation_restores,
     "MSH-2.1": msh21_unpaired_probe_refused,
+    "MSH-3.1": msh31_shell_exec_refused_falls_through,
     "MSH-4.1": msh41_placement_fuzz_no_escape,
     # 13-native-contract.md: a plugin generated against contract C1 loads on a peer speaking
     "ABI-4.1": None,
     # 14-formats-protocols.md: Wire golden transcripts: a recorded two-peer session (pair,
     "FMT-4": None,
-    # 08-mesh-trust.md: a request to instantiate `shell_exec` on the browser peer (which
-    "MSH-3.1": None,
     # 08-mesh-trust.md: ship a graph Quest to host: runs. Ship an unsigned .so: refused,
     "MSH-5.1": None,
     # 08-mesh-trust.md: the browser peer's plugin form is a WASM side module over the

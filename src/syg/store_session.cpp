@@ -270,55 +270,6 @@ int store_session(const nlohmann::json& in) {
       r = {{"result", std::vector<std::string>(standing_result.begin(),
                                                standing_result.end())},
            {"evals", evals}};
-    } else if (what == "place-derivation") {
-      // PKG-5: the WORKER CAPABILITY decides where the derivation runs —
-      // the requester names only the recipe; placement falls through to
-      // the advertising peer; the result dataset returns by hash.
-      // clause: scaffolding (dissolves: MSH-3.1) — the capability TABLE
-      // here is test-supplied; real advertisement + placement over the
-      // mesh protocol replaces this scan when MSH lands
-      std::string chosen;
-      for (const auto& [name, has] : op.at("workers").items())
-        if (has.get<bool>()) chosen = name;
-      if (chosen.empty())
-        throw std::runtime_error("no peer advertises the worker capability");
-      auto& w = peers.at(chosen);
-      auto graph_cid = w.put_node(op.at("graph"), false);
-      int blocks = op.value("blocks", 200);
-      nlohmann::json recipe{{"op", "render-analysis"},
-                            {"inputs", {{"graph", {{"/", graph_cid}}}}},
-                            {"blocks", blocks},
-                            {"determinism", "exact"}};
-      bool memo = false;
-      std::string take_cid;
-      store::peer_store::committed c;
-      if (auto hit = w.memo_lookup(recipe)) {
-        c = {hit->output, hit->provenance, true};
-        memo = true;
-        take_cid = w.get_node(hit->output).at("take").at("/");
-      } else {
-        // the derivation-mode run (EXE-7), on the WORKER peer's executor:
-        // render offline, analyze to a block-RMS profile, commit both
-        executor::exec_plan wp(organs::parse_graph(op.at("graph")), 48000,
-                               128);
-        formats::byte_vec take;
-        nlohmann::json rms = nlohmann::json::array();
-        for (int i = 0; i < blocks; ++i) {
-          const float* b = wp.pump_block();
-          double acc = 0;
-          for (int k = 0; k < 128; ++k) acc += double(b[k]) * b[k];
-          rms.push_back(acc / 128.0);
-          const auto* bytes = reinterpret_cast<const std::uint8_t*>(b);
-          take.insert(take.end(), bytes, bytes + 128 * sizeof(float));
-        }
-        take_cid = w.put_raw(take, true);  // the worker provides its result
-        c = w.commit_derivation(recipe, {{"kind", "analysis"},
-                                         {"take", {{"/", take_cid}}},
-                                         {"rms_blocks", rms.size()},
-                                         {"rms", rms}});
-      }
-      r = {{"placed_on", chosen}, {"output", c.output},
-           {"provenance", c.provenance}, {"take", take_cid}, {"memo", memo}};
     } else if (what == "commit-take-chained") {
       // a new qualifying commit: chained to an existing provenance output
       nlohmann::json recipe{{"op", "render"},

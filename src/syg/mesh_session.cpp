@@ -11,9 +11,13 @@
 #include <thread>
 #include <vector>
 
+#include "cid/cid.hpp"
 #include "dagcbor/dagcbor.hpp"
+#include "exec_plan.hpp"
+#include "pins/pins.hpp"
 #include "identity/identity.hpp"
 #include "link/link.hpp"
+#include "parser/parser.hpp"
 #include "store.hpp"
 
 namespace {
@@ -57,6 +61,11 @@ struct peer {
     stores.push_back(std::make_unique<sub_store>(name));
     lis = std::make_unique<syg::mesh::listener>();
   }
+  ~peer() {  // exception-safe: a joinable thread at unwind would std::terminate
+    running.store(false);
+    if (lis) lis->stop();
+    if (server.joinable()) server.join();
+  }
 };
 
 // The mesh: peers by name. Discovery is an abstract provider (MSH-7): the
@@ -77,9 +86,11 @@ json handle(peer& me, std::uint64_t k, const json& body,
   std::lock_guard<std::mutex> g(me.mu);
   switch (k) {
     case FETCH: {
+      // Serve a HELD object (the store::fetch model — availability is holding)
+      // if the store's sharing policy admits this requester's key. The default
+      // store shares with every paired key; a restricted store names its set.
       const std::string cid = body.at("cid");
       for (auto& ss : me.stores) {
-        if (!ss->store.provides(cid)) continue;
         bool allowed = !ss->share || ss->share->count(req_from);
         if (!allowed) continue;  // held, but not shared with this key
         if (auto obj = ss->store.get(cid))
@@ -109,6 +120,48 @@ json handle(peer& me, std::uint64_t k, const json& body,
       me.instantiated.push_back(type);
       return {{"ok", true}, {"placed_on", me.name}, {"type", type}};
     }
+    case QUERY: {
+      // Worker placement (PKG-5): the capability is ADVERTISED (run list),
+      // queried over the wire — no test-supplied table. The advertising peer
+      // runs the derivation on ITS executor and provides the result by hash;
+      // re-placing is a memo hit. Refused (typed) if the capability isn't
+      // advertised here.
+      const std::string cap = body.at("capability");
+      if (!me.lists.run.count(cap))
+        return {{"ok", false}, {"error", "not-advertised"}, {"capability", cap},
+                {"peer", me.name}};
+      auto& store = me.stores.at(0)->store;
+      const int blocks = body.value("blocks", 200);
+      auto graph_cid = store.put_node(body.at("graph"), false);
+      json recipe{{"op", "render-analysis"},
+                  {"inputs", {{"graph", {{"/", graph_cid}}}}},
+                  {"blocks", blocks},
+                  {"determinism", "exact"}};
+      if (auto hit = store.memo_lookup(recipe)) {
+        auto take_cid = store.get_node(hit->output).at("take").at("/");
+        return {{"ok", true}, {"placed_on", me.name}, {"output", hit->output},
+                {"provenance", hit->provenance}, {"take", take_cid},
+                {"memo", true}};
+      }
+      syg::executor::exec_plan wp(syg::organs::parse_graph(body.at("graph")),
+                                  48000, 128);
+      syg::formats::byte_vec take;
+      json rms = json::array();
+      for (int i = 0; i < blocks; ++i) {
+        const float* b = wp.pump_block();
+        double acc = 0;
+        for (int k = 0; k < 128; ++k) acc += double(b[k]) * b[k];
+        rms.push_back(acc / 128.0);
+        const auto* bp = reinterpret_cast<const std::uint8_t*>(b);
+        take.insert(take.end(), bp, bp + 128 * sizeof(float));
+      }
+      auto take_cid = store.put_raw(take, true);  // the worker provides it
+      auto c = store.commit_derivation(
+          recipe, {{"kind", "analysis"}, {"take", {{"/", take_cid}}},
+                   {"rms_blocks", rms.size()}, {"rms", rms}});
+      return {{"ok", true}, {"placed_on", me.name}, {"output", c.output},
+              {"provenance", c.provenance}, {"take", take_cid}, {"memo", false}};
+    }
     default:
       return {{"ok", false}, {"error", "unknown-message-kind"}};
   }
@@ -128,7 +181,12 @@ void serve_loop(peer* me) {
     std::uint64_t k;
     bytes reqb;
     while (ch->recv(k, reqb)) {
-      json reply = handle(*me, k, dec(reqb), ch->remote_peer_key());
+      json reply;
+      try {
+        reply = handle(*me, k, dec(reqb), ch->remote_peer_key());
+      } catch (const std::exception& e) {
+        reply = {{"ok", false}, {"error", "handler-fault"}, {"detail", e.what()}};
+      }
       ch->send(k, enc(reply));
     }
   }
@@ -224,16 +282,25 @@ int mesh_session(const nlohmann::json& in) {
       p.stores.push_back(std::move(ss));
       r = {{"store", idx}};
     } else if (what == "fetch") {
-      r = request(m, op.at("from"), op.at("to"), FETCH,
-                  {{"cid", op.at("cid")}});
+      const std::string want = op.at("cid");
+      r = request(m, op.at("from"), op.at("to"), FETCH, {{"cid", want}});
       if (r.value("ok", false)) {
-        // verify + store locally: the fetched bytes must hash to the cid.
+        // verify + store locally under the cid's OWN multicodec (the
+        // store::fetch model): raw bytes vs a dag-cbor node hash differently.
         auto obj = syg::formats::bytes_of_projection(r.at("obj"));
+        auto raw = syg::formats::cid_to_text(
+            syg::formats::cid_of(syg::formats::pins::multicodec_raw, obj));
+        auto cbor = syg::formats::cid_to_text(
+            syg::formats::cid_of(syg::formats::pins::multicodec_dag_cbor, obj));
         auto& f = m.at(op.at("from"));
         std::lock_guard<std::mutex> g(f.mu);
-        std::string got = f.stores.at(0)->store.put_raw(obj, false);
-        r = {{"ok", got == op.at("cid").get<std::string>()},
-             {"cid", got}};
+        std::string got;
+        if (want == raw)
+          got = f.stores.at(0)->store.put_raw(obj, false);
+        else if (want == cbor)
+          got = f.stores.at(0)->store.put_node(
+              syg::formats::decode_to_projection(obj), false);
+        r = {{"ok", got == want}, {"cid", got}};
       }
     } else if (what == "bind") {
       auto& p = m.at(op.at("peer"));
@@ -248,6 +315,62 @@ int mesh_session(const nlohmann::json& in) {
     } else if (what == "place") {
       r = request(m, op.at("from"), op.at("to"), PLACE,
                   {{"type", op.at("type")}});
+    } else if (what == "place-fallthrough") {
+      // MSH-3.1: the requesting engine tries candidate peers in order; a
+      // peer that doesn't advertise the type refuses with a typed error that
+      // is VISIBLE here; placement falls through to the next, or reports
+      // unplaceable when every candidate has refused.
+      const std::string from = op.at("from");
+      const std::string type = op.at("type");
+      json refusals = json::array();
+      json placed;
+      for (const auto& cand : op.at("candidates")) {
+        json rr = request(m, from, cand.get<std::string>(), PLACE,
+                          {{"type", type}});
+        if (rr.value("ok", false)) {
+          placed = {{"ok", true}, {"placed_on", cand}, {"type", type}};
+          break;
+        }
+        refusals.push_back({{"peer", cand}, {"refusal", rr}});
+      }
+      r = placed.is_null()
+              ? json{{"ok", false}, {"unplaceable", true}, {"type", type},
+                     {"refusals", refusals}}
+              : placed;
+      r["refusals"] = refusals;  // the trail is always visible to the engine
+    } else if (what == "place-derivation") {
+      // Worker placement by ADVERTISED capability (PKG-5), queried over the
+      // wire. No test-supplied worker table: `from` asks each candidate what
+      // it runs; the first advertiser executes the derivation and returns the
+      // result by hash. No worker anywhere is a loud refusal.
+      const std::string from = op.at("from");
+      const std::string cap = op.value("capability", "render-analysis");
+      std::string worker;
+      for (const auto& cand : op.at("candidates")) {
+        json h = request(m, from, cand.get<std::string>(), HELLO,
+                         json::object());
+        if (h.value("ok", false)) {
+          for (const auto& t : h.value("run", json::array()))
+            if (t.get<std::string>() == cap) worker = cand.get<std::string>();
+        }
+        if (!worker.empty()) break;
+      }
+      if (worker.empty())
+        throw std::runtime_error("no worker advertises the capability: " + cap);
+      r = request(m, from, worker, QUERY,
+                  {{"capability", cap}, {"graph", op.at("graph")},
+                   {"blocks", op.value("blocks", 200)}});
+    } else if (what == "has") {
+      auto& p = m.at(op.at("peer"));
+      std::lock_guard<std::mutex> g(p.mu);
+      bool has = false;
+      for (auto& ss : p.stores)
+        if (ss->store.get(op.at("cid")).has_value()) has = true;
+      r = {{"has", has}};
+    } else if (what == "read") {
+      auto& p = m.at(op.at("peer"));
+      std::lock_guard<std::mutex> g(p.mu);
+      r = {{"node", p.stores.at(0)->store.get_node(op.at("cid"))}};
     } else if (what == "audit-log") {
       auto& p = m.at(op.at("peer"));
       std::lock_guard<std::mutex> g(p.mu);

@@ -526,57 +526,61 @@ def pkg71_placement_is_fallthrough():
 
 
 def pkg51_worker_placement_by_capability():
-    # a peer without the worker capability schedules a heavy analysis
-    # derivation; with worker advertised only by "linux", placement falls
-    # through there and the result dataset comes back BY HASH (fetched,
-    # re-verified, then locally present)
-    def store(ops):
-        return json.loads(syg("store", stdin=json.dumps(
-            {"peers": {"quest": {}, "linux": {}}, "ops": ops}).encode()))["results"]
-    r = store([
-        {"op": "place-derivation", "peer": "quest",
-         "workers": {"quest": False, "linux": True},
+    # Worker placement by ADVERTISED capability, over the mesh (MSH-3.1
+    # dissolved the test-supplied capability table). A requester without the
+    # worker capability schedules a heavy analysis derivation; only "linux"
+    # advertises `render-analysis`, so placement lands there and the result
+    # dataset comes back BY HASH (fetched, re-verified, then locally present).
+    peers = {"quest": {}, "linux": {}}
+    prelude = [
+        {"op": "pair", "a": "quest", "b": "linux"},
+        {"op": "advertise", "peer": "linux", "run": ["render-analysis"]},
+    ]
+
+    def mesh(ops):
+        return json.loads(syg("mesh", stdin=json.dumps(
+            {"peers": peers, "ops": prelude + ops}).encode()))["results"]
+
+    r = mesh([
+        {"op": "place-derivation", "from": "quest", "candidates": ["quest", "linux"],
          "graph": _chime(), "blocks": 200},
     ])
-    placed = r[0]
-    assert placed["placed_on"] == "linux", placed
+    placed = r[2]
+    assert placed["ok"] and placed["placed_on"] == "linux", placed
     out_cid, take_cid = placed["output"], placed["take"]
-    r = store([
-        {"op": "place-derivation", "peer": "quest",
-         "workers": {"quest": False, "linux": True},
+    r = mesh([
+        {"op": "place-derivation", "from": "quest", "candidates": ["quest", "linux"],
          "graph": _chime(), "blocks": 200},
         {"op": "has", "peer": "quest", "cid": out_cid},
-        {"op": "fetch", "peer": "quest", "from": "linux", "cid": out_cid},
+        {"op": "fetch", "from": "quest", "to": "linux", "cid": out_cid},
         {"op": "has", "peer": "quest", "cid": out_cid},
-        {"op": "fetch", "peer": "quest", "from": "linux", "cid": take_cid},
+        {"op": "fetch", "from": "quest", "to": "linux", "cid": take_cid},
         {"op": "has", "peer": "quest", "cid": take_cid},
         {"op": "read", "peer": "quest", "cid": out_cid},
     ])
-    assert r[1]["has"] is False, "the requester had the result before fetching"
-    assert r[2]["moved"] >= 1 and r[3]["has"] is True
-    assert r[5]["has"] is True, "the take dataset did not come back by hash"
-    body = r[6]
-    analysis = body.get("node", body)
+    assert r[3]["has"] is False, "the requester had the result before fetching"
+    assert r[4]["ok"] and r[5]["has"] is True
+    assert r[7]["has"] is True, "the take dataset did not come back by hash"
+    analysis = r[8]["node"]
     assert analysis.get("kind") == "analysis" and \
         analysis.get("rms_blocks") == 200, analysis
     # determinism: re-placing is a memo hit on the worker
-    r2 = store([
-        {"op": "place-derivation", "peer": "quest",
-         "workers": {"quest": False, "linux": True},
+    r2 = mesh([
+        {"op": "place-derivation", "from": "quest", "candidates": ["linux"],
          "graph": _chime(), "blocks": 200},
-        {"op": "place-derivation", "peer": "quest",
-         "workers": {"quest": False, "linux": True},
+        {"op": "place-derivation", "from": "quest", "candidates": ["linux"],
          "graph": _chime(), "blocks": 200},
     ])
-    assert r2[1]["memo"] is True and r2[1]["output"] == out_cid
-    # nobody home: no worker anywhere is a LOUD refusal
+    assert r2[3]["memo"] is True and r2[3]["output"] == out_cid
+    # nobody home: no advertiser anywhere is a LOUD refusal
     import subprocess as sp
     exe = ROOT / "syg"
-    rr = sp.run([str(exe), "store"], input=json.dumps(
-        {"peers": {"quest": {}, "linux": {}},
-         "ops": [{"op": "place-derivation", "peer": "quest",
-                  "workers": {"quest": False, "linux": False},
-                  "graph": _chime()}]}).encode(), capture_output=True)
+    rr = sp.run([str(exe), "mesh"], input=json.dumps(
+        {"peers": peers, "ops": [
+            {"op": "pair", "a": "quest", "b": "linux"},
+            {"op": "place-derivation", "from": "quest",
+             "candidates": ["quest", "linux"], "graph": _chime()}]}).encode(),
+        capture_output=True)
     assert rr.returncode != 0 and b"worker" in rr.stderr
 
 
