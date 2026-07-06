@@ -30,6 +30,7 @@
 #include "peer_session.hpp"
 #include "edit_session.hpp"
 #include "walk_session.hpp"
+#include "conform_session.hpp"
 #include "document_session.hpp"
 #include "mesh_session.hpp"
 #include "store_session.hpp"
@@ -850,6 +851,8 @@ int main(int argc, char** argv) {
       return syg::harness::walk_session(nlohmann::json::parse(read_stdin()));
     if (cmd == "document")
       return syg::harness::document_session(nlohmann::json::parse(read_stdin()));
+    if (cmd == "conform")
+      return syg::harness::conform_session(nlohmann::json::parse(read_stdin()));
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;
