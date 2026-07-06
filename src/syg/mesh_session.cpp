@@ -89,6 +89,7 @@ struct peer {
   std::map<std::string, json> plugin_prov;      // loaded plugin type -> prov
   std::map<std::string, json> arbiters;         // ref -> attributed op log
   std::vector<std::string> instantiated;        // registry audit log (MSH-4)
+  std::string mutant;                           // CNF-2: a requirement it breaks
   std::mutex mu;
   std::unique_ptr<syg::mesh::listener> lis;
   std::thread server;
@@ -203,7 +204,10 @@ json handle(peer& me, std::uint64_t k, const json& body,
       // run list. Nothing is pushed; the request is refused with a typed
       // error the caller can act on. The audit log proves MSH-4.
       const std::string type = body.at("type");
-      if (!me.lists.run.count(type))
+      // CNF-2: a mutant candidate breaks MSH-4 — it instantiates unadvertised
+      // types. A conformant peer refuses; the harness detects the difference
+      // over the wire (via the audit log) and names MSH-4.
+      if (!me.lists.run.count(type) && me.mutant != "MSH-4")
         return {{"ok", false}, {"error", "not-advertised"}, {"type", type},
                 {"peer", me.name}};
       me.instantiated.push_back(type);
@@ -316,9 +320,11 @@ int mesh_session(const nlohmann::json& in) {
   m.recording = in.value("record", false);
   m.discovery = in.value("discovery", "static");
   const json peer_cfg = in.value("peers", json::object());
-  for (auto& [name, cfg] : peer_cfg.items())
-    m.peers.emplace(name, std::make_unique<peer>(
-                              name, cfg.value("seed", name)));
+  for (auto& [name, cfg] : peer_cfg.items()) {
+    auto p = std::make_unique<peer>(name, cfg.value("seed", name));
+    p->mutant = cfg.value("mutant", "");  // CNF-2: a deliberately broken build
+    m.peers.emplace(name, std::move(p));
+  }
   for (auto& [name, p] : m.peers) {
     m.beacon[name] = p->lis->port();  // the mDNS-style announce at boot
     p->server = std::thread(serve_loop, p.get());

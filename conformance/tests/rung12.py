@@ -211,16 +211,52 @@ def cnf1_suite_as_data():
     assert "FAKE-9.9" in r2["uncovered"], "a criterion without a test was not flagged"
 
 
+# ---- CNF-2: the harness boots a candidate as a peer, over the wire ---------
+def cnf2_candidate_as_peer():
+    # The harness runs ENTIRELY over the wire protocol against a candidate it
+    # did not link — proven against (a) the reference core and (b) a
+    # deliberately broken mutant, which must FAIL with the failing requirement
+    # NAMED. The peer-level property here is MSH-4 (pull-shaped placement).
+    def mesh(peers, ops):
+        out = syg("mesh", stdin=json.dumps({"peers": peers, "ops": ops}).encode())
+        return json.loads(out)["results"]
+
+    def check_msh4(candidate_cfg):
+        # a peer-level conformance check, wire-only: place an UNADVERTISED type
+        # on the candidate and read its audit log. A conformant peer refuses
+        # and instantiates nothing; a violation is a placement that landed.
+        peers = {"checker": {}, "cand": candidate_cfg}
+        r = mesh(peers, [
+            {"op": "pair", "a": "checker", "b": "cand"},
+            {"op": "advertise", "peer": "cand", "run": ["osc"]},
+            {"op": "place", "from": "checker", "to": "cand", "type": "shell_exec"},
+            {"op": "audit-log", "peer": "cand"},
+        ])
+        placed = r[2].get("ok", False)
+        leaked = "shell_exec" in r[3]["instantiated"]
+        if placed or leaked:
+            return {"pass": False, "requirement": "MSH-4",
+                    "detail": "instantiated an unadvertised type"}
+        return {"pass": True, "requirement": "MSH-4"}
+
+    # (a) the reference core passes peer-level conformance
+    ref = check_msh4({})
+    assert ref["pass"] is True, ref
+    # (b) the deliberately broken mutant FAILS, naming the requirement
+    mut = check_msh4({"mutant": "MSH-4"})
+    assert mut["pass"] is False, mut
+    assert mut["requirement"] == "MSH-4", mut
+
+
 TESTS = {
     "CNF-1": cnf1_suite_as_data,
+    "CNF-2": cnf2_candidate_as_peer,
     "CNF-3": cnf3_two_profiles,
     "COR-4": cor4_two_profiles,
     "CNF-4": cnf4_kind_succession,
     "CNF-6.1": cnf61_versions_derived,
     "CNF-6.2": cnf62_class_gate_verifies,
     "CNF-6.3": cnf63_ref_sugar_resolves,
-    # 17-conformance-evolution.md: The harness runs entirely over the wire
-    "CNF-2": None,
     # 17-conformance-evolution.md: A core succession (N derives N+1) is admitted only
     "CNF-5": None,
 }
