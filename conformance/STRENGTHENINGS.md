@@ -96,3 +96,13 @@ and the frozen frame/latch path (hello A/B — previously never rendered
 frozen). Codegen also now REFUSES loudly what it would silently drop
 (unknown frame emitters, unbakeable defaults); tier>1 reports without
 emitting.
+
+## MSH-5.1 — plugin gate: witness the bad-signature branch (2026-07-05, rung-9 audit)
+
+The rung-9 fresh-context audit demonstrated that MSH-5.1's negative cases
+(unsigned, untrusted-signer) never exercised the plugin gate's SIGNATURE
+check: with `verify()` neutered, MSH-5.1 still passed (the shared primitive
+was witnessed only by MSH-6.1). Added a forged-signature case — a TRUSTED
+signer's signature corrupted in transit (new test-only `forge_sig` knob on
+`ship-plugin`) — asserting the gate rejects at `bad-signature`, not on trust
+alone. Now neutering `verify()` turns BOTH MSH-6.1 and MSH-5.1 red.

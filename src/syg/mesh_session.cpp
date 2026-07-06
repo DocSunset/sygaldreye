@@ -578,8 +578,13 @@ int mesh_session(const nlohmann::json& in) {
       json prov = nullptr;
       if (op.value("sign", false)) {
         syg::mesh::bytes msg(art_cid.begin(), art_cid.end());
+        auto sig = fp.id.sign(msg);
+        // test-only tamper: a trusted signer's signature is corrupted in
+        // transit so the gate must reject it at the signature check (not the
+        // trust check) — the `bad-signature` branch witness.
+        if (op.value("forge_sig", false) && !sig.empty()) sig[0] ^= 0xff;
         prov = {{"signer", fp.id.peer_key()},
-                {"sig", syg::formats::projection_of_bytes(fp.id.sign(msg))},
+                {"sig", syg::formats::projection_of_bytes(sig)},
                 {"artifact", art_cid},
                 {"source", op.value("source", "")},
                 {"toolchain", op.value("toolchain", "")},

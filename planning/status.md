@@ -53,6 +53,32 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   drawn blood once (dac marker).
 - **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
 
+## 2026-07-05 — Rung-9 fresh-context audit (Judgement §3): CLEAR, one should-fix
+
+Auditor (fresh context, book + diff 3fa64c7..c79d852 only) verdict: rung 9 is
+substantially REAL — **no blockers**. Real loopback TCP + real libsodium
+(Ed25519 sign/verify, crypto_kx, XChaCha20-Poly1305 secretstream), real
+dlopen, real exec_plan realization. Both dissolution markers genuinely GONE
+(MSH-3.1's worker table deleted → real advertisement query; MSH-7.1's
+cmd_net_pair deleted → net discipline over the real channel); gate green.
+Crypto proven load-bearing by an adversarial NEUTER probe: replacing verify()
+with `return true` turned MSH-6.1 RED. FMT-4 golden bodies are genuine
+canonical dag-cbor (decoded + key-order-checked); honestly records plaintext
+(ciphertext non-reproducible).
+
+**Should-fix (DONE):** MSH-5.1's negative cases (unsigned, untrusted-signer)
+never hit the plugin gate's SIGNATURE branch — the neuter left MSH-5.1 green.
+Added a forged-signature-by-a-trusted-signer case (`forge_sig` knob →
+`bad-signature`); now the neuter reddens MSH-5.1 too. Ledgered in
+STRENGTHENINGS.md.
+
+**Flagged (accepted):** MSH-7.1 seam is genuine (port_of branches
+static→lis.port vs mdns→beacon) but in-process the two can't diverge (beacon
+filled from the same port) — honest minimum, a DHT would fill beacon
+differently. MSH-5.2 wasm load is a flag by design (executed:false; execution
+is rung-10 ABI-5). ADR-035 remains a DRAFT awaiting Travis (primitives all
+used as described). Rung-8 residue (14/18) is hardware-only, confirmed.
+
 ## 2026-07-05 — Rung-8 audit processed (one demonstrated blocker, fixed)
 
 The fresh-context rung-8 auditor DEMONSTRATED the big one: the scc_order

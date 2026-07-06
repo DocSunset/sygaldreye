@@ -337,6 +337,10 @@ def msh51_plugin_trust_gate():
         # signed by the STRANGER (untrusted): refused
         {"op": "ship-plugin", "from": "stranger", "to": "host", "artifact": so,
          "sign": True},
+        # a TRUSTED signer's signature CORRUPTED in transit: the gate must
+        # reject at the signature check, not wave it through on trust alone
+        {"op": "ship-plugin", "from": "quest", "to": "host", "artifact": so,
+         "sign": True, "forge_sig": True},
         # signed by quest (trusted): loads hot
         {"op": "ship-plugin", "from": "quest", "to": "host", "artifact": so,
          "sign": True, "source": "bafyPlugSrc", "toolchain": "gcc-15"},
@@ -348,9 +352,11 @@ def msh51_plugin_trust_gate():
     assert r[3]["loaded"] is False and r[3]["error"] == "unsigned", r[3]
     assert r[3]["logged"] is True, r[3]
     assert r[4]["loaded"] is False and r[4]["error"] == "untrusted-signer", r[4]
-    assert r[5]["loaded"] is True and r[5]["type"] == "plugin_osc", r[5]
-    assert r[6]["ran"] and r[6]["energy"] > 0, r[6]           # the new type sings
-    prov = r[7]
+    # a forged signature by a TRUSTED signer is caught at the signature check
+    assert r[5]["loaded"] is False and r[5]["error"] == "bad-signature", r[5]
+    assert r[6]["loaded"] is True and r[6]["type"] == "plugin_osc", r[6]
+    assert r[7]["ran"] and r[7]["energy"] > 0, r[7]           # the new type sings
+    prov = r[8]
     assert prov["known"] and prov["provenance"]["source"] == "bafyPlugSrc", prov
     assert prov["provenance"]["toolchain"] == "gcc-15", prov
 
