@@ -139,6 +139,32 @@ int walk_session(const nlohmann::json& in) {
     return cur;
   };
 
+  // commit a graph with its lock + bind/update a ref (used by rebind).
+  auto commit_graph = [&](const json& graph) {
+    auto doc = organs::parse_graph(graph);
+    auto tcids = commit_types(s);
+    json lock = json::object();
+    for (const auto& [id, tname] : doc.nodes)
+      if (tcids.count(tname)) lock[tname] = {{"/", tcids.at(tname)}};
+    doc.lock = lock;
+    return s.put_node(organs::serialize_graph(doc), false);
+  };
+
+  // Resolve a transclusion address into a value. A LIVE address (refname:
+  // route) re-resolves the ref every time — a subscription; a FIXED address
+  // (cid/route) is pinned to that version — a quotation (ch. 9, ADR-029).
+  auto transclude = [&](const json& op) {
+    position cur;
+    if (op.contains("ref"))
+      cur = {s.get_node(*s.ref(op.at("ref").get<std::string>())), {}};
+    else
+      cur = {s.get_node(op.at("cid").get<std::string>()), {}};
+    cur.lock = cur.value.contains("lock") ? cur.value["lock"] : json::object();
+    for (const auto& stepname : op.value("route", json::array()))
+      cur = step(s, cur, stepname.get<std::string>());
+    return cur.value;
+  };
+
   json results = json::array();
   for (const auto& op : in.value("ops", json::array())) {
     const std::string what = op.at("op");
@@ -165,6 +191,15 @@ int walk_session(const nlohmann::json& in) {
       auto cid = s.put_node(mapdata, true);
       if (op.contains("as")) s.bind_ref(op.at("as"), cid);
       r = {{"cid", cid}};
+    } else if (what == "cid-of") {
+      r = {{"cid", *s.ref(op.at("ref").get<std::string>())}};
+    } else if (what == "rebind") {
+      auto cid = commit_graph(op.at("graph"));
+      s.bind_ref(op.at("ref"), cid);  // the ref MOVES (append to its trail)
+      ground[op.at("ref").get<std::string>()] = {{"/", cid}};
+      r = {{"cid", cid}};
+    } else if (what == "transclude") {
+      r = {{"value", transclude(op)}, {"mode", op.contains("ref") ? "live" : "fixed"}};
     } else if (what == "open-mark") {
       std::string cid = op.contains("ref") ? *s.ref(op.at("ref"))
                                            : op.at("cid").get<std::string>();

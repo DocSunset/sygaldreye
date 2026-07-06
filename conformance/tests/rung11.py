@@ -187,6 +187,51 @@ def _walk(store, ops):
     return json.loads(out)["results"]
 
 
+# ---- EDR-6.1: transclusion — live subscribes, fixed quotes -----------------
+def edr61_live_vs_fixed_transclusion():
+    # A document transcluding an address LIVE (refname:route) updates when the
+    # ref moves; the same address FIXED (cid/route, normalized) does not. Live
+    # is subscription, fixed is quotation (ch. 9, ADR-029).
+    import copy
+    h1 = _hello()
+    h2 = copy.deepcopy(h1)
+    h2["defaults"]["osc0/freq"] = 440.0    # a new version of the same graph
+    route = ["defaults", "osc0/freq"]
+    cid1 = _walk({"graphs": {"graphs/hello-cosine": h1}},
+                 [{"op": "cid-of", "ref": "graphs/hello-cosine"}])[0]["cid"]
+    r = _walk({"graphs": {"graphs/hello-cosine": h1}}, [
+        {"op": "transclude", "ref": "graphs/hello-cosine", "route": route},  # 0 live v1
+        {"op": "transclude", "cid": cid1, "route": route},                   # 1 fixed v1
+        {"op": "rebind", "ref": "graphs/hello-cosine", "graph": h2},          # 2 ref moves
+        {"op": "transclude", "ref": "graphs/hello-cosine", "route": route},  # 3 live v2
+        {"op": "transclude", "cid": cid1, "route": route},                   # 4 fixed v1
+    ])
+    assert r[0]["value"] == 220.0 and r[0]["mode"] == "live", r[0]
+    assert r[1]["value"] == 220.0 and r[1]["mode"] == "fixed", r[1]
+    # after the ref moves: the LIVE transclusion updates, the FIXED one holds
+    assert r[3]["value"] == 440.0, "live transclusion did not follow the ref"
+    assert r[4]["value"] == 220.0, "fixed transclusion moved with the ref"
+
+
+# ---- EDR-6.2: the C++ round-trip metric over a corpus ----------------------
+def edr62_cpp_roundtrip_corpus():
+    # Decompose a small permissive C++ file to document form (top-level segment
+    # nodes linked in sequence) and regenerate byte-identically. A property
+    # test over a corpus directory — each file is a real decomposition (more
+    # than one segment) that reconstructs to the exact original bytes.
+    corpus = sorted((ROOT / "conformance" / "fixtures" / "cpp_corpus").glob("*.cpp"))
+    assert corpus, "the C++ corpus is missing"
+    for f in corpus:
+        src = f.read_text()
+        r = syg("document", stdin=json.dumps(
+            {"ops": [{"op": "roundtrip", "source": src}]}).encode())
+        res = json.loads(r)["results"][0]
+        assert res["identical"], f"{f.name} did not round-trip byte-identically"
+        assert res["regen_len"] == len(src.encode()), (f.name, res["regen_len"])
+        # a real decomposition, not verbatim whole-file storage
+        assert res["segments"] > 1, f"{f.name} was not decomposed into parts"
+
+
 # ---- EDR-5.1: the store browser walks + marks -------------------------------
 def edr51_walk_and_mark():
     # here/path/frontier/mark over a store graph. Walk ground -> the
@@ -269,10 +314,8 @@ TESTS = {
     "EDR-5.1": edr51_walk_and_mark,
     "EDR-5.2": edr52_frontier_paginates,
     "EDR-4.1": edr41_smoother_replacement_gesture,
+    "EDR-6.1": edr61_live_vs_fixed_transclusion,
+    "EDR-6.2": edr62_cpp_roundtrip_corpus,
     "EDR-7.1": edr71_human_and_agent_identical,
     "EDR-8.1": edr81_probe_does_not_move_regions,
-    # 09-editor-documents.md: a document transcluding `graphs/hello-cosine:nodes/osc0/freq`
-    "EDR-6.1": None,
-    # 09-editor-documents.md: round-trip metric harness: decompose a small permissive C++ file
-    "EDR-6.2": None,
 }
