@@ -29,6 +29,7 @@
 #include "compile_session.hpp"
 #include "peer_session.hpp"
 #include "edit_session.hpp"
+#include "walk_session.hpp"
 #include "mesh_session.hpp"
 #include "store_session.hpp"
 #include "naming_session.hpp"
@@ -844,6 +845,8 @@ int main(int argc, char** argv) {
       return syg::harness::mesh_session(nlohmann::json::parse(read_stdin()));
     if (cmd == "edit")
       return syg::harness::edit_session(nlohmann::json::parse(read_stdin()));
+    if (cmd == "walk")
+      return syg::harness::walk_session(nlohmann::json::parse(read_stdin()));
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;
