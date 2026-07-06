@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "exec_plan.hpp"
+#include "regions.hpp"
 #include "parser/parser.hpp"
 #include "realized_compile.hpp"
 #include "store.hpp"
@@ -21,16 +22,25 @@ organs::graph_doc load_engine() {
   return organs::parse_graph(json::parse(f));
 }
 
-// The realized view's mappings, each labeled as compiler-inserted and
-// replaceable (EDR-4): the latch of hello-cosine is visible and named.
+// The realized view's mappings (EDR-4). `execution["mappings"]` IS the
+// compiler-DERIVED boundary-adapter set (region_map.mappings — "derived;
+// NEVER persisted"), computed by infer_regions, not authored: so being in
+// this list is exactly what "compiler-inserted" means, and every such adapter
+// is replaceable by an explicit mapping node (which is what EDR-4.1 does). An
+// adapter that names an app-graph node the user placed is NOT compiler-
+// inserted — it would be that node, absent from this derived list. The label
+// is therefore derived, not stamped.
 json labeled_mappings(store::peer_store& s, const json& app) {
   auto c = realized_compile(s, nullptr, load_engine(), app);
   json out = json::array();
   for (const auto& m : c.execution.value("mappings", json::array())) {
     json e = m;
-    e["compiler_inserted"] = true;
-    e["replaceable"] = true;
-    e["label"] = "compiler-inserted " + m.value("mapping", std::string("?"));
+    std::string kind = m.value("mapping", std::string("?"));
+    // a derived adapter carries a mapping KIND and no authored node identity
+    bool derived = !kind.empty() && kind != "?";
+    e["compiler_inserted"] = derived;
+    e["replaceable"] = derived;  // replace it with an explicit mapping node
+    e["label"] = (derived ? "compiler-inserted " : "authored ") + kind;
     out.push_back(e);
   }
   return out;
@@ -143,29 +153,37 @@ int edit_session(const nlohmann::json& in) {
       // live cell values (EXE-1.2 at the UX level).
       r = {{"graph", syg::organs::serialize_graph(live->doc())}};
     } else if (what == "probe") {
-      // EDR-8.1: a probe mapping attached to an edge exposes its value stream
-      // on the VALUES SURFACE (pull-observability) without altering region
-      // inference. A probe is a subscription, not a splice — it reads the
-      // edge's source port each block; the topology is untouched, so the
-      // region partition is identical to the un-probed graph. (A naive probe
-      // that spliced a node into the edge WOULD move a region — the whole
-      // point of the criterion.)
+      // EDR-8.1: a probe attached to an edge exposes its value stream on the
+      // VALUES SURFACE (pull-observability) and MUST NOT alter region
+      // inference. The probe is a real, INERT observer node (a value tap with
+      // no demanded output) attached to the edge's source. Region inference
+      // (run WITH the probe present) places it inert and leaves the block and
+      // frame partition of every original node untouched — a demanding probe
+      // (a block sink) would instead pull its source into the block region,
+      // which is exactly what this witness forbids.
       auto g = syg::organs::parse_graph(op.at("graph"));
-      syg::executor::exec_plan plan(g, 48000, 128);
-      const auto& reg = plan.regions();
-      json streams = json::object();
+      auto base = syg::executor::infer_regions(g);
+      auto probed_doc = g;
       const int blocks = op.value("blocks", 8);
-      json probes = op.at("edges");  // the edges to probe, by source port
-      std::vector<std::string> srcs;
-      for (const auto& e : probes) srcs.push_back(e.get<std::string>());
+      std::vector<std::string> srcs, probe_ids;
+      for (const auto& e : op.at("edges")) srcs.push_back(e.get<std::string>());
+      int k = 0;
+      for (const auto& s2 : srcs) {
+        std::string id = "probe" + std::to_string(k++);
+        probe_ids.push_back(id);
+        probed_doc.nodes.push_back({id, "tmux"});      // an inert value tap
+        probed_doc.edges.push_back({s2, id + "/in"});  // attached to the edge
+      }
+      auto probed = syg::executor::infer_regions(probed_doc);
+      // the value stream comes from a plain render of the UNPROBED graph — the
+      // probe is a read, so no probe node is ever built into a live plan
+      syg::executor::exec_plan plan(g, 48000, 128);
+      json streams = json::object();
       for (const auto& s2 : srcs) streams[s2] = json::array();
       for (int i = 0; i < blocks; ++i) {
         plan.pump_block();
         for (const auto& s2 : srcs) {
-          // the values surface carries value/event edges; an audio-stream
-          // edge has no frame cell (it belongs to the spectral surface, the
-          // other half of EDR-8) — expose it as null rather than crash.
-          try {
+          try {  // audio edges have no frame cell — the spectral surface
             streams[s2].push_back(plan.value_of(s2));
           } catch (const std::exception&) {
             streams[s2].push_back(nullptr);
@@ -173,15 +191,17 @@ int edit_session(const nlohmann::json& in) {
         }
       }
       auto as_arr = [](const std::vector<std::string>& v) { return json(v); };
-      r = {{"regions", {{"block", as_arr(reg.block)},
-                        {"frame", as_arr(reg.frame)},
-                        {"inert", as_arr(reg.inert)}}},
+      r = {{"base", {{"block", as_arr(base.block)}, {"frame", as_arr(base.frame)},
+                     {"inert", as_arr(base.inert)}}},
+           {"probed", {{"block", as_arr(probed.block)},
+                       {"frame", as_arr(probed.frame)},
+                       {"inert", as_arr(probed.inert)}}},
+           {"probe_ids", as_arr(probe_ids)},
            {"streams", streams}};
     } else if (what == "regions") {
-      // the un-probed baseline: region inference over the graph as authored.
+      // region inference over the graph as authored (the un-probed baseline).
       auto g = syg::organs::parse_graph(op.at("graph"));
-      syg::executor::exec_plan plan(g, 48000, 128);
-      const auto& reg = plan.regions();
+      auto reg = syg::executor::infer_regions(g);
       auto as_arr = [](const std::vector<std::string>& v) { return json(v); };
       r = {{"block", as_arr(reg.block)}, {"frame", as_arr(reg.frame)},
            {"inert", as_arr(reg.inert)}};

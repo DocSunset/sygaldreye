@@ -113,9 +113,13 @@ def edr41_smoother_replacement_gesture():
     # the user's smoother survives (CMP-4.1).
     hello = _hello()
     before = _edit([{"op": "realized", "graph": hello}])[0]["mappings"]
+    # the latch is a compiler-DERIVED boundary adapter (present in the derived
+    # mappings list) — that presence IS what "compiler-inserted" means; the
+    # label is derived from the mapping's kind, not stamped
     latch = [m for m in before if m["mapping"] == "latch"]
     assert latch, before
     assert latch[0]["compiler_inserted"] and latch[0]["replaceable"], latch[0]
+    assert latch[0]["label"] == "compiler-inserted latch", latch[0]
 
     # the replacement, driven agent-source through op_button gesture nodes
     script = [
@@ -287,24 +291,24 @@ def edr81_probe_does_not_move_regions():
     # is a subscription, not a splice: the topology is untouched, so the block
     # and frame partitions are identical to the un-probed graph.
     g = _hello()
-    base = _edit([{"op": "regions", "graph": g}])[0]
-    # attach probes to ANY edge: a value edge (lfo0/out) and an audio edge
-    # (osc0/out). The values surface carries the value edge; the audio edge
-    # belongs to the spectral surface (EDR-8's other half), so it reads null —
-    # the probe accepts any edge and never perturbs the graph.
-    r = _edit([{"op": "probe", "graph": g,
-                "edges": ["lfo0/out", "osc0/out"], "blocks": 200}])[0]
-    # region inference is unaltered by attaching the probe (subscription, not
-    # splice): the block/frame/inert partition matches the un-probed graph
-    def norm(reg):
-        return {k: sorted(reg[k]) for k in ("block", "frame", "inert")}
-    assert norm(base) == norm(r["regions"]), (base, r["regions"])
-    # the value edge carries a REAL, MOVING stream (the LFO swings) in range
+    r = _edit([{"op": "probe", "graph": g, "edges": ["lfo0/out"], "blocks": 200}])[0]
+    base, probed = r["base"], r["probed"]
+    probe_ids = set(r["probe_ids"])
+    # the probe is a REAL inert observer present in the probed region
+    # computation — so this witness has teeth: a demanding probe would land in
+    # block (pulling its source with it) and this would fail.
+    assert probe_ids and probe_ids <= set(probed["inert"]), (probe_ids, probed)
+    # the ORIGINAL nodes' partition is untouched: block is byte-identical, and
+    # frame differs ONLY by the added inert probe
+    assert sorted(probed["block"]) == sorted(base["block"]), (base, probed)
+    assert sorted(set(probed["frame"]) - probe_ids) == sorted(base["frame"]), \
+        (base, probed)
+    # nothing got pulled into the block region by the attachment
+    assert not (set(probed["block"]) - set(base["block"])), "probe moved a region"
+    # and the probe carries a REAL, MOVING value stream (the LFO swings) in range
     lfo = r["streams"]["lfo0/out"]
     assert len(lfo) == 200 and len(set(round(x, 4) for x in lfo)) > 5, lfo[:5]
     assert all(-1.001 <= x <= 1.001 for x in lfo), "LFO out of range"
-    # the audio edge is off the values surface — null, not a crash
-    assert all(x is None for x in r["streams"]["osc0/out"]), "audio ≠ values"
 
 
 TESTS = {

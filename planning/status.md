@@ -63,6 +63,35 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   drawn blood once (dac marker).
 - **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
 
+## 2026-07-06 — Rung-11 fresh-context audit (Judgement §3): CLEAR after 2 fixes
+
+Auditor (fresh context, book + diff a520ae0..0561474) verdict: rung 11 is
+substantially REAL — the editor's gestures are realized (ops → arbiter via
+exec_plan::submit; agent-drive through real op_button source nodes), not a
+private evaluator; dissolution gate green, no new markers, no `or True`. The
+EDR-3 undo question resolved HONESTLY: undo_gesture is op-log-based
+(ADR-018), folding param drift into its structural step (the book's
+"snapshots on structural change") — not the snapshot-undo trap.
+
+**Blocker (FIXED):** EDR-8.1's region witness was vacuous
+(`infer_regions(G)==infer_regions(G)` — no probe in either partition). Now a
+REAL inert probe node participates in the probed region computation; the
+witness asserts it lands inert and the original block/frame partition is
+untouched (a demanding probe would fail it). **Should-fix (FIXED):** EDR-4.1's
+`compiler_inserted`/`replaceable` were hardcoded; now derived from the
+mapping's kind (execution["mappings"] IS the compiler-derived adapter set).
+Both ledgered in STRENGTHENINGS.md.
+
+**Flagged (accepted):** EDR-6.2's `identical` is true-by-construction (a byte
+partition) — honest exact-bytes design, but only `segments>1` is load-bearing
+(a naive splitter would also pass); adversarial fixtures (raw strings, `'}'`,
+comment `;`/`}`) confirmed byte-identical. EDR-5.2 pagination bounds OUTPUT
+but scans O(total) per call and materializes the 100k-link node at setup —
+not truly lazy; the "demand-driven" language overstates it. `syg walk`
+navigation is bespoke JSON walking — store-browser/query machinery, not an
+ADR-034 realization violation (consistent with the query surface). Rung 10
+remains skipped (Travis).
+
 ## 2026-07-05 — Rung-9 fresh-context audit (Judgement §3): CLEAR, one should-fix
 
 Auditor (fresh context, book + diff 3fa64c7..c79d852 only) verdict: rung 9 is

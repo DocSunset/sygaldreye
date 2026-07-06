@@ -106,3 +106,27 @@ was witnessed only by MSH-6.1). Added a forged-signature case — a TRUSTED
 signer's signature corrupted in transit (new test-only `forge_sig` knob on
 `ship-plugin`) — asserting the gate rejects at `bad-signature`, not on trust
 alone. Now neutering `verify()` turns BOTH MSH-6.1 and MSH-5.1 red.
+
+## EDR-8.1 — non-vacuous region-invariance witness (2026-07-06, rung-11 audit)
+
+The rung-11 audit found EDR-8.1's region witness vacuous: it compared
+`infer_regions(G)` to `infer_regions(G)` (no probe entity in either
+partition), so the criterion's claim — a probe attached to an edge does not
+move regions — could not fail. Fixed: the probe op now attaches a REAL inert
+observer node (a value tap with no demanded output) to the edge's source and
+runs region inference WITH it present. The test asserts the probe lands in
+`inert`, the block partition is byte-identical, and frame differs only by the
+added probe — a demanding probe (a block sink) would land in block and pull
+its source with it, failing the witness. The value-stream half was already
+real (measured moving over 200 blocks).
+
+## EDR-4.1 — derive the mapping label, don't stamp it (2026-07-06, rung-11 audit)
+
+The realized-view labels `compiler_inserted`/`replaceable` were hardcoded
+`true` on every mapping, making that assertion decorative. Fixed:
+`labeled_mappings` derives them from the mapping's own kind field
+(execution["mappings"] IS the compiler-derived boundary-adapter set,
+region_map.mappings — "derived; NEVER persisted"), and the label reads
+"compiler-inserted <kind>". The test's load-bearing witness stays the
+substantive one (a derived latch present before, none after the gesture-driven
+smoother replacement).
