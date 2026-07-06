@@ -104,6 +104,46 @@ def edr11_palette_swap_changes_behavior():
     assert after.get("osc_spawn", {}).get("type") == "osc", "migrate lost state"
 
 
+# ---- EDR-7.1: human-input and agent-source yield identical graphs ----------
+def edr71_human_and_agent_identical():
+    # Every editor gesture is drivable through source nodes; there is no
+    # privileged agent API. The same gesture suite, run two ways — human-input
+    # simulation (direct arbiter gestures) and agent-source driving (each op
+    # arriving as an op event from an op_button source node) — produces
+    # byte-identical resulting graphs.
+    script = [
+        {"op": "add_node", "a": "g0", "b": "noise", "author": "hand"},
+        {"op": "add_edge", "a": "g0/out", "b": "vca0/in", "author": "hand"},
+        {"op": "add_node", "a": "g1", "b": "lfo", "author": "hand"},
+        {"op": "set_param", "a": "osc0/freq", "b": "330", "author": "hand"},
+        {"op": "set_param", "a": "g1/depth", "b": "0.5", "author": "hand"},
+        {"op": "remove_node", "a": "g0", "author": "hand"},
+    ]
+    # human-input simulation: the gestures applied directly to the arbiter
+    human = _edit([{"op": "open", "graph": _hello()}]
+                  + [{"op": "gesture", "ops": [g]} for g in script]
+                  + [{"op": "save"}])[-1]["graph"]
+
+    # agent-source: the SAME gestures driven through op_button source nodes
+    editor = {"kind": "graph", "lock": {},
+              "topology": {"nodes": {"btn": {"type": "button"},
+                                     "ob0": {"type": "op_button"},
+                                     "arb0": {"type": "arbiter_inlet"}},
+                           "edges": [{"from": "btn/out", "to": "ob0/in"},
+                                     {"from": "ob0/out", "to": "arb0/in"}]},
+              "defaults": {}}
+    agent = _edit([{"op": "agent-drive", "editor": editor, "target": _hello(),
+                    "arbiter": "arb0", "op_route": "ob0/op", "bang": "btn/out",
+                    "script": script}])[0]["graph"]
+
+    assert human == agent, {"human": human, "agent": agent}
+    # and the suite actually did non-trivial work (not both no-ops)
+    assert "g1" in human["topology"]["nodes"], human       # add survived
+    assert "g0" not in human["topology"]["nodes"], human    # remove survived
+    assert human["defaults"]["osc0/freq"] == 330.0, human   # param drag survived
+    assert human["defaults"]["g1/depth"] == 0.5, human      # added-node param
+
+
 def _walk(store, ops):
     out = syg("walk", stdin=json.dumps({"store": store, "ops": ops}).encode())
     return json.loads(out)["results"]
@@ -190,6 +230,7 @@ TESTS = {
     "EDR-3.1": edr31_undo_restores_exactly,
     "EDR-5.1": edr51_walk_and_mark,
     "EDR-5.2": edr52_frontier_paginates,
+    "EDR-7.1": edr71_human_and_agent_identical,
     "EDR-8.1": edr81_probe_does_not_move_regions,
     # 09-editor-documents.md: scripted gesture test drives the smoother replacement of CMP-4.1
     "EDR-4.1": None,
@@ -197,6 +238,4 @@ TESTS = {
     "EDR-6.1": None,
     # 09-editor-documents.md: round-trip metric harness: decompose a small permissive C++ file
     "EDR-6.2": None,
-    # 09-editor-documents.md: the full editor integration suite runs twice — human-input
-    "EDR-7.1": None,
 }

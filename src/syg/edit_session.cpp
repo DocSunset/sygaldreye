@@ -72,6 +72,25 @@ int edit_session(const nlohmann::json& in) {
       // instance; re-aim it at the target (its pointer is not migrated state).
       if (target && !arbiter_id.empty()) live->point_arbiter(arbiter_id, *target);
       r = {{"editor_nodes", live->doc().nodes.size()}};
+    } else if (what == "agent-drive") {
+      // EDR-7: an agent drives every gesture through SOURCE NODES — each op
+      // arrives as an op event from an op_button into the target's arbiter,
+      // the same path a human's gesture node uses. No privileged agent API.
+      // The editor here is {btn:button -> ob0:op_button -> arb0:arbiter_inlet}.
+      live = std::make_unique<syg::executor::exec_plan>(
+          syg::organs::parse_graph(op.at("editor")), 48000, 128);
+      target = std::make_unique<syg::executor::exec_plan>(
+          syg::organs::parse_graph(op.at("target")), 48000, 128);
+      arbiter_id = op.at("arbiter").get<std::string>();
+      live->point_arbiter(arbiter_id, *target);
+      for (const auto& g : op.at("script")) {
+        // load the source op_button with this gesture, then bang it
+        live->submit({"set_text", op.at("op_route"), g.dump(), "agent"});
+        live->pump_block();
+        live->post_event(op.at("bang"), 0.0);
+        for (int i = 0; i < 4; ++i) { live->pump_block(); target->pump_block(); }
+      }
+      r = {{"graph", syg::organs::serialize_graph(target->doc())}};
     } else if (what == "target-doc") {
       if (!target) throw std::runtime_error("no target");
       r = {{"graph", syg::organs::serialize_graph(target->doc())}};
