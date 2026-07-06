@@ -157,12 +157,40 @@ def edr52_frontier_paginates():
     assert all(s["kind"] == "link" for s in a["steps"]), a["steps"][:3]
 
 
+# ---- EDR-8.1: an edge probe exposes the value stream, regions unaltered ----
+def edr81_probe_does_not_move_regions():
+    # A probe attached to an edge exposes its value stream on the values
+    # surface (pull-observability) WITHOUT altering region inference. The probe
+    # is a subscription, not a splice: the topology is untouched, so the block
+    # and frame partitions are identical to the un-probed graph.
+    g = _hello()
+    base = _edit([{"op": "regions", "graph": g}])[0]
+    # attach probes to ANY edge: a value edge (lfo0/out) and an audio edge
+    # (osc0/out). The values surface carries the value edge; the audio edge
+    # belongs to the spectral surface (EDR-8's other half), so it reads null —
+    # the probe accepts any edge and never perturbs the graph.
+    r = _edit([{"op": "probe", "graph": g,
+                "edges": ["lfo0/out", "osc0/out"], "blocks": 200}])[0]
+    # region inference is unaltered by attaching the probe (subscription, not
+    # splice): the block/frame/inert partition matches the un-probed graph
+    def norm(reg):
+        return {k: sorted(reg[k]) for k in ("block", "frame", "inert")}
+    assert norm(base) == norm(r["regions"]), (base, r["regions"])
+    # the value edge carries a REAL, MOVING stream (the LFO swings) in range
+    lfo = r["streams"]["lfo0/out"]
+    assert len(lfo) == 200 and len(set(round(x, 4) for x in lfo)) > 5, lfo[:5]
+    assert all(-1.001 <= x <= 1.001 for x in lfo), "LFO out of range"
+    # the audio edge is off the values surface — null, not a crash
+    assert all(x is None for x in r["streams"]["osc0/out"]), "audio ≠ values"
+
+
 TESTS = {
     "EDR-1.1": edr11_palette_swap_changes_behavior,
     "EDR-2.1": edr21_defaults_not_live_values,
     "EDR-3.1": edr31_undo_restores_exactly,
     "EDR-5.1": edr51_walk_and_mark,
     "EDR-5.2": edr52_frontier_paginates,
+    "EDR-8.1": edr81_probe_does_not_move_regions,
     # 09-editor-documents.md: scripted gesture test drives the smoother replacement of CMP-4.1
     "EDR-4.1": None,
     # 09-editor-documents.md: a document transcluding `graphs/hello-cosine:nodes/osc0/freq`
@@ -171,6 +199,4 @@ TESTS = {
     "EDR-6.2": None,
     # 09-editor-documents.md: the full editor integration suite runs twice — human-input
     "EDR-7.1": None,
-    # 09-editor-documents.md: a probe mapping attached to any edge exposes its value stream
-    "EDR-8.1": None,
 }

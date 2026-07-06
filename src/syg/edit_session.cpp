@@ -99,6 +99,49 @@ int edit_session(const nlohmann::json& in) {
       // serialization captures the persisted surface — defaults, never the
       // live cell values (EXE-1.2 at the UX level).
       r = {{"graph", syg::organs::serialize_graph(live->doc())}};
+    } else if (what == "probe") {
+      // EDR-8.1: a probe mapping attached to an edge exposes its value stream
+      // on the VALUES SURFACE (pull-observability) without altering region
+      // inference. A probe is a subscription, not a splice — it reads the
+      // edge's source port each block; the topology is untouched, so the
+      // region partition is identical to the un-probed graph. (A naive probe
+      // that spliced a node into the edge WOULD move a region — the whole
+      // point of the criterion.)
+      auto g = syg::organs::parse_graph(op.at("graph"));
+      syg::executor::exec_plan plan(g, 48000, 128);
+      const auto& reg = plan.regions();
+      json streams = json::object();
+      const int blocks = op.value("blocks", 8);
+      json probes = op.at("edges");  // the edges to probe, by source port
+      std::vector<std::string> srcs;
+      for (const auto& e : probes) srcs.push_back(e.get<std::string>());
+      for (const auto& s2 : srcs) streams[s2] = json::array();
+      for (int i = 0; i < blocks; ++i) {
+        plan.pump_block();
+        for (const auto& s2 : srcs) {
+          // the values surface carries value/event edges; an audio-stream
+          // edge has no frame cell (it belongs to the spectral surface, the
+          // other half of EDR-8) — expose it as null rather than crash.
+          try {
+            streams[s2].push_back(plan.value_of(s2));
+          } catch (const std::exception&) {
+            streams[s2].push_back(nullptr);
+          }
+        }
+      }
+      auto as_arr = [](const std::vector<std::string>& v) { return json(v); };
+      r = {{"regions", {{"block", as_arr(reg.block)},
+                        {"frame", as_arr(reg.frame)},
+                        {"inert", as_arr(reg.inert)}}},
+           {"streams", streams}};
+    } else if (what == "regions") {
+      // the un-probed baseline: region inference over the graph as authored.
+      auto g = syg::organs::parse_graph(op.at("graph"));
+      syg::executor::exec_plan plan(g, 48000, 128);
+      const auto& reg = plan.regions();
+      auto as_arr = [](const std::vector<std::string>& v) { return json(v); };
+      r = {{"block", as_arr(reg.block)}, {"frame", as_arr(reg.frame)},
+           {"inert", as_arr(reg.inert)}};
     } else if (what == "value") {
       if (!live) throw std::runtime_error("open a graph first");
       r = {{"value", live->value_of(op.at("route"))}};
