@@ -228,11 +228,43 @@ def msh81_second_store_shared_with_subset():
     assert r[8]["reason"] == "not-shared-or-absent", r[8]
 
 
+# ---- MSH-6.1: signed capture testimony -------------------------------------
+def msh61_tampered_testimony_fails():
+    # A capture's testimony carries the capturing peer's public key and a
+    # signature over the take's content hash. Verification is signature-
+    # checking: the honest testimony verifies; swapping the peer-id (to
+    # frame another peer) fails, and so does swapping the take.
+    peers = {"host": {}, "impostor": {}}
+    r = _mesh(peers, [
+        {"op": "capture", "peer": "host", "bytes": {"/": {"bytes": "dGFrZQ"}}},
+        {"op": "peer-key", "peer": "impostor"},
+        {"op": "capture", "peer": "impostor", "bytes": {"/": {"bytes": "b3RoZXI"}}},
+    ])
+    testimony = r[0]["testimony"]
+    impostor_key = r[1]["key"]
+    other_take = r[2]["take"]
+
+    # honest testimony verifies
+    ok = _mesh(peers, [{"op": "verify-capture", "testimony": testimony}])
+    assert ok[0]["valid"] is True, ok[0]
+
+    # tamper the peer-id: claim the impostor captured it — signature fails
+    framed = dict(testimony, **{"peer-key": impostor_key})
+    bad1 = _mesh(peers, [{"op": "verify-capture", "testimony": framed}])
+    assert bad1[0]["valid"] is False, bad1[0]
+
+    # tamper the take: same peer, different content — signature fails
+    swapped = dict(testimony, take=other_take)
+    bad2 = _mesh(peers, [{"op": "verify-capture", "testimony": swapped}])
+    assert bad2[0]["valid"] is False, bad2[0]
+
+
 TESTS = {
     "MSH-1.1": msh11_pairing_revocation_restores,
     "MSH-2.1": msh21_unpaired_probe_refused,
     "MSH-3.1": msh31_shell_exec_refused_falls_through,
     "MSH-4.1": msh41_placement_fuzz_no_escape,
+    "MSH-6.1": msh61_tampered_testimony_fails,
     "MSH-8.1": msh81_second_store_shared_with_subset,
     # 13-native-contract.md: a plugin generated against contract C1 loads on a peer speaking
     "ABI-4.1": None,
@@ -242,8 +274,6 @@ TESTS = {
     "MSH-5.1": None,
     # 08-mesh-trust.md: the browser peer's plugin form is a WASM side module over the
     "MSH-5.2": None,
-    # 08-mesh-trust.md: tamper with a take's testimony peer-id; verification fails.
-    "MSH-6.1": None,
     # 08-mesh-trust.md: all MSH/STO/PKG integration tests pass with discovery swapped for
     "MSH-7.1": None,
 }

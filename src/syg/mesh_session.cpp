@@ -360,6 +360,33 @@ int mesh_session(const nlohmann::json& in) {
       r = request(m, from, worker, QUERY,
                   {{"capability", cap}, {"graph", op.at("graph")},
                    {"blocks", op.value("blocks", 200)}});
+    } else if (what == "capture") {
+      // MSH-6.1: a capture's testimony carries the capturing peer's public
+      // key AND a signature over the take's content hash. Verification is
+      // signature-checking, not trust.
+      auto& p = m.at(op.at("peer"));
+      std::lock_guard<std::mutex> g(p.mu);
+      auto take = syg::formats::bytes_of_projection(op.at("bytes"));
+      auto take_cid = syg::formats::cid_to_text(
+          syg::formats::cid_of(syg::formats::pins::multicodec_raw, take));
+      syg::mesh::bytes msg(take_cid.begin(), take_cid.end());
+      auto sig = p.id.sign(msg);
+      json testimony{{"peer-key", p.id.peer_key()},
+                     {"wiring-route", op.value("route", "dac0")},
+                     {"take", take_cid},
+                     {"sig", syg::formats::projection_of_bytes(sig)}};
+      auto c = p.stores.at(0)->store.commit_capture(take, testimony);
+      r = {{"take", take_cid}, {"provenance", c.provenance},
+           {"testimony", testimony}};
+    } else if (what == "verify-capture") {
+      // Check the testimony's signature against ITS stated peer-key over the
+      // take hash. Tampering the peer-id (or the take) breaks the check.
+      const json& t = op.at("testimony");
+      auto pk = syg::mesh::public_key_of(t.at("peer-key").get<std::string>());
+      auto sig = syg::formats::bytes_of_projection(t.at("sig"));
+      std::string take_cid = t.at("take");
+      syg::mesh::bytes msg(take_cid.begin(), take_cid.end());
+      r = {{"valid", syg::mesh::verify(pk, msg, sig)}};
     } else if (what == "has") {
       auto& p = m.at(op.at("peer"));
       std::lock_guard<std::mutex> g(p.mu);
