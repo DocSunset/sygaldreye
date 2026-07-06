@@ -102,6 +102,14 @@ struct instanced_draw {  // the draw boundary consumes the span whole;
   au::out<au::bang, au::event> chain;
 };
 
+struct net_proxy {  // the net package's consumer-side proxy: a remote
+  // value arrives as coalescable update events (PKG-6, the bang-with-
+  // payload idiom); the proxy holds the LATEST and republishes it on the
+  // value lane
+  au::in<au::bang, au::event> in;
+  au::out<au::scalar, au::value> out;
+};
+
 struct render_head {  // the render package's published frame clock
   // (ADR-015: clocks are INPUTS — "always dirty" is visible dataflow)
   au::out<au::bang, au::event> frame;

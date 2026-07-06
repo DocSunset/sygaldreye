@@ -48,6 +48,26 @@ void tmux_value_tick(void*, double, const float* ins, float* outs) {
 void no_num(void*, const char*, double) {}
 }  // namespace
 
+namespace {
+struct proxy_state {
+  float latest = 0.0f;
+};
+void proxy_apply(void* s, const char* port, double v) {
+  if (!std::strcmp(port, "in")) static_cast<proxy_state*>(s)->latest = float(v);
+}
+void proxy_value_tick(void* s, double, const float*, float* outs) {
+  outs[0] = static_cast<proxy_state*>(s)->latest;
+}
+}  // namespace
+
+extern const syg::crown::native_type net_proxy_native;
+const syg::crown::native_type net_proxy_native{
+    "net_proxy", [] { return static_cast<void*>(new proxy_state()); },
+    [](void* s) { delete static_cast<proxy_state*>(s); },
+    no_num, no_text, no_process, proxy_value_tick,
+    syg::generated::net_proxy_in_ports(),
+    syg::generated::net_proxy_out_ports(), false, false, proxy_apply};
+
 extern const syg::crown::native_type tmux_native;
 const syg::crown::native_type tmux_native{
     "tmux", [] { return static_cast<void*>(nullptr); }, [](void*) {},

@@ -76,6 +76,9 @@
    "nan_bomb",
    "spin",
    "sleeper"
+  ],
+  "net": [
+   "net_proxy"
   ]
  }
 }

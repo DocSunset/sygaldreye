@@ -512,6 +512,36 @@ def pkg51_worker_placement_by_capability():
     assert rr.returncode != 0 and b"worker" in rr.stderr
 
 
+def pkg61_net_reconnect_discipline():
+    # two-peer: consumer drives a cube from a provider lfo through a
+    # proxy; kill and reconnect the link — event edges lose NOTHING (order
+    # certified by payload), value edges resume AT LATEST (coalesced:
+    # exactly one update spans the whole outage)
+    provider = {"kind": "graph", "lock": {},
+                "topology": {"nodes": {"lfo0": {"type": "lfo"}}, "edges": []},
+                "defaults": {"lfo0/freq": 0.5, "lfo0/depth": 1.0}}
+    consumer = {"kind": "graph", "lock": {},
+                "topology": {"nodes": {"vfeed0": {"type": "button"},
+                                       "proxy0": {"type": "net_proxy"},
+                                       "cube0": {"type": "scale"},
+                                       "efeed0": {"type": "button"},
+                                       "counter0": {"type": "counter"}},
+                             "edges": [{"from": "vfeed0/out", "to": "proxy0/in"},
+                                       {"from": "proxy0/out", "to": "cube0/in"},
+                                       {"from": "efeed0/out", "to": "counter0/in"}]},
+                "defaults": {"cube0/k": 1.0}}
+    out = json.loads(syg("net-pair", stdin=json.dumps(
+        {"provider": provider, "consumer": consumer, "blocks": 300,
+         "kill_at": 100, "reconnect_at": 200, "events": 150}).encode()))
+    # event edges lose nothing, in order (payloads 1..150 certify)
+    assert out["count"] == 150.0, out
+    assert out["disorder"] == 0.0, f"events reordered: {out}"
+    # value edges resume at latest: the cube tracks the provider NOW
+    assert abs(out["cube"] - out["provider_latest"]) < 1e-6, out
+    # and the outage COALESCED: ~100 down blocks produced 1 update
+    assert out["reconnect_value_posts"] == 1, out
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
@@ -528,7 +558,7 @@ TESTS = {
     "PKG-4.1": pkg41_gl_boundary_gate,
     "PKG-4.2": pkg42_unchained_draw_does_not_render,
     "PKG-5.1": pkg51_worker_placement_by_capability,
-    "PKG-6.1": None,
+    "PKG-6.1": pkg61_net_reconnect_discipline,
     "PKG-7.1": pkg71_placement_is_fallthrough,
     "PKG-8.1": None,
 }
