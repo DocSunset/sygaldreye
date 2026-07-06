@@ -461,6 +461,11 @@ def pkg42_unchained_draw_does_not_render():
     assert chained0 >= 19, f"the head's chain never presented: {chained0}"
     assert chained1 == chained0, \
         f"the chain broke between draws: {chained0} vs {chained1}"
+    # SAME-TICK propagation (ADR-015), not merely equal totals: the whole
+    # watched series must be in lockstep, block by block — and note the
+    # head sorts AFTER the draws here, so doc order cannot be the crutch
+    assert out["watched"]["draw1/calls"] == out["watched"]["draw0/calls"], \
+        "the chain lags a block behind the head"
     assert stray == 0.0, \
         f"an unchained draw rendered {stray} times — the chain is decorative"
 

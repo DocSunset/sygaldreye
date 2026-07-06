@@ -273,7 +273,10 @@ int store_session(const nlohmann::json& in) {
     } else if (what == "place-derivation") {
       // PKG-5: the WORKER CAPABILITY decides where the derivation runs —
       // the requester names only the recipe; placement falls through to
-      // the advertising peer; the result dataset returns by hash
+      // the advertising peer; the result dataset returns by hash.
+      // clause: scaffolding (dissolves: MSH-3.1) — the capability TABLE
+      // here is test-supplied; real advertisement + placement over the
+      // mesh protocol replaces this scan when MSH lands
       std::string chosen;
       for (const auto& [name, has] : op.at("workers").items())
         if (has.get<bool>()) chosen = name;

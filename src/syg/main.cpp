@@ -325,7 +325,10 @@ int cmd_net_pair() {
   // PKG-6.1: consumer drives a cube from a provider lfo through a proxy;
   // the LINK flavors delivery by inferred discipline — value edges are
   // COALESCABLE (latest wins across an outage), event edges are
-  // RELIABLE-ORDERED (an outage delays, never drops or reorders)
+  // RELIABLE-ORDERED (an outage delays, never drops or reorders).
+  // clause: scaffolding (dissolves: MSH-7.1) — the link (queue + slot)
+  // is harness-owned here; the net package's real transport replaces it
+  // when the mesh integration re-runs this discipline over sockets
   auto in = nlohmann::json::parse(read_stdin());
   syg::executor::exec_plan provider(
       syg::organs::parse_graph(in.at("provider")), 48000, 128);

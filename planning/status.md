@@ -22,9 +22,10 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   (worker placement by capability, result by hash), PKG-6.1 (net
   reconnect: reliable-ordered events, coalesced values), PKG-7.1
   (placement fallthrough: only the adapter choice differs).
-- **In-flight:** fresh-context rung-8 audit (Judgement §3) running.
-  Findings land here; fix-or-flag before rung 9.
-- **Next action:** process audit → open rung 9 (the mesh: keys/pairing,
+- **In-flight:** nothing — rung-8 audit processed (blocker fixed, see
+  the 2026-07-05 rung-8-audit entry). Rung 8 closed at 14/18 + 4
+  hardware-pending, twice-checked.
+- **Next action:** open rung 9 (the mesh: keys/pairing,
   advertisement, fetch, ops-to-arbiter, placement; MSH-1..8, FMT-4
   transcripts, PKG-6/7 cross-peer halves; peer-level conformance born).
 - **Known deliberate gaps:** net transport is harness-modeled (sockets =
@@ -37,6 +38,28 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   binding; one peer, many sessions; the dissolution gate is armed and has
   drawn blood once (dac marker).
 - **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
+
+## 2026-07-05 — Rung-8 audit processed (one demonstrated blocker, fixed)
+
+The fresh-context rung-8 auditor DEMONSTRATED the big one: the scc_order
+extraction wasn't verbatim — cut delay edges lost their ordering role, so
+block scheduling depended on node NAMES (renaming pulse0→apulse0 moved a
+200-sample delay's output to 328/201 interpreted/frozen). Fixed at the
+root: hard/soft two-set scheduler (Tarjan on the cut set; ordering honors
+every edge unless a real cycle forces a deterministic index-order break);
+cycle-forced cut edges now mean ONE BLOCK of latency in BOTH backends
+(codegen grew double-buffered block-carry). frz11 pins three regression
+shapes incl. the previously-never-A/B'd frozen frame/latch path.
+Also from the audit: unfreeze surfaces ambiguity (a shared artifact
+returns the full source set); semit chains settle SAME TICK regardless of
+doc order (pkg42 now asserts block-by-block lockstep); PKG-7's net-flavor
+table keyed by mapping discipline with loud unknowns; codegen refuses
+silent drops; the harness-owned halves of PKG-5.1 (capability table) and
+PKG-6.1 (link queue/slot) carry scaffolding markers naming MSH-3.1 /
+MSH-7.1 — the dissolution gate enforces their replacement when the mesh
+lands. Noted, accepted: AUT-2.1 annotations are wholesale (the stamp only
+generates leaves — the widen-generated-port-tables card covers the rest);
+tier ledger is self-declared until FRZ-3.1-style independent checks widen.
 
 ## 2026-07-05 — The dissolution gate bites (dac marker re-aimed)
 

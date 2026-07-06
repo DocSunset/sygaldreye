@@ -656,6 +656,12 @@ const float* exec_plan::pump_block() {
           if (f.type->apply) f.type->apply(f.state, e.port.c_str(), v);
           f.dirty = true;  // the bang wakes exactly its cone (EXE-11.4)
         }
+    // emitters poll to QUIESCENCE within the boundary (ADR-015: same-tick
+    // topological propagation — a chain settles this block regardless of
+    // doc order; the pass bound is the chain's length, cycles excepted)
+    bool delivered = true;
+    for (int pass_n = 0; delivered && pass_n < 64; ++pass_n) {
+      delivered = false;
     for (auto& f : im_->frames) {
       if (!f.type->semit) continue;
       for (const auto& p : f.type->out_ports) {
@@ -668,9 +674,11 @@ const float* exec_plan::pump_block() {
               auto& g = im_->frames[e.dst];
               if (g.type->sapply) g.type->sapply(g.state, e.port.c_str(), sv);
               g.dirty = true;
+              delivered = true;
             }
         }
       }
+    }
     }
   }
   // 2. frame tick when due

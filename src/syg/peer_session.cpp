@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <set>
 
 #include "exec_plan.hpp"
 #include "parser/parser.hpp"
@@ -149,16 +150,17 @@ int peer_session(const nlohmann::json& in) {
     } else if (what == "unfreeze") {
       // ADR-014: unfreezing IS reading provenance — artifact -> execution
       // -> recipe -> the source graph's hash; the artifact carries nothing
-      std::string app_cid;
+      std::set<std::string> apps;  // several sources may share an artifact
       for (const auto& holder : s.backlinks(op.at("artifact")))
         for (const auto& prov : s.backlinks(holder)) {
           auto rec = s.get_node(prov);
           if (rec.contains("inputs") && rec["inputs"].contains("app"))
-            app_cid = rec["inputs"]["app"]["/"];
+            apps.insert(rec["inputs"]["app"]["/"].get<std::string>());
         }
-      if (app_cid.empty())
+      if (apps.empty())
         throw std::runtime_error("no provenance path from the artifact");
-      r = {{"app", app_cid}};
+      r = {{"apps", apps}};
+      if (apps.size() == 1) r["app"] = *apps.begin();  // the unambiguous case
     } else if (what == "type-cid") {
       r = {{"cid", type_cids.at(op.at("type"))}};
     } else if (what == "commit-app") {

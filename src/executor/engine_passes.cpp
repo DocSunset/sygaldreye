@@ -142,8 +142,19 @@ nlohmann::json choose_structure(const organs::graph_doc& doc,
   nlohmann::json maps = nlohmann::json::array();
   for (const auto& m : regions.mappings) {
     std::string mapping = m.mapping;
-    if (audio_remote)
-      mapping = mapping == "latch" ? "net:coalescable" : "net:sequenced";
+    if (audio_remote) {
+      // PKG-6's flavor table, keyed by the mapping's discipline: value
+      // boundaries coalesce; event boundaries are reliable-ordered;
+      // stream boundaries ride sequenced. Unknown = loud, never guessed.
+      if (mapping == "latch" || mapping == "snapshot")
+        mapping = "net:coalescable";
+      else if (mapping == "queue")
+        mapping = "net:reliable-ordered";
+      else if (mapping == "ring")
+        mapping = "net:sequenced";
+      else
+        throw std::runtime_error("no net flavor for mapping: " + mapping);
+    }
     maps.push_back({{"edge", m.edge}, {"mapping", mapping}});
   }
   return {{"block", block}, {"frame", frame}, {"mappings", maps},
