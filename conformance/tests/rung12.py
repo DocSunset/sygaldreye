@@ -248,15 +248,41 @@ def cnf2_candidate_as_peer():
     assert mut["requirement"] == "MSH-4", mut
 
 
+# ---- CNF-5: the self-gate — N derives N+1, admitted only by N's suite ------
+def cnf5_self_gate():
+    # A core succession (N derives N+1) is admitted ONLY by the suite run by N.
+    # The core is a derivation (ADR-027); the succession is provenance-tracked;
+    # the suite gates every succession of everything, INCLUDING ITSELF.
+    suite = {"MSH-1.1": True, "AUT-1.1": True, "CMP-4.1": True, "EDR-1.1": True}
+    # N derives N+1 with N's suite green: ADMITTED, version bumps, provenance
+    r = _conform([
+        {"op": "derive-core", "class": "origin", "suite": suite},
+        {"op": "derive-core", "of": "sygaldreye", "class": "additive",
+         "suite": suite},
+    ])
+    assert r[1]["admitted"] is True, r[1]
+    assert r[1]["version"] == "0.1.0", r[1]
+    assert r[1]["provenance"] and r[1]["core"], r[1]  # N->N+1 recorded
+
+    # N+1 that regresses a criterion N ran green: REJECTED by N's suite, named
+    bad = _conform_raw([
+        {"op": "derive-core", "class": "origin", "suite": suite},
+        {"op": "derive-core", "of": "sygaldreye", "class": "additive",
+         "suite": {**suite, "CMP-4.1": False}},
+    ])
+    assert bad.returncode != 0, bad.stdout
+    assert b"CMP-4.1" in bad.stderr, bad.stderr
+    assert b"sygaldreye-N+1 rejected" in bad.stderr, bad.stderr
+
+
 TESTS = {
     "CNF-1": cnf1_suite_as_data,
     "CNF-2": cnf2_candidate_as_peer,
+    "CNF-5": cnf5_self_gate,
     "CNF-3": cnf3_two_profiles,
     "COR-4": cor4_two_profiles,
     "CNF-4": cnf4_kind_succession,
     "CNF-6.1": cnf61_versions_derived,
     "CNF-6.2": cnf62_class_gate_verifies,
     "CNF-6.3": cnf63_ref_sugar_resolves,
-    # 17-conformance-evolution.md: A core succession (N derives N+1) is admitted only
-    "CNF-5": None,
 }

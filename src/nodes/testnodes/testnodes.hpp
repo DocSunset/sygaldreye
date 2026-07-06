@@ -1,4 +1,7 @@
-// clause: scaffolding (dissolves: CNF-1) — ABI-2/3 audit nodes; retire when the suite runs as datasets and real fallible natives carry these assertions
+// clause: machinery — the ABI-2/3 audit nodes (a deliberate RT-allocator + a
+// fault injector). Permanent audit fixtures: a deliberate-violation probe
+// cannot be a well-behaved real native, so the CNF-1 dissolution a prior
+// marker anticipated does not apply.
 #pragma once
 #include "ports.hpp"
 

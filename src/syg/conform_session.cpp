@@ -94,6 +94,39 @@ int conform_session(const nlohmann::json& in) {
       auto cid = s.put_node(node, false);
       heads[name] = cid;
       r = {{"cid", cid}, {"version", derive_version(chain_to_origin(s, cid))}};
+    } else if (what == "derive-core") {
+      // CNF-5: the SELF-GATE. sygaldreye-N derives N+1 (the core is a
+      // derivation, ADR-027); the succession is admitted ONLY IF the suite,
+      // run by N, stays green on N+1 — the suite gates every succession of
+      // everything, INCLUDING ITSELF. A regressed criterion rejects the
+      // succession, named. The closure: the suite is the system.
+      const std::string cls = op.value("class", "origin");
+      const json suite = op.at("suite");  // {criterion: bool}, as N ran it
+      json node{{"kind", "core"}, {"name", "sygaldreye"}, {"class", cls},
+                {"criteria", suite}};
+      std::string of;
+      if (op.contains("of")) {
+        of = heads.at("sygaldreye");
+        node["supersedes"] = {{"/", of}};
+        // the gate: N's suite must pass on N+1 (green criteria stay green)
+        auto base = accumulated_criteria(chain_to_origin(s, of));
+        for (const auto& [id, was_green] : base)
+          if (was_green && suite.contains(id) && !suite[id].get<bool>())
+            throw std::runtime_error(
+                "sygaldreye-N+1 rejected: N's suite regresses on criterion " + id);
+      }
+      auto core_cid = s.put_node(node, false);
+      heads["sygaldreye"] = core_cid;
+      // record the derivation N -> N+1 (provenance-tracked, ADR-027)
+      json recipe{{"op", "derive-core"},
+                  {"inputs", of.empty() ? json::object()
+                                        : json{{"prev", {{"/", of}}}}},
+                  {"determinism", "exact"}};
+      auto prov = s.commit_derivation(recipe, {{"kind", "core-build"},
+                                               {"core", {{"/", core_cid}}}});
+      r = {{"core", core_cid}, {"provenance", prov.provenance},
+           {"version", derive_version(chain_to_origin(s, core_cid))},
+           {"admitted", true}};
     } else if (what == "version") {
       std::string cid = op.contains("cid") ? op.at("cid").get<std::string>()
                                            : heads.at(op.at("name"));

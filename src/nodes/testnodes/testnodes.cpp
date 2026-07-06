@@ -1,4 +1,8 @@
-// clause: scaffolding (dissolves: CNF-1) — ABI-2/3 audit node bodies
+// clause: machinery — the ABI-2/3 audit node bodies: a deliberate RT-allocator
+// (proves the no-RT-alloc audit bites) and a fault injector. Permanent audit
+// fixtures — a violation probe cannot be a well-behaved real native, so the
+// CNF-1 "real fallible natives carry these assertions" dissolution a prior
+// marker anticipated does not apply.
 #include "testnodes/testnodes.hpp"
 
 #include <stdexcept>

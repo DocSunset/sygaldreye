@@ -1,4 +1,9 @@
-// clause: scaffolding (dissolves: CNF-1) — fault-matrix provocateurs (TCF-4): nan_bomb, spin, sleeper
+// clause: machinery — the fault-matrix provocateurs (TCF-4): nan_bomb (emits
+// NaN -> NaN-guard/sever), spin (hangs -> timeout ladder), sleeper (blocks ->
+// worker-region rule). They exercise the trap/quarantine/timeout MACHINERY. A
+// fault matrix needs DELIBERATE provocateurs, so this is permanent test
+// vocabulary — the CNF-1 dissolution a prior marker anticipated does not apply
+// (a real native never deliberately faults, so it cannot carry these).
 #include "crown.hpp"
 
 #include <atomic>
