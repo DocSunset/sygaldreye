@@ -1,6 +1,7 @@
 #include "mesh_session.hpp"
 
 #include <atomic>
+#include <deque>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -112,9 +113,18 @@ struct household {
   std::map<std::string, std::unique_ptr<peer>> peers;
   bool recording = false;
   json transcript = json::array();  // FMT-4: the plaintext wire golden
+  // Discovery is an abstract provider (MSH-7): "static" reads the config map
+  // directly; "mdns" resolves through a beacon table announced at boot. Both
+  // yield the same name->port map — swapping one for the other is invisible
+  // to every op below. A DHT provider would slot in here identically.
+  std::string discovery = "static";
+  std::map<std::string, std::uint16_t> beacon;
 
   peer& at(const std::string& n) { return *peers.at(n); }
-  std::uint16_t port_of(const std::string& n) { return peers.at(n)->lis->port(); }
+  std::uint16_t port_of(const std::string& n) {
+    if (discovery == "mdns") return beacon.at(n);  // resolved via presence
+    return peers.at(n)->lis->port();               // resolved via static config
+  }
 };
 
 std::string hex_of(const bytes& b) {
@@ -149,6 +159,27 @@ json handle(peer& me, std::uint64_t k, const json& body,
       return {{"ok", false}, {"reason", "not-shared-or-absent"}};
     }
     case OPS: {  // attributed edit ops toward an instance's arbiter (ADR-023)
+      if (body.contains("net_replay")) {
+        // PKG-6 over the mesh (MSH-7.1 dissolution): the provider's flavored
+        // delivery log arrives over the REAL transport; the consumer replays
+        // it block-by-block onto its executor. Event edges are reliable-
+        // ordered (nothing dropped/reordered across the outage), value edges
+        // coalesced (one post spans the outage) — the flavoring was applied
+        // at the provider's link egress, exactly where PKG-6 places it.
+        syg::executor::exec_plan consumer(
+            syg::organs::parse_graph(body.at("consumer")), 48000, 128);
+        for (const auto& blk : body.at("net_replay")) {
+          for (const auto& e : blk.at("events"))
+            consumer.post_event("efeed0/out", e.get<double>());
+          if (!blk.at("value").is_null())
+            consumer.post_event("vfeed0/out", blk.at("value").get<double>());
+          consumer.pump_block();
+        }
+        for (int i = 0; i < 4; ++i) consumer.pump_block();  // settle
+        return {{"ok", true}, {"count", consumer.value_of("counter0/out")},
+                {"disorder", consumer.value_of("counter0/errors")},
+                {"cube", consumer.value_of("cube0/out")}};
+      }
       const std::string ref = body.at("ref");
       auto& log = me.arbiters[ref];
       if (!log.is_array()) log = json::array();
@@ -283,12 +314,15 @@ namespace syg::harness {
 int mesh_session(const nlohmann::json& in) {
   household m;
   m.recording = in.value("record", false);
+  m.discovery = in.value("discovery", "static");
   const json peer_cfg = in.value("peers", json::object());
   for (auto& [name, cfg] : peer_cfg.items())
     m.peers.emplace(name, std::make_unique<peer>(
                               name, cfg.value("seed", name)));
-  for (auto& [name, p] : m.peers)
+  for (auto& [name, p] : m.peers) {
+    m.beacon[name] = p->lis->port();  // the mDNS-style announce at boot
     p->server = std::thread(serve_loop, p.get());
+  }
 
   json results = json::array();
   for (const auto& op : in.value("ops", json::array())) {
@@ -373,6 +407,57 @@ int mesh_session(const nlohmann::json& in) {
       std::lock_guard<std::mutex> g(p.mu);
       p.stores.at(0)->store.bind_ref(op.at("ref"), op.at("cid"));
       r = {{"bound", op.at("ref")}};
+    } else if (what == "net-pair") {
+      // PKG-6/7 over the mesh: the provider runs its graph and builds a
+      // discipline-flavored delivery log (value coalesced, events reliable-
+      // ordered across a kill/reconnect outage); the log crosses the REAL
+      // authenticated channel; the consumer replays it. The net package's
+      // transport is now the mesh — the harness deque/slot is gone.
+      const std::string from = op.at("from"), to = op.at("to");
+      syg::executor::exec_plan provider(
+          syg::organs::parse_graph(op.at("provider")), 48000, 128);
+      int blocks = op.value("blocks", 300);
+      int kill_at = op.value("kill_at", 100), reconnect_at = op.value("reconnect_at", 200);
+      int events = op.value("events", 0);
+      bool up = true;
+      double value_slot = 0;
+      bool value_dirty = false;
+      std::deque<double> event_q;
+      long value_posts = 0, value_posts_down_window = 0;
+      int seq = 0;
+      json log = json::array();
+      for (int i = 0; i < blocks; ++i) {
+        provider.pump_block();
+        if (i == kill_at) up = false;
+        if (i == reconnect_at) up = true;
+        if (seq < events) event_q.push_back(++seq);
+        value_slot = provider.value_of("lfo0/out");
+        value_dirty = true;
+        json ev = json::array();
+        json val = nullptr;
+        if (up) {
+          while (!event_q.empty()) {  // reliable-ordered drain
+            ev.push_back(event_q.front());
+            event_q.pop_front();
+          }
+          if (value_dirty) {  // coalesced: one post carries the latest
+            val = value_slot;
+            ++value_posts;
+            if (i > kill_at && i <= reconnect_at) ++value_posts_down_window;
+            value_dirty = false;
+          }
+        }
+        log.push_back({{"events", ev}, {"value", val}});
+      }
+      json reply = request(m, from, to, OPS,
+                           {{"net_replay", log}, {"consumer", op.at("consumer")}});
+      r = {{"ok", reply.value("ok", false)},
+           {"count", reply.value("count", 0.0)},
+           {"disorder", reply.value("disorder", 0.0)},
+           {"cube", reply.value("cube", 0.0)},
+           {"provider_latest", provider.value_of("lfo0/out")},
+           {"value_posts", value_posts},
+           {"reconnect_value_posts", value_posts_down_window}};
     } else if (what == "send-ops") {
       r = request(m, op.at("from"), op.at("to"), OPS,
                   {{"ref", op.at("ref")}, {"ops", op.at("ops")}});

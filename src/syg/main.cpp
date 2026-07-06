@@ -321,63 +321,6 @@ int cmd_render_frozen(const char* so_path, double seconds) {
   dlclose(h.lib);
   return 0;
 }
-
-int cmd_net_pair() {
-  // PKG-6.1: consumer drives a cube from a provider lfo through a proxy;
-  // the LINK flavors delivery by inferred discipline — value edges are
-  // COALESCABLE (latest wins across an outage), event edges are
-  // RELIABLE-ORDERED (an outage delays, never drops or reorders).
-  // clause: scaffolding (dissolves: MSH-7.1) — the link (queue + slot)
-  // is harness-owned here; the net package's real transport replaces it
-  // when the mesh integration re-runs this discipline over sockets
-  auto in = nlohmann::json::parse(read_stdin());
-  syg::executor::exec_plan provider(
-      syg::organs::parse_graph(in.at("provider")), 48000, 128);
-  syg::executor::exec_plan consumer(
-      syg::organs::parse_graph(in.at("consumer")), 48000, 128);
-  int blocks = in.value("blocks", 300);
-  int kill_at = in.value("kill_at", 100), reconnect_at = in.value("reconnect_at", 200);
-  int events = in.value("events", 0);
-  bool up = true;
-  double value_slot = 0;
-  bool value_dirty = false;
-  std::deque<double> event_q;  // reliable-ordered: survives the outage
-  long value_posts = 0, value_posts_down_window = 0;
-  int seq = 0;
-  for (int i = 0; i < blocks; ++i) {
-    provider.pump_block();
-    if (i == kill_at) up = false;
-    if (i == reconnect_at) up = true;
-    // provider-side gestures: one ordered event per block while any remain
-    if (seq < events) event_q.push_back(++seq);
-    // the provider's lfo value enters the link: COALESCE (latest wins)
-    value_slot = provider.value_of("lfo0/out");
-    value_dirty = true;
-    if (up) {
-      while (!event_q.empty()) {  // reliable-ordered drain
-        consumer.post_event("efeed0/out", event_q.front());
-        event_q.pop_front();
-      }
-      if (value_dirty) {
-        consumer.post_event("vfeed0/out", value_slot);
-        ++value_posts;
-        if (i > kill_at && i <= reconnect_at) ++value_posts_down_window;
-        value_dirty = false;
-      }
-    }
-    consumer.pump_block();
-  }
-  for (int i = 0; i < 4; ++i) consumer.pump_block();  // settle
-  nlohmann::json r{{"count", consumer.value_of("counter0/out")},
-                   {"disorder", consumer.value_of("counter0/errors")},
-                   {"cube", consumer.value_of("cube0/out")},
-                   {"provider_latest", provider.value_of("lfo0/out")},
-                   {"value_posts", value_posts},
-                   {"reconnect_value_posts", value_posts_down_window}};
-  std::cout << r.dump() << "\n";
-  return 0;
-}
-
 int cmd_render_swap(const char* so_path, double seconds) {
   // hot-reload swaps it live (FRZ-1.1): ONE process, continuous stream —
   // interpreted for the first half, then the freshly built artifact loads
@@ -882,7 +825,6 @@ int main(int argc, char** argv) {
       return cmd_render_frozen(argv[2], std::stod(argv[3]));
     if (cmd == "render-swap" && argc > 3)
       return cmd_render_swap(argv[2], std::stod(argv[3]));
-    if (cmd == "net-pair") return cmd_net_pair();
     if (cmd == "render-live" && argc > 2) return cmd_render_live(std::stod(argv[2]));
     if (cmd == "graph-edits-graph") return cmd_graph_edits_graph();
     if (cmd == "exec-audit") return cmd_exec_audit();

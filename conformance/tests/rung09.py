@@ -412,9 +412,72 @@ def fmt4_wire_golden_transcript():
     assert any(len(m["body"]) > 2 for m in live)
 
 
+# ---- MSH-7.1: discovery is a swappable seam --------------------------------
+def msh71_discovery_seam_static_or_mdns():
+    # Discovery is an abstract provider: an integration battery touching MSH
+    # (pair/fetch/place), STO (put/fetch by hash), and PKG (worker placement,
+    # net discipline) must produce IDENTICAL results whether peers are located
+    # by a static config or by an mDNS-style presence beacon. Swapping the
+    # provider is invisible to every op — the seam a DHT could later fill.
+    provider = {"kind": "graph", "lock": {},
+                "topology": {"nodes": {"lfo0": {"type": "lfo"}}, "edges": []},
+                "defaults": {"lfo0/freq": 0.5, "lfo0/depth": 1.0}}
+    consumer = {"kind": "graph", "lock": {},
+                "topology": {"nodes": {"vfeed0": {"type": "button"},
+                                       "proxy0": {"type": "net_proxy"},
+                                       "cube0": {"type": "scale"},
+                                       "efeed0": {"type": "button"},
+                                       "counter0": {"type": "counter"}},
+                             "edges": [{"from": "vfeed0/out", "to": "proxy0/in"},
+                                       {"from": "proxy0/out", "to": "cube0/in"},
+                                       {"from": "efeed0/out", "to": "counter0/in"}]},
+                "defaults": {"cube0/k": 1.0}}
+    wgraph = {"kind": "graph", "lock": {},
+              "topology": {"nodes": {"o": {"type": "osc"}, "d": {"type": "dac"}},
+                           "edges": [{"from": "o/out", "to": "d/in"}]},
+              "defaults": {"o/freq": 220.0}}
+    peers = {"host": {}, "quest": {}, "linux": {}}
+    ops = [
+        {"op": "pair", "a": "quest", "b": "host"},
+        {"op": "pair", "a": "quest", "b": "linux"},
+        {"op": "advertise", "peer": "host", "run": ["osc"]},
+        {"op": "advertise", "peer": "linux", "run": ["render-analysis"]},
+        {"op": "put", "peer": "host", "bytes": {"/": {"bytes": "c2VhbQ"}}},
+        # MSH: place a node on an advertiser
+        {"op": "place", "from": "quest", "to": "host", "type": "osc"},
+        # PKG-5: worker placement by advertised capability, result by hash
+        {"op": "place-derivation", "from": "quest", "candidates": ["host", "linux"],
+         "graph": wgraph, "blocks": 64},
+        # PKG-6: the net discipline over the real transport
+        {"op": "net-pair", "from": "quest", "to": "linux",
+         "provider": provider, "consumer": consumer, "blocks": 120,
+         "kill_at": 40, "reconnect_at": 80, "events": 60},
+    ]
+
+    def run(mode):
+        payload = {"peers": peers, "discovery": mode, "ops": ops}
+        return json.loads(syg("mesh", stdin=json.dumps(payload).encode()))["results"]
+
+    static = run("static")
+    mdns = run("mdns")
+
+    # STO: the put cid is deterministic and identical either way
+    assert static[4]["cid"] == mdns[4]["cid"], "put cid differs by discovery"
+    # MSH place
+    assert static[5]["ok"] and mdns[5]["ok"], (static[5], mdns[5])
+    # PKG-5 worker placement: same worker, same result hash
+    assert static[6]["placed_on"] == mdns[6]["placed_on"] == "linux"
+    assert static[6]["output"] == mdns[6]["output"], "derivation output differs"
+    # PKG-6 net discipline: identical delivery outcome
+    for key in ("count", "disorder", "cube", "provider_latest"):
+        assert static[7][key] == mdns[7][key], (key, static[7], mdns[7])
+    assert static[7]["count"] == 60.0 and static[7]["disorder"] == 0.0, static[7]
+
+
 TESTS = {
     "ABI-4.1": abi41_contract_reachability,
     "FMT-4": fmt4_wire_golden_transcript,
+    "MSH-7.1": msh71_discovery_seam_static_or_mdns,
     "MSH-5.1": msh51_plugin_trust_gate,
     "MSH-5.2": msh52_wasm_side_module_same_gate,
     "MSH-1.1": msh11_pairing_revocation_restores,
@@ -423,6 +486,4 @@ TESTS = {
     "MSH-4.1": msh41_placement_fuzz_no_escape,
     "MSH-6.1": msh61_tampered_testimony_fails,
     "MSH-8.1": msh81_second_store_shared_with_subset,
-    # 08-mesh-trust.md: all MSH/STO/PKG integration tests pass with discovery swapped for
-    "MSH-7.1": None,
 }

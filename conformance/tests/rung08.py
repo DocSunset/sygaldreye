@@ -602,9 +602,16 @@ def pkg61_net_reconnect_discipline():
                                        {"from": "proxy0/out", "to": "cube0/in"},
                                        {"from": "efeed0/out", "to": "counter0/in"}]},
                 "defaults": {"cube0/k": 1.0}}
-    out = json.loads(syg("net-pair", stdin=json.dumps(
-        {"provider": provider, "consumer": consumer, "blocks": 300,
-         "kill_at": 100, "reconnect_at": 200, "events": 150}).encode()))
+    # PKG-6 now runs over the MESH transport (MSH-7.1 dissolved the harness
+    # link): the provider ships its flavored delivery log across the real
+    # authenticated channel to a paired consumer.
+    res = json.loads(syg("mesh", stdin=json.dumps(
+        {"peers": {"prov": {}, "cons": {}}, "ops": [
+            {"op": "pair", "a": "prov", "b": "cons"},
+            {"op": "net-pair", "from": "prov", "to": "cons",
+             "provider": provider, "consumer": consumer, "blocks": 300,
+             "kill_at": 100, "reconnect_at": 200, "events": 150}]}).encode()))
+    out = res["results"][1]
     # event edges lose nothing, in order (payloads 1..150 certify)
     assert out["count"] == 150.0, out
     assert out["disorder"] == 0.0, f"events reordered: {out}"
