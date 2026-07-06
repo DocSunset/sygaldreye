@@ -76,14 +76,49 @@ def msh11_pairing_revocation_restores():
     assert k[0]["key"] != k[1]["key"], "distinct peers, distinct keys"
 
 
+# ---- MSH-2.1: unpaired probe refused at every surface ----------------------
+def msh21_unpaired_probe_refused():
+    # A port scan + protocol probe from an unpaired scanner. Every peer's one
+    # listening surface reads a length-framed hello; a legacy HTTP verb or
+    # random bytes fail that frame and the socket closes with NO reply. The
+    # historical unauthenticated HTTP behavior is demonstrably gone.
+    peers = {"host": {}, "quest": {}, "browser": {}}
+    probes = [
+        "GET / HTTP/1.1\r\nHost: sygaldreye.local\r\n\r\n",  # legacy HTTP
+        "POST /graph HTTP/1.1\r\n\r\n{}",                     # legacy write API
+        "\x00\x00\x00\x10garbage-bytes!!!",                  # a framed lie
+        "PING",                                              # a bare token
+    ]
+    ops = []
+    for who in ("host", "quest", "browser"):     # scan every peer's surface
+        for p in probes:
+            ops.append({"op": "probe", "to": who, "payload": p})
+    # and prove the surface is not merely dead: a paired peer still talks
+    ops += [
+        {"op": "pair", "a": "host", "b": "quest"},
+        {"op": "put", "peer": "host", "bytes": {"/": {"bytes": "aGVsbG8"}}},
+    ]
+    r = _mesh(peers, ops)
+    n = len(probes) * 3
+    for i in range(n):
+        assert r[i]["refused"], (i, ops[i]["payload"][:8], r[i])
+        assert r[i]["bytes_received"] == 0, (i, r[i])  # no plaintext answer
+    cid = r[n + 1]["cid"]
+    live = _mesh({"host": {}, "quest": {}}, [
+        {"op": "pair", "a": "host", "b": "quest"},
+        {"op": "put", "peer": "host", "bytes": {"/": {"bytes": "aGVsbG8"}}},
+        {"op": "fetch", "from": "quest", "to": "host", "cid": cid},
+    ])
+    assert live[2]["ok"], live[2]  # the same surface serves an authenticated peer
+
+
 TESTS = {
     "MSH-1.1": msh11_pairing_revocation_restores,
+    "MSH-2.1": msh21_unpaired_probe_refused,
     # 13-native-contract.md: a plugin generated against contract C1 loads on a peer speaking
     "ABI-4.1": None,
     # 14-formats-protocols.md: Wire golden transcripts: a recorded two-peer session (pair,
     "FMT-4": None,
-    # 08-mesh-trust.md: port scan + protocol probe from an unpaired host on the LAN: every
-    "MSH-2.1": None,
     # 08-mesh-trust.md: a request to instantiate `shell_exec` on the browser peer (which
     "MSH-3.1": None,
     # 08-mesh-trust.md: fuzz the placement API with arbitrary type names; zero
