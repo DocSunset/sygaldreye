@@ -3,7 +3,25 @@
 sockets under the ADR-035 crypto suite: peer-level conformance (ch. 17).
 Never weaken; amend the book by ADR."""
 import json
-from _helpers import syg
+import subprocess
+import tempfile
+from pathlib import Path
+from _helpers import syg, HERE
+
+ROOT = HERE.parent
+
+
+def _build_plugin_so():
+    src = (ROOT / "conformance" / "fixtures" / "plugin_osc.cpp").read_text()
+    d = Path(tempfile.mkdtemp(prefix="syg-mesh-plugin-"))
+    (d / "p.cpp").write_text(src)
+    so = d / "libplugin.so"
+    cc = subprocess.run(
+        ["g++", "-std=c++20", "-O2", "-fPIC", "-shared",
+         f"-I{ROOT}/src/nodes", f"-I{ROOT}/src/crown", f"-I{ROOT}/src/escapement",
+         "-o", str(so), str(d / "p.cpp")], capture_output=True)
+    assert cc.returncode == 0, cc.stderr.decode()
+    return so
 
 
 def _mesh(peers, ops):
@@ -292,8 +310,84 @@ def abi41_contract_reachability():
     assert r2[1]["loaded"] is False, r2[1]  # succession is directed
 
 
+# ---- MSH-5.1: graphs flow; plugins gated by signed provenance --------------
+def msh51_plugin_trust_gate():
+    # A graph dataset ships Quest->host and RUNS (no prompt). An unsigned .so
+    # is refused and logged. Signed by an untrusted key: still refused. Signed
+    # by a paired key the host's policy trusts: loads hot (real dlopen), the
+    # new node type renders, and its provenance is queryable.
+    so = str(_build_plugin_so())
+    a_graph = {"kind": "graph", "lock": {},
+               "topology": {"nodes": {"o": {"type": "osc"}, "d": {"type": "dac"}},
+                            "edges": [{"from": "o/out", "to": "d/in"}]},
+               "defaults": {"o/freq": 220.0}}
+    plugin_graph = {"kind": "graph", "lock": {},
+                    "topology": {"nodes": {"o": {"type": "plugin_osc"},
+                                           "d": {"type": "dac"}},
+                                 "edges": [{"from": "o/out", "to": "d/in"}]},
+                    "defaults": {"o/freq": 220.0}}
+    peers = {"quest": {}, "host": {}, "stranger": {}}
+    r = _mesh(peers, [
+        {"op": "pair", "a": "quest", "b": "host"},
+        {"op": "set-policy", "peer": "host", "trust": ["quest"]},  # trusts quest
+        # a graph flows and realizes without a prompt
+        {"op": "ship-graph", "from": "quest", "to": "host", "graph": a_graph},
+        # an UNSIGNED plugin: refused, logged
+        {"op": "ship-plugin", "from": "quest", "to": "host", "artifact": so},
+        # signed by the STRANGER (untrusted): refused
+        {"op": "ship-plugin", "from": "stranger", "to": "host", "artifact": so,
+         "sign": True},
+        # signed by quest (trusted): loads hot
+        {"op": "ship-plugin", "from": "quest", "to": "host", "artifact": so,
+         "sign": True, "source": "bafyPlugSrc", "toolchain": "gcc-15"},
+        # the loaded type renders a real signal
+        {"op": "ship-graph", "from": "quest", "to": "host", "graph": plugin_graph},
+        {"op": "plugin-provenance", "peer": "host", "type": "plugin_osc"},
+    ])
+    assert r[2]["ran"] and r[2]["energy"] > 0, r[2]           # graph just runs
+    assert r[3]["loaded"] is False and r[3]["error"] == "unsigned", r[3]
+    assert r[3]["logged"] is True, r[3]
+    assert r[4]["loaded"] is False and r[4]["error"] == "untrusted-signer", r[4]
+    assert r[5]["loaded"] is True and r[5]["type"] == "plugin_osc", r[5]
+    assert r[6]["ran"] and r[6]["energy"] > 0, r[6]           # the new type sings
+    prov = r[7]
+    assert prov["known"] and prov["provenance"]["source"] == "bafyPlugSrc", prov
+    assert prov["provenance"]["toolchain"] == "gcc-15", prov
+
+
+# ---- MSH-5.2: the browser's WASM form rides the SAME gate -------------------
+def msh52_wasm_side_module_same_gate():
+    # The browser peer's plugin form is a WASM side module over the same
+    # channel and gate; the policy check is form-agnostic. (Execution is a
+    # host concern — ABI-5, rung 10; here the trust decision is exercised.)
+    wasm = {"/": {"bytes": "AGFzbQEAAAA"}}  # a wasm magic-header stand-in
+    peers = {"agent": {}, "browser": {}, "stranger": {}}
+    r = _mesh(peers, [
+        {"op": "pair", "a": "agent", "b": "browser"},
+        {"op": "set-policy", "peer": "browser", "trust": ["agent"]},
+        # unsigned wasm: refused, same error as the native path
+        {"op": "ship-plugin", "from": "agent", "to": "browser", "form": "wasm",
+         "bytes": wasm, "as": "wasm_osc"},
+        # signed by an untrusted signer: refused
+        {"op": "ship-plugin", "from": "stranger", "to": "browser", "form": "wasm",
+         "bytes": wasm, "sign": True, "as": "wasm_osc"},
+        # signed by the trusted agent: accepted (form-agnostic gate)
+        {"op": "ship-plugin", "from": "agent", "to": "browser", "form": "wasm",
+         "bytes": wasm, "sign": True, "as": "wasm_osc",
+         "source": "bafyWasmSrc", "toolchain": "emscripten"},
+        {"op": "plugin-provenance", "peer": "browser", "type": "wasm_osc"},
+    ])
+    assert r[2]["loaded"] is False and r[2]["error"] == "unsigned", r[2]
+    assert r[3]["loaded"] is False and r[3]["error"] == "untrusted-signer", r[3]
+    assert r[4]["loaded"] is True and r[4]["form"] == "wasm", r[4]
+    assert r[4]["executed"] is False, r[4]  # execution lands at rung 10 (ABI-5)
+    assert r[5]["known"] and r[5]["provenance"]["form"] == "wasm", r[5]
+
+
 TESTS = {
     "ABI-4.1": abi41_contract_reachability,
+    "MSH-5.1": msh51_plugin_trust_gate,
+    "MSH-5.2": msh52_wasm_side_module_same_gate,
     "MSH-1.1": msh11_pairing_revocation_restores,
     "MSH-2.1": msh21_unpaired_probe_refused,
     "MSH-3.1": msh31_shell_exec_refused_falls_through,
@@ -302,10 +396,6 @@ TESTS = {
     "MSH-8.1": msh81_second_store_shared_with_subset,
     # 14-formats-protocols.md: Wire golden transcripts: a recorded two-peer session (pair,
     "FMT-4": None,
-    # 08-mesh-trust.md: ship a graph Quest to host: runs. Ship an unsigned .so: refused,
-    "MSH-5.1": None,
-    # 08-mesh-trust.md: the browser peer's plugin form is a WASM side module over the
-    "MSH-5.2": None,
     # 08-mesh-trust.md: all MSH/STO/PKG integration tests pass with discovery swapped for
     "MSH-7.1": None,
 }

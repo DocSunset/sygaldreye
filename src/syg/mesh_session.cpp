@@ -11,10 +11,16 @@
 #include <thread>
 #include <vector>
 
+#include <dlfcn.h>
+
+#include <fstream>
+
 #include "cid/cid.hpp"
+#include "crown.hpp"
 #include "dagcbor/dagcbor.hpp"
 #include "exec_plan.hpp"
 #include "pins/pins.hpp"
+#include "registry_face/registry_face.hpp"
 #include "identity/identity.hpp"
 #include "link/link.hpp"
 #include "parser/parser.hpp"
@@ -78,6 +84,8 @@ struct peer {
   advert lists;
   contract_posture contract;                    // ABI-4 posture
   std::set<std::string> accepted;               // paired peer-keys
+  std::set<std::string> trusted_signers;        // provenance policy (MSH-5)
+  std::map<std::string, json> plugin_prov;      // loaded plugin type -> prov
   std::vector<std::string> instantiated;        // registry audit log (MSH-4)
   std::mutex mu;
   std::unique_ptr<syg::mesh::listener> lis;
@@ -408,6 +416,98 @@ int mesh_session(const nlohmann::json& in) {
       else
         r = {{"loaded", false}, {"error", "no-migration-path"},
              {"from", built}, {"to", p.contract.speaks}};
+    } else if (what == "set-policy") {
+      // MSH-5: the provenance policy — signers whose plugins this peer loads.
+      auto& p = m.at(op.at("peer"));
+      std::lock_guard<std::mutex> g(p.mu);
+      p.trusted_signers.clear();
+      for (const auto& n : op.at("trust"))
+        p.trusted_signers.insert(m.at(n.get<std::string>()).id.peer_key());
+      r = {{"trusted", p.trusted_signers.size()}};
+    } else if (what == "ship-graph") {
+      // A GRAPH dataset flows and realizes WITHOUT a prompt: it is bounded
+      // composition of advertised vocabulary (ch. 8). It just runs.
+      auto& to = m.at(op.at("to"));
+      std::lock_guard<std::mutex> g(to.mu);
+      syg::executor::exec_plan plan(syg::organs::parse_graph(op.at("graph")),
+                                    48000, 128);
+      double energy = 0;
+      for (int i = 0; i < op.value("blocks", 8); ++i) {
+        const float* b = plan.pump_block();
+        for (int k = 0; k < 128; ++k) energy += double(b[k]) * b[k];
+      }
+      r = {{"ran", true}, {"energy", energy}};
+    } else if (what == "ship-plugin") {
+      // MSH-5.1/5.2: a PLUGIN dataset is new capability injection — gated by
+      // provenance policy BEFORE any load. Unsigned is refused + logged;
+      // signed by an untrusted key is refused; signed by a trusted key loads
+      // (native: real dlopen hot-load; wasm: same gate, form-agnostic — its
+      // execution is a host concern, rung 10). Provenance stays queryable.
+      const std::string from = op.at("from");
+      auto& fp = m.at(from);
+      const std::string form = op.value("form", "native");
+      const std::string path = op.value("artifact", "");
+      // the artifact's content hash (what the signer signs)
+      syg::mesh::bytes art;
+      if (!path.empty()) {
+        std::ifstream in(path, std::ios::binary);
+        art.assign(std::istreambuf_iterator<char>(in), {});
+      } else {
+        art = syg::formats::bytes_of_projection(op.at("bytes"));
+      }
+      auto art_cid = syg::formats::cid_to_text(
+          syg::formats::cid_of(syg::formats::pins::multicodec_raw, art));
+      json prov = nullptr;
+      if (op.value("sign", false)) {
+        syg::mesh::bytes msg(art_cid.begin(), art_cid.end());
+        prov = {{"signer", fp.id.peer_key()},
+                {"sig", syg::formats::projection_of_bytes(fp.id.sign(msg))},
+                {"artifact", art_cid},
+                {"source", op.value("source", "")},
+                {"toolchain", op.value("toolchain", "")},
+                {"form", form}};
+      }
+      // the gate, on the RECEIVING peer
+      auto& to = m.at(op.at("to"));
+      std::lock_guard<std::mutex> g(to.mu);
+      if (prov.is_null()) {
+        r = {{"loaded", false}, {"error", "unsigned"}, {"logged", true}};
+      } else {
+        auto signer = prov.at("signer").get<std::string>();
+        auto sig = syg::formats::bytes_of_projection(prov.at("sig"));
+        syg::mesh::bytes msg(art_cid.begin(), art_cid.end());
+        bool sig_ok = syg::mesh::verify(syg::mesh::public_key_of(signer), msg, sig);
+        if (!sig_ok) {
+          r = {{"loaded", false}, {"error", "bad-signature"}, {"logged", true}};
+        } else if (!to.trusted_signers.count(signer)) {
+          r = {{"loaded", false}, {"error", "untrusted-signer"},
+               {"signer", signer}, {"logged", true}};
+        } else if (form == "native") {
+          void* lib = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+          if (!lib) throw std::runtime_error(std::string("dlopen: ") + dlerror());
+          auto entry = reinterpret_cast<const syg::crown::native_type* (*)()>(
+              dlsym(lib, "syg_plugin_native"));
+          if (!entry) throw std::runtime_error("plugin lacks syg_plugin_native");
+          auto* t = new syg::crown::native_type(*entry());
+          if (op.contains("as"))
+            t->name = (new std::string(op.at("as").get<std::string>()))->c_str();
+          syg::organs::register_plugin_native(t);
+          to.plugin_prov[t->name] = prov;
+          r = {{"loaded", true}, {"form", "native"}, {"type", t->name},
+               {"provenance", prov}};
+        } else {  // wasm (or any non-native form): SAME gate, form-agnostic
+          std::string type = op.value("as", "wasm_plugin");
+          to.plugin_prov[type] = prov;
+          r = {{"loaded", true}, {"form", form}, {"type", type},
+               {"executed", false}, {"provenance", prov}};
+        }
+      }
+    } else if (what == "plugin-provenance") {
+      auto& p = m.at(op.at("peer"));
+      std::lock_guard<std::mutex> g(p.mu);
+      auto it = p.plugin_prov.find(op.at("type"));
+      r = it == p.plugin_prov.end() ? json{{"known", false}}
+                                    : json{{"known", true}, {"provenance", it->second}};
     } else if (what == "capture") {
       // MSH-6.1: a capture's testimony carries the capturing peer's public
       // key AND a signature over the take's content hash. Verification is
