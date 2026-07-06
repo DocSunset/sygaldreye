@@ -104,6 +104,44 @@ def edr11_palette_swap_changes_behavior():
     assert after.get("osc_spawn", {}).get("type") == "osc", "migrate lost state"
 
 
+# ---- EDR-4.1: gesture-driven smoother replacement (CMP-4.1) ----------------
+def edr41_smoother_replacement_gesture():
+    # The realized view shows hello-cosine's auto latch as compiler-inserted
+    # and replaceable. A scripted gesture (agent-driven through the editor's
+    # own op_button source nodes, per EDR-7) replaces it with a smoother; the
+    # write-back is app-graph edit ops, and re-compilation inserts NO latch —
+    # the user's smoother survives (CMP-4.1).
+    hello = _hello()
+    before = _edit([{"op": "realized", "graph": hello}])[0]["mappings"]
+    latch = [m for m in before if m["mapping"] == "latch"]
+    assert latch, before
+    assert latch[0]["compiler_inserted"] and latch[0]["replaceable"], latch[0]
+
+    # the replacement, driven agent-source through op_button gesture nodes
+    script = [
+        {"op": "add_node", "a": "smoother0", "b": "smoother", "author": "agent"},
+        {"op": "remove_edge", "a": "lfo0/out", "b": "vca0/gain", "author": "agent"},
+        {"op": "add_edge", "a": "lfo0/out", "b": "smoother0/in", "author": "agent"},
+        {"op": "add_edge", "a": "smoother0/out", "b": "vca0/gain", "author": "agent"},
+    ]
+    editor = {"kind": "graph", "lock": {},
+              "topology": {"nodes": {"btn": {"type": "button"},
+                                     "ob0": {"type": "op_button"},
+                                     "arb0": {"type": "arbiter_inlet"}},
+                           "edges": [{"from": "btn/out", "to": "ob0/in"},
+                                     {"from": "ob0/out", "to": "arb0/in"}]},
+              "defaults": {}}
+    edited = _edit([{"op": "agent-drive", "editor": editor, "target": hello,
+                     "arbiter": "arb0", "op_route": "ob0/op", "bang": "btn/out",
+                     "script": script}])[0]["graph"]
+    assert "smoother0" in edited["topology"]["nodes"], edited
+
+    # re-compile the edited app: the smoother is now the mapping, no latch
+    after = _edit([{"op": "realized", "graph": edited}])[0]["mappings"]
+    assert not any(m["mapping"] == "latch" for m in after), \
+        f"re-compilation re-inserted a latch over the smoother: {after}"
+
+
 # ---- EDR-7.1: human-input and agent-source yield identical graphs ----------
 def edr71_human_and_agent_identical():
     # Every editor gesture is drivable through source nodes; there is no
@@ -230,10 +268,9 @@ TESTS = {
     "EDR-3.1": edr31_undo_restores_exactly,
     "EDR-5.1": edr51_walk_and_mark,
     "EDR-5.2": edr52_frontier_paginates,
+    "EDR-4.1": edr41_smoother_replacement_gesture,
     "EDR-7.1": edr71_human_and_agent_identical,
     "EDR-8.1": edr81_probe_does_not_move_regions,
-    # 09-editor-documents.md: scripted gesture test drives the smoother replacement of CMP-4.1
-    "EDR-4.1": None,
     # 09-editor-documents.md: a document transcluding `graphs/hello-cosine:nodes/osc0/freq`
     "EDR-6.1": None,
     # 09-editor-documents.md: round-trip metric harness: decompose a small permissive C++ file

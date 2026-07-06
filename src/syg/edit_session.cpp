@@ -4,13 +4,37 @@
 #include <memory>
 #include <stdexcept>
 
+#include <fstream>
+
 #include "exec_plan.hpp"
 #include "parser/parser.hpp"
+#include "realized_compile.hpp"
+#include "store.hpp"
 
 namespace syg::harness {
 namespace {
 
 using nlohmann::json;
+
+organs::graph_doc load_engine() {
+  std::ifstream f("vocabulary/engine-v0.json");
+  return organs::parse_graph(json::parse(f));
+}
+
+// The realized view's mappings, each labeled as compiler-inserted and
+// replaceable (EDR-4): the latch of hello-cosine is visible and named.
+json labeled_mappings(store::peer_store& s, const json& app) {
+  auto c = realized_compile(s, nullptr, load_engine(), app);
+  json out = json::array();
+  for (const auto& m : c.execution.value("mappings", json::array())) {
+    json e = m;
+    e["compiler_inserted"] = true;
+    e["replaceable"] = true;
+    e["label"] = "compiler-inserted " + m.value("mapping", std::string("?"));
+    out.push_back(e);
+  }
+  return out;
+}
 
 // One gesture = a burst of attributed edit ops into the arbiter, applied at
 // the tick boundary (exactly what a gesture NODE emits — EDR-7's whole point).
@@ -161,6 +185,11 @@ int edit_session(const nlohmann::json& in) {
       auto as_arr = [](const std::vector<std::string>& v) { return json(v); };
       r = {{"block", as_arr(reg.block)}, {"frame", as_arr(reg.frame)},
            {"inert", as_arr(reg.inert)}};
+    } else if (what == "realized") {
+      // EDR-4: open the realized (execution) view; the compiler-inserted
+      // mappings (the latch) are visible, labeled, and replaceable.
+      store::peer_store s("editor");
+      r = {{"mappings", labeled_mappings(s, op.at("graph"))}};
     } else if (what == "value") {
       if (!live) throw std::runtime_error("open a graph first");
       r = {{"value", live->value_of(op.at("route"))}};
