@@ -4,12 +4,11 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
 
 ## RESUME BLOCK (keep this section current at every stopping point)
 
-- **Current state:** 142 pass / 0 fail; rungs 1–7 GREEN (twice-audited);
-  rung 8 at 14/18 (four HARDWARE-BOUND, pend honestly); **rung 9 (the mesh)
-  GREEN 11/11** — fresh-context audit dispatched (findings pending). Both
-  rung-8 scaffolding markers (MSH-3.1, MSH-7.1) are DISSOLVED: PKG-5.1's
-  worker placement + PKG-6.1's net discipline now run over the REAL mesh
-  transport, not harness tables/deques.
+- **Current state:** 152 pass / 0 fail; rungs 1–9 GREEN (7,8 twice-audited;
+  9 audited CLEAR); rung 8 at 14/18 (four HARDWARE-BOUND, pend honestly);
+  **rung 10 (hosts) SKIPPED for now** (Travis's call, 2026-07-06 — return
+  later; ABI-5 / python-notebook + wasm execution); **rung 11 (surfaces)
+  GREEN 10/10** — fresh-context audit dispatched (findings pending).
 - **Rung 9 delivered:** mesh package born (src/mesh/identity ed25519 +
   src/mesh/link loopback sockets + ADR-035 crypto: crypto_kx handshake +
   XChaCha20-Poly1305 secretstream). `syg mesh` = N in-process peers over
@@ -36,12 +35,23 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   (worker placement by capability, result by hash), PKG-6.1 (net
   reconnect: reliable-ordered events, coalesced values), PKG-7.1
   (placement fallthrough: only the adapter choice differs).
-- **In-flight:** rung-9 fresh-context audit dispatched (Judgement §3); fix
-  or flag its findings before opening rung 10.
-- **Next action:** process the rung-9 audit, then open **rung 10 (hosts)**:
-  ABI-5 / python-executes-graph notebook test (CPython module; the
-  browser/wasm half). Read ADR-019. This is where MSH-5.2's wasm EXECUTION
-  (deferred from rung 9) actually lands.
+- **In-flight:** rung-11 fresh-context audit dispatched (Judgement §3); fix
+  or flag its findings before opening rung 12.
+- **Rung 11 delivered:** `syg edit` (the editor as graphs-editing-graphs:
+  gesture ops → arbiter; EDR-2 defaults-not-live-values, EDR-3 structural-
+  snapshot undo via exec_plan::undo_gesture, EDR-1 palette subgraph
+  swap+migrate live, EDR-4 gesture-driven smoother replacement reusing
+  realized_compile, EDR-7 human/agent parity, EDR-8 values-surface edge
+  probe with region-invariance); `syg walk` (astui walker + transclusion:
+  EDR-5 here/path/frontier/mark + 100k-link streamed pagination, EDR-6.1
+  live-vs-fixed transclusion); `syg document` (EDR-6.2 C++ round-trip over
+  fixtures/cpp_corpus). graphs/palette_{osc,noise}.json new.
+- **Next action:** process the rung-11 audit, then (rung 10 skipped per
+  Travis) open **rung 12 (the self-hosting closure)**: CNF-1..6 — the suite
+  as datasets, candidate-as-peer harness (peer-level conformance from rung 9
+  is the substrate), kind succession, sygaldreye-N derives N+1. Read ch. 17.
+- **Deferred (rung 10, skipped):** ABI-5 three-packagings + python-notebook;
+  MSH-5.2's wasm EXECUTION. Revisit after rung 12 or when Travis calls it.
 - **Known deliberate gaps:** net transport is harness-modeled (sockets =
   MSH); frozen-artifact state migration on hot-swap pends (EXE-5
   extension; re-strike documented in frz11); plugin types not in
