@@ -191,11 +191,49 @@ def msh31_shell_exec_refused_falls_through():
     assert none["refusals"][0]["refusal"]["error"] == "not-advertised", none
 
 
+# ---- MSH-8.1: per-store sharing by key subset ------------------------------
+def msh81_second_store_shared_with_subset():
+    # A second store graph shared with a SUBSET of paired keys. Both alice and
+    # bob are paired with host and can fetch from the common (default) store;
+    # only alice is in the private store's share set. Bob's fetch succeeds for
+    # the common hash and is refused for the private one — the flat domain is
+    # "shared with every paired key" expressed as config, not hardcoded.
+    peers = {"host": {}, "alice": {}, "bob": {}}
+    prelude = [
+        {"op": "pair", "a": "host", "b": "alice"},
+        {"op": "pair", "a": "host", "b": "bob"},
+        {"op": "put", "peer": "host", "bytes": {"/": {"bytes": "Y29tbW9u"}}},  # "common"
+        {"op": "share-store", "peer": "host", "name": "private", "keys": ["alice"]},
+    ]
+    pre = _mesh(peers, prelude)
+    common_cid = pre[2]["cid"]
+    store_idx = pre[3]["store"]
+    ops = prelude + [
+        {"op": "put", "peer": "host", "store": store_idx,
+         "bytes": {"/": {"bytes": "c2VjcmV0"}}},  # "secret"
+    ]
+    pre2 = _mesh(peers, ops)
+    private_cid = pre2[4]["cid"]
+    ops += [
+        {"op": "fetch", "from": "alice", "to": "host", "cid": common_cid},   # 5
+        {"op": "fetch", "from": "alice", "to": "host", "cid": private_cid},  # 6
+        {"op": "fetch", "from": "bob", "to": "host", "cid": common_cid},     # 7
+        {"op": "fetch", "from": "bob", "to": "host", "cid": private_cid},    # 8
+    ]
+    r = _mesh(peers, ops)
+    assert r[5]["ok"] and r[5]["cid"] == common_cid, r[5]
+    assert r[6]["ok"] and r[6]["cid"] == private_cid, r[6]   # alice: in the set
+    assert r[7]["ok"] and r[7]["cid"] == common_cid, r[7]   # bob: common store
+    assert not r[8]["ok"], r[8]                              # bob: excluded hash
+    assert r[8]["reason"] == "not-shared-or-absent", r[8]
+
+
 TESTS = {
     "MSH-1.1": msh11_pairing_revocation_restores,
     "MSH-2.1": msh21_unpaired_probe_refused,
     "MSH-3.1": msh31_shell_exec_refused_falls_through,
     "MSH-4.1": msh41_placement_fuzz_no_escape,
+    "MSH-8.1": msh81_second_store_shared_with_subset,
     # 13-native-contract.md: a plugin generated against contract C1 loads on a peer speaking
     "ABI-4.1": None,
     # 14-formats-protocols.md: Wire golden transcripts: a recorded two-peer session (pair,
@@ -208,6 +246,4 @@ TESTS = {
     "MSH-6.1": None,
     # 08-mesh-trust.md: all MSH/STO/PKG integration tests pass with discovery swapped for
     "MSH-7.1": None,
-    # 08-mesh-trust.md: configure a second store graph shared with a subset of keys; the
-    "MSH-8.1": None,
 }
