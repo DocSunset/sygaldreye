@@ -25,12 +25,57 @@ void apply_gesture(syg::executor::exec_plan& live, const json& ops) {
 
 int edit_session(const nlohmann::json& in) {
   std::unique_ptr<syg::executor::exec_plan> live;
+  std::unique_ptr<syg::executor::exec_plan> target;
+  std::string arbiter_id;  // re-aimed after any rebuild (swap re-realizes)
   json results = json::array();
 
   for (const auto& op : in.value("ops", json::array())) {
     const std::string what = op.at("op");
     json r;
-    if (what == "open") {
+    if (what == "open-editor") {
+      // EDR-1: the editor is nodes. A live editor plan whose palette (a
+      // subgraph emitting op events) is aimed at a target's arbiter — the
+      // graph-edits-graph shape (LNG-11.3). Swapping the palette subgraph
+      // live changes what the editor spawns, no restart.
+      live = std::make_unique<syg::executor::exec_plan>(
+          syg::organs::parse_graph(op.at("editor")), 48000, 128);
+      target = std::make_unique<syg::executor::exec_plan>(
+          syg::organs::parse_graph(op.at("target")), 48000, 128);
+      arbiter_id = op.at("arbiter").get<std::string>();
+      live->point_arbiter(arbiter_id, *target);
+      r = {{"editor_nodes", live->doc().nodes.size()},
+           {"target_nodes", target->doc().nodes.size()}};
+    } else if (what == "bang") {
+      if (!live) throw std::runtime_error("open the editor first");
+      live->post_event(op.at("route"), 0.0);
+      for (int i = 0; i < op.value("settle", 20); ++i) {
+        live->pump_block();
+        if (target) target->pump_block();
+      }
+      r = {{"ok", true}};
+    } else if (what == "swap") {
+      // slot swap+migrate (EXE-5) of a node's TYPE, preserving its wiring:
+      // remove the node, re-add it under the new type, restore the edges it
+      // sat on. rebuild() migrates every surviving node's state by route.
+      if (!live) throw std::runtime_error("open the editor first");
+      const std::string id = op.at("id"), type = op.at("type");
+      std::vector<std::pair<std::string, std::string>> touched;
+      for (const auto& [f, t] : live->doc().edges)
+        if (f.substr(0, f.find('/')) == id || t.substr(0, t.find('/')) == id)
+          touched.push_back({f, t});
+      live->submit({"remove_node", id, "", "editor"});
+      live->submit({"add_node", id, type, "editor"});
+      for (const auto& [f, t] : touched)
+        live->submit({"add_edge", f, t, "editor"});
+      live->pump_block();
+      // the rebuild re-realized the plan — the arbiter inlet is a fresh
+      // instance; re-aim it at the target (its pointer is not migrated state).
+      if (target && !arbiter_id.empty()) live->point_arbiter(arbiter_id, *target);
+      r = {{"editor_nodes", live->doc().nodes.size()}};
+    } else if (what == "target-doc") {
+      if (!target) throw std::runtime_error("no target");
+      r = {{"graph", syg::organs::serialize_graph(target->doc())}};
+    } else if (what == "open") {
       live = std::make_unique<syg::executor::exec_plan>(
           syg::organs::parse_graph(op.at("graph")), 48000, 128);
       for (int i = 0; i < op.value("warm", 8); ++i) live->pump_block();

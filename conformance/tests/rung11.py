@@ -71,11 +71,43 @@ def edr31_undo_restores_exactly():
     assert mid["defaults"].get("osc0/freq") == 440.0, mid["defaults"]
 
 
+# ---- EDR-1.1: the palette is a subgraph, swappable live --------------------
+def edr11_palette_swap_changes_behavior():
+    # The editor is nodes: its palette is a subgraph that, banged, emits an
+    # add_node op into a target's arbiter (graphs editing graphs). Swapping
+    # the palette SUBGRAPH live (slot swap+migrate) changes what it spawns —
+    # no restart, the same live plan keeps ticking.
+    editor = {"kind": "graph", "lock": {},
+              "topology": {"nodes": {"btn": {"type": "button"},
+                                     "pal0": {"type": "palette_osc"},
+                                     "arb0": {"type": "arbiter_inlet"}},
+                           "edges": [{"from": "btn/out", "to": "pal0/bang"},
+                                     {"from": "pal0/out", "to": "arb0/in"}]},
+              "defaults": {}}
+    r = _edit([
+        {"op": "open-editor", "editor": editor, "target": _hello(),
+         "arbiter": "arb0"},
+        {"op": "bang", "route": "btn/out"},               # palette_osc
+        {"op": "target-doc"},
+        {"op": "swap", "id": "pal0", "type": "palette_noise"},  # live swap
+        {"op": "bang", "route": "btn/out"},               # palette_noise
+        {"op": "target-doc"},
+    ])
+    before = r[2]["graph"]["topology"]["nodes"]
+    after = r[5]["graph"]["topology"]["nodes"]
+    # the original palette spawned an osc, and only that
+    assert before.get("osc_spawn", {}).get("type") == "osc", before
+    assert "noise_spawn" not in before, before
+    # after the live swap the SAME editor now spawns a noise — behavior
+    # changed without restart; the earlier spawn survived the migrate
+    assert after.get("noise_spawn", {}).get("type") == "noise", after
+    assert after.get("osc_spawn", {}).get("type") == "osc", "migrate lost state"
+
+
 TESTS = {
+    "EDR-1.1": edr11_palette_swap_changes_behavior,
     "EDR-2.1": edr21_defaults_not_live_values,
     "EDR-3.1": edr31_undo_restores_exactly,
-    # 09-editor-documents.md: replacing the palette subgraph live (swap+migrate) changes editor
-    "EDR-1.1": None,
     # 09-editor-documents.md: scripted gesture test drives the smoother replacement of CMP-4.1
     "EDR-4.1": None,
     # 09-editor-documents.md: walk ground to graphs/hello-cosine to topology to osc0 to type osc  to

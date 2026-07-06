@@ -1,0 +1,21 @@
+{
+ "kind": "graph",
+ "lock": {},
+ "topology": {
+  "nodes": {
+   "osc_btn": {
+    "type": "op_button"
+   }
+  },
+  "edges": [],
+  "inlets": {
+   "bang": "osc_btn/in"
+  },
+  "outlets": {
+   "out": "osc_btn/out"
+  }
+ },
+ "defaults": {
+  "osc_btn/op": "{\"op\":\"add_node\",\"a\":\"osc_spawn\",\"b\":\"osc\"}"
+ }
+}

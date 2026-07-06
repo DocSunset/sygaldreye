@@ -1,0 +1,21 @@
+{
+ "kind": "graph",
+ "lock": {},
+ "topology": {
+  "nodes": {
+   "noise_btn": {
+    "type": "op_button"
+   }
+  },
+  "edges": [],
+  "inlets": {
+   "bang": "noise_btn/in"
+  },
+  "outlets": {
+   "out": "noise_btn/out"
+  }
+ },
+ "defaults": {
+  "noise_btn/op": "{\"op\":\"add_node\",\"a\":\"noise_spawn\",\"b\":\"noise\"}"
+ }
+}
