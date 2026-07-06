@@ -4,11 +4,24 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
 
 ## RESUME BLOCK (keep this section current at every stopping point)
 
-- **Current state:** 152 pass / 0 fail; rungs 1–9 GREEN (7,8 twice-audited;
-  9 audited CLEAR); rung 8 at 14/18 (four HARDWARE-BOUND, pend honestly);
-  **rung 10 (hosts) SKIPPED for now** (Travis's call, 2026-07-06 — return
-  later; ABI-5 / python-notebook + wasm execution); **rung 11 (surfaces)
-  GREEN 10/10** — fresh-context audit dispatched (findings pending).
+- **Current state:** 161 pass / 0 fail / 5 pending / 0 uncovered.
+  **Rungs 1–9, 11, 12 GREEN** (7,8,9,11 audited). Rung 8 at 14/18 (four
+  HARDWARE-BOUND: FRZ-4.1/PKG-3.1/3.2 need the Quest, PKG-8.1 needs USB
+  hot-plug). **Rung 10 (hosts) SKIPPED** (Travis, 2026-07-06 — ABI-5 /
+  python-notebook + wasm execution; return later). **Rung 12 (the
+  self-hosting closure) GREEN 9/9** — fresh-context audit dispatched.
+- **The 5 pending are the ONLY thing between here and the final message**
+  ("All gates green. The suite is the system; the system exists"): 4 are
+  hardware-bound (rung 8), 1 is the skipped rung 10. Everything buildable
+  on this machine is GREEN.
+- **Rung 12 delivered (`syg conform`):** CNF-6 derived versions over
+  succession chains (ADR-032; class gate verified); CNF-4 kind succession
+  (lazy migrate-on-read memo, mixed-version both directions, lock-swap over
+  a fixed topology hash); CNF-3/COR-4 two profiles (a crownless frozen
+  movement passes movement-level, fails peer-level); CNF-1 suite-as-data
+  (indexed by chapter/requirement, coverage self-test); CNF-2 candidate-as-
+  peer over the wire (reference passes, a `mutant:MSH-4` candidate fails,
+  named); CNF-5 the self-gate (N derives N+1, admitted only by N's suite).
 - **Rung 9 delivered:** mesh package born (src/mesh/identity ed25519 +
   src/mesh/link loopback sockets + ADR-035 crypto: crypto_kx handshake +
   XChaCha20-Poly1305 secretstream). `syg mesh` = N in-process peers over
@@ -35,8 +48,9 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   (worker placement by capability, result by hash), PKG-6.1 (net
   reconnect: reliable-ordered events, coalesced values), PKG-7.1
   (placement fallthrough: only the adapter choice differs).
-- **In-flight:** rung-11 fresh-context audit dispatched (Judgement §3); fix
-  or flag its findings before opening rung 12.
+- **In-flight:** rung-12 fresh-context audit dispatched (Judgement §3); fix
+  or flag its findings, then the greenfield is code-complete on this machine
+  (only the 5 hardware/skipped pending remain).
 - **Rung 11 delivered:** `syg edit` (the editor as graphs-editing-graphs:
   gesture ops → arbiter; EDR-2 defaults-not-live-values, EDR-3 structural-
   snapshot undo via exec_plan::undo_gesture, EDR-1 palette subgraph
@@ -46,12 +60,14 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   EDR-5 here/path/frontier/mark + 100k-link streamed pagination, EDR-6.1
   live-vs-fixed transclusion); `syg document` (EDR-6.2 C++ round-trip over
   fixtures/cpp_corpus). graphs/palette_{osc,noise}.json new.
-- **Next action:** process the rung-11 audit, then (rung 10 skipped per
-  Travis) open **rung 12 (the self-hosting closure)**: CNF-1..6 — the suite
-  as datasets, candidate-as-peer harness (peer-level conformance from rung 9
-  is the substrate), kind succession, sygaldreye-N derives N+1. Read ch. 17.
-- **Deferred (rung 10, skipped):** ABI-5 three-packagings + python-notebook;
-  MSH-5.2's wasm EXECUTION. Revisit after rung 12 or when Travis calls it.
+- **Next action:** process the rung-12 audit. Then the buildable greenfield
+  is COMPLETE. Remaining to reach the literal final message: (a) rung 8's 4
+  hardware-bound criteria (need Quest + USB audio device); (b) rung 10 (ABI-5
+  + python-notebook + wasm exec), skipped per Travis. Both are Travis/hardware
+  gated, not code-blocked.
+- **Deferred:** rung 10 (ABI-5 three-packagings + python-notebook; MSH-5.2's
+  wasm EXECUTION). Rung 8 hardware items (revisit with the Quest / a USB DAC).
+- **ADR-035 (mesh crypto suite) still a DRAFT awaiting Travis's ratification.**
 - **Known deliberate gaps:** net transport is harness-modeled (sockets =
   MSH); frozen-artifact state migration on hot-swap pends (EXE-5
   extension; re-strike documented in frz11); plugin types not in

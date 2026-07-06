@@ -305,3 +305,46 @@ is the boring choice on purpose — libsodium primitives, nothing hand-rolled,
 reachability not equality for compatibility, secrecy left as decoder
 scarcity for later. Peer-level conformance is born; the candidate-as-peer
 harness of rung 12 now has a peer to be.
+
+## 2026-07-06 — The closure (rung 12: the suite is the system)
+
+The last rung folds the system back onto itself. Everything the earlier
+rungs built to verify OTHER things now verifies the verifier.
+
+Versions stopped being numbers you assign and became numbers you DERIVE.
+A succession carries a class — fix, additive, breaking — and `name@M.m.p`
+is a walk over the supersedes links: breaking hops, additive since the last
+breaking, fixes since the last additive. Store the numbers nowhere and they
+can never disagree with history. The class is not a vow but a checked claim:
+declare a succession "additive" while regressing a green predecessor
+criterion and the gate throws, naming the criterion. Semver as a theorem.
+
+The old widget pair — widget_a plus one declaration line is widget_b, the
+demonstration that one field surfaces a port, a codec, and a binding — was
+marked scaffolding to dissolve here, and it did, but not by deletion: it IS
+a kind succession, so CNF-4 now runs it as one (an additive that adds a
+port and keeps ABI-1.1 green, deriving @0.1.0). The demonstration moved from
+an ad-hoc pair into the real succession machinery. Two more markers came
+due and got re-aimed instead of dissolved: a fault matrix needs deliberate
+provocateurs (a node that emits NaN, one that hangs, one that blocks), and
+an RT-alloc audit needs a deliberate allocator — a well-behaved real native
+can't carry a violation it never commits. The dissolution gate forced the
+honest conversation each time, exactly as designed.
+
+Then the two hard ones. The candidate-as-peer harness boots a peer and
+judges it over the wire alone — sends PLACE, reads the audit log, never
+touches its insides — and a mutant that instantiates an unadvertised type
+is caught and named MSH-4, the reference passing the same probe. Testing
+and interop are one act. And the self-gate: sygaldreye-N derives N+1 as a
+provenance-tracked derivation, admitted only if the suite N ran stays green
+on it; regress a criterion and N's own suite refuses the succession, naming
+what broke. The suite gates every succession of everything, including
+itself.
+
+161 green on this machine, 0 failing. What is left is not code — four
+criteria wait for a headset and a USB jack, and the host rung waits for
+Travis's word. The final line the runner prints when nothing pends —
+"the suite is the system; the system exists" — is five hardware-and-consent
+gates away, and every one of them is honest about being fiat. The system
+that verifies itself is standing; it is just waiting to be told it may say
+so out loud.
