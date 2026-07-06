@@ -166,6 +166,27 @@ int conform_session(const nlohmann::json& in) {
            {"topology_unchanged", topo_of(old_cid) == topo_of(new_cid) &&
                                       topo_of(new_cid) == topo_cid},
            {"graph_changed", old_cid != new_cid}};
+    } else if (what == "suite-as-data") {
+      // CNF-1: the suite is data. Every criterion is a dataset indexed by
+      // CHAPTER and REQUIREMENT id; coverage is a query over it — a criterion
+      // without a test is a reported GAP (the suite tests its own coverage).
+      const json crit = op.at("criteria");   // {id: {chapter, requirement}}
+      std::set<std::string> tested;
+      for (const auto& t : op.at("tests")) tested.insert(t.get<std::string>());
+      std::map<std::string, std::vector<std::string>> by_chapter, by_req;
+      json uncovered = json::array();
+      for (auto it = crit.begin(); it != crit.end(); ++it) {
+        by_chapter[it.value().value("chapter", "?")].push_back(it.key());
+        by_req[it.value().value("requirement", "?")].push_back(it.key());
+        if (!tested.count(it.key())) uncovered.push_back(it.key());
+      }
+      // commit the index as a dataset (the suite IS in the store)
+      json index{{"kind", "suite-index"}, {"by_chapter", by_chapter},
+                 {"by_requirement", by_req}};
+      auto cid = s.put_node(index, false);
+      r = {{"dataset", cid}, {"by_chapter", by_chapter},
+           {"by_requirement", by_req}, {"uncovered", uncovered},
+           {"total", crit.size()}};
     } else if (what == "two-profiles") {
       // CNF-3 / COR-4: a CROWNLESS build (a sealed frozen movement — escapement
       // + baked math, no crown, no plan) passes MOVEMENT-level conformance

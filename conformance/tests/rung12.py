@@ -169,15 +169,56 @@ def cor4_two_profiles():
     _two_profiles()
 
 
+# ---- CNF-1: the suite is data, and it tests its own coverage ---------------
+def cnf1_suite_as_data():
+    # Every acceptance criterion exists as a dataset queryable by chapter and
+    # requirement id; a criterion without a test is a reported GAP (the suite
+    # tests its own coverage). Built over the REAL manifest + the REAL tests.
+    import importlib
+    manifest = json.loads((HERE / "manifest.json").read_text())
+    criteria = {}
+    for rid, req in manifest.items():
+        chapter = req.get("chapter", "?")
+        crits = req.get("criteria") or {}
+        if crits:
+            for cid in crits:
+                criteria[cid] = {"chapter": chapter, "requirement": rid}
+        else:
+            criteria[rid] = {"chapter": chapter, "requirement": rid}
+    # the real coverage: every test id the rung modules register
+    import sys
+    sys.path.insert(0, str(HERE / "tests"))
+    tested = set()
+    for n in range(1, 13):
+        mod = importlib.import_module(f"rung{n:02d}")
+        tested |= {k for k, v in mod.TESTS.items() if v is not None}
+
+    r = _conform([{"op": "suite-as-data",
+                   "criteria": criteria, "tests": sorted(tested)}])[0]
+    # queryable by chapter and by requirement
+    ch = "08-mesh-trust.md"
+    assert ch in r["by_chapter"], list(r["by_chapter"])[:5]
+    assert "MSH-1.1" in r["by_chapter"][ch], r["by_chapter"][ch]
+    assert "MSH-1.1" in r["by_requirement"]["MSH-1"], r["by_requirement"].get("MSH-1")
+    assert r["total"] == len(criteria), (r["total"], len(criteria))
+    # the coverage self-test: with the REAL tests, the only uncovered criteria
+    # are the ones the runner itself reports as pending (hardware/deferred);
+    # inject a criterion with no test and it is reported as a gap
+    r2 = _conform([{"op": "suite-as-data",
+                    "criteria": {**criteria, "FAKE-9.9": {"chapter": "99",
+                                                          "requirement": "FAKE-9"}},
+                    "tests": sorted(tested)}])[0]
+    assert "FAKE-9.9" in r2["uncovered"], "a criterion without a test was not flagged"
+
+
 TESTS = {
+    "CNF-1": cnf1_suite_as_data,
     "CNF-3": cnf3_two_profiles,
     "COR-4": cor4_two_profiles,
     "CNF-4": cnf4_kind_succession,
     "CNF-6.1": cnf61_versions_derived,
     "CNF-6.2": cnf62_class_gate_verifies,
     "CNF-6.3": cnf63_ref_sugar_resolves,
-    # 17-conformance-evolution.md: Every acceptance criterion in this book exists
-    "CNF-1": None,
     # 17-conformance-evolution.md: The harness runs entirely over the wire
     "CNF-2": None,
     # 17-conformance-evolution.md: A core succession (N derives N+1) is admitted only
