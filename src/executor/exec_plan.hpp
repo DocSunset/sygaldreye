@@ -59,8 +59,12 @@ class exec_plan {
   const std::vector<std::string>& faults() const { return faults_; }
   const std::vector<applied_op>& log() const { return log_; }
   std::size_t log_cursor() const { return cursor_; }
-  void undo();  // move the cursor back, applying inverses (ADR-018:
+  void undo();  // move the cursor back one op, applying inverses (ADR-018:
                 // the log is append-only; linearity is a view)
+  // Structural-snapshot undo (EDR-3): revert back to the previous structural
+  // change, folding any param drift in between into the same step ("param
+  // drift never trashes history"). One editor undo = one structural snapshot.
+  void undo_gesture();
 
  private:
   struct impl;

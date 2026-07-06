@@ -469,6 +469,23 @@ void exec_plan::undo() {
   }
 }
 
+void exec_plan::undo_gesture() {
+  // Revert the top op; if it was a param edit, keep reverting until a
+  // structural op is reverted (then stop). Param drags between two structural
+  // changes therefore collapse into one undo step.
+  bool reverted_structural = false;
+  while (cursor_ > 0 && !reverted_structural) {
+    const auto& top = log_[cursor_ - 1].op;
+    reverted_structural = top.op != "set_param" && top.op != "set_text";
+    const auto& inv = log_[--cursor_].inverse;
+    for (auto it = inv.rbegin(); it != inv.rend(); ++it) {
+      auto o = *it;
+      o.undo_replay = true;
+      inlet_q_.push(std::move(o));
+    }
+  }
+}
+
 long exec_plan::process_calls() const { return im_->process_calls; }
 
 const std::vector<std::string>& exec_plan::last_tick_order() const {
