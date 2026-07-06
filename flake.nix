@@ -14,7 +14,7 @@
         default = pkgs.mkShell {
           packages = with pkgs; [
             gcc cmake ninja pkg-config
-            boost nlohmann_json
+            boost nlohmann_json libsodium
             python3
             git
           ];

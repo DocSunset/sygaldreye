@@ -28,6 +28,7 @@
 #include "stage0_audits.hpp"
 #include "compile_session.hpp"
 #include "peer_session.hpp"
+#include "mesh_session.hpp"
 #include "store_session.hpp"
 #include "naming_session.hpp"
 #include "parser/parser.hpp"
@@ -896,6 +897,8 @@ int main(int argc, char** argv) {
       return syg::harness::compile_session(nlohmann::json::parse(read_stdin()));
     if (cmd == "store")
       return syg::harness::store_session(nlohmann::json::parse(read_stdin()));
+    if (cmd == "mesh")
+      return syg::harness::mesh_session(nlohmann::json::parse(read_stdin()));
     if (cmd == "naming") {
       std::cout << syg::harness::naming_session(nlohmann::json::parse(read_stdin())).dump() << "\n";
       return 0;

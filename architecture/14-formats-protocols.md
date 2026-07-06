@@ -91,6 +91,19 @@ Transport: WebSocket-capable framing (browser constraint), one duplex
 channel per peer pair; multiplexing (pinned): each message is one varint
 message-kind (numbered 1-8 in table order above) followed by a dag-cbor body.
 
+**Crypto suite (pinned — ADR-035).** Identity, signatures, capture
+testimony, and provenance signing: **Ed25519** (a peer-key is the 32-byte
+public key, text-encoded exactly as the `#peerkey` address step —
+multibase base32). Pairing/session handshake: exchange identity keys +
+ephemeral **X25519** key-exchange keys (`crypto_kx`), each side signing its
+ephemeral key with its identity key; a peer accepts iff the signature
+verifies and the remote identity key is in its accepted-keys set.
+Channel confidentiality+integrity: **XChaCha20-Poly1305**
+(`crypto_secretstream`) keyed by the handshake — every framed message is one
+secretstream message. Revocation drops the key from the accepted set and
+severs live sessions. Unpaired ⇒ no service surface (MSH-2). Boring on
+purpose; changing a primitive is a succession, never an edit (FMT-5).
+
 ## Compilation map
 
 `{ app-route to execution-route }`, dag-cbor, emitted with every compile

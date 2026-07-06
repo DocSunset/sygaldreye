@@ -40,10 +40,10 @@ byte_vec cid_of(std::uint64_t multicodec, const byte_vec& data) {
   return cid;
 }
 
-std::string cid_to_text(const byte_vec& cid) {
+std::string mb32_encode(const byte_vec& data) {
   std::string out(1, pins::multibase_prefix);
   unsigned buf = 0, nbits = 0;
-  for (auto b : cid) {
+  for (auto b : data) {
     buf = buf << 8 | b;
     nbits += 8;
     while (nbits >= 5) {
@@ -55,7 +55,7 @@ std::string cid_to_text(const byte_vec& cid) {
   return out;
 }
 
-byte_vec cid_from_text(const std::string& text) {
+byte_vec mb32_decode(const std::string& text) {
   if (text.empty() || text[0] != pins::multibase_prefix)
     throw std::runtime_error("unsupported multibase: " + text.substr(0, 1));
   byte_vec out;
@@ -72,6 +72,10 @@ byte_vec cid_from_text(const std::string& text) {
   }
   return out;
 }
+
+std::string cid_to_text(const byte_vec& cid) { return mb32_encode(cid); }
+
+byte_vec cid_from_text(const std::string& text) { return mb32_decode(text); }
 
 bool cid_verify(const byte_vec& cid, const byte_vec& data) {
   if (cid.size() < 4 || cid[0] != 0x01) return false;

@@ -258,4 +258,8 @@ nlohmann::json decode_to_projection(const std::vector<std::uint8_t>& bytes) {
   return v;
 }
 
+nlohmann::json projection_of_bytes(const std::vector<std::uint8_t>& b) {
+  return {{"/", {{"bytes", base64_encode(b.data(), b.size())}}}};
+}
+
 }  // namespace syg::formats

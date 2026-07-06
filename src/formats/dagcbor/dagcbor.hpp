@@ -17,6 +17,9 @@ std::vector<std::uint8_t> encode_projection(const nlohmann::json& v);
 // Decode the projection's bytes escape {"/": {"bytes": "<base64>"}}.
 std::vector<std::uint8_t> bytes_of_projection(const nlohmann::json& v);
 
+// The inverse: raw bytes -> the projection escape {"/": {"bytes": "<b64>"}}.
+nlohmann::json projection_of_bytes(const std::vector<std::uint8_t>& b);
+
 // Canonical dag-cbor bytes -> the JSON projection (links become
 // {"/": "<cid text>"}, byte strings become the bytes escape). Rejects
 // trailing bytes and non-canonical input it can detect.
