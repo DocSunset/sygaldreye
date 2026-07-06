@@ -4,32 +4,38 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
 
 ## RESUME BLOCK (keep this section current at every stopping point)
 
-- **Current state:** rungs 1–7 GREEN (117 criteria), gates green, and the
-  rung-7 audit's findings REMEDIATED (commits bdf40c2..b58e23d): the
-  bespoke compiler is deleted — `syg compile` and `syg peer` share ONE
-  realized compile core (a derivation-mode run of the engine plan); the
-  structural stage is a store derivation inside the choose hook;
-  structured kinds are generated from the catalog (cidset stream bug
-  fixed); CMP-9.3's vacuous assert replaced with instance-counter
-  witnesses; engine census lives in the executor; the runner now FAILS if
-  a `dissolves:` marker names a green criterion.
-- **In-flight:** nothing — remediation audit CLEAR (its one demonstrated
-  blocker, the stale compile memo on live param edits, is fixed; see the
-  2026-07-05 remediation-audit entry). Rung 7 is closed, twice-audited.
-- **Next action:** rung 8 (packages & freezer, 18 criteria incl.
-  AUT-2.1/2.2/5.1 backfill). First: rebuild the SHELVED freezer
-  (src/executor/freezer.*, marker dissolves: FRZ-1.1) to fuse the REAL
-  engine's realize output — the dissolution gate will enforce the marker's
-  death when FRZ-1.1 goes green. Hardware-bound PKG criteria pend honestly.
-- **Known deliberate gaps (flag duty):** peer session is peer-shaped but
-  not yet booted from the stage-0 tape (SZ/CNF work); engine-v0.json's own
-  lock still placeholder (honest-lock follow-through when the engine
-  dataset is stored); graphs/*.json are unkeyed compile inputs (backlog
-  card); CMP-9.4's registry-vs-walk equality true by construction until
-  types load from committed datasets (backlog card).
-- **Active disciplines:** L22 (graphs, not C++); ADR-034 realization rule;
-  Judgement binding (STRENGTHENINGS.md; flag before green; fresh audit per
-  rung; ADR drafts while hot); one peer, many sessions.
+- **Current state:** 131 pass / 0 fail; rungs 1–7 GREEN (twice-audited);
+  rung 8 at 14/18 — all four remaining criteria are HARDWARE-BOUND
+  (PKG-3.1/3.2 + FRZ-4.1 need the Quest; PKG-8.1 needs USB hot-plug).
+  They pend honestly; the build order proceeds (the halt's ruling:
+  hardware items pend, work continues).
+- **Rung 8 delivered:** AUT-2.1/2.2 (loop gate + stamp byte-equivalence);
+  FRZ-1.1 (codegen = realize's second backend, wired in by a text_cell;
+  byte-identical A/B, speedup stat, live hot-swap), FRZ-1.2 (unfreeze =
+  provenance walk; re-freeze memo-hits), FRZ-2.1 (tier from the ledger
+  data, tmux culprit named), FRZ-3.1 (self-contained artifact links
+  -ffreestanding on arm-none-eabi); AUT-5.1 (four routes, one registry,
+  byte-identical; plugin gate mechanical half: load-plugin + registry
+  overlay); PKG-1.1 (packages.json + SYG_OMIT build), PKG-2.1 (audio
+  package shape + EXE reruns), PKG-4.1/4.2 (GL gate stands; draw order =
+  render_head's event chain; unchained draws render zero), PKG-5.1
+  (worker placement by capability, result by hash), PKG-6.1 (net
+  reconnect: reliable-ordered events, coalesced values), PKG-7.1
+  (placement fallthrough: only the adapter choice differs).
+- **In-flight:** fresh-context rung-8 audit (Judgement §3) running.
+  Findings land here; fix-or-flag before rung 9.
+- **Next action:** process audit → open rung 9 (the mesh: keys/pairing,
+  advertisement, fetch, ops-to-arbiter, placement; MSH-1..8, FMT-4
+  transcripts, PKG-6/7 cross-peer halves; peer-level conformance born).
+- **Known deliberate gaps:** net transport is harness-modeled (sockets =
+  MSH); frozen-artifact state migration on hot-swap pends (EXE-5
+  extension; re-strike documented in frz11); plugin types not in
+  commit_types' lock table (flag when commit-app meets a loaded type);
+  semit chain propagation visits emitters in doc order (single pass —
+  head-after-draw doc orderings delay the chain one block; note).
+- **Active disciplines:** L22; ADR-034 realization rule; Judgement
+  binding; one peer, many sessions; the dissolution gate is armed and has
+  drawn blood once (dac marker).
 - **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
 
 ## 2026-07-05 — The dissolution gate bites (dac marker re-aimed)

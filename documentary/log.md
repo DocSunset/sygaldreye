@@ -232,3 +232,33 @@ criterion turns green. The suite is 117-for-117 again — but this time the
 green is the kind that survives a stranger reading the diff.
 
 Lesson pinned: green earned twice is cheaper than green defended once.
+
+## 2026-07-05 — the freezer fuses the real engine
+
+The moment the halt named finally happened, and it was almost an
+anticlimax: `realize0/backend` set to "codegen" by wiring a text cell into
+a port — no C++ changed hands — and the engine plan, ticking through the
+same seven passes that compile everything else, emitted a fused C++
+movement of the chime. The host compiled it, dlopen'd it, and it rendered
+BYTE-IDENTICAL to the interpreter at a fraction of the block time. Then
+the same artifact cross-compiled clean for a bare ARM microcontroller,
+because the emitter bakes the delay line's capacity at freeze time and
+carries its own math — the closure is libc's sinf and nothing else.
+
+The old shelved freezer — three hundred lines that re-derived expansion,
+regions, and the SCC schedule on their own — is deleted. The only piece
+that survived is the schedule itself, extracted so the interpreter and
+the emitter now share ONE ordering function; the byte-identity of every
+earlier rung held through the extraction, which is the whole point of
+having those tests.
+
+Best supporting actor: the dissolution gate, three hours old, caught its
+first real prey — the dac's scaffolding marker claiming a criterion that
+had just gone green. The gate forced the honest conversation (the node is
+a boundary by design; the DEVICE machinery still pends) instead of letting
+the marker rot.
+
+And the frozen artifact turns out to be a plugin: the same .so exposes
+the movement contract for hot-swap and the node-type contract for the
+registry, so "hello-cosine with a frozen osc" is one type-name edit. Four
+authoring routes, one registry, byte-identical audio through all of them.
