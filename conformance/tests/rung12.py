@@ -132,7 +132,46 @@ def cnf4_kind_succession():
     assert succ[1]["version"] == "0.1.0", succ  # an additive: a minor bump
 
 
+def _crownless_so():
+    # a SEALED frozen movement (escapement + baked math, no crown) — built
+    # through the rung-8 freezer, exactly the artifact rung 8 machine-freezes.
+    import rung08
+    osc_only = {"kind": "graph", "lock": {},
+                "topology": {"nodes": {"t0": {"type": "osc"}, "dac0": {"type": "dac"}},
+                             "edges": [{"from": "t0/out", "to": "dac0/in"}]},
+                "defaults": {"t0/freq": 220.0, "t0/shape": "cosine"}}
+    c, _ = rung08._freeze(osc_only)
+    artifact = c["execution_body"]["artifact"]["/"]
+    src = rung08._peer([{"op": "set-app", "graph": osc_only},
+                        {"op": "open-engine-editor"},
+                        {"op": "engine-edit", "ops": rung08._BACKEND_SPLICE},
+                        {"op": "compile"}, {"op": "cat", "cid": artifact}])[4]["bytes"]
+    return str(rung08._build_so(src, "crownless"))
+
+
+# ---- CNF-3 + COR-4: the two profiles -------------------------------------
+def _two_profiles():
+    r = _conform([{"op": "two-profiles", "so": _crownless_so()}])[0]
+    # movement-level conformance passes on the crownless build (it renders)
+    assert r["movement"]["pass"] is True, r["movement"]
+    assert r["movement"]["energy"] > 0, r["movement"]
+    # peer-level FAILS — the absence of the wire surface is DETECTED, not
+    # excused (TCF-5): a sealed movement is not a mesh citizen
+    assert r["peer"]["pass"] is False, r["peer"]
+    assert "no peer" in r["peer"]["reason"], r["peer"]
+
+
+def cnf3_two_profiles():
+    _two_profiles()
+
+
+def cor4_two_profiles():
+    _two_profiles()
+
+
 TESTS = {
+    "CNF-3": cnf3_two_profiles,
+    "COR-4": cor4_two_profiles,
     "CNF-4": cnf4_kind_succession,
     "CNF-6.1": cnf61_versions_derived,
     "CNF-6.2": cnf62_class_gate_verifies,
@@ -141,10 +180,6 @@ TESTS = {
     "CNF-1": None,
     # 17-conformance-evolution.md: The harness runs entirely over the wire
     "CNF-2": None,
-    # 17-conformance-evolution.md: The movement profile passes on a crownless build;
-    "CNF-3": None,
     # 17-conformance-evolution.md: A core succession (N derives N+1) is admitted only
     "CNF-5": None,
-    # 16-the-core.md: Movement-level and peer-level conformance run
-    "COR-4": None,
 }

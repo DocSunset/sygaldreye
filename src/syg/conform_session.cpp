@@ -1,5 +1,7 @@
 #include "conform_session.hpp"
 
+#include <dlfcn.h>
+
 #include <iostream>
 #include <map>
 #include <stdexcept>
@@ -164,6 +166,39 @@ int conform_session(const nlohmann::json& in) {
            {"topology_unchanged", topo_of(old_cid) == topo_of(new_cid) &&
                                       topo_of(new_cid) == topo_cid},
            {"graph_changed", old_cid != new_cid}};
+    } else if (what == "two-profiles") {
+      // CNF-3 / COR-4: a CROWNLESS build (a sealed frozen movement — escapement
+      // + baked math, no crown, no plan) passes MOVEMENT-level conformance
+      // (it renders) but FAILS PEER-level: it exposes no wire surface, and
+      // that absence is DETECTED, not excused (TCF-5).
+      void* lib = dlopen(op.at("so").get<std::string>().c_str(),
+                         RTLD_NOW | RTLD_LOCAL);
+      if (!lib) throw std::runtime_error(std::string("dlopen: ") + dlerror());
+      auto create = reinterpret_cast<void* (*)()>(dlsym(lib, "frozen_create"));
+      auto pump = reinterpret_cast<void (*)(void*, float*)>(dlsym(lib, "frozen_pump"));
+      auto destroy = reinterpret_cast<void (*)(void*)>(dlsym(lib, "frozen_destroy"));
+      // the movement profile: the frozen entry points exist and render sound
+      json movement;
+      if (create && pump && destroy) {
+        void* inst = create();
+        std::vector<float> buf(128);
+        double energy = 0;
+        for (int i = 0; i < 200; ++i) {
+          pump(inst, buf.data());
+          for (float x : buf) energy += double(x) * x;
+        }
+        destroy(inst);
+        movement = {{"pass", energy > 0.0}, {"energy", energy}};
+      } else {
+        movement = {{"pass", false}, {"reason", "no frozen movement entry points"}};
+      }
+      // the peer profile: a crownless movement exposes NO wire surface — no
+      // peer boot symbol. The absence is detected (the profile FAILS here).
+      bool has_peer = dlsym(lib, "syg_peer_boot") != nullptr;
+      json peer{{"pass", has_peer}};
+      if (!has_peer)
+        peer["reason"] = "crownless build exposes no peer/wire surface";
+      r = {{"movement", movement}, {"peer", peer}};
     } else if (what == "resolve") {
       // ref-sugar `name@M.m.p` -> the hash reached by walking the chain to the
       // node whose derived version matches (CNF-6.3).
