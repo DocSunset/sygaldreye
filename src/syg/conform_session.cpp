@@ -96,6 +96,74 @@ int conform_session(const nlohmann::json& in) {
       std::string cid = op.contains("cid") ? op.at("cid").get<std::string>()
                                            : heads.at(op.at("name"));
       r = {{"version", derive_version(chain_to_origin(s, cid))}};
+    } else if (what == "migrate-read") {
+      // CNF-4: an old object is readable via LAZY migrate-on-read — the
+      // migration is a memoized derivation (ADR-025), so the second read of
+      // the same object is a memo hit (no re-run).
+      auto obj_cid = s.put_node(op.at("object"), false);
+      json recipe{{"op", "migrate"},
+                  {"inputs", {{"obj", {{"/", obj_cid}}}}},
+                  {"from", op.at("from")}, {"to", op.at("to")},
+                  {"determinism", "exact"}};
+      bool memo = s.memo_lookup(recipe).has_value();
+      // the migrated form: the same data, retagged to the new kind
+      json migrated = op.at("object");
+      migrated["kind"] = op.at("to");
+      auto c = s.commit_derivation(recipe, migrated);
+      r = {{"output", c.output}, {"memo", memo || c.memo_hit},
+           {"migrated", s.get_node(c.output)}};
+    } else if (what == "mixed-exchange") {
+      // CNF-4: a mixed-version two-peer mesh exchanges BOTH directions. Peer A
+      // speaks kind-v1, peer B kind-v2. A's v1 object flows to B and migrates
+      // on read to v2; B's v2 object flows to A and migrates to v1. The
+      // migration is a dataset either peer can run (ADR-025).
+      peer_store a("A"), b("B");
+      auto migrate = [](peer_store& dst, const json& obj, const std::string& to) {
+        json recipe{{"op", "migrate"},
+                    {"inputs", {{"obj", {{"/", dst.put_node(obj, false)}}}}},
+                    {"to", to}, {"determinism", "exact"}};
+        json m = obj;
+        m["kind"] = to;
+        return dst.get_node(dst.commit_derivation(recipe, m).output);
+      };
+      // A -> B: a v1 object read as v2 on the far peer
+      json v1{{"kind", "kind-v1"}, {"payload", op.value("a_payload", 1)}};
+      auto v1_cid = a.put_node(v1, true);
+      store::fetch(b, a, v1_cid);
+      auto at_b = migrate(b, b.get_node(v1_cid), "kind-v2");
+      // B -> A: a v2 object read as v1 on the near peer
+      json v2{{"kind", "kind-v2"}, {"payload", op.value("b_payload", 2)}};
+      auto v2_cid = b.put_node(v2, true);
+      store::fetch(a, b, v2_cid);
+      auto at_a = migrate(a, a.get_node(v2_cid), "kind-v1");
+      r = {{"a_to_b", at_b}, {"b_to_a", at_a},
+           {"both_directions", at_b.at("kind") == "kind-v2" &&
+                                   at_a.at("kind") == "kind-v1"}};
+    } else if (what == "lock-swap") {
+      // CNF-4: a vocabulary upgrade is ONE lock swap (ADR-026) — the lock maps
+      // names to type CIDs; the TOPOLOGY object (and thus its hash and
+      // provenance chain) is untouched. The graph references its topology by
+      // hash, so swapping the lock mints a new graph over the SAME topology.
+      auto topo_cid = s.put_node(op.at("topology"), false);
+      const std::string tname = op.value("type", "osc");
+      // the two vocabulary versions: name -> a v1 type CID, then a v2 type CID
+      auto tv1 = s.put_node({{"kind", "node-type"}, {"name", tname}, {"v", 1}}, false);
+      auto tv2 = s.put_node({{"kind", "node-type"}, {"name", tname}, {"v", 2}}, false);
+      json g_old{{"kind", "graph"}, {"topology", {{"/", topo_cid}}},
+                 {"lock", {{tname, {{"/", tv1}}}}}};
+      json g_new{{"kind", "graph"}, {"topology", {{"/", topo_cid}}},
+                 {"lock", {{tname, {{"/", tv2}}}}}};
+      auto old_cid = s.put_node(g_old, false);
+      auto new_cid = s.put_node(g_new, false);
+      // the topology hash reached from each graph is identical (same link)
+      auto topo_of = [&](const std::string& gcid) {
+        return s.get_node(gcid).at("topology").at("/").get<std::string>();
+      };
+      r = {{"graph_old", old_cid}, {"graph_new", new_cid},
+           {"topology_cid", topo_cid},
+           {"topology_unchanged", topo_of(old_cid) == topo_of(new_cid) &&
+                                      topo_of(new_cid) == topo_cid},
+           {"graph_changed", old_cid != new_cid}};
     } else if (what == "resolve") {
       // ref-sugar `name@M.m.p` -> the hash reached by walking the chain to the
       // node whose derived version matches (CNF-6.3).

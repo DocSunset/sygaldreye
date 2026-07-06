@@ -86,7 +86,54 @@ def cnf63_ref_sugar_resolves():
     assert resolved[6]["cid"] == manual_101, "osc@1.0.1 != chain walk"
 
 
+# ---- CNF-4: kind succession end-to-end -------------------------------------
+def cnf4_kind_succession():
+    # Introduce kind-v2 with a migration. Old objects readable via lazy
+    # migrate-on-read (memo hit the second time); a mixed-version two-peer
+    # exchange works both directions; a lock-swap upgrades one graph without
+    # touching its topology hash's provenance chain.
+    obj = {"kind": "kind-v1", "freq": 220}
+    r = _conform([
+        {"op": "migrate-read", "object": obj, "from": "kind-v1", "to": "kind-v2"},
+        {"op": "migrate-read", "object": obj, "from": "kind-v1", "to": "kind-v2"},
+        {"op": "mixed-exchange", "a_payload": 11, "b_payload": 22},
+        {"op": "lock-swap", "type": "osc",
+         "topology": {"nodes": {"osc0": {"type": "osc"}}}},
+    ])
+    # lazy migrate-on-read: first read runs the migration, second is a memo hit
+    assert r[0]["memo"] is False, r[0]
+    assert r[1]["memo"] is True, r[1]
+    assert r[0]["migrated"]["kind"] == "kind-v2", r[0]
+    # mixed-version two-peer exchange works BOTH directions
+    assert r[2]["both_directions"] is True, r[2]
+    assert r[2]["a_to_b"]["kind"] == "kind-v2", r[2]
+    assert r[2]["b_to_a"]["kind"] == "kind-v1", r[2]
+    # the lock-swap upgraded the graph but left the topology hash untouched
+    assert r[3]["topology_unchanged"] is True, r[3]
+    assert r[3]["graph_changed"] is True, r[3]
+    assert r[3]["graph_old"] != r[3]["graph_new"], r[3]
+
+    # the widget_a -> widget_b pair (ABI-1.1's "one declaration line adds a
+    # port") IS a real kind succession: widget_b's ports are widget_a's plus
+    # exactly one. CNF-4 exercises it as an ADDITIVE succession — admitted
+    # because the port was ADDED (ABI-1.1 stays green), deriving @0.1.0. This
+    # is what dissolves the widget scaffolding: the demonstration now lives in
+    # the real succession machinery, not an ad-hoc pair.
+    gen = ROOT / "build" / "generated"
+    pa = set(json.loads((gen / "widget_a.descriptor.json").read_text())["ports"])
+    pb = set(json.loads((gen / "widget_b.descriptor.json").read_text())["ports"])
+    assert pb - pa == {"brightness"} and pa < pb, (pa, pb)  # ABI-1.1's property
+    succ = _conform([
+        {"op": "succeed", "name": "widget", "class": "origin",
+         "criteria": {"ABI-1.1": True}},
+        {"op": "succeed", "name": "widget", "of": "widget", "class": "additive",
+         "criteria": {"ABI-1.1": True}},   # the added port keeps ABI-1.1 green
+    ])
+    assert succ[1]["version"] == "0.1.0", succ  # an additive: a minor bump
+
+
 TESTS = {
+    "CNF-4": cnf4_kind_succession,
     "CNF-6.1": cnf61_versions_derived,
     "CNF-6.2": cnf62_class_gate_verifies,
     "CNF-6.3": cnf63_ref_sugar_resolves,
@@ -96,8 +143,6 @@ TESTS = {
     "CNF-2": None,
     # 17-conformance-evolution.md: The movement profile passes on a crownless build;
     "CNF-3": None,
-    # 17-conformance-evolution.md: Introduce kind-v2 with a migration:
-    "CNF-4": None,
     # 17-conformance-evolution.md: A core succession (N derives N+1) is admitted only
     "CNF-5": None,
     # 16-the-core.md: Movement-level and peer-level conformance run

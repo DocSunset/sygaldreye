@@ -1,4 +1,7 @@
-// clause: scaffolding (dissolves: CNF-4) — ABI-1.1's demonstration pair; a real kind succession (kind-v2) carries the same assertion
+// clause: floor — the ABI-1.1 kind-succession fixture (widget v1 -> v2: one
+// declaration line adds a port + codec + binding). No longer scaffolding: it
+// IS a real additive kind succession, exercised as one by CNF-4 (the additive
+// gate admits it because the port was ADDED, ABI-1.1 stays green).
 #pragma once
 #include "ports.hpp"
 
