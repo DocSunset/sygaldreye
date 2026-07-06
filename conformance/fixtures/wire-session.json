@@ -1,0 +1,12 @@
+{"record": true, "peers": {"alice": {}, "bob": {}}, "ops": [
+  {"op": "pair", "a": "alice", "b": "bob"},
+  {"op": "advertise", "peer": "bob", "run": ["osc", "gain"]},
+  {"op": "put", "peer": "bob", "bytes": {"/": {"bytes": "aGVsbG8"}}},
+  {"op": "bind", "peer": "bob", "ref": "latest", "cid": "bafkr4ihkr4ld3m4gqkjf4reryxsy2s5tkbxprqkow6fin2iiyvreuzzab4"},
+  {"op": "hello", "from": "alice", "to": "bob"},
+  {"op": "send-ops", "from": "alice", "to": "bob", "ref": "patch0",
+   "ops": [{"add_node": "osc1"}, {"set_param": "osc1/freq"}]},
+  {"op": "subscribe", "from": "alice", "to": "bob", "ref": "latest"},
+  {"op": "place", "from": "alice", "to": "bob", "type": "osc"},
+  {"op": "fetch", "from": "alice", "to": "bob", "cid": "bafkr4ihkr4ld3m4gqkjf4reryxsy2s5tkbxprqkow6fin2iiyvreuzzab4"}
+]}

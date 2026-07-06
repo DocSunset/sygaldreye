@@ -86,6 +86,7 @@ struct peer {
   std::set<std::string> accepted;               // paired peer-keys
   std::set<std::string> trusted_signers;        // provenance policy (MSH-5)
   std::map<std::string, json> plugin_prov;      // loaded plugin type -> prov
+  std::map<std::string, json> arbiters;         // ref -> attributed op log
   std::vector<std::string> instantiated;        // registry audit log (MSH-4)
   std::mutex mu;
   std::unique_ptr<syg::mesh::listener> lis;
@@ -109,10 +110,23 @@ struct peer {
 // same map without touching any of the semantics below.
 struct household {
   std::map<std::string, std::unique_ptr<peer>> peers;
+  bool recording = false;
+  json transcript = json::array();  // FMT-4: the plaintext wire golden
 
   peer& at(const std::string& n) { return *peers.at(n); }
   std::uint16_t port_of(const std::string& n) { return peers.at(n)->lis->port(); }
 };
+
+std::string hex_of(const bytes& b) {
+  static const char* h = "0123456789abcdef";
+  std::string out;
+  out.reserve(b.size() * 2);
+  for (auto c : b) {
+    out.push_back(h[c >> 4]);
+    out.push_back(h[c & 0xf]);
+  }
+  return out;
+}
 
 // The server side: dispatch one authenticated request. `req_from` is the
 // verified remote peer-key (handshake proved it). Everything here already
@@ -133,6 +147,14 @@ json handle(peer& me, std::uint64_t k, const json& body,
           return {{"ok", true}, {"obj", syg::formats::projection_of_bytes(*obj)}};
       }
       return {{"ok", false}, {"reason", "not-shared-or-absent"}};
+    }
+    case OPS: {  // attributed edit ops toward an instance's arbiter (ADR-023)
+      const std::string ref = body.at("ref");
+      auto& log = me.arbiters[ref];
+      if (!log.is_array()) log = json::array();
+      for (const auto& o : body.at("ops"))
+        log.push_back({{"op", o}, {"author", req_from}});
+      return {{"ok", true}, {"ref", ref}, {"log_len", log.size()}};
     }
     case SUBSCRIBE: {  // a live address: reply the ref's current binding
       const std::string ref = body.at("ref");
@@ -239,11 +261,18 @@ json request(household& m, const std::string& from, const std::string& to,
   };
   auto ch = syg::mesh::dial(m.port_of(to), f.id, admit);
   if (!ch) return {{"ok", false}, {"refused", true}, {"reason", "handshake"}};
-  ch->send(k, enc(body));
+  bytes sent = enc(body);
+  ch->send(k, sent);
+  if (m.recording)
+    m.transcript.push_back({{"dir", "send"}, {"from", from}, {"to", to},
+                            {"kind", k}, {"body", hex_of(sent)}});
   std::uint64_t rk;
   bytes rb;
   if (!ch->recv(rk, rb)) return {{"ok", false}, {"refused", true},
                                  {"reason", "no-reply"}};
+  if (m.recording)
+    m.transcript.push_back({{"dir", "recv"}, {"from", to}, {"to", from},
+                            {"kind", rk}, {"body", hex_of(rb)}});
   return dec(rb);
 }
 
@@ -253,6 +282,7 @@ namespace syg::harness {
 
 int mesh_session(const nlohmann::json& in) {
   household m;
+  m.recording = in.value("record", false);
   const json peer_cfg = in.value("peers", json::object());
   for (auto& [name, cfg] : peer_cfg.items())
     m.peers.emplace(name, std::make_unique<peer>(
@@ -343,6 +373,9 @@ int mesh_session(const nlohmann::json& in) {
       std::lock_guard<std::mutex> g(p.mu);
       p.stores.at(0)->store.bind_ref(op.at("ref"), op.at("cid"));
       r = {{"bound", op.at("ref")}};
+    } else if (what == "send-ops") {
+      r = request(m, op.at("from"), op.at("to"), OPS,
+                  {{"ref", op.at("ref")}, {"ops", op.at("ops")}});
     } else if (what == "subscribe") {
       r = request(m, op.at("from"), op.at("to"), SUBSCRIBE,
                   {{"ref", op.at("ref")}});
@@ -571,7 +604,9 @@ int mesh_session(const nlohmann::json& in) {
     p->lis->stop();
     if (p->server.joinable()) p->server.join();
   }
-  std::cout << json{{"results", results}}.dump() << "\n";
+  json out{{"results", results}};
+  if (m.recording) out["transcript"] = m.transcript;
+  std::cout << out.dump() << "\n";
   return 0;
 }
 

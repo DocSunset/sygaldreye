@@ -384,8 +384,37 @@ def msh52_wasm_side_module_same_gate():
     assert r[5]["known"] and r[5]["provenance"]["form"] == "wasm", r[5]
 
 
+# ---- FMT-4: wire golden transcripts ----------------------------------------
+def fmt4_wire_golden_transcript():
+    # A recorded two-peer session (advertise-query, ops, subscribe, place,
+    # fetch) replays BYTE-EXACT. The ciphertext isn't reproducible (ephemeral
+    # keys, random nonces) but the plaintext message sequence — each a varint
+    # wire-kind + canonical dag-cbor body — is, given seeded identities and a
+    # fixed script. The peer-level conformance backbone (ch. 17).
+    fix = ROOT / "conformance" / "fixtures"
+    script = json.loads((fix / "wire-session.json").read_text())
+    golden = json.loads((fix / "wire-transcript.golden.json").read_text())
+
+    def transcript():
+        out = syg("mesh", stdin=json.dumps(script).encode())
+        return json.loads(out)["transcript"]
+
+    live = transcript()
+    # 1) replays byte-exact against the committed golden
+    assert live == golden, "wire transcript diverged from the golden"
+    # 2) deterministic: a second run is byte-identical (replayable)
+    assert transcript() == live, "wire transcript is not reproducible"
+    # 3) the transcript actually carries the message kinds it claims
+    kinds = {m["kind"] for m in live}
+    assert {2, 4, 3, 7, 5} <= kinds, kinds  # HELLO, OPS, SUBSCRIBE, PLACE, FETCH
+    # 4) bodies are non-empty canonical dag-cbor (hex), not placeholders
+    assert all(isinstance(m["body"], str) for m in live)
+    assert any(len(m["body"]) > 2 for m in live)
+
+
 TESTS = {
     "ABI-4.1": abi41_contract_reachability,
+    "FMT-4": fmt4_wire_golden_transcript,
     "MSH-5.1": msh51_plugin_trust_gate,
     "MSH-5.2": msh52_wasm_side_module_same_gate,
     "MSH-1.1": msh11_pairing_revocation_restores,
@@ -394,8 +423,6 @@ TESTS = {
     "MSH-4.1": msh41_placement_fuzz_no_escape,
     "MSH-6.1": msh61_tampered_testimony_fails,
     "MSH-8.1": msh81_second_store_shared_with_subset,
-    # 14-formats-protocols.md: Wire golden transcripts: a recorded two-peer session (pair,
-    "FMT-4": None,
     # 08-mesh-trust.md: all MSH/STO/PKG integration tests pass with discovery swapped for
     "MSH-7.1": None,
 }
