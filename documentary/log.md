@@ -262,3 +262,46 @@ And the frozen artifact turns out to be a plugin: the same .so exposes
 the movement contract for hot-swap and the node-type contract for the
 registry, so "hello-cosine with a frozen osc" is one type-name edit. Four
 authoring routes, one registry, byte-identical audio through all of them.
+
+## 2026-07-05 — Two peers, one patch (rung 9: the mesh)
+
+The mesh came in over real sockets. Not a model of sockets — `socket()`,
+`bind()` to loopback, a `crypto_kx` handshake, and every message after it
+sealed in an XChaCha20-Poly1305 stream. When a test says the port scan is
+refused, a real scanner really connects to a real listener and gets its
+bytes swallowed; when it says revocation severs the Quest, the next dial
+fails at the handshake because a live predicate looked at the accepted set
+and said no.
+
+The shape that made it tractable: pairing is a set of keys a peer admits,
+and the whole trust story reduces to *what a peer will sign a session with*.
+Revocation is one erase from that set. Advertisement is three lists, and
+placement is a request against them — nothing is ever pushed, only asked
+for, so a browser that never advertises `shell_exec` cannot be made to run
+one no matter how the request is phrased. Fuzz it three hundred ways; the
+audit log holds only what was advertised.
+
+Two markers came due and both dissolved honestly. PKG-5's worker placement
+had been choosing its worker from a bool table the test handed it; now the
+requester queries advertised capabilities over the wire and the first
+advertiser runs the derivation, result returning by hash. PKG-6's net link
+had been an in-process deque pretending to be a network; now the provider
+ships its flavored delivery log across the authenticated channel and the
+consumer replays it — value coalesced, events reliable-ordered, the outage
+a real gap in transmission. The dissolution gate would have failed the
+suite if either marker had stayed pointing at a criterion that just went
+green. Neither did.
+
+The signature that binds a capture to its author is the same ed25519 key
+that is the peer's name — testimony's peer-id IS a public key, so tampering
+the id and checking the signature are the same operation failing. And the
+wire has a golden transcript now: the ciphertext can't be reproduced
+(ephemeral keys, random nonces), but the plaintext message sequence —
+varint kind, canonical dag-cbor body — is byte-identical run to run, which
+is the honest thing to pin.
+
+The crypto suite it all rides on (ADR-035) is a draft; Travis ratifies. It
+is the boring choice on purpose — libsodium primitives, nothing hand-rolled,
+reachability not equality for compatibility, secrecy left as decoder
+scarcity for later. Peer-level conformance is born; the candidate-as-peer
+harness of rung 12 now has a peer to be.

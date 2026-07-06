@@ -4,11 +4,25 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
 
 ## RESUME BLOCK (keep this section current at every stopping point)
 
-- **Current state:** 131 pass / 0 fail; rungs 1–7 GREEN (twice-audited);
-  rung 8 at 14/18 — all four remaining criteria are HARDWARE-BOUND
-  (PKG-3.1/3.2 + FRZ-4.1 need the Quest; PKG-8.1 needs USB hot-plug).
-  They pend honestly; the build order proceeds (the halt's ruling:
-  hardware items pend, work continues).
+- **Current state:** 142 pass / 0 fail; rungs 1–7 GREEN (twice-audited);
+  rung 8 at 14/18 (four HARDWARE-BOUND, pend honestly); **rung 9 (the mesh)
+  GREEN 11/11** — fresh-context audit dispatched (findings pending). Both
+  rung-8 scaffolding markers (MSH-3.1, MSH-7.1) are DISSOLVED: PKG-5.1's
+  worker placement + PKG-6.1's net discipline now run over the REAL mesh
+  transport, not harness tables/deques.
+- **Rung 9 delivered:** mesh package born (src/mesh/identity ed25519 +
+  src/mesh/link loopback sockets + ADR-035 crypto: crypto_kx handshake +
+  XChaCha20-Poly1305 secretstream). `syg mesh` = N in-process peers over
+  REAL sockets. MSH-1.1 (pair/revoke/re-pair, all three verbs gated at the
+  handshake), MSH-2.1 (unpaired probe refused, legacy HTTP gone), MSH-3.1
+  (advertisement + visible fall-through refusal), MSH-4.1 (placement fuzz,
+  audit log), MSH-5.1/5.2 (plugin trust gate: unsigned/untrusted refused,
+  trusted → real dlopen; wasm same gate), MSH-6.1 (signed testimony,
+  tamper→fail), MSH-7.1 (discovery seam static|mdns), MSH-8.1 (per-store key
+  subset), ABI-4.1 (contract reachability), FMT-4 (byte-exact plaintext wire
+  transcript golden).
+- **ADR-035 is a DRAFT awaiting Travis** (the mesh crypto suite pin). Pinned
+  in ch. 14; report to Travis with the R9 milestone.
 - **Rung 8 delivered:** AUT-2.1/2.2 (loop gate + stamp byte-equivalence);
   FRZ-1.1 (codegen = realize's second backend, wired in by a text_cell;
   byte-identical A/B, speedup stat, live hot-swap), FRZ-1.2 (unfreeze =
@@ -22,12 +36,12 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   (worker placement by capability, result by hash), PKG-6.1 (net
   reconnect: reliable-ordered events, coalesced values), PKG-7.1
   (placement fallthrough: only the adapter choice differs).
-- **In-flight:** nothing — rung-8 audit processed (blocker fixed, see
-  the 2026-07-05 rung-8-audit entry). Rung 8 closed at 14/18 + 4
-  hardware-pending, twice-checked.
-- **Next action:** open rung 9 (the mesh: keys/pairing,
-  advertisement, fetch, ops-to-arbiter, placement; MSH-1..8, FMT-4
-  transcripts, PKG-6/7 cross-peer halves; peer-level conformance born).
+- **In-flight:** rung-9 fresh-context audit dispatched (Judgement §3); fix
+  or flag its findings before opening rung 10.
+- **Next action:** process the rung-9 audit, then open **rung 10 (hosts)**:
+  ABI-5 / python-executes-graph notebook test (CPython module; the
+  browser/wasm half). Read ADR-019. This is where MSH-5.2's wasm EXECUTION
+  (deferred from rung 9) actually lands.
 - **Known deliberate gaps:** net transport is harness-modeled (sockets =
   MSH); frozen-artifact state migration on hot-swap pends (EXE-5
   extension; re-strike documented in frz11); plugin types not in
