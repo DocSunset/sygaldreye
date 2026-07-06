@@ -238,13 +238,15 @@ void realize_tick(void* s, const crown::svalue* ins, crown::svalue* outs) {
         doc.defaults.value("__context", nlohmann::ordered_json::object())
             .value("block", 128.0));
     auto e = emit_frozen(doc, ledger, block);
-    auto* store = static_cast<realize_state*>(s)->store;
-    if (!store)
-      throw std::runtime_error("codegen realize needs the store in context");
-    formats::byte_vec bytes(e.source.begin(), e.source.end());
-    execution["artifact"] = {{"/", store->put_raw(bytes, false)}};
     execution["tier"] = e.tier;
     execution["tier_culprit"] = e.tier_culprit;
+    if (!e.source.empty()) {
+      auto* store = static_cast<realize_state*>(s)->store;
+      if (!store)
+        throw std::runtime_error("codegen realize needs the store in context");
+      formats::byte_vec bytes(e.source.begin(), e.source.end());
+      execution["artifact"] = {{"/", store->put_raw(bytes, false)}};
+    }
   }
   outs[0] = gen::make_text(execution.dump());
 }

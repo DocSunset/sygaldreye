@@ -81,3 +81,18 @@ exactly the "always dirty as node property" ADR-015 retired. The present
 is now driven by render_head's chain (clocks are INPUTS, visible as
 wiring). LNG-2.2's fixture gains the head + one edge; every assertion
 unchanged. PKG-4.2 pins the consequence: an unchained draw renders zero.
+
+## FRZ-1.1 — 2026-07-05 (rung-8 audit, blocker fixed)
+The scc_order extraction was NOT verbatim: cut delay edges lost their
+ordering role, so scheduling fell to name order (auditor's probe: renaming
+pulse0→apulse0 moved a 200-sample delay's impulse to 328 interpreted /
+201 frozen). Fixed: Tarjan runs on the cut set, the condensation honors
+ALL edges (cut edges as soft constraints, broken only by real cycles, in
+index order — never by name); a cycle-forced cut edge now means ONE BLOCK
+of latency in BOTH backends (codegen grew double-buffered block-carry).
+frz11 pins three regression shapes: adversarial-name straight-line cut
+(impulse at exactly 200), in-cycle cut (echoes at 0/328/656, byte-equal),
+and the frozen frame/latch path (hello A/B — previously never rendered
+frozen). Codegen also now REFUSES loudly what it would silently drop
+(unknown frame emitters, unbakeable defaults); tier>1 reports without
+emitting.

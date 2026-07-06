@@ -39,6 +39,8 @@ emitted emit_frozen(const organs::graph_doc& doc,
       out.tier_culprit = id + " (" + type + ")";
     }
   }
+  if (out.tier > 1) return out;  // host-bound: the tier report IS the
+                                 // artifact; nothing freestanding to emit
   std::set<std::string> in_block;
   for (const auto& b : doc.defaults.value("__regions", nlohmann::ordered_json::object())
                            .value("block", nlohmann::json::array()))
@@ -107,6 +109,9 @@ emitted emit_frozen(const organs::graph_doc& doc,
              std::to_string(v.get<double>()) + "f;\n";
     else if (v.is_string() && port == "shape" && v == "cosine")
       src += "    " + safe + "_off = 1.57079632679f;\n";
+    else
+      throw std::runtime_error("codegen cannot bake default " + route +
+                               " — refusing to freeze what it would drop");
   }
   src += "  }\n";
   // frame state cells + the pump
@@ -115,6 +120,11 @@ emitted emit_frozen(const organs::graph_doc& doc,
     src += "  float " + subst("$id", id) + "_cell = 0;\n";
   src += "  void pump_block(float* out) {\n"
          "    if (t >= next_frame) {\n";
+  for (const auto& [id, type] : frames)
+    if (type != "lfo" && type != "dac")
+      throw std::runtime_error(
+          "codegen has no frame emitter for " + id + " (" + type +
+          ") — the ledger must grow before this graph freezes");
   for (const auto& [id, type] : frames)
     if (type == "lfo") {
       auto p = subst("$id", id);
@@ -147,15 +157,16 @@ emitted emit_frozen(const organs::graph_doc& doc,
       return it != doc.defaults.end() && it->is_number() ? it->get<double>()
                                                          : 0.0;
     };
-    std::vector<std::pair<std::size_t, std::size_t>> cut_edges;
+    std::vector<std::pair<std::size_t, std::size_t>> cycle_edges, order_edges;
     for (const auto& [f, t2] : doc.edges) {
       auto sid = f.substr(0, f.find('/'));
       auto did = t2.substr(0, t2.find('/'));
       if (!bidx.count(sid) || !bidx.count(did)) continue;
+      order_edges.emplace_back(bidx[sid], bidx[did]);
       if (blocks[bidx[did]].second == "delay" && dlen(did) >= block) continue;
-      cut_edges.emplace_back(bidx[sid], bidx[did]);
+      cycle_edges.emplace_back(bidx[sid], bidx[did]);
     }
-    auto sched = scc_order(blocks.size(), cut_edges);
+    auto sched = scc_order(blocks.size(), cycle_edges, order_edges);
     std::vector<std::pair<std::string, std::string>> ordered;
     for (const auto& comp : sched.components)
       for (auto v : comp) ordered.push_back(blocks[v]);
@@ -164,22 +175,42 @@ emitted emit_frozen(const organs::graph_doc& doc,
   src += "    for (int i = 0; i < " + std::to_string(block) + "; ++i) {\n";
   std::map<std::string, std::size_t> order;
   for (std::size_t k = 0; k < blocks.size(); ++k) order[blocks[k].first] = k;
-  std::set<std::string> carried;  // "src/port" values carried across samples
+  std::map<std::string, std::string> btype;
+  for (const auto& [id, t] : blocks) btype[id] = t;
+  auto dlen2 = [&](const std::string& id) {
+    auto it = doc.defaults.find(id + "/samples");
+    return it != doc.defaults.end() && it->is_number() ? it->get<double>()
+                                                       : 0.0;
+  };
+  // backward edges: a NON-CUT one is an in-island z⁻¹ (one sample); a CUT
+  // one is a cycle-forced block boundary — ONE BLOCK of latency, double-
+  // buffered, exactly the interpreter's stale-buffer read (audit fix)
+  std::set<std::string> carried, block_carried;
   for (const auto& [f, t2] : doc.edges) {
     auto sid = f.substr(0, f.find('/'));
     auto did = t2.substr(0, t2.find('/'));
-    if (order.count(sid) && order.count(did) && order[sid] >= order[did])
-      carried.insert(f);
+    if (!order.count(sid) || !order.count(did) || order[sid] < order[did])
+      continue;
+    bool is_cut = btype[did] == "delay" && dlen2(did) >= block;
+    (is_cut ? block_carried : carried).insert(f);
   }
+  auto edge_is_block_carried = [&](const std::string& from,
+                                   const std::string& to_id) {
+    if (!block_carried.count(from)) return false;
+    return btype[to_id] == "delay" && dlen2(to_id) >= block &&
+           order[from.substr(0, from.find('/'))] >= order[to_id];
+  };
   std::string sink_expr = "0.0f";
   for (const auto& [id, type] : blocks) {
     auto safe = subst("$id", id);
     auto in_expr = [&](const std::string& port) -> std::string {
       for (const auto& [f, t2] : doc.edges)
-        if (t2 == id + "/" + port)
-          return carried.count(f)
-                     ? "carry_" + subst("$id", f.substr(0, f.find('/')))
-                     : "v_" + subst("$id", f.substr(0, f.find('/')));
+        if (t2 == id + "/" + port) {
+          auto sname = subst("$id", f.substr(0, f.find('/')));
+          if (edge_is_block_carried(f, id))
+            return "blkprev_" + sname + "[i]";
+          return carried.count(f) ? "carry_" + sname : "v_" + sname;
+        }
       return safe + "_" + port;  // unconnected: the param
     };
     if (type == "dac") {
@@ -209,9 +240,24 @@ emitted emit_frozen(const organs::graph_doc& doc,
   for (const auto& f : carried)
     src += "      carry_" + subst("$id", f.substr(0, f.find('/'))) + " = v_" +
            subst("$id", f.substr(0, f.find('/'))) + ";\n";
-  src += "    }\n  }\n";
+  for (const auto& f : block_carried)
+    src += "      blkcur_" + subst("$id", f.substr(0, f.find('/'))) +
+           "[i] = v_" + subst("$id", f.substr(0, f.find('/'))) + ";\n";
+  src += "    }\n";
+  for (const auto& f : block_carried) {
+    auto sname = subst("$id", f.substr(0, f.find('/')));
+    src += "    for (int j = 0; j < " + std::to_string(block) +
+           "; ++j) blkprev_" + sname + "[j] = blkcur_" + sname + "[j];\n";
+  }
+  src += "  }\n";
   for (const auto& f : carried)
     src += "  float carry_" + subst("$id", f.substr(0, f.find('/'))) + " = 0;\n";
+  for (const auto& f : block_carried) {
+    auto sname = subst("$id", f.substr(0, f.find('/')));
+    src += "  float blkprev_" + sname + "[" + std::to_string(block) +
+           "] = {};\n  float blkcur_" + sname + "[" +
+           std::to_string(block) + "] = {};\n";
+  }
   src += "};\n";
   // the hosted plugin gate (dlopen) — omitted from freestanding builds so
   // tier-1 artifacts stay OS-symbol-free (FRZ-3). Two contracts: the

@@ -338,15 +338,18 @@ std::unique_ptr<exec_plan::impl> exec_plan::build_impl(
     auto it = doc.defaults.find(id + "/samples");
     return it != doc.defaults.end() && it->is_number() ? it->get<double>() : 0.0;
   };
-  // the ONE schedule (shared with the codegen backend — FRZ byte-identity)
-  std::vector<std::pair<std::size_t, std::size_t>> cut_edges;
+  // the ONE schedule (shared with the codegen backend — FRZ byte-identity):
+  // Tarjan over the CUT set; ordering honors every edge it can, so a cut
+  // delay still evaluates after its feeder unless a real cycle intervenes
+  std::vector<std::pair<std::size_t, std::size_t>> cycle_edges, order_edges;
   for (const auto& e : im->block_edges) {
+    order_edges.emplace_back(e.src, e.dst);
     const auto& dst = im->blocks[e.dst];
     if (std::string(dst.type->name) == "delay" && delay_len(dst.id) >= block)
       continue;
-    cut_edges.emplace_back(e.src, e.dst);
+    cycle_edges.emplace_back(e.src, e.dst);
   }
-  auto sched = scc_order(im->blocks.size(), cut_edges);
+  auto sched = scc_order(im->blocks.size(), cycle_edges, order_edges);
   for (std::size_t ci = 0; ci < sched.components.size(); ++ci) {
     auto& seg = im->segments.emplace_back();
     seg.nodes = sched.components[ci];

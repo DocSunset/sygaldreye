@@ -90,6 +90,69 @@ def frz11_ab_chime_interpreted_vs_frozen():
     half = len(interp) // 2
     assert swap[:half] == interp[:half], "the interpreted half diverged"
     assert swap[half:] == frozen[:half], "the artifact did not take over live"
+    # the 2026-07-05 audit's regression shapes, pinned forever:
+    # (a) a straight-line ≥block delay — the impulse lands at EXACTLY the
+    # delay length, regardless of node names (scheduling must never
+    # depend on names), byte-identical both backends
+    for name in ("pulse0", "apulse0"):
+        g = {"kind": "graph", "lock": {},
+             "topology": {"nodes": {name: {"type": "pulse"},
+                                    "delay0": {"type": "delay"},
+                                    "dac0": {"type": "dac"}},
+                          "edges": [{"from": f"{name}/out", "to": "delay0/in"},
+                                    {"from": "delay0/out", "to": "dac0/in"}]},
+             "defaults": {"delay0/samples": 200.0}}
+        ii = syg("render-graph", "1", stdin=json.dumps(g).encode())
+        ixs = struct.unpack(f"<{len(ii) // 4}f", ii)
+        first = next(i for i, x in enumerate(ixs) if x != 0.0)
+        assert first == 200, f"[{name}] impulse at {first}, wanted 200"
+        c2, _ = _freeze(g)
+        src2 = _peer([{"op": "set-app", "graph": g},
+                      {"op": "open-engine-editor"},
+                      {"op": "engine-edit", "ops": _BACKEND_SPLICE},
+                      {"op": "compile"},
+                      {"op": "cat",
+                       "cid": c2["execution_body"]["artifact"]["/"]}])[4]["bytes"]
+        ff = syg("render-frozen", str(_build_so(src2, f"cut-{name}")), "1")
+        assert ii == ff, f"[{name}] cut-delay straight line diverged"
+    # (b) a ≥block delay inside a REAL cycle: the cut edge carries ONE
+    # BLOCK of latency (echo period = delay + block), both backends
+    loop = {"kind": "graph", "lock": {},
+            "topology": {"nodes": {"pulse0": {"type": "pulse"},
+                                   "add0": {"type": "add"},
+                                   "delay0": {"type": "delay"},
+                                   "fb0": {"type": "vca"},
+                                   "dac0": {"type": "dac"}},
+                         "edges": [{"from": "pulse0/out", "to": "add0/a"},
+                                   {"from": "fb0/out", "to": "add0/b"},
+                                   {"from": "add0/out", "to": "delay0/in"},
+                                   {"from": "delay0/out", "to": "fb0/in"},
+                                   {"from": "add0/out", "to": "dac0/in"}]},
+            "defaults": {"delay0/samples": 200.0, "fb0/gain": 0.9}}
+    li = syg("render-graph", "1", stdin=json.dumps(loop).encode())
+    lxs = struct.unpack(f"<{len(li) // 4}f", li)
+    echoes = [i for i, x in enumerate(lxs) if x != 0.0][:3]
+    assert echoes == [0, 328, 656], f"cut-cycle semantics moved: {echoes}"
+    c3, _ = _freeze(loop)
+    src3 = _peer([{"op": "set-app", "graph": loop},
+                  {"op": "open-engine-editor"},
+                  {"op": "engine-edit", "ops": _BACKEND_SPLICE},
+                  {"op": "compile"},
+                  {"op": "cat",
+                   "cid": c3["execution_body"]["artifact"]["/"]}])[4]["bytes"]
+    lf = syg("render-frozen", str(_build_so(src3, "loop")), "1")
+    assert li == lf, "cut-cycle block-carry diverged between backends"
+    # (c) the frame/latch emission path (lfo -> vca), never A/B'd before
+    hi = syg("render-graph", "2", stdin=json.dumps(_hello()).encode())
+    c4, _ = _freeze(_hello())
+    src4 = _peer([{"op": "set-app", "graph": _hello()},
+                  {"op": "open-engine-editor"},
+                  {"op": "engine-edit", "ops": _BACKEND_SPLICE},
+                  {"op": "compile"},
+                  {"op": "cat",
+                   "cid": c4["execution_body"]["artifact"]["/"]}])[4]["bytes"]
+    hf = syg("render-frozen", str(_build_so(src4, "hello")), "2")
+    assert hi == hf, "the frozen frame/latch path diverged"
 
 
 def aut21_no_raw_frame_loops():

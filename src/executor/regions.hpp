@@ -27,14 +27,20 @@ region_map infer_regions(const organs::graph_doc& g);
 // The ONE block schedule (ADR-013): Tarjan SCC + Kahn over the
 // condensation, members in doc order. The interpreter's segments and the
 // codegen backend both consume THIS — never two orderings (FRZ byte-
-// identity hangs on it). Returns ordered components; self_loop flags
+// identity hangs on it). Two edge sets: `cycle_edges` (explicit ≥block
+// delays cut — they break islands) and `order_edges` (ALL block edges —
+// a cut edge still orders feeder before delay when no cycle forces
+// otherwise; scheduling must never depend on node NAMES). A cut edge
+// left backward by a genuine cycle means ONE BLOCK of latency at that
+// edge, in both backends. Returns ordered components; self_loop flags
 // single-node components with a self edge.
 struct scc_schedule {
   std::vector<std::vector<std::size_t>> components;
   std::vector<bool> self_loop;  // parallel to components
 };
-scc_schedule scc_order(std::size_t n,
-                       const std::vector<std::pair<std::size_t, std::size_t>>&
-                           edges);  // edges pre-cut by the caller
+scc_schedule scc_order(
+    std::size_t n,
+    const std::vector<std::pair<std::size_t, std::size_t>>& cycle_edges,
+    const std::vector<std::pair<std::size_t, std::size_t>>& order_edges);
 
 }  // namespace syg::executor

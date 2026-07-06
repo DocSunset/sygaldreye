@@ -110,13 +110,17 @@ region_map infer_regions(const organs::graph_doc& g) {
 }
 
 
-// moved VERBATIM from the interpreter's segment builder (2026-07-05) so
-// the codegen backend shares the schedule instead of re-deriving it
+// The schedule (2026-07-05 audit fix): Tarjan runs on the CUT edge set
+// (cycle breaking); the condensation orders by ALL edges as hard
+// constraints where acyclic and SOFT where a cut edge closes a loop —
+// Kahn drains hard-ready components in index order, so the result never
+// depends on node names.
 scc_schedule scc_order(
     std::size_t n,
-    const std::vector<std::pair<std::size_t, std::size_t>>& edges) {
+    const std::vector<std::pair<std::size_t, std::size_t>>& cycle_edges,
+    const std::vector<std::pair<std::size_t, std::size_t>>& order_edges) {
   std::vector<std::vector<std::size_t>> adj(n);
-  for (const auto& [s2, d] : edges) adj[s2].push_back(d);
+  for (const auto& [s2, d] : cycle_edges) adj[s2].push_back(d);
   std::vector<int> comp(n, -1), low(n), num(n, -1);
   std::vector<std::size_t> stk;
   std::vector<bool> on(n, false);
@@ -146,32 +150,54 @@ scc_schedule scc_order(
   };
   for (std::size_t v = 0; v < n; ++v)
     if (num[v] < 0) dfs(dfs, v);
-  std::vector<std::set<int>> cadj(static_cast<std::size_t>(ncomp));
-  std::vector<int> indeg(static_cast<std::size_t>(ncomp), 0);
-  for (const auto& [s2, d] : edges)
+  auto nc = static_cast<std::size_t>(ncomp);
+  // hard constraints: the acyclic (cut) set — Kahn can always drain them.
+  // soft constraints: every remaining edge — honored unless a cycle of
+  // components (via cut edges) forces a deterministic index-order break.
+  std::vector<std::set<int>> hard(nc), soft(nc);
+  std::vector<int> hard_in(nc, 0), soft_in(nc, 0);
+  for (const auto& [s2, d] : cycle_edges)
     if (comp[s2] != comp[d] &&
-        cadj[static_cast<std::size_t>(comp[s2])].insert(comp[d]).second)
-      ++indeg[static_cast<std::size_t>(comp[d])];
-  std::vector<std::vector<std::size_t>> members(
-      static_cast<std::size_t>(ncomp));
+        hard[static_cast<std::size_t>(comp[s2])].insert(comp[d]).second)
+      ++hard_in[static_cast<std::size_t>(comp[d])];
+  for (const auto& [s2, d] : order_edges) {
+    auto cs = comp[s2], cd = comp[d];
+    if (cs == cd) continue;
+    if (hard[static_cast<std::size_t>(cs)].count(cd)) continue;
+    if (soft[static_cast<std::size_t>(cs)].insert(cd).second)
+      ++soft_in[static_cast<std::size_t>(cd)];
+  }
+  std::vector<std::vector<std::size_t>> members(nc);
   for (std::size_t v = 0; v < n; ++v)
     members[static_cast<std::size_t>(comp[v])].push_back(v);
-  std::vector<bool> self_loop_by_comp(static_cast<std::size_t>(ncomp), false);
-  for (const auto& [s2, d] : edges)
+  std::vector<bool> self_loop_by_comp(nc, false);
+  for (const auto& [s2, d] : cycle_edges)
     if (s2 == d) self_loop_by_comp[static_cast<std::size_t>(comp[s2])] = true;
   scc_schedule out;
-  std::vector<int> ready;
-  for (int c = 0; c < ncomp; ++c)
-    if (indeg[static_cast<std::size_t>(c)] == 0) ready.push_back(c);
-  while (!ready.empty()) {
-    int c = ready.back();
-    ready.pop_back();
-    out.components.push_back(members[static_cast<std::size_t>(c)]);
-    out.self_loop.push_back(self_loop_by_comp[static_cast<std::size_t>(c)]);
-    for (auto d : cadj[static_cast<std::size_t>(c)])
-      if (--indeg[static_cast<std::size_t>(d)] == 0) ready.push_back(d);
+  std::vector<bool> done(nc, false);
+  for (std::size_t emitted = 0; emitted < nc; ++emitted) {
+    int pick = -1;
+    for (std::size_t c = 0; c < nc; ++c)  // fully-ready first, index order
+      if (!done[c] && hard_in[c] == 0 && soft_in[c] == 0) {
+        pick = static_cast<int>(c);
+        break;
+      }
+    if (pick < 0)  // a cut-edge cycle: break it deterministically
+      for (std::size_t c = 0; c < nc; ++c)
+        if (!done[c] && hard_in[c] == 0) {
+          pick = static_cast<int>(c);
+          break;
+        }
+    if (pick < 0) throw std::runtime_error("the block schedule is stuck");
+    auto pc = static_cast<std::size_t>(pick);
+    done[pc] = true;
+    out.components.push_back(members[pc]);
+    out.self_loop.push_back(self_loop_by_comp[pc]);
+    for (auto d2 : hard[pc]) --hard_in[static_cast<std::size_t>(d2)];
+    for (auto d2 : soft[pc]) --soft_in[static_cast<std::size_t>(d2)];
   }
   return out;
+
 }
 
 }  // namespace syg::executor
