@@ -621,6 +621,119 @@ def pkg61_net_reconnect_discipline():
     assert out["reconnect_value_posts"] == 1, out
 
 
+def _tri_scene(stray=False):
+    # fixtures/golden-frame.md: one red triangle through the head's chain;
+    # optionally a SECOND triangle elsewhere on a draw OUTSIDE the chain
+    nodes = {"head0": {"type": "render_head"},
+             "pts0": {"type": "spanv"},
+             "mesh0": {"type": "mesh_from_spans"},
+             "surf0": {"type": "surface_flat"},
+             "draw0": {"type": "draw"}}
+    edges = [{"from": "head0/frame", "to": "draw0/tick"},
+             {"from": "pts0/out", "to": "mesh0/positions"},
+             {"from": "mesh0/out", "to": "draw0/mesh"},
+             {"from": "surf0/out", "to": "draw0/surface"}]
+    defaults = {"pts0/values": [[-0.5, -0.5], [0.5, -0.5], [0.0, 0.5]],
+                "surf0/r": 1.0, "surf0/g": 0.0, "surf0/b": 0.0,
+                "surf0/a": 1.0, "mesh0/dx": 0.0, "mesh0/dy": 0.0}
+    if stray:
+        nodes.update({"pts1": {"type": "spanv"},
+                      "mesh1": {"type": "mesh_from_spans"},
+                      "stray0": {"type": "draw"}})
+        edges += [{"from": "pts1/out", "to": "mesh1/positions"},
+                  {"from": "mesh1/out", "to": "stray0/mesh"},
+                  {"from": "surf0/out", "to": "stray0/surface"}]
+        defaults["pts1/values"] = [[0.6, 0.6], [0.9, 0.6], [0.75, 0.9]]
+    return {"kind": "graph", "lock": {},
+            "topology": {"nodes": nodes, "edges": edges},
+            "defaults": defaults}
+
+
+def _frames(req):
+    from _helpers import frame_stats
+    w, h = req["size"]
+    raw = syg("frame", stdin=json.dumps(req).encode())
+    n = req.get("frames", 1)
+    assert len(raw) == n * w * h * 4, f"got {len(raw)} bytes for {n} frames"
+    return [frame_stats(raw[i * w * h * 4:(i + 1) * w * h * 4], w, h)
+            for i in range(n)]
+
+
+def pkg43_pixels_are_real():
+    from _helpers import ndc_to_px
+    W = H = 128
+    # analytic triangle: area 0.5 of NDC's 4.0 -> 1/8 coverage;
+    # centroid NDC (0, -1/6)
+    exp_cov = W * H / 8.0
+    exp_cx, exp_cy = ndc_to_px(0.0, -1.0 / 6.0, W, H)
+    # two frames; a set_param op between them translates the triangle
+    # +0.4 NDC in x (golden-frame properties 1-4, 6)
+    f0, f1 = _frames({"graph": _tri_scene(), "frames": 2, "size": [W, H],
+                      "ops": [{"frame": 1, "route": "mesh0/dx",
+                               "value": 0.4}]})
+    assert abs(f0["coverage"] - exp_cov) <= 0.15 * exp_cov, \
+        f"coverage {f0['coverage']} vs analytic {exp_cov}"
+    assert abs(f0["cx"] - exp_cx) <= 0.03 * W and \
+           abs(f0["cy"] - exp_cy) <= 0.03 * H, \
+        f"centroid ({f0['cx']:.1f},{f0['cy']:.1f}) vs ({exp_cx:.1f},{exp_cy:.1f})"
+    dx_px = f1["cx"] - f0["cx"]
+    assert abs(dx_px - 0.2 * W) <= 0.2 * (0.2 * W), \
+        f"param op moved centroid {dx_px:.1f}px, predicted {0.2 * W:.1f}px"
+    assert abs(f1["cy"] - f0["cy"]) <= 0.03 * H, "y centroid drifted"
+    assert len(f0["colors"]) <= 16, f"{len(f0['colors'])} distinct colors"
+    # property 5: the stray (unchained) draw contributes ZERO coverage
+    s0, = _frames({"graph": _tri_scene(stray=True), "frames": 1,
+                   "size": [W, H]})
+    assert s0["coverage"] == f0["coverage"], \
+        f"unchained draw rendered: {s0['coverage']} vs {f0['coverage']} px"
+
+
+def pkg44_shell_is_the_same_peer():
+    # the shell is the ORDINARY peer: render executor presenting offscreen
+    # under test; pointer input arrives ONLY as a package source node; a
+    # pointer click bangs op_buttons whose ops land in the arbiter — the
+    # SAME path every gesture graph uses (EDR-7, N4)
+    from _helpers import frame_stats
+    W = H = 128
+    g = _tri_scene()
+    g["topology"]["nodes"].update({
+        "ptr0": {"type": "pointer"},
+        "ob_add": {"type": "op_button"},
+        "ob_wire": {"type": "op_button"},
+        "k0": {"type": "cell"},
+        "arb0": {"type": "arbiter_inlet"}})
+    g["topology"]["edges"] += [
+        {"from": "ptr0/click", "to": "ob_add/in"},
+        {"from": "ptr0/click", "to": "ob_wire/in"},
+        {"from": "ob_add/out", "to": "arb0/in"},
+        {"from": "ob_wire/out", "to": "arb0/in"}]
+    g["defaults"].update({
+        "k0/k": 0.4,
+        "ob_add/op": json.dumps({"op": "add_node", "a": "noise0",
+                                 "b": "noise", "author": "pointer"}),
+        "ob_wire/op": json.dumps({"op": "add_edge", "a": "k0/out",
+                                  "b": "mesh0/dx", "author": "pointer"})})
+    out = syg("shell", stdin=json.dumps(
+        {"graph": g, "size": [W, H], "offscreen": True,
+         "script": [{"frame": True},
+                    {"pointer": {"x": 0.1, "y": 0.1, "buttons": 1}},
+                    {"settle": True},
+                    {"frame": True},
+                    {"doc": True}]}).encode())
+    fsz = W * H * 4
+    f0 = frame_stats(out[:fsz], W, H)
+    f1 = frame_stats(out[fsz:2 * fsz], W, H)
+    doc = json.loads(out[2 * fsz:])
+    # the gesture ADDED a node through the arbiter (persisted surface grew)
+    assert "noise0" in doc["topology"]["nodes"], \
+        sorted(doc["topology"]["nodes"])
+    # and the wired cell moved the triangle: the next frame's centroid
+    # shifted +0.4 NDC = +0.2*W px in x
+    dx_px = f1["cx"] - f0["cx"]
+    assert abs(dx_px - 0.2 * W) <= 0.2 * (0.2 * W), \
+        f"pointer gesture moved centroid {dx_px:.1f}px, predicted {0.2 * W:.1f}"
+
+
 TESTS = {
     "AUT-2.1": aut21_no_raw_frame_loops,
     "AUT-2.2": aut22_stamp_preserves_block_semantics,
@@ -634,8 +747,11 @@ TESTS = {
     "PKG-2.1": pkg21_audio_package_no_behavior_change,
     "PKG-3.1": None,
     "PKG-3.2": None,
+    "PKG-3.3": None,  # ADR-037 + Quest in hand (embodiment plan, Phase E)
     "PKG-4.1": pkg41_gl_boundary_gate,
     "PKG-4.2": pkg42_unchained_draw_does_not_render,
+    "PKG-4.3": pkg43_pixels_are_real,
+    "PKG-4.4": pkg44_shell_is_the_same_peer,
     "PKG-5.1": pkg51_worker_placement_by_capability,
     "PKG-6.1": pkg61_net_reconnect_discipline,
     "PKG-7.1": pkg71_placement_is_fallthrough,

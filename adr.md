@@ -166,3 +166,18 @@ Rationale: nothing exotic, nothing hand-rolled — libsodium is the maturity imp
 ADR-033's native-clause taxonomy (machinery | floor | maturity | scaffolding) has no category for a node whose ENTIRE PURPOSE is to exercise the machinery from the test side — an audit node that deliberately violates a contract (an RT-allocator that proves the no-alloc audit bites), a fault-matrix provocateur (nan_bomb, spin, sleeper), or an ABI demonstration struct (widget_a/widget_b, the "one declaration line adds a port" pair). These are PERMANENT — a deliberate-violation probe can never be a well-behaved real native, because a real native never commits the violation — yet they are not scaffolding (nothing dissolves them), not the per-sample floor (many have no kernel at all), not machinery in the world-touching sense, and not a maturity import. The rung-12 audit caught three re-aims stretching `floor`/`machinery` to cover exactly this gap.
 
 Add a fifth clause: **`fixture`** — a node that exists solely to exercise or demonstrate the system's own contracts from the conformance side; permanent by nature, never shipped in a movement, and correct precisely because it does the thing a real native must not. Examples: `fault_natives` (TCF-4 provocateurs), `testnodes` (ABI-2/3 audit bodies), `widgets` (the ABI-1.1 declaration pair). The clause gate (COR-5.1) accepts it as a fifth valid marker; the dissolution gate is unaffected (a `fixture` names no criterion). Nothing else changes: fixtures are still gate-checked to carry a clause on line 1, still live under `src/nodes`, and are never part of the shipped core (the native ledger's ~70 count excludes them, as it already excludes test scaffolding). Drafted 2026-07-06 by the builder after the rung-12 audit; awaiting Travis.
+
+## ADR-037: The view is an edge (DRAFT — Travis to ratify)
+
+The render/xr head takes `view_pose` (position + orientation; catalog kinds
+vec3 + quat) as an ordinary INPUT port, default-wired from the `head_pose`
+source node. Machinery composes per-eye views by expressing the runtime's
+head-to-eye transforms (xrLocateViews) relative to the incoming pose; eye
+projection matrices stay machinery. Rationale: N4 (humans and agents share
+paths) and L22 — where the camera sits is authoring, not machinery.
+"Eyeballs in your hand" must be an edit, not a hack: rewiring `view_pose`
+from head_pose to a controller pose is one live graph edit, undoable like
+any other (PKG-3.3). On the host the same port feeds the window's view —
+the shell and the headset differ only in which sources exist. Drafted
+2026-07-06 by the builder alongside planning/embodiment_plan.md Phase 0;
+awaiting Travis.

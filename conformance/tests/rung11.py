@@ -3,7 +3,7 @@ from the criterion text as reached (BUILDER.md loop). The editor is graphs
 editing graphs: a live plan whose arbiter takes edit ops exactly as the
 gesture nodes emit them. Never weaken; amend the book by ADR."""
 import json
-from _helpers import syg, HERE
+from _helpers import Pending, syg, HERE
 
 ROOT = HERE.parent
 
@@ -311,8 +311,39 @@ def edr81_probe_does_not_move_regions():
     assert all(-1.001 <= x <= 1.001 for x in lfo), "LFO out of range"
 
 
+def edr12_surface_is_graphs():
+    # EDR-1.2: every editor-surface behavior lives in graphs/editor/*.json;
+    # the registered natives exactly equal vocabulary/packages.json; no
+    # source file under src/nodes implements an editor-surface concept
+    import json as _json, re as _re
+    ed = ROOT / "graphs" / "editor" / "editor.json"
+    if not ed.exists():
+        raise Pending("graphs/editor/ not authored yet "
+                      "(planning/embodiment_plan.md Phase C)")
+    pkgs = _json.loads((ROOT / "vocabulary" / "packages.json").read_text())
+    declared = {n for names in pkgs["packages"].values() for n in names}
+    registered = set(_json.loads(syg("palette")))
+    assert registered == declared, \
+        f"native set drifted from packages.json: {sorted(registered ^ declared)}"
+    banned = _re.compile(
+        r"card|palette_mesh|wire_drag|slider_drag|dwell|handle_pick|gesture_",
+        _re.IGNORECASE)
+    hits = []
+    for f in sorted((ROOT / "src" / "nodes").rglob("*")):
+        if f.suffix not in {".cpp", ".hpp"}:
+            continue
+        for i, ln in enumerate(f.read_text().splitlines(), 1):
+            if banned.search(ln):
+                hits.append(f"{f.relative_to(ROOT)}:{i}")
+    assert not hits, f"editor-surface concept in native source (L22): {hits}"
+    # every surface graph parses through the persisted surface (LNG-8)
+    for gf in sorted((ROOT / "graphs" / "editor").glob("*.json")):
+        syg("roundtrip", stdin=gf.read_bytes())
+
+
 TESTS = {
     "EDR-1.1": edr11_palette_swap_changes_behavior,
+    "EDR-1.2": edr12_surface_is_graphs,
     "EDR-2.1": edr21_defaults_not_live_values,
     "EDR-3.1": edr31_undo_restores_exactly,
     "EDR-5.1": edr51_walk_and_mark,
@@ -321,5 +352,8 @@ TESTS = {
     "EDR-6.1": edr61_live_vs_fixed_transclusion,
     "EDR-6.2": edr62_cpp_roundtrip_corpus,
     "EDR-7.1": edr71_human_and_agent_identical,
+    # EDR-7.2 pends until Phase C pins the palette layout the
+    # pointer script must hit (embodiment plan)
+    "EDR-7.2": None,
     "EDR-8.1": edr81_probe_does_not_move_regions,
 }

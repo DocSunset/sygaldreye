@@ -266,7 +266,8 @@
  "EDR-1": {
   "chapter": "09-editor-documents.md",
   "criteria": {
-   "EDR-1.1": "replacing the palette subgraph live (swap+migrate) changes editor"
+   "EDR-1.1": "replacing the palette subgraph live (swap+migrate) changes editor",
+   "EDR-1.2": "the surface is graphs: every editor-surface behavior \u2014 cards,"
   },
   "name": "editor is nodes",
   "rung": 11,
@@ -322,7 +323,8 @@
  "EDR-7": {
   "chapter": "09-editor-documents.md",
   "criteria": {
-   "EDR-7.1": "the full editor integration suite runs twice \u2014 human-input"
+   "EDR-7.1": "the full editor integration suite runs twice \u2014 human-input",
+   "EDR-7.2": "authoring from scratch: a scripted gesture session in the host"
   },
   "name": "agents as peers",
   "rung": 11,
@@ -791,7 +793,8 @@
   "chapter": "07-capability-packages.md",
   "criteria": {
    "PKG-3.1": "on-device: editor operable in-headset with the xr executor owning",
-   "PKG-3.2": "head_pose/controller data reaches the graph only through package"
+   "PKG-3.2": "head_pose/controller data reaches the graph only through package",
+   "PKG-3.3": "the view is an edge (ADR-037): rewiring the head's view_pose"
   },
   "name": "xr package",
   "rung": 8,
@@ -801,7 +804,9 @@
   "chapter": "07-capability-packages.md",
   "criteria": {
    "PKG-4.1": "`grep -rn glDraw components/ | grep -v render_region` is empty.",
-   "PKG-4.2": "a draw node not wired into the head's chain does not render."
+   "PKG-4.2": "a draw node not wired into the head's chain does not render.",
+   "PKG-4.3": "pixels are real: `syg frame` renders a fixture graph headless",
+   "PKG-4.4": "the shell is the same peer: a windowed host shell is the"
   },
   "name": "render package",
   "rung": 8,

@@ -130,3 +130,20 @@ region_map.mappings — "derived; NEVER persisted"), and the label reads
 "compiler-inserted <kind>". The test's load-bearing witness stays the
 substantive one (a derived latch present before, none after the gesture-driven
 smoother replacement).
+
+## 2026-07-06 — Phase 0 of the embodiment plan (new criteria + witnesses)
+
+Added criteria (one-way ratchet, Judgement §1; plan:
+planning/embodiment_plan.md): **PKG-4.3** (pixels are real — `syg frame`
++ fixtures/golden-frame.md property checks; the pkg42 chain law restated
+in pixels), **PKG-4.4** (the shell is the same peer; pointer/key input
+only as source nodes), **PKG-3.3** (the view is an edge — eyeballs-in-hand
+as one live graph edit; gated on ADR-037, drafted), **EDR-1.2** (the
+editor surface is graphs — natives == packages.json exactly, plus an L22
+grep over src/nodes for editor-surface concepts), **EDR-7.2** (authoring
+hello-cosine from scratch through pointer-driven gestures). PKG-4.3/4.4
+tests are written test-first and pend on their subcommands; EDR-1.2
+self-activates when graphs/editor/ lands; PKG-3.3/EDR-7.2 are registered
+pending (hardware / Phase C layout). golden-frame.md fixes the pixel
+witness discipline: properties, never byte-golden images (GPU variance —
+a byte-golden would pass on exactly one machine).

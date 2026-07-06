@@ -4,7 +4,9 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
 
 ## RESUME BLOCK (keep this section current at every stopping point)
 
-- **Current state:** 161 pass / 0 fail / 5 pending / 0 uncovered.
+- **Current state:** 161 pass / 0 fail / 10 pending / 0 uncovered
+  (embodiment Phase 0 landed 2026-07-06: +PKG-4.3/4.4, PKG-3.3, EDR-1.2,
+  EDR-7.2 — the runner now points at the embodiment work itself).
   **Rungs 1–9, 11, 12 GREEN** (7,8,9,11 audited). Rung 8 at 14/18 (four
   HARDWARE-BOUND: FRZ-4.1/PKG-3.1/3.2 need the Quest, PKG-8.1 needs USB
   hot-plug). **Rung 10 (hosts) SKIPPED** (Travis, 2026-07-06 — ABI-5 /
@@ -60,14 +62,23 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   EDR-5 here/path/frontier/mark + 100k-link streamed pagination, EDR-6.1
   live-vs-fixed transclusion); `syg document` (EDR-6.2 C++ round-trip over
   fixtures/cpp_corpus). graphs/palette_{osc,noise}.json new.
-- **Next action:** process the rung-12 audit. Then the buildable greenfield
+- **Embodiment plan:** `planning/embodiment_plan.md` (2026-07-06) — the
+  prescriptive path from headless-green to the in-headset editor (pixels →
+  host shell → editor-surface-as-graphs → Quest → xr → devices). Its
+  Phase 0 authors the new criteria (PKG-4.3/4.4, PKG-3.3, EDR-1.2/7.2,
+  ADR-037 draft) so the runner itself points at the work.
+- **Next action:** Phase A of planning/embodiment_plan.md — real pixels:
+  `syg frame` + src/render/{egl_surface,render_region} machinery +
+  mesh_from_spans/surface_flat/draw natives (PKG-4.3). The rung-12 audit is
+  PROCESSED (CLEAR — see 2026-07-06 entry). After Phase A the buildable greenfield
   is COMPLETE. Remaining to reach the literal final message: (a) rung 8's 4
   hardware-bound criteria (need Quest + USB audio device); (b) rung 10 (ABI-5
   + python-notebook + wasm exec), skipped per Travis. Both are Travis/hardware
   gated, not code-blocked.
 - **Deferred:** rung 10 (ABI-5 three-packagings + python-notebook; MSH-5.2's
   wasm EXECUTION). Rung 8 hardware items (revisit with the Quest / a USB DAC).
-- **ADR-035 (mesh crypto suite) still a DRAFT awaiting Travis's ratification.**
+- **ADR-035 (mesh crypto) and ADR-037 (the view is an edge) are DRAFTS
+  awaiting Travis's ratification.** ADR-037 gates Phase E's PKG-3.3.
 - **Known deliberate gaps:** net transport is harness-modeled (sockets =
   MSH); frozen-artifact state migration on hot-swap pends (EXE-5
   extension; re-strike documented in frz11); plugin types not in

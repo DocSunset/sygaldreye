@@ -64,11 +64,27 @@ EglContext/EyeSwapchain; input flows through the xr contract as source nodes
   the frame loop; `grep pump_xr_sources` empty.
 - PKG-3.2: head_pose/controller data reaches the graph only through package
   source nodes (agents and humans share the same path — N4).
+- PKG-3.3: the view is an edge (ADR-037): rewiring the head's view_pose
+  input from the head_pose source to a controller pose source is one live
+  graph edit — no restart, no native recompile; undo restores it. Scripted
+  against simulated pose sources; the on-device run is blessed.
 
 **PKG-4 (render package).** render_region is the GL boundary and the only
 place that says GL; draw order is the event chain from render_head.
 - PKG-4.1: `grep -rn glDraw components/ | grep -v render_region` is empty.
 - PKG-4.2: a draw node not wired into the head's chain does not render.
+- PKG-4.3: pixels are real: `syg frame` renders a fixture graph headless
+  (surfaceless EGL) to raw RGBA and the fixtures/golden-frame.md property
+  checks pass — exact clear color, drawn-geometry coverage within bounds,
+  color centroid within tolerance, a scripted set_param op between frames
+  moves the centroid in the predicted direction, and a draw node outside
+  the head's chain contributes zero coverage (PKG-4.2 in pixels).
+- PKG-4.4: the shell is the same peer: a windowed host shell is the
+  ordinary booted peer with the render executor presenting to a window
+  (offscreen surface under test); pointer/key input reaches the graph only
+  as package source nodes; a scripted offscreen session drives a pointer
+  gesture that adds a node and the next frame's properties change
+  accordingly.
 
 **PKG-5 (worker/derivation).** The worker region runs derivation-mode
 pipelines (EXE-7) and is placeable cross-peer.

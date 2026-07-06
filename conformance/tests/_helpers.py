@@ -128,3 +128,27 @@ def golden_audio_check(x, sr=48000):
 def fixture(name):
     p = FIX / name
     return p.read_text() if not name.endswith(".json") else json.loads(p.read_text())
+
+
+def frame_stats(rgba, w, h, clear=(0, 0, 0, 255)):
+    """fixtures/golden-frame.md pixel properties over one raw RGBA8 frame:
+    foreground coverage (pixels != clear), coverage centroid in pixel
+    coords, and the set of distinct colors. Properties, never bytes."""
+    assert len(rgba) == w * h * 4, f"frame size {len(rgba)} != {w}x{h}x4"
+    cov, sx, sy = 0, 0.0, 0.0
+    colors = set()
+    for i in range(w * h):
+        px = tuple(rgba[4 * i:4 * i + 4])
+        colors.add(px)
+        if px != tuple(clear):
+            cov += 1
+            sx += i % w
+            sy += i // w
+    cx = sx / cov if cov else -1.0
+    cy = sy / cov if cov else -1.0
+    return {"coverage": cov, "cx": cx, "cy": cy, "colors": colors}
+
+
+def ndc_to_px(x, y, w, h):
+    """NDC (-1..1, y up) -> pixel coords (y down) for analytic expectations."""
+    return (x + 1.0) / 2.0 * w, (1.0 - y) / 2.0 * h

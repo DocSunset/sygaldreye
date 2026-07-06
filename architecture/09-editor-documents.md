@@ -61,6 +61,12 @@ example below).
 is node compositions replaceable at runtime.
 - EDR-1.1: replacing the palette subgraph live (swap+migrate) changes editor
   behavior without restart.
+- EDR-1.2: the surface is graphs: every editor-surface behavior — cards,
+  wires, labels, palette, layout, gesture logic — lives in
+  graphs/editor/*.json over the render/text leaf vocabulary; the set of
+  registered natives exactly equals vocabulary/packages.json, and no
+  source file under src/ implements an editor-surface concept (gate grep:
+  card/palette/wire_drag/slider_drag/dwell/gesture).
 
 **EDR-2 (defaults discipline).** Serialize captures defaults; connected
 inlets are meters; editing one updates the fallback.
@@ -98,6 +104,11 @@ declining a proposed renderer falls back to the reader's kind decoder.
 nodes over the mesh; no privileged agent API exists.
 - EDR-7.1: the full editor integration suite runs twice — human-input
   simulation and agent-source driving — with identical resulting graphs.
+- EDR-7.2: authoring from scratch: a scripted gesture session in the host
+  shell, starting from an EMPTY graph, authors hello-cosine end-to-end
+  through pointer-source-driven gesture ops (spawn from palette, wire,
+  set params, save); the saved doc's topology matches the fixture modulo
+  generated ids, and its render passes the golden-audio properties.
 
 **EDR-8 (observability).** Pull-observability (values snapshot, probes) and
 purpose-built engine-graph probes; audio inspection emits
