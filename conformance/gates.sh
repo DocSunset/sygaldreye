@@ -28,7 +28,7 @@ if [ -d src ]; then
   # ADR-034 extends the scan to the executor package (the compile walk)
   find src/nodes src/organs src/executor \( -name '*.cpp' -o -name '*.hpp' \) 2>/dev/null \
     | grep -v generated | while read -r f; do
-    head -1 "$f" | grep -qE '^// clause: (machinery|floor|maturity|scaffolding)' \
+    head -1 "$f" | grep -qE '^// clause: (machinery|floor|maturity|scaffolding|fixture)' \
       || { say COR-5.1 "native without a clause marker: $f"; exit 1; }
   done || fail=1
   # ADR-034 — a scaffolding marker names the criterion that dissolves it

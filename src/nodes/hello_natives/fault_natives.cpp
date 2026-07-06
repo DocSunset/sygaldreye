@@ -1,4 +1,4 @@
-// clause: machinery — the fault-matrix provocateurs (TCF-4): nan_bomb (emits
+// clause: fixture (ADR-036) — the fault-matrix provocateurs (TCF-4): nan_bomb (emits
 // NaN -> NaN-guard/sever), spin (hangs -> timeout ladder), sleeper (blocks ->
 // worker-region rule). They exercise the trap/quarantine/timeout MACHINERY. A
 // fault matrix needs DELIBERATE provocateurs, so this is permanent test

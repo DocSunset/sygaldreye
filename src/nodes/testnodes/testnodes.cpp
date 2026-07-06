@@ -1,4 +1,4 @@
-// clause: machinery — the ABI-2/3 audit node bodies: a deliberate RT-allocator
+// clause: fixture (ADR-036) — the ABI-2/3 audit node bodies: a deliberate RT-allocator
 // (proves the no-RT-alloc audit bites) and a fault injector. Permanent audit
 // fixtures — a violation probe cannot be a well-behaved real native, so the
 // CNF-1 "real fallible natives carry these assertions" dissolution a prior

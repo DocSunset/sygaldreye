@@ -1,7 +1,9 @@
-// clause: floor — the ABI-1.1 kind-succession fixture (widget v1 -> v2: one
-// declaration line adds a port + codec + binding). No longer scaffolding: it
-// IS a real additive kind succession, exercised as one by CNF-4 (the additive
-// gate admits it because the port was ADDED, ABI-1.1 stays green).
+// clause: fixture (ADR-036) — the ABI-1.1 demonstration pair (widget_b is
+// widget_a plus one declaration line: `brightness`). Permanent: it is the
+// fixture rung 2's ABI-1.1 test consumes (descriptors, codec-selftest,
+// bindings), not scaffolding. The port-addition it demonstrates classifies as
+// an ADDITIVE kind succession (CNF-4 cross-checks the descriptor delta), but
+// its permanence comes from ABI-1.1, not from any dissolution.
 #pragma once
 #include "ports.hpp"
 

@@ -113,12 +113,12 @@ def cnf4_kind_succession():
     assert r[3]["graph_changed"] is True, r[3]
     assert r[3]["graph_old"] != r[3]["graph_new"], r[3]
 
-    # the widget_a -> widget_b pair (ABI-1.1's "one declaration line adds a
-    # port") IS a real kind succession: widget_b's ports are widget_a's plus
-    # exactly one. CNF-4 exercises it as an ADDITIVE succession — admitted
-    # because the port was ADDED (ABI-1.1 stays green), deriving @0.1.0. This
-    # is what dissolves the widget scaffolding: the demonstration now lives in
-    # the real succession machinery, not an ad-hoc pair.
+    # cross-check: the widget_a -> widget_b descriptor delta (ABI-1.1's "one
+    # declaration line adds a port") classifies as an ADDITIVE kind succession
+    # — the port was ADDED, so ABI-1.1 stays green and the class gate admits
+    # it (@0.1.0). The widgets are a permanent ABI-1.1 fixture (rung 2), not
+    # scaffolding; this is a corroborating tie between the port delta and the
+    # version machinery, not the widgets flowing through the succession op.
     gen = ROOT / "build" / "generated"
     pa = set(json.loads((gen / "widget_a.descriptor.json").read_text())["ports"])
     pb = set(json.loads((gen / "widget_b.descriptor.json").read_text())["ports"])

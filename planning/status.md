@@ -79,6 +79,43 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   drawn blood once (dac marker).
 - **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
 
+## 2026-07-06 — Rung-12 fresh-context audit (Judgement §3): CLEAR, no blockers
+
+Auditor (fresh context, book + rung-12 diff) verdict: rung 12 is substantially
+REAL for an inherently-meta rung. NO BLOCKERS. Everything load-bearing is
+real: real loopback sockets + handshake (CNF-2 wire property), real
+dlopen+pump of a rung-8 frozen movement (CNF-3/COR-4), real store
+commit_derivation memo (CNF-4 lazy migrate), content-addressed topology
+invariance (CNF-4 lock-swap), a real M/m/p supersedes walk with ref-sugar
+resolving to the chain hash (CNF-6), and a self-gate with DEMONSTRATED teeth
+(neutering the gate reddens CNF-5). No vacuous witnesses.
+
+**Should-fixes (all FIXED):** the four dissolution re-aims reached correct
+outcomes but stretched the clause taxonomy. Root fix applied: **ADR-036
+(DRAFT)** adds a fifth clause `fixture` for permanent test fixtures /
+deliberate provocateurs — widgets (ABI-1.1 pair), testnodes (ABI-2/3 audit
+bodies), fault_natives (TCF-4 provocateurs) are all relabeled `fixture` with
+honest rationale; gates.sh COR-5.1 accepts it. testnodes.design.md reconciled
+(was still "scaffolding"). The widget CNF-4 coda comment corrected: widgets
+are permanent because of ABI-1.1/rung-2, NOT because CNF-4 runs them through
+the succession op (it doesn't — the coda is a corroborating descriptor-delta
+cross-check).
+
+**Flagged (accepted meta-modeling, recorded verbatim):**
+- **CNF-2:** the "candidate binary it did not link" is one `syg mesh` binary +
+  a `mutant:` config flag; only the WIRE interaction (real loopback dial/
+  handshake/send/recv, candidate's own handler applying the refusal) is real,
+  not a separately-compiled unlinked artifact. The wire-only detection and the
+  named-requirement failure are genuine.
+- **CNF-5:** the "suite run by N" is a hand-supplied {criterion:bool} dict, not
+  the 161-test suite executed by an N binary against N+1; the GATE LOGIC
+  (regressed-green → named rejection) and PROVENANCE (commit_derivation) are
+  real and teeth-tested.
+- **CNF-4 widget coda:** the descriptor delta is real (ABI-1.1's property); the
+  succession version bump is fed a hand-written criteria dict, not the widgets
+  themselves. CNF-4's own criterion is fully satisfied by the abstract-kind
+  machinery independently of the coda.
+
 ## 2026-07-06 — Rung-11 fresh-context audit (Judgement §3): CLEAR after 2 fixes
 
 Auditor (fresh context, book + diff a520ae0..0561474) verdict: rung 11 is

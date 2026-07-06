@@ -152,7 +152,7 @@ def cor3_core_names_match_book():
         f"book vs core-names.txt: {sorted(names ^ manifest)}"
 
 
-CLAUSE = "// clause: (machinery|floor|maturity|scaffolding)"
+CLAUSE = "// clause: (machinery|floor|maturity|scaffolding|fixture)"
 
 
 def cor51_natives_declare_clauses():
