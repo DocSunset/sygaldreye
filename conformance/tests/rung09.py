@@ -259,15 +259,47 @@ def msh61_tampered_testimony_fails():
     assert bad2[0]["valid"] is False, bad2[0]
 
 
+# ---- ABI-4.1: plugin contract succession (reachability, not equality) ------
+def abi41_contract_reachability():
+    # A plugin records the contract hash it was built against. It loads on a
+    # peer speaking C2 iff C2 declares a migration path from that hash. Same
+    # contract loads trivially; a reachable one loads across the chain; an
+    # unreachable one is refused with a typed error naming the missing path.
+    peers = {"host": {}}
+    # host speaks C3, with declared migrations C1 -> C2 -> C3
+    setup = [{"op": "set-contract", "peer": "host", "contract": "C3",
+              "migrations": [{"from": "C1", "to": "C2"},
+                             {"from": "C2", "to": "C3"}]}]
+    r = _mesh(peers, setup + [
+        {"op": "admit-plugin", "peer": "host", "contract": "C3"},  # identity
+        {"op": "admit-plugin", "peer": "host", "contract": "C1"},  # reachable
+        {"op": "admit-plugin", "peer": "host", "contract": "C2"},  # reachable
+        {"op": "admit-plugin", "peer": "host", "contract": "CX"},  # stranger
+    ])
+    assert r[1]["loaded"] is True, r[1]
+    assert r[2]["loaded"] is True and r[2]["from"] == "C1", r[2]
+    assert r[3]["loaded"] is True, r[3]
+    ref = r[4]
+    assert ref["loaded"] is False and ref["error"] == "no-migration-path", ref
+    assert ref["from"] == "CX" and ref["to"] == "C3", ref
+
+    # a one-directional chain: C3 does NOT load on a peer speaking C1
+    r2 = _mesh(peers, [
+        {"op": "set-contract", "peer": "host", "contract": "C1",
+         "migrations": [{"from": "C1", "to": "C2"}, {"from": "C2", "to": "C3"}]},
+        {"op": "admit-plugin", "peer": "host", "contract": "C3"},
+    ])
+    assert r2[1]["loaded"] is False, r2[1]  # succession is directed
+
+
 TESTS = {
+    "ABI-4.1": abi41_contract_reachability,
     "MSH-1.1": msh11_pairing_revocation_restores,
     "MSH-2.1": msh21_unpaired_probe_refused,
     "MSH-3.1": msh31_shell_exec_refused_falls_through,
     "MSH-4.1": msh41_placement_fuzz_no_escape,
     "MSH-6.1": msh61_tampered_testimony_fails,
     "MSH-8.1": msh81_second_store_shared_with_subset,
-    # 13-native-contract.md: a plugin generated against contract C1 loads on a peer speaking
-    "ABI-4.1": None,
     # 14-formats-protocols.md: Wire golden transcripts: a recorded two-peer session (pair,
     "FMT-4": None,
     # 08-mesh-trust.md: ship a graph Quest to host: runs. Ship an unsigned .so: refused,

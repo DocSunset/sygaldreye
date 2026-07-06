@@ -44,11 +44,39 @@ struct advert {
   std::set<std::string> run, serve, subscribe;
 };
 
+// The peer's native-contract posture (ABI-4): the contract hash it speaks and
+// the migration edges it declares. A plugin built against C1 is admitted iff
+// C1 reaches this peer's contract through declared migrations (reachability,
+// not integer equality — ADR-025). Contract hashes are opaque here; they
+// stand for real ABI contract-descriptor CIDs (ch. 13).
+struct contract_posture {
+  std::string speaks;                                     // C2
+  std::vector<std::pair<std::string, std::string>> migrations;  // {from,to}
+};
+
+// Is `from` reachable to `to` through the declared migration edges?
+inline bool contract_reaches(const contract_posture& c, const std::string& from) {
+  if (from == c.speaks) return true;  // identity: same contract
+  std::set<std::string> seen{from};
+  std::vector<std::string> frontier{from};
+  while (!frontier.empty()) {
+    auto cur = frontier.back();
+    frontier.pop_back();
+    for (const auto& [a, b] : c.migrations)
+      if (a == cur && seen.insert(b).second) {
+        if (b == c.speaks) return true;
+        frontier.push_back(b);
+      }
+  }
+  return false;
+}
+
 struct peer {
   std::string name;
   syg::mesh::identity id;
   std::vector<std::unique_ptr<sub_store>> stores;  // [0] = default (all paired)
   advert lists;
+  contract_posture contract;                    // ABI-4 posture
   std::set<std::string> accepted;               // paired peer-keys
   std::vector<std::string> instantiated;        // registry audit log (MSH-4)
   std::mutex mu;
@@ -360,6 +388,26 @@ int mesh_session(const nlohmann::json& in) {
       r = request(m, from, worker, QUERY,
                   {{"capability", cap}, {"graph", op.at("graph")},
                    {"blocks", op.value("blocks", 200)}});
+    } else if (what == "set-contract") {
+      auto& p = m.at(op.at("peer"));
+      std::lock_guard<std::mutex> g(p.mu);
+      p.contract.speaks = op.at("contract");
+      p.contract.migrations.clear();
+      for (const auto& e : op.value("migrations", json::array()))
+        p.contract.migrations.push_back({e.at("from"), e.at("to")});
+      r = {{"speaks", p.contract.speaks}};
+    } else if (what == "admit-plugin") {
+      // ABI-4.1: a plugin records the contract hash it was built against;
+      // loading checks REACHABILITY to the peer's contract, not equality. A
+      // refusal is typed and names the missing path.
+      auto& p = m.at(op.at("peer"));
+      std::lock_guard<std::mutex> g(p.mu);
+      const std::string built = op.at("contract");
+      if (contract_reaches(p.contract, built))
+        r = {{"loaded", true}, {"from", built}, {"to", p.contract.speaks}};
+      else
+        r = {{"loaded", false}, {"error", "no-migration-path"},
+             {"from", built}, {"to", p.contract.speaks}};
     } else if (what == "capture") {
       // MSH-6.1: a capture's testimony carries the capturing peer's public
       // key AND a signature over the take's content hash. Verification is
