@@ -12,6 +12,8 @@
 
 namespace syg::executor {
 
+struct render_target;  // render_target.hpp — the frame region's device seam
+
 using edit_op = crown::edit_op;  // the arbiter's food (LNG-5, ADR-023)
 
 // The log entry: every applied op carries its inverse (ADR-018).
@@ -47,6 +49,10 @@ class exec_plan {
   // aim an arbiter_inlet instance at ANOTHER plan's queue (LNG-11.3)
   void point_arbiter(const std::string& id, exec_plan& target);
   void set_store(const void* store);  // inject the store into the seam
+  // aim the frame region at a device (PKG-4): at each head-chain completion
+  // the executor hands each on-chain draw's held mesh+surface here, in
+  // head-chain order. Null (the default) = headless with no presentation.
+  void set_render_target(render_target* rt);
   // the executor's own trace of the last frame tick (instance ids, in
   // execution order) — CMP-3.2's witness, never a self-report
   const std::vector<std::string>& last_tick_order() const;
@@ -81,6 +87,7 @@ class exec_plan {
   std::vector<std::string> faults_;
   int consecutive_overruns_ = 0;
   bool engine_plan_ = false;
+  render_target* render_target_ = nullptr;
   void update_census();
   mpsc<edit_op> inlet_q_;
   mpsc<std::pair<std::string, double>> event_q_;

@@ -19,7 +19,9 @@
    "slot",
    "supervisor",
    "graph_source",
-   "arbiter_inlet"
+   "arbiter_inlet",
+   "mesh_from_spans",
+   "surface_flat"
   ],
   "audio": [
    "osc",
@@ -55,7 +57,8 @@
   ],
   "render": [
    "instanced_draw",
-   "render_head"
+   "render_head",
+   "draw"
   ],
   "query": [
    "seed",

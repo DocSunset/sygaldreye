@@ -623,27 +623,25 @@ def pkg61_net_reconnect_discipline():
 
 def _tri_scene(stray=False):
     # fixtures/golden-frame.md: one red triangle through the head's chain;
-    # optionally a SECOND triangle elsewhere on a draw OUTSIDE the chain
+    # optionally a SECOND triangle on a draw OUTSIDE the chain. v1
+    # mesh_from_spans reads its positions from a serialized list default
+    # (span-EDGE-fed geometry is a later succession — STRENGTHENINGS).
     nodes = {"head0": {"type": "render_head"},
-             "pts0": {"type": "spanv"},
              "mesh0": {"type": "mesh_from_spans"},
              "surf0": {"type": "surface_flat"},
              "draw0": {"type": "draw"}}
     edges = [{"from": "head0/frame", "to": "draw0/tick"},
-             {"from": "pts0/out", "to": "mesh0/positions"},
              {"from": "mesh0/out", "to": "draw0/mesh"},
              {"from": "surf0/out", "to": "draw0/surface"}]
-    defaults = {"pts0/values": [[-0.5, -0.5], [0.5, -0.5], [0.0, 0.5]],
+    defaults = {"mesh0/positions": [[-0.5, -0.5], [0.5, -0.5], [0.0, 0.5]],
                 "surf0/r": 1.0, "surf0/g": 0.0, "surf0/b": 0.0,
                 "surf0/a": 1.0, "mesh0/dx": 0.0, "mesh0/dy": 0.0}
     if stray:
-        nodes.update({"pts1": {"type": "spanv"},
-                      "mesh1": {"type": "mesh_from_spans"},
+        nodes.update({"mesh1": {"type": "mesh_from_spans"},
                       "stray0": {"type": "draw"}})
-        edges += [{"from": "pts1/out", "to": "mesh1/positions"},
-                  {"from": "mesh1/out", "to": "stray0/mesh"},
+        edges += [{"from": "mesh1/out", "to": "stray0/mesh"},
                   {"from": "surf0/out", "to": "stray0/surface"}]
-        defaults["pts1/values"] = [[0.6, 0.6], [0.9, 0.6], [0.75, 0.9]]
+        defaults["mesh1/positions"] = [[0.6, 0.6], [0.9, 0.6], [0.75, 0.9]]
     return {"kind": "graph", "lock": {},
             "topology": {"nodes": nodes, "edges": edges},
             "defaults": defaults}

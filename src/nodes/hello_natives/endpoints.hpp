@@ -115,6 +115,37 @@ struct render_head {  // the render package's published frame clock
   au::out<au::bang, au::event> frame;
 };
 
+struct mesh_from_spans {  // a mesh constructor (CORE): a list of NDC vertex
+  // positions (delivered as a serialized list default, read by set_text)
+  // translated by dx/dy -> one structured `mesh` value (Phase A / PKG-4.3).
+  // v1 reads a positions default; span-EDGE-fed geometry is a later
+  // succession (a runtime span svalue), recorded in STRENGTHENINGS.
+  au::in<au::span, au::value> positions;
+  au::in<au::scalar, au::value> dx;
+  au::in<au::scalar, au::value> dy;
+  au::out<au::mesh, au::value> out;
+};
+
+struct surface_flat {  // a surface constructor (CORE): flat RGBA -> a
+  // structured `surface` value naming the built-in `flat` program
+  au::in<au::scalar, au::value> r;
+  au::in<au::scalar, au::value> g;
+  au::in<au::scalar, au::value> b;
+  au::in<au::scalar, au::value> a;
+  au::out<au::surface, au::value> out;
+};
+
+struct draw {  // the render boundary (RENDER pkg): holds the latest
+  // mesh+surface value pair (svalue_tick) and presents when the head's
+  // chain reaches it (sapply 'tick' -> semit 'chain', verbatim from
+  // instanced_draw — pkg42). The render_region executor reads the held
+  // pair and issues GL; the node itself stays passive (ADR-015, L9).
+  au::in<au::mesh, au::value> mesh;
+  au::in<au::surface, au::value> surface;
+  au::in<au::bang, au::event> tick;
+  au::out<au::bang, au::event> chain;
+};
+
 struct graph_source {  // the reflection seam: sees its enclosing graph
   au::out<au::scalar, au::value> keys;
 };

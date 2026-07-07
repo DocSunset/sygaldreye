@@ -3,6 +3,7 @@
 
 #include "structured_kinds.hpp"
 #include "exec_plan.hpp"
+#include "render_target.hpp"
 
 #include <cstdlib>
 #include <set>
@@ -441,6 +442,8 @@ void exec_plan::set_store(const void* store) {
   inject_context();
 }
 
+void exec_plan::set_render_target(render_target* rt) { render_target_ = rt; }
+
 void exec_plan::point_arbiter(const std::string& id, exec_plan& target) {
   // the LNG-7 injection seam, aimed: this instance's arbiter hook now
   // submits into ANOTHER graph's queue — a wiring choice, not a surface
@@ -676,6 +679,7 @@ const float* exec_plan::pump_block() {
     // emitters poll to QUIESCENCE within the boundary (ADR-015: same-tick
     // topological propagation — a chain settles this block regardless of
     // doc order; the pass bound is the chain's length, cycles excepted)
+    std::vector<std::size_t> chain_order;  // on-chain render draws, in order
     bool delivered = true;
     for (int pass_n = 0; delivered && pass_n < 64; ++pass_n) {
       delivered = false;
@@ -692,10 +696,40 @@ const float* exec_plan::pump_block() {
               if (g.type->sapply) g.type->sapply(g.state, e.port.c_str(), sv);
               g.dirty = true;
               delivered = true;
+              // PKG-4.2: a render draw joins the head chain the moment the
+              // chain reaches its `tick`; recording it here IS the wiring
+              // order the frame presents in. A draw off the chain is never
+              // reached, so it never appears — and never renders.
+              if (render_target_ && e.port == "tick")
+                for (const auto& ip : g.type->in_ports)
+                  if (!std::strcmp(ip.kind, "mesh")) {
+                    chain_order.push_back(e.dst);
+                    break;
+                  }
             }
         }
       }
     }
+    }
+    // present the frame the chain just completed — the frame region's device
+    // boundary (ADR-015, the graphics dac): each on-chain draw's held mesh +
+    // surface (read zero-copy from the wired producers' souts), in order.
+    if (render_target_ && !chain_order.empty()) {
+      render_target_->begin_frame();
+      const crown::svalue empty;
+      for (std::size_t di : chain_order) {
+        auto& d = im_->frames[di];
+        const crown::svalue* mesh = nullptr;
+        const crown::svalue* surf = nullptr;
+        for (std::size_t i = 0; i < d.type->in_ports.size(); ++i) {
+          if (!std::strcmp(d.type->in_ports[i].kind, "mesh"))
+            mesh = d.sins[i];
+          else if (!std::strcmp(d.type->in_ports[i].kind, "surface"))
+            surf = d.sins[i];
+        }
+        render_target_->draw_one(mesh ? *mesh : empty, surf ? *surf : empty);
+      }
+      render_target_->end_frame();
     }
   }
   // 2. frame tick when due

@@ -275,6 +275,30 @@ inline const std::vector<std::string>& as_cidset(const syg::crown::svalue& v) {
   return sv_as<std::vector<std::string>>(v, "cidset");
 }
 
+// The render carriers (ADR-034): the C++ payloads behind the `mesh` and
+// `surface` kinds. POD — NO GL here (the render_region machinery is the
+// only file that says GL). mesh_data holds interleaved x,y NDC vertices;
+// surface_data holds a flat colour + the built-in program name.
+struct mesh_data {
+  std::vector<float> verts;  // interleaved x, y in NDC (2 per vertex)
+};
+struct surface_data {
+  float r = 1.0f, g = 1.0f, b = 1.0f, a = 1.0f;
+  std::string program = "flat";
+};
+inline syg::crown::svalue make_mesh(mesh_data m) {
+  return {"mesh", std::make_shared<const mesh_data>(std::move(m))};
+}
+inline const mesh_data& as_mesh(const syg::crown::svalue& v) {
+  return sv_as<mesh_data>(v, "mesh");
+}
+inline syg::crown::svalue make_surface(surface_data s) {
+  return {"surface", std::make_shared<const surface_data>(std::move(s))};
+}
+inline const surface_data& as_surface(const syg::crown::svalue& v) {
+  return sv_as<surface_data>(v, "surface");
+}
+
 }  // namespace syg::generated
 )";
 }
@@ -320,7 +344,7 @@ void emit_registration(const std::filesystem::path& dir,
       i = j + 1;
     }
   }
-  const std::vector<std::string> all_natives_list{"osc", "lfo", "vca", "dac", "noise", "add", "cell", "scale", "delay", "pulse", "spectro", "button", "counter", "smoother", "spanv", "mix", "instanced_draw", "render_head", "nan_bomb", "spin", "sleeper", "graph_cell", "node_count", "text_cell", "op_button", "tmux", "net_proxy"};
+  const std::vector<std::string> all_natives_list{"osc", "lfo", "vca", "dac", "noise", "add", "cell", "scale", "delay", "pulse", "spectro", "button", "counter", "smoother", "spanv", "mix", "instanced_draw", "render_head", "nan_bomb", "spin", "sleeper", "graph_cell", "node_count", "text_cell", "op_button", "tmux", "net_proxy", "mesh_from_spans", "surface_flat", "draw"};
   const std::vector<std::string> all_organ_natives{
       "parser", "naive_resolver", "registry-face", "slot", "supervisor",
       "graph_source", "arbiter_inlet", "seed", "traverse", "filter", "join", "fixpoint"};
@@ -395,6 +419,9 @@ int main(int argc, char** argv) {
   emit<syg::nodes::decl::mix>(o, "mix", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::instanced_draw>(o, "instanced_draw", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::render_head>(o, "render_head", {}, "syg::nodes::decl");
+  emit<syg::nodes::decl::mesh_from_spans>(o, "mesh_from_spans", {}, "syg::nodes::decl");
+  emit<syg::nodes::decl::surface_flat>(o, "surface_flat", {}, "syg::nodes::decl");
+  emit<syg::nodes::decl::draw>(o, "draw", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::graph_source>(o, "graph_source", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::smoother>(o, "smoother", {}, "syg::nodes::decl");
   emit<syg::nodes::decl::button>(o, "button", {}, "syg::nodes::decl");

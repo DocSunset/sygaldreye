@@ -6,8 +6,13 @@
 #include "crown.hpp"
 
 #include <cstring>
+#include <utility>
+#include <vector>
+
+#include <nlohmann/json.hpp>
 
 #include "native_ports.hpp"
+#include "svalue_accessors.hpp"
 
 namespace syg::nodes {
 namespace {
@@ -76,6 +81,61 @@ bool head_semit(void* s, const char* port, syg::crown::svalue* out) {
 }
 void no_process(void*, const float* const*, float* const*, int) noexcept {}
 
+// --- surface_flat: flat RGBA -> a `surface` structured value (PKG-4.3) ---
+struct surface_flat_state {
+  float r = 1.0f, g = 1.0f, b = 1.0f, a = 1.0f;
+};
+void sf_set(void* s, const char* port, double v) {
+  auto* st = static_cast<surface_flat_state*>(s);
+  if (!std::strcmp(port, "r")) st->r = static_cast<float>(v);
+  else if (!std::strcmp(port, "g")) st->g = static_cast<float>(v);
+  else if (!std::strcmp(port, "b")) st->b = static_cast<float>(v);
+  else if (!std::strcmp(port, "a")) st->a = static_cast<float>(v);
+}
+void sf_svalue_tick(void* s, const syg::crown::svalue*,
+                    syg::crown::svalue* outs) {
+  auto* st = static_cast<surface_flat_state*>(s);
+  syg::generated::surface_data sd;
+  sd.r = st->r; sd.g = st->g; sd.b = st->b; sd.a = st->a;
+  sd.program = "flat";
+  outs[0] = syg::generated::make_surface(std::move(sd));
+}
+
+// --- mesh_from_spans: a positions list (a serialized list default, read by
+// set_text) translated by dx/dy -> a `mesh` structured value (PKG-4.3) ---
+struct mesh_from_spans_state {
+  std::vector<float> base;  // interleaved x,y in NDC (2 per vertex)
+  float dx = 0.0f, dy = 0.0f;
+};
+void mfs_set(void* s, const char* port, double v) {
+  auto* st = static_cast<mesh_from_spans_state*>(s);
+  if (!std::strcmp(port, "dx")) st->dx = static_cast<float>(v);
+  else if (!std::strcmp(port, "dy")) st->dy = static_cast<float>(v);
+}
+void mfs_set_text(void* s, const char* port, const char* v) {
+  if (std::strcmp(port, "positions")) return;
+  auto* st = static_cast<mesh_from_spans_state*>(s);
+  st->base.clear();
+  auto j = nlohmann::json::parse(v, nullptr, false);
+  if (j.is_array())
+    for (const auto& p : j)
+      if (p.is_array() && p.size() >= 2) {
+        st->base.push_back(p[0].get<float>());
+        st->base.push_back(p[1].get<float>());
+      }
+}
+void mfs_svalue_tick(void* s, const syg::crown::svalue*,
+                     syg::crown::svalue* outs) {
+  auto* st = static_cast<mesh_from_spans_state*>(s);
+  syg::generated::mesh_data md;
+  md.verts.reserve(st->base.size());
+  for (std::size_t i = 0; i + 1 < st->base.size(); i += 2) {
+    md.verts.push_back(st->base[i] + st->dx);
+    md.verts.push_back(st->base[i + 1] + st->dy);
+  }
+  outs[0] = syg::generated::make_mesh(std::move(md));
+}
+
 }  // namespace
 
 extern const syg::crown::native_type spanv_native;
@@ -110,5 +170,38 @@ const syg::crown::native_type render_head_native{
     syg::generated::render_head_in_ports(),
     syg::generated::render_head_out_ports(), true, false, nullptr, nullptr,
     nullptr, head_semit};
+
+// draw: the render boundary. The head-chain machinery (sapply 'tick' /
+// semit 'chain') is VERBATIM instanced_draw (pkg42 stays green); the
+// mesh+surface value inlets make it a structured frame node whose geometry
+// the render_region executor reads via the wired producers' souts. The
+// node itself issues no GL and holds no device (ADR-015, L9) — no
+// svalue_tick needed; it is purely a chain node + a structural marker.
+extern const syg::crown::native_type draw_native;
+const syg::crown::native_type draw_native{
+    "draw", [] { return static_cast<void*>(new draw_state()); },
+    [](void* s) { delete static_cast<draw_state*>(s); },
+    [](void*, const char*, double) {}, [](void*, const char*, const char*) {},
+    no_process, nullptr, syg::generated::draw_in_ports(),
+    syg::generated::draw_out_ports(), false, false, nullptr, nullptr,
+    draw_sapply, draw_semit};
+
+extern const syg::crown::native_type surface_flat_native;
+const syg::crown::native_type surface_flat_native{
+    "surface_flat", [] { return static_cast<void*>(new surface_flat_state()); },
+    [](void* s) { delete static_cast<surface_flat_state*>(s); },
+    sf_set, [](void*, const char*, const char*) {}, no_process, nullptr,
+    syg::generated::surface_flat_in_ports(),
+    syg::generated::surface_flat_out_ports(), false, false, nullptr,
+    sf_svalue_tick, nullptr, nullptr};
+
+extern const syg::crown::native_type mesh_from_spans_native;
+const syg::crown::native_type mesh_from_spans_native{
+    "mesh_from_spans", [] { return static_cast<void*>(new mesh_from_spans_state()); },
+    [](void* s) { delete static_cast<mesh_from_spans_state*>(s); },
+    mfs_set, mfs_set_text, no_process, nullptr,
+    syg::generated::mesh_from_spans_in_ports(),
+    syg::generated::mesh_from_spans_out_ports(), false, false, nullptr,
+    mfs_svalue_tick, nullptr, nullptr};
 
 }  // namespace syg::nodes

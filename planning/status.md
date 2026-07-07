@@ -4,9 +4,13 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
 
 ## RESUME BLOCK (keep this section current at every stopping point)
 
-- **Current state:** 161 pass / 0 fail / 10 pending / 0 uncovered
+- **Current state:** 162 pass / 0 fail / 9 pending / 0 uncovered
   (embodiment Phase 0 landed 2026-07-06: +PKG-4.3/4.4, PKG-3.3, EDR-1.2,
-  EDR-7.2 — the runner now points at the embodiment work itself).
+  EDR-7.2. **Phase A PIXELS GREEN (PKG-4.3)**: real headless GLES3
+  (llvmpipe) renders the fixture triangle through the graph/executor —
+  `syg frame`, `src/render/render_region` machinery, and the
+  draw/mesh_from_spans/surface_flat natives. First-light PNG sent to
+  Travis for the golden-frame blessing.)
   **Rungs 1–9, 11, 12 GREEN** (7,8,9,11 audited). Rung 8 at 14/18 (four
   HARDWARE-BOUND: FRZ-4.1/PKG-3.1/3.2 need the Quest, PKG-8.1 needs USB
   hot-plug). **Rung 10 (hosts) SKIPPED** (Travis, 2026-07-06 — ABI-5 /

@@ -13,6 +13,8 @@ struct graph { static constexpr const char* name = "graph"; };
 struct text { static constexpr const char* name = "text"; };
 struct ops { static constexpr const char* name = "ops"; };
 struct cidset { static constexpr const char* name = "cidset"; };
+struct mesh { static constexpr const char* name = "mesh"; };
+struct surface { static constexpr const char* name = "surface"; };
 
 // discipline tags: event / value / a clock name (ADR-020)
 struct event { static constexpr const char* name = "event"; };
