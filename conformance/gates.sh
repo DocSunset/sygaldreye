@@ -25,12 +25,14 @@ if [ -d src ]; then
     say EXE-6.1 "singleton reach from node code"; fail=1
   fi
   # COR-5.1 — every native declares its clause on line 1 (ADR-033);
-  # ADR-034 extends the scan to the executor package (the compile walk)
-  find src/nodes src/organs src/executor \( -name '*.cpp' -o -name '*.hpp' \) 2>/dev/null \
-    | grep -v generated | while read -r f; do
+  # ADR-034 extends the scan to the executor package (the compile walk).
+  # (|| true so absent core dirs don't trip pipefail before any native lands.)
+  natives=$(find src/nodes src/organs src/executor \( -name '*.cpp' -o -name '*.hpp' \) \
+              2>/dev/null | grep -v generated || true)
+  for f in $natives; do
     head -1 "$f" | grep -qE '^// clause: (machinery|floor|maturity|scaffolding|fixture)' \
-      || { say COR-5.1 "native without a clause marker: $f"; exit 1; }
-  done || fail=1
+      || { say COR-5.1 "native without a clause marker: $f"; fail=1; }
+  done
   # ADR-034 — a scaffolding marker names the criterion that dissolves it
   if grep -rn "clause: scaffolding" src --include='*.cpp' --include='*.hpp' 2>/dev/null \
        | grep -v "dissolves: [A-Z][A-Z]*-[0-9]"; then

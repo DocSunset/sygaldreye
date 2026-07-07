@@ -1,0 +1,45 @@
+{
+  "nodes": {
+    "blake3-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1745192552,
+        "narHash": "sha256-IABVErXWYQFXZcwsFKfQhm3ox7UZUcW5uzVrGwsSp94=",
+        "owner": "BLAKE3-team",
+        "repo": "BLAKE3",
+        "rev": "df610ddc3b93841ffc59a87e3da659a15910eb46",
+        "type": "github"
+      },
+      "original": {
+        "owner": "BLAKE3-team",
+        "ref": "1.8.2",
+        "repo": "BLAKE3",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1782959384,
+        "narHash": "sha256-xnJJk+ct+D2+wdRxj1wk36w5zV9RVESwRqcklPdt3fM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "65179426c83bb3f6bc14898b42ea1c6f01d374b0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "blake3-src": "blake3-src",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
