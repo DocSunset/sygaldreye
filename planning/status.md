@@ -73,10 +73,24 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   host shell → editor-surface-as-graphs → Quest → xr → devices). Its
   Phase 0 authors the new criteria (PKG-4.3/4.4, PKG-3.3, EDR-1.2/7.2,
   ADR-037 draft) so the runner itself points at the work.
-- **Next action:** Phase A of planning/embodiment_plan.md — real pixels:
-  `syg frame` + src/render/{egl_surface,render_region} machinery +
-  mesh_from_spans/surface_flat/draw natives (PKG-4.3). The rung-12 audit is
-  PROCESSED (CLEAR — see 2026-07-06 entry). After Phase A the buildable greenfield
+- **Next action:** Phase C — the editor surface as graphs (EDR-1.2, EDR-7.2).
+  **DESIGN CAPTURED: `planning/phase-c-design.md`** (written 2026-07-06 after
+  a 4-agent understand pass — read it first). Reuses the green render_region
+  (pixels) + pointer + op_button/arbiter (self-edit). Three real capability
+  gaps to resolve FIRST (design note Q1–Q3, with recommendations): (Q1, the
+  crux) reflection drives a COMPILE-TIME lift but the node list is RUNTIME —
+  the editor's card layer must be a DERIVED projection of the target doc's
+  nodes, re-derived on edit (rebuild already fires); (Q2) gather N card meshes
+  via a `mesh_merge` leaf + a widened STRUCTURED fan-in (sins holds one
+  svalue/port today — N-mesh gather is new), OR chain lifted draws (harder);
+  (Q3) glyph_quads leaf + font-atlas dataset (chunk-put the PNG) + a `glyph`
+  MSDF program + widened mesh_data/surface_data carriers (xyuv + atlas_cid).
+  The dual-hook (wired positions) is OPTIONAL for v1 — card positions flow as
+  per-clone lift DEFAULTS and drag edits go through set_param (both work
+  today). Build order + probe layout constants + gesture invariants are all
+  in the design note. This is a multi-session phase; start fresh from the note.
+- **Superseded next-action (Phase A/B, DONE 2026-07-06):** the rung-12 audit is
+  PROCESSED (CLEAR). The buildable greenfield
   is COMPLETE. Remaining to reach the literal final message: (a) rung 8's 4
   hardware-bound criteria (need Quest + USB audio device); (b) rung 10 (ABI-5
   + python-notebook + wasm exec), skipped per Travis. Both are Travis/hardware
