@@ -1,9 +1,11 @@
-probe/build
-probe/worktree
 .claude/worktrees/
-probe/.venv-melotts
-probe/assets/models/
-probe/result
+# probe artifacts — probes live under probe/probeN/, so match at that depth
+probe/*/build
+probe/*/worktree
+probe/*/result
+probe/*/.venv-melotts
+probe/*/companion/.venv-melotts
+probe/*/assets/models/
 architecture/*.pdf
 reports/device_logcat_day.txt
 reports/overnight_device_logcat.txt.gz
