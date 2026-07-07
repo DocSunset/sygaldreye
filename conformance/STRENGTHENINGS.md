@@ -147,3 +147,27 @@ self-activates when graphs/editor/ lands; PKG-3.3/EDR-7.2 are registered
 pending (hardware / Phase C layout). golden-frame.md fixes the pixel
 witness discipline: properties, never byte-golden images (GPU variance —
 a byte-golden would pass on exactly one machine).
+
+## 2026-07-06 — Phase A/B render work (behavior fixes + a recorded reservation)
+
+**Event delivery completeness (behavior fix, exec_plan.cpp).** The emitter
+poll delivered a native-emitted event only to a consumer's `sapply`; a
+consumer declaring only `apply` (op_button) never received a native-emitted
+bang — only externally `post_event`ed ones. The poll now delivers to
+`sapply` if present, else `apply` (symmetric with the post_event drain,
+which calls apply). This is what lets a `pointer` source node's click reach
+an `op_button` node-to-node (PKG-4.4). No existing test changed behavior
+(the head-chain uses sapply; graph-edits-graph uses post_event).
+
+**Reservation — mesh_from_spans reads a data default, not a span edge (v1).**
+`mesh_from_spans` builds its mesh from a `positions` DATA DEFAULT (a
+`values`-style JSON list delivered via set_text — the spanv/values
+precedent), NOT from a wired span edge. The name anticipates the eventual
+span-EDGE-fed constructor; v1 does not implement it (the value lane carries
+no runtime span svalue yet — lift consumes span edges at compile time).
+Proposed succession (future criterion): mesh_from_spans consumes a runtime
+span svalue on a wired edge, so card/deck geometry can flow through the
+graph as values (needed by the Phase C editor surface). Until then the
+`positions` input is an UNDECLARED data default (no port), so no span edge
+can be silently dropped. Also latent (flag): dx/dy vertex translation is
+done in C++ — graph-expressible arithmetic, a small L22 debt to revisit.

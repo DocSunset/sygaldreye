@@ -693,7 +693,14 @@ const float* exec_plan::pump_block() {
           for (const auto& e : im_->event_edges)
             if (e.from == route) {
               auto& g = im_->frames[e.dst];
-              if (g.type->sapply) g.type->sapply(g.state, e.port.c_str(), sv);
+              // a native-emitted event reaches whichever hook the CONSUMER
+              // declares: sapply (structured) or, failing that, apply (the
+              // float/bang applier — op_button and friends). Symmetric with
+              // the post_event drain, which calls apply.
+              if (g.type->sapply)
+                g.type->sapply(g.state, e.port.c_str(), sv);
+              else if (g.type->apply)
+                g.type->apply(g.state, e.port.c_str(), 1.0);
               g.dirty = true;
               delivered = true;
               // PKG-4.2: a render draw joins the head chain the moment the

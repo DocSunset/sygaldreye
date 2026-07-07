@@ -115,12 +115,11 @@ struct render_head {  // the render package's published frame clock
   au::out<au::bang, au::event> frame;
 };
 
-struct mesh_from_spans {  // a mesh constructor (CORE): a list of NDC vertex
-  // positions (delivered as a serialized list default, read by set_text)
+struct mesh_from_spans {  // a mesh constructor (CORE): NDC vertex positions
+  // (a `values`-style data DEFAULT read via set_text — the spanv/values
+  // precedent; NOT a wired port, so no span edge can be silently dropped)
   // translated by dx/dy -> one structured `mesh` value (Phase A / PKG-4.3).
-  // v1 reads a positions default; span-EDGE-fed geometry is a later
-  // succession (a runtime span svalue), recorded in STRENGTHENINGS.
-  au::in<au::span, au::value> positions;
+  // Span-EDGE-fed geometry is a later succession (STRENGTHENINGS 2026-07-06).
   au::in<au::scalar, au::value> dx;
   au::in<au::scalar, au::value> dy;
   au::out<au::mesh, au::value> out;
@@ -148,6 +147,18 @@ struct draw {  // the render boundary (RENDER pkg): holds the latest
 
 struct graph_source {  // the reflection seam: sees its enclosing graph
   au::out<au::scalar, au::value> keys;
+};
+
+struct pointer {  // a pointer source node (PKG-4.4): position + button state
+  // set by the executor boundary (never a side door — N4); a press edge
+  // (buttons 0->1) emits a click bang. The window/script feeds x/y/buttons;
+  // gestures read px/py and the click.
+  au::in<au::scalar, au::value> x;
+  au::in<au::scalar, au::value> y;
+  au::in<au::scalar, au::value> buttons;
+  au::out<au::scalar, au::value> px;
+  au::out<au::scalar, au::value> py;
+  au::out<au::bang, au::event> click;
 };
 
 struct smoother {  // a user-suppliable boundary mapping (EXE-8, CMP-4)

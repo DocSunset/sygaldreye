@@ -21,7 +21,8 @@
    "graph_source",
    "arbiter_inlet",
    "mesh_from_spans",
-   "surface_flat"
+   "surface_flat",
+   "pointer"
   ],
   "audio": [
    "osc",

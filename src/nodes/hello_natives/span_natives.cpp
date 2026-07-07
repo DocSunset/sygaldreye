@@ -1,8 +1,11 @@
-// clause: floor — the span vocabulary: spanv (a span-valued source; its
-// list default drives lift expansion), mix (whole-by-kind N-ary sum), and
-// instanced_draw (a headless stand-in for the render boundary consuming a
-// span whole — the GL reality arrives with the render package, rung 8;
-// scaffolding-adjacent but the SEMANTICS here are permanent)
+// clause: floor — the span + render-boundary vocabulary. spanv (a span-
+// valued source; its list default drives lift expansion), mix (whole-by-kind
+// N-ary sum), instanced_draw (the headless head-chain stand-in). Plus the
+// render floor (PKG-4): draw (the render boundary — passive like dac; the
+// region reads its held mesh+surface and issues GL), mesh_from_spans and
+// surface_flat (kind-constructors), pointer (an input source node). All
+// floor: passive boundaries, constructors, and a source — no world-touching
+// (that is render_region's machinery), no per-sample kernel needed.
 #include "crown.hpp"
 
 #include <cstring>
@@ -136,6 +139,35 @@ void mfs_svalue_tick(void* s, const syg::crown::svalue*,
   outs[0] = syg::generated::make_mesh(std::move(md));
 }
 
+// --- pointer: a source node (PKG-4.4). Position + button state arrive via
+// set_num at the executor boundary; a press edge (buttons 0->1) emits a
+// click bang. Input reaches the graph only through this node (N4). ---
+struct pointer_state {
+  float x = 0.0f, y = 0.0f, buttons = 0.0f, prev = 0.0f;
+  int pending = 0;
+};
+void ptr_set(void* s, const char* port, double v) {
+  auto* st = static_cast<pointer_state*>(s);
+  if (!std::strcmp(port, "x")) st->x = static_cast<float>(v);
+  else if (!std::strcmp(port, "y")) st->y = static_cast<float>(v);
+  else if (!std::strcmp(port, "buttons")) st->buttons = static_cast<float>(v);
+}
+void ptr_value_tick(void* s, double, const float*, float* outs) {
+  auto* st = static_cast<pointer_state*>(s);
+  outs[0] = st->x;  // px
+  outs[1] = st->y;  // py
+  if (st->buttons >= 0.5f && st->prev < 0.5f) ++st->pending;  // press edge
+  st->prev = st->buttons;
+}
+bool ptr_semit(void* s, const char* port, syg::crown::svalue* out) {
+  if (std::strcmp(port, "click")) return false;
+  auto* st = static_cast<pointer_state*>(s);
+  if (!st->pending) return false;
+  --st->pending;
+  *out = {"bang", nullptr};
+  return true;
+}
+
 }  // namespace
 
 extern const syg::crown::native_type spanv_native;
@@ -203,5 +235,14 @@ const syg::crown::native_type mesh_from_spans_native{
     syg::generated::mesh_from_spans_in_ports(),
     syg::generated::mesh_from_spans_out_ports(), false, false, nullptr,
     mfs_svalue_tick, nullptr, nullptr};
+
+extern const syg::crown::native_type pointer_native;
+const syg::crown::native_type pointer_native{
+    "pointer", [] { return static_cast<void*>(new pointer_state()); },
+    [](void* s) { delete static_cast<pointer_state*>(s); },
+    ptr_set, [](void*, const char*, const char*) {}, no_process,
+    ptr_value_tick, syg::generated::pointer_in_ports(),
+    syg::generated::pointer_out_ports(), false, false, nullptr, nullptr,
+    nullptr, ptr_semit};
 
 }  // namespace syg::nodes

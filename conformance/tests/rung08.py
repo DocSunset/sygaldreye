@@ -697,20 +697,21 @@ def pkg44_shell_is_the_same_peer():
     g["topology"]["nodes"].update({
         "ptr0": {"type": "pointer"},
         "ob_add": {"type": "op_button"},
-        "ob_wire": {"type": "op_button"},
-        "k0": {"type": "cell"},
+        "ob_move": {"type": "op_button"},
         "arb0": {"type": "arbiter_inlet"}})
     g["topology"]["edges"] += [
         {"from": "ptr0/click", "to": "ob_add/in"},
-        {"from": "ptr0/click", "to": "ob_wire/in"},
+        {"from": "ptr0/click", "to": "ob_move/in"},
         {"from": "ob_add/out", "to": "arb0/in"},
-        {"from": "ob_wire/out", "to": "arb0/in"}]
+        {"from": "ob_move/out", "to": "arb0/in"}]
+    # one pointer click drives TWO edit ops into the graph's own arbiter: a
+    # structural add_node and a param move — the shell edits the graph it
+    # renders, through the same source-node path a gesture graph uses.
     g["defaults"].update({
-        "k0/k": 0.4,
         "ob_add/op": json.dumps({"op": "add_node", "a": "noise0",
                                  "b": "noise", "author": "pointer"}),
-        "ob_wire/op": json.dumps({"op": "add_edge", "a": "k0/out",
-                                  "b": "mesh0/dx", "author": "pointer"})})
+        "ob_move/op": json.dumps({"op": "set_param", "route": "mesh0/dx",
+                                  "value": "0.4", "author": "pointer"})})
     out = syg("shell", stdin=json.dumps(
         {"graph": g, "size": [W, H], "offscreen": True,
          "script": [{"frame": True},
@@ -725,7 +726,7 @@ def pkg44_shell_is_the_same_peer():
     # the gesture ADDED a node through the arbiter (persisted surface grew)
     assert "noise0" in doc["topology"]["nodes"], \
         sorted(doc["topology"]["nodes"])
-    # and the wired cell moved the triangle: the next frame's centroid
+    # and the param gesture moved the triangle: the next frame's centroid
     # shifted +0.4 NDC = +0.2*W px in x
     dx_px = f1["cx"] - f0["cx"]
     assert abs(dx_px - 0.2 * W) <= 0.2 * (0.2 * W), \

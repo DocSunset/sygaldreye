@@ -4,13 +4,15 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
 
 ## RESUME BLOCK (keep this section current at every stopping point)
 
-- **Current state:** 162 pass / 0 fail / 9 pending / 0 uncovered
-  (embodiment Phase 0 landed 2026-07-06: +PKG-4.3/4.4, PKG-3.3, EDR-1.2,
-  EDR-7.2. **Phase A PIXELS GREEN (PKG-4.3)**: real headless GLES3
-  (llvmpipe) renders the fixture triangle through the graph/executor —
-  `syg frame`, `src/render/render_region` machinery, and the
-  draw/mesh_from_spans/surface_flat natives. First-light PNG sent to
-  Travis for the golden-frame blessing.)
+- **Current state:** 163 pass / 0 fail / 8 pending / 0 uncovered
+  (embodiment Phase 0 landed 2026-07-06). **Phase A + shell GREEN
+  (PKG-4.3, PKG-4.4)**: real headless GLES3 (llvmpipe) renders the fixture
+  triangle through the graph/executor (`syg frame`, `src/render/render_region`
+  machinery, draw/mesh_from_spans/surface_flat natives); `syg shell` is the
+  ordinary peer self-editing via a `pointer` source → op_button → its own
+  arbiter (PKG-4.4). First-light triangle BLESSED by Travis 2026-07-06
+  (documentary/media/2026-07-06-first-triangle.png; golden-frame.md).
+  Phase A fresh-context audit CLEAR (see entry below).
   **Rungs 1–9, 11, 12 GREEN** (7,8,9,11 audited). Rung 8 at 14/18 (four
   HARDWARE-BOUND: FRZ-4.1/PKG-3.1/3.2 need the Quest, PKG-8.1 needs USB
   hot-plug). **Rung 10 (hosts) SKIPPED** (Travis, 2026-07-06 — ABI-5 /
@@ -93,6 +95,32 @@ _Keep this current. Vision and slice plan: `planning/vision.md`._
   binding; one peer, many sessions; the dissolution gate is armed and has
   drawn blood once (dac marker).
 - **Blessed:** rung-2 take blessed by Travis (fixtures/golden-audio.md).
+
+## 2026-07-06 — Phase A (PKG-4.3 pixels) fresh-context audit (Judgement §3): CLEAR
+
+Auditor (fresh context, book + PKG-4.3 diff, RAN the renderer): CLEAR, no
+blockers — pixels are genuinely real (real EGL/FBO/glDrawArrays/glReadPixels,
+verified by running `syg frame`: coverage = exact analytic area; `set_param`
+dx=0.4 moved the centroid +25.5px of a predicted 25.6; a stray off-chain draw
+renders 0 while the SAME triangle wired onto the chain renders +200px — the
+chain gate is real, not decorative). Head-chain order is a side-record of the
+REAL sapply delivery (cannot diverge from pkg42's mechanism); `draw`'s
+sapply/semit are verbatim instanced_draw. No hollow engine.
+
+**Should-fixes (all DONE):** (1) the disclosed mesh_from_spans span-edge
+limitation pointed at a STRENGTHENINGS entry that didn't exist → written
+(the reservation + a proposed succession). (2) golden-frame.md still said
+"one triangle from a spanv" after the fixture moved edge→default →
+reconciled to "positions data default". (3) the `positions` span input was
+decorative (a wired span edge silently rendered nothing) → REMOVED the port
+entirely; positions is now an undeclared data default (the spanv/values
+precedent), so no edge can be mis-wired.
+
+**Flags (recorded):** `draw`/constructors ride span_natives.cpp's file-level
+`floor` clause (comment widened to name them honestly; all genuinely floor);
+mesh_from_spans does dx/dy vertex translation in C++ (latent L22 debt, noted);
+mesh_from_spans/surface_flat sit in `core` while producing render kinds
+(defensible — no GL — sanity-check under SYG_OMIT=render later).
 
 ## 2026-07-06 — Rung-12 fresh-context audit (Judgement §3): CLEAR, no blockers
 
