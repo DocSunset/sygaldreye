@@ -55,6 +55,32 @@ planning/rhizome.md), and at full scale the system is web-shaped: a declarative
 sandbox (advertisement), packages that are provenance closures, links that
 survive editing. Detail: ADR-006…012.
 
+## Why not just C++? (2026-07-07)
+
+C++ — like every programming language — is already a graph engine for
+dataflow: `add`, `^^add`, the `to_json` that decodes it, the wired
+sub-expressions of a return statement, all node-shaped, all derivations. The
+shape was never what's missing. The difference is the graph's **lifecycle**.
+
+> A programming language's graph lives for one instant, at compile time,
+> inside the compiler, then is annihilated into opaque machine code and
+> mutable memory. What survives is a corpse — a result with no link back to
+> the derivation that made it: you cannot see it, replay it, edit it while it
+> runs, ask a value where it came from, or hand the living thing to another
+> person or peer. A language is a graph engine whose purpose is to **destroy**
+> its graph, because it only wants the answer.
+>
+> **Sygaldreye is the same graph with the opposite lifecycle: the graph is
+> not the discarded means to an artifact — the graph is the artifact, kept.**
+> Living, hashable, linkable data; editable while it runs; shippable to a
+> peer; and — the whole point — *sensible*: something you can see, hear, and
+> play. A graph you can inhabit is a medium of expression; a graph compiled
+> away is not.
+
+We build it *in* C++ anyway: C++ is the escapement — the fiat floor we stand
+on to make the one thing the language refuses to keep, a graph that does not
+evaporate.
+
 ## Guiding principles
 
 - **Express almost everything through the graph engine.** Core

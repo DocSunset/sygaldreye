@@ -12,12 +12,15 @@
         (system: f nixpkgs.legacyPackages.${system});
     in {
       devShells = forAll (pkgs: {
-        default = pkgs.mkShell {
+        # Built on gcc16Stdenv (GCC 16.1) so CMake auto-detects a C++26
+        # compiler with P2996 static reflection (`^^`, <meta>, std::meta).
+        # Reflection needs an explicit flag: -std=c++26 -freflection.
+        default = pkgs.mkShell.override { stdenv = pkgs.gcc16Stdenv; } {
           # The lean core (rungs 1–7): formats, crypto, execution. The heavier
           # audio/visual/XR toolchain (glfw, openxr, whisper, sherpa, the NDK)
           # is salvage from probe/probe1's flake — folded back in at rung 8.
           packages = with pkgs; [
-            gcc cmake ninja pkg-config
+            cmake ninja pkg-config
             boost nlohmann_json libsodium
             python3
             git
