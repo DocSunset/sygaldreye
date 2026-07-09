@@ -1,52 +1,32 @@
-#include <cstddef>
+#pragma once
 #include "cell.hpp"
 #include "node.hpp"
-#include "vocabulary.hpp"
 
 namespace syg::esc {
 
-// A wiring is one call: which word (index into the dictionary), pointers to its
-// input cells, and where to write its outputs.
-struct wiring {
-  cell   word;
-  cell** inputs;
-  cell*  outputs;
+// A binding is the binding role reified: it binds behavior to data — a word
+// (resolved to its value at plan time; re-resolved when the plan is rebuilt on a
+// swap, which is how the book gets liveness) closed over pointers to its input
+// cells in state and the output cell it writes. Literally a closure — captured by
+// reference into shared state, which is why inputs must stay const and why fan-out
+// works. The instance is NOT here: it emerges from state × movement, existence by
+// reference (L10).
+struct binding {
+  void** slots;                                       // first in_count are inputs, the rest outputs
+  word   fn;
+  void operator()() const { fn(slots); }              // the type-ERASED twin of component::operator()
 };
 
-// The counter-driven reference form.
-void tick(const node* dict, const wiring* movement, cell steps) {
-  for (cell i = 0; i < steps; ++i)
-    dict[movement[i].word].fn(movement[i].inputs, movement[i].outputs);
+// The escapement: tick each binding in order. The movement is an array of
+// pointers to self-owning bindings (each carved from the arena by make_binding),
+// so we tick through the indirection.
+void tick(std::size_t steps, binding* const* movement) {
+  for (std::size_t i = 0; i < steps; ++i)
+    (*movement[i])();
 }
 
-// The same thing, refactored so its body holds only assignments and word-calls:
-// every operator (<, [], ., ++, the indirect call) is now a word. dict and
-// movement arrive as cells (addresses); the ground `while` stays fiat C++.
-void escapement(cell dict, cell movement, cell steps) {
-  cell wsize = sizeof(wiring);
-  cell nsize = sizeof(node);
-  cell w_in  = offsetof(wiring, inputs);
-  cell w_out = offsetof(wiring, outputs);
-  cell n_fn  = offsetof(node, fn);
-
-  cell pc = 0;
-  cell cont = less_than(pc, steps);
-  while (cont) {
-    cell woff    = mul(pc, wsize);
-    cell waddr   = add(movement, woff);
-    cell word    = load(waddr);
-    cell ioff    = add(waddr, w_in);
-    cell inputs  = load(ioff);
-    cell ooff    = add(waddr, w_out);
-    cell outputs = load(ooff);
-    cell noff    = mul(word, nsize);
-    cell naddr   = add(dict, noff);
-    cell foff    = add(naddr, n_fn);
-    cell fn      = load(foff);
-    call(fn, inputs, outputs);
-    pc   = add(pc, 1);
-    cont = less_than(pc, steps);
-  }
-}
+// A plan is a built movement ready to tick: the array of self-owning bindings and
+// how many. (tick's two arguments, bundled.)
+struct plan { binding** movement; std::size_t steps; };
 
 }

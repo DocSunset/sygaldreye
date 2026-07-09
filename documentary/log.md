@@ -472,3 +472,104 @@ bootstrap-minimal core (Forth — inner interpreter, tiny, everything runs
 through it), and the full graph engine is the richer systems layer built on top
 of it (C — where the real programs get written). Parked here to test later
 against what the graph engine actually becomes.
+
+## 2026-07-09 — the two faces of a node: binding and component
+
+A long build day that ended somewhere I didn't expect. It started with type
+handling: our nodes had been type-erased cells, and we stepped up — `void*`
+state honestly typed at the shim, `describe` widened to any argument type, then
+to `const T&` inputs so a fat struct reads with no copy. Along the way a scare:
+I declared our reflection toolchain "vapor" — `-freflection` unrecognized, no
+`<meta>`. Travis caught it in one line: *"Maybe you were using the wrong
+flake?"* `[user]`. I'd `cd`'d into the deprecated probe and was booting its GCC
+15. From the greenfield flake it's GCC 16.1 with real P2996 — and
+`std::meta::define_aggregate` genuinely synthesizes structs. Good lesson in
+checking the ground before crying wolf.
+
+Then the thread that mattered. We generated a **type-rich** node from a plain
+function via reflection — `component<^^add>` becomes a struct with named, typed
+members (`a`, `b` from the parameters, `out` from the return) and a call
+operator. Travis's thesis already had this word; now it's a one-liner header.
+Three compiler-taught rules are baked into it (define_aggregate needs a
+consteval *block*; the target must be a nested type; splicing an `info` at
+runtime escalates to consteval, so pass member infos as template arguments).
+
+The realization, and it's his `[user]`: **`binding` and `component` are the
+same form at two type levels.** Take `struct binding` and imagine `call` as its
+`operator()` — it's a component whose everything is `void*`. So `call` *was*
+the binding's operator all along (we folded it in). The type-erased `binding`
+is a `component` with its types removed. Every difference between them is
+*forced by erasure* and nothing else: the component bakes its function into
+`operator()` while the binding carries a runtime `word` pointer; both reference
+their inputs; and the component owns its output inline (`T out`) while the
+binding — unable to size it once erased — pushed the storage out to a cell. That
+last point is *why the state array exists*.
+
+And then Travis closed even that gap `[user]`: make the erased binding own its
+output too. `make_binding` takes a descriptor and an arena and returns a
+self-owning binding — inputs `nullptr` (unwired), outputs pointing at owned
+cells sized *at runtime* from the descriptor. Erasure never removed the
+ownership; it deferred the size to runtime. This collapsed the crown: no flat
+state buffer, no offset math — `NODE` builds a binding, `LINK`/`SET` set
+pointers. It's probe1's own model (nodes own outputs, inputs point upstream,
+unwired = null), type-erased. He also nudged the allocation to stay
+vocabulary — arena from the `mem_malloc` word, not a hardcoded malloc: *"make
+graphs, not c++ 😉."*
+
+Two smaller decisions worth keeping. The output of an authored component should
+be an *owned* `T out`, not a `T&` `[user]` — a node produces its output, so it
+owns it; it only references what it consumes. And the input-purity rule I'd
+built into `describe` (no silent mutation: value or `const T&`, never a mutable
+or rvalue reference) belongs on the component generator too `[agent→adopted]` —
+same node, two projections, one notion of validity. We also measured whether
+`describe` gets shorter if built *on* component: it doesn't `[joint]` — its
+whole content is the erasure, the one thing component can't do, so it stays
+direct.
+
+The shape we've arrived at: a node is a struct that references its inputs, owns
+its output, and carries its function as a call operator. `component` is that
+struct with its types kept (what you author); `binding` is that struct with its
+types erased (what the escapement ticks). Reflection generates either from the
+same source. Neither is cleanly built from the other, because one is the
+removal of what the other is.
+
+## 2026-07-09 (later) — a node has three faces, and the third is frozen
+
+The two-faces entry above wasn't the end of it. A byte-counting question from
+Travis `[user]` — *"a nullary node still carries a nullptr for its inputs;
+could `binding` just be `void(*)(void)`, or somehow polymorphic?"* — cracked
+the picture open one more level.
+
+`void()` can't work for the *dynamic* binding: a bare function pointer has
+nowhere to keep its own input/output cells, so it can't find its data. But
+that's *exactly* the frozen form. Freezing monomorphizes each node into a
+bespoke function with its cell addresses baked in — no data members at all.
+So a node doesn't have two faces, it has **three**: the type-rich `component`
+you author, the type-erased `binding` the escapement ticks dynamically, and
+the frozen `void()` the codegen backend will emit. `component → binding →
+void()` is one node shedding first its types, then its dynamism. And the
+"waste" in the dynamic binding — its fixed slots — turns out to be *precisely
+the price of building at runtime without codegen*. Freezing is where it
+vanishes, not a tweak to the struct. We chose to **hold** and pay it: the cost
+of dynamism, and of keeping the runtime readable `[joint]`.
+
+Except Travis took one trim anyway `[user]`: merge the two pointer arrays into
+one `slots` (first `in_count` are inputs, the rest outputs), and put `fn` after
+it — so the erased binding reads like a type-rich component with its types
+rubbed off: data, then behavior. He accepted the mildly messier shim (it splits
+`slots` at `in_count`) and the crown having to remember each producer's
+`in_count`. He also asked the right small question — *do components have to put
+`operator()` after their members?* No: member bodies are complete-class
+context, so it's pure convention. Mirroring it costs nothing.
+
+Then the constant fell out `[user]`: once bindings own their outputs, a
+constant is just a **source node that owns its value**. `SET` dissolved from
+the tape — only `NODE` and `LINK` remain, which is the honest shape (a graph
+is nodes and edges). `SET` had only ever existed because the old flat cells
+belonged to no one; self-owning bindings removed the reason for it.
+
+Small housekeeping with a big payoff for confidence: the tests moved in-tree,
+one beside each header (`crown.hpp` ↔ `crown.test.cpp`), building and running
+under CMake/CTest — four of them, green. And a note filed for the next agent:
+the component test needs the GCC-16 reflection toolchain, and CMake will
+happily cache a stale GCC 15 if `build/` predates the flake bump.

@@ -181,3 +181,38 @@ any other (PKG-3.3). On the host the same port feeds the window's view —
 the shell and the headset differ only in which sources exist. Drafted
 2026-07-06 by the builder alongside planning/embodiment_plan.md Phase 0;
 awaiting Travis.
+
+## ADR-038: Reification is the variable; the binding is reified, the instance emerges (DRAFT — Travis to ratify)
+
+The level cut (declaration versus binding) is not two kinds of thing — it is
+one node seen in two roles, and what differs is only whether, and how, a role
+is made concrete. Ratified at stratum 0 by the escapement's own structs:
+
+- **node = declaration, universally.** A node is a bag of named links, and a
+  bag of named links already *is* a declaration of what links exist. This is
+  true of a node type (declaring ports) AND an instance (declaring its bound
+  values, `freq → 220`) — so "node = declaration" does not narrow L1; every
+  node is declarative. The escapement's `node` struct (arity + sizes +
+  behavior) is ONE reification of a node in its declaration role, not the
+  definition of node.
+- **binding = the binding role, reified.** The escapement's `binding` struct
+  (a word closed over pointers to its input cells and its output cell) is the
+  binding side of the level cut made concrete. It is literally a closure that
+  captures BY REFERENCE into shared state — an open closure / a bound
+  application waiting to fire. This one fact grounds three earlier decisions:
+  inputs must be const (you may not mutate a capture others share), fan-out
+  works (many bindings close over the same cell), and the instance can be
+  emergent (overlapping captures ARE shared fields).
+- **instance = the node deliberately left un-reified.** There is no instance
+  struct. An instance exists only by reference (L10) — it is a *reading* of
+  the state array against the movement (state × movement), a derivation
+  produced on demand, never a stored datum. "The instance owns its state
+  struct" (ch. 15) is one higher-stratum reification of this same emergent
+  thing; at stratum 0 even that dissolves into flat state plus the bindings
+  that close over it.
+
+Consequence for the book: the glossary's "declaration versus binding" and
+"instance" entries carry this note; **binding** joins the greenfield-stratum
+vocabulary as the reified level-cut binding (the movement's rows). No law
+changes — this sharpens L1 and L10, it does not amend them. Drafted
+2026-07-07 by the builder alongside the escapement build; awaiting Travis.

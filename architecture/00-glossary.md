@@ -66,7 +66,12 @@ not the thing.
 relationship — it holds a `type` link to a node type and satisfies that type's
 declarations. Route-named, hence editable; created by an edit that links it in,
 destroyed by unlinking (existence = being referenced). *Example: `osc0` is an
-instance of node type `osc`.*
+instance of node type `osc`.* An instance is **emergent, not reified** (ADR-038):
+at stratum 0 there is no instance struct — an instance is a *reading* of the
+state array against the movement (state × bindings), a derivation produced on
+demand, existence purely by reference (L10). Higher strata may reify it (ch. 15's
+"instance owns its state struct" is one such reification); the thing itself is
+the un-reified node.
 
 **state** — a role word: the data bound at an instance's state link.
 Route-named state is historyless *by construction* (that's what route-naming
@@ -77,7 +82,12 @@ by route. *Example: osc0's phase accumulator.*
 names, one level up (`ports/freq/kind to scalar`); an instance *holds*
 the links (`freq to 220`). Same name, two bags, correlated through the
 instance's `type` link — the C++ class/object move, and how PFR endpoint
-structs already work.
+structs already work. Not two kinds of thing: one node in two roles, and what
+differs is only *reification* (ADR-038). At stratum 0 the escapement reifies
+both sides as structs — the **node** (declaration role: arity, sizes, behavior)
+and the **binding** (binding role: a word closed by reference over its input and
+output cells in state, an open closure). The instance is the role left
+un-reified — see *instance*.
 
 ## Data model
 
@@ -317,7 +327,10 @@ codebase is a unit test for the medium.
 **escapement** — the node contract + tick-in-order: the only unconditional
 substrate; a calling convention and a for-loop. **movement** — a frozen,
 flattened, realized graph the escapement ticks; a sealed firmware is
-escapement + movement. **crown** — the minimal self-modification: the plan
+escapement + movement. **binding** — the reified binding role (ADR-038): the
+movement's rows, each a word closed by reference over its input and output cells
+in state; a linearized graph is a sequence of bindings the escapement calls in
+order. **crown** — the minimal self-modification: the plan
 as mutable data + one op-applier primitive (at tick boundaries) + an op
 inlet. **complication** — everything else, including the liveness organs
 (parser, codec, resolver, registry-face, slot, subgraph, ref, reflection,

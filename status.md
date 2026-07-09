@@ -22,12 +22,41 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
   patience is the discipline, speed is not an acceptance criterion. Full
   norms in `AGENTS.md` — read them before writing code.
 
-- **Next action:** with Travis, start at the **escapement** — the smallest
-  unit complete enough to hold fully in his head — and bring it to him to
-  READ (likely probe2's escapement ported forward, explained line by line).
-  Do NOT race `conformance/run.py`; it trails as evidence. First real
-  milestone is sense-first: escapement → crown → smallest playable graph
-  driving one sense, the whole edit-and-it-changes-live loop alive.
+- **Built so far (2026-07-09), all in `src/escapement/`, all verified on
+  GCC 16.1 (greenfield flake — NOT probe1's; reflection needs `-freflection`
+  + `<meta>`):**
+  - Runtime core (plain templates, no reflection): `cell` (intptr), `word` =
+    `void(*)(void** in, void** out)` (multi-output), `node` descriptor
+    (in_count/in_sizes/out_count/out_sizes/fn), `binding` = `{word, void**
+    inputs, void** outputs, operator()}`, `escapement`/`tick` (tick an array
+    of binding* — `(*movement[i])()`). `describe<fn>()` erases a free function
+    to a node via template deduction (NOT P2996). Input-purity rule: value or
+    `const T&` only; no mutable/rvalue ref.
+  - `plan.hpp`: `bump` (arena alloc) + `make_binding` — a **self-owning
+    binding** (inputs nullptr, outputs own their cells, sized at runtime from
+    the descriptor). Arena comes from the `mem_malloc` word.
+  - `crown.hpp`: replays a flat op tape (`N`/`L`/`S` records) into an arena of
+    self-owning bindings; `LINK`/`SET` are pointer-wiring. No flat state
+    buffer. (probe1's model, type-erased.) Kinds/ids are indices for now
+    (registry/resolver = later); constants cell-sized.
+  - `component.hpp` (reflection layer, needs `-freflection`): `component<^^fn>`
+    generates a type-RICH node (named typed members, owned output, operator())
+    — the thesis's component; and `describe_component<C>()` erases an authored
+    component (const-ref inputs, value outputs) back to a node.
+  - **Key synthesis:** `binding` and `component` are one form at two type
+    levels (erased vs typed); `call` is the binding's operator(); the state
+    array exists only because erasure can't size outputs inline. See ADR-038
+    and the 2026-07-09 documentary entry.
+
+- **Next action:** open the crown's parked seams (kinds-by-index → registry
+  organ; typed constants; bounds-as-fault, L19), OR the smallest playable
+  graph driving one sense. Do NOT race `conformance/run.py`; it trails.
+  NOTE: `src/escapement/` is the live tree; `src/syg/main.cpp` still dispatches
+  nothing. Tests are in-tree beside their source (`X.hpp` ↔ `X.test.cpp`) and
+  run via CMake/CTest: `cmake -B build -G Ninja && cmake --build build &&
+  ctest --test-dir build` (4 tests, all green). The component test needs the
+  reflection compiler; if CMake grabs GCC 15 (stale cache), nuke `build/` and
+  reconfigure with `-DCMAKE_CXX_COMPILER="$(command -v g++)"`.
 
 - **Active disciplines:** **50-line C++ cap** (never present more than 50
   lines of C++ at once — cross it and stop to explain; build/nix/cmake/shell/

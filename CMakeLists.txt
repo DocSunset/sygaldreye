@@ -13,4 +13,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(SODIUM REQUIRED IMPORTED_TARGET libsodium)
 find_package(Threads REQUIRED)
 
+enable_testing()
+
 add_subdirectory(src/syg)
+add_subdirectory(src/escapement)

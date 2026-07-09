@@ -34,9 +34,12 @@ acceptance criterion; excitement that outruns understanding buys nothing.
 
 - **50 lines of C++, hard cap.** Never present more than 50 lines of C++ at
   a time. Cross that line and you STOP writing and start explaining yourself.
-  Build system, Nix, CMake, shell tooling, Android packaging — exempt (Travis
-  doesn't read those); C++ never comes in bigger bites. This is the concrete
-  form of "small enough to read and sign in one sitting."
+  Build system, Nix, CMake, shell tooling, Android packaging, **and tests** —
+  exempt (Travis doesn't read those); C++ never comes in bigger bites. This is
+  the concrete form of "small enough to read and sign in one sitting." Tests
+  live in-tree beside their source (`crown.hpp` ↔ `crown.test.cpp`), build and
+  run under CMake/CTest, and are held to a looser bar than the rest — Travis
+  doesn't care about them and they don't count against the 50-line limit.
 - **Travis's comprehension is the clock.** Order slices so each builds the
   next in his head. Bring code to him to READ, not to rubber-stamp.
 - **Gate on his taste, not the suite.** He is a C++ veteran — a PhD spent
