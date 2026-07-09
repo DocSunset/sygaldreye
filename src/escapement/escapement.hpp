@@ -11,10 +11,13 @@ namespace syg::esc {
 // reference into shared state, which is why inputs must stay const and why fan-out
 // works. The instance is NOT here: it emerges from state × movement, existence by
 // reference (L10).
+// A binding is one blob: [ fn ][ slots ][ outmem ]. The slots array (first
+// in_count are inputs, the rest outputs) lives INLINE right after fn, and the
+// output slots point into outmem — the owned output cells, later in the same blob.
 struct binding {
-  void** slots;                                       // first in_count are inputs, the rest outputs
-  word   fn;
-  void operator()() const { fn(slots); }              // the type-ERASED twin of component::operator()
+  word fn;
+  void** slots() const { return (void**)(this + 1); }   // inline, immediately after fn
+  void operator()() const { fn(slots()); }              // the type-ERASED twin of component::operator()
 };
 
 // The escapement: tick each binding in order. The movement is an array of

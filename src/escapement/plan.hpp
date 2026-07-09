@@ -27,12 +27,13 @@ std::size_t bump(std::size_t* top, std::size_t bytes) {
 // its output the way a component owns `T out` — just heap-sized, at runtime, from
 // the descriptor, because the type was erased.
 binding* make_binding(unsigned char* arena, std::size_t* top, const node* n) {
-  binding* b = (binding*)(arena + bump(top, sizeof(binding)));
-  b->fn    = n->fn;
-  b->slots = (void**)(arena + bump(top, (n->in_count + n->out_count) * sizeof(void*)));
-  for (std::size_t j = 0; j < n->in_count;  ++j) b->slots[j] = nullptr;           // inputs unwired
+  std::size_t nslots = n->in_count + n->out_count;
+  binding* b = (binding*)(arena + bump(top, sizeof(binding) + nslots * sizeof(void*)));  // [fn][slots]
+  b->fn = n->fn;
+  void** s = b->slots();
+  for (std::size_t j = 0; j < n->in_count;  ++j) s[j] = nullptr;                  // inputs unwired
   for (std::size_t j = 0; j < n->out_count; ++j)
-    b->slots[n->in_count + j] = arena + bump(top, n->out_sizes[j]);               // owned output cells
+    s[n->in_count + j] = arena + bump(top, n->out_sizes[j]);                       // owned output cells
   return b;
 }
 

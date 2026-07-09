@@ -12,8 +12,7 @@ int main() {
 
   cell a = 3, b = 4, o = 0;
   void* slots[] = { &a, &b, &o };        // first in_count are inputs, the rest outputs
-  binding B{ slots, d.fn };
-  B();
+  d.fn(slots);                           // the shim reads inputs and writes the output through slots
   assert(o == 7);
   return 0;
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstring>
+#include <vector>
 #include "plan.hpp"
 
 namespace syg::esc {
@@ -22,8 +23,8 @@ plan crown(unsigned char* arena, [[maybe_unused]] std::size_t arena_size,
   while (k < tape_len) { if (tape[k].kind == 'N') steps = sum(steps, 1); k = sum(k, 1); }
 
   std::size_t top = 0;
-  binding**    mv  = (binding**)(arena + bump(&top, steps * sizeof(binding*)));
-  std::size_t* nin = (std::size_t*)(arena + bump(&top, steps * sizeof(std::size_t)));  // per-instance in_count
+  binding** mv = (binding**)(arena + bump(&top, steps * sizeof(binding*)));  // arena = [n binding*][n blob]
+  std::vector<std::size_t> nin(steps);                   // TRANSIENT scratch: producer in_counts, not in arena
 
   std::size_t ni = 0;
   k = 0;
@@ -32,16 +33,16 @@ plan crown(unsigned char* arena, [[maybe_unused]] std::size_t arena_size,
     if (o.kind == 'N') {
       mv[ni] = make_binding(arena, &top, &dict[o.a]);
       node d = dict[o.a];
-      nin[ni] = d.in_count;                              // remember it: a producer's outputs start here
-      if (d.in_count == 0 && d.out_count > 0) {          // a source: seed output[0] (= slots[in_count])
+      nin[ni] = d.in_count;                              // a producer's outputs start at slots[in_count]
+      if (d.in_count == 0 && d.out_count > 0) {          // a source: seed output[0]
         cell v = (cell)o.b;
         std::size_t w = sizeof(cell) < d.out_sizes[0] ? sizeof(cell) : d.out_sizes[0];
-        std::memcpy(mv[ni]->slots[d.in_count], &v, w);
+        std::memcpy(mv[ni]->slots()[d.in_count], &v, w);
       }
       ni = sum(ni, 1);
     }
     if (o.kind == 'L')                                   // producer output idx = slots[its in_count + idx]
-      mv[o.c]->slots[o.d] = mv[o.a]->slots[nin[o.a] + o.b];
+      mv[o.c]->slots()[o.d] = mv[o.a]->slots()[nin[o.a] + o.b];
     k = sum(k, 1);
   }
   plan result;

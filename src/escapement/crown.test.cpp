@@ -24,7 +24,7 @@ int main() {
   plan pl = crown(arena, 4096, dict, 2, tape, 9);
   tick(pl.steps, pl.movement);
 
-  cell r; std::memcpy(&r, pl.movement[4]->slots[2], sizeof r);   // add's output at slots[in_count]
+  cell r; std::memcpy(&r, pl.movement[4]->slots()[2], sizeof r);   // add's output at slots[in_count]
   assert(r == 17);
   std::free(arena);
   return 0;
