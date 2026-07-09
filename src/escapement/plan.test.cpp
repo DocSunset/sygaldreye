@@ -9,10 +9,8 @@ cell add(cell a, cell b) { return a + b; }
 
 int main() {
   node dict[] = { describe<add>() };
-  unsigned char* arena = (unsigned char*)std::malloc(1024);
-  std::size_t top = 0;
 
-  binding* b = make_binding(arena, &top, &dict[0]);
+  binding* b = make_binding(&dict[0]);                            // self-owning: it mallocs its own blob
   assert(b->slots()[0] == nullptr && b->slots()[1] == nullptr);   // inputs start unwired
 
   cell a = 3, c = 4;
@@ -22,8 +20,8 @@ int main() {
   assert(r == 7);
 
   node k = constant();                                         // a source node owns its value
-  assert(k.in_count == 0 && k.out_count == 1 && k.out_sizes[0] == sizeof(cell));
+  assert(k.in_sizes.size() == 0 && k.out_sizes.size() == 1 && k.out_sizes[0] == sizeof(cell));
 
-  std::free(arena);
+  std::free(b);
   return 0;
 }

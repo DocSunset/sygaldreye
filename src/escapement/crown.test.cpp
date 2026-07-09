@@ -20,12 +20,11 @@ int main() {
     {'L', 2, 0, 4, 0},             // (3+4)  -> add4 in0
     {'L', 3, 0, 4, 1},             // const10-> add4 in1
   };
-  unsigned char* arena = (unsigned char*)std::malloc(4096);
-  plan pl = crown(arena, 4096, dict, 2, tape, 9);
-  tick(pl.steps, pl.movement);
+  plan pl = crown(dict, tape);
+  tick(pl.movement);
 
   cell r; std::memcpy(&r, pl.movement[4]->slots()[2], sizeof r);   // add's output at slots[in_count]
   assert(r == 17);
-  std::free(arena);
+  drop(pl);
   return 0;
 }

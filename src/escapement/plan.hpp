@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <cstdlib>
 #include "node.hpp"
 #include "escapement.hpp"
 
@@ -7,33 +8,20 @@ namespace syg::esc {
 
 std::size_t sum(std::size_t a, std::size_t b) { return a + b; }
 
-// round x up to the next max_align_t boundary.
-std::size_t align_up(std::size_t x) {
-  std::size_t a = alignof(std::max_align_t);
-  return (x + a - 1) / a * a;
-}
-
-// bump: carve one max-aligned allocation out of an arena; return its offset. The
-// arena itself comes from the mem_malloc word — allocation stays vocabulary.
-std::size_t bump(std::size_t* top, std::size_t bytes) {
-  std::size_t at = align_up(*top);
-  *top = at + bytes;
-  return at;
-}
-
-// make_binding: build a self-owning binding in the arena. One region holds the
-// binding, its input- and output-pointer arrays, and its output cells. Inputs
-// start unwired (nullptr); each output points at an owned cell. The binding owns
-// its output the way a component owns `T out` — just heap-sized, at runtime, from
-// the descriptor, because the type was erased.
-binding* make_binding(unsigned char* arena, std::size_t* top, const node* n) {
-  std::size_t nslots = n->in_count + n->out_count;
-  binding* b = (binding*)(arena + bump(top, sizeof(binding) + nslots * sizeof(void*)));  // [fn][slots]
+// make_binding: a self-owning binding — one heap blob, [fn][slots][outmem]. Inputs
+// start unwired (nullptr); each output points at an owned cell just past the slot
+// array. The binding owns its output the way a component owns `T out`; the only
+// difference is placement, forced by erasure — the size isn't known until runtime.
+// (Outputs pack flat after the 8-aligned slot array: fine for cell-shaped cells.)
+binding* make_binding(const node* n) {
+  std::size_t nin = n->in_sizes.size(), nout = n->out_sizes.size(), outbytes = 0;
+  for (std::size_t sz : n->out_sizes) outbytes += sz;
+  binding* b = (binding*)std::malloc(sizeof(binding) + (nin + nout) * sizeof(void*) + outbytes);
   b->fn = n->fn;
   void** s = b->slots();
-  for (std::size_t j = 0; j < n->in_count;  ++j) s[j] = nullptr;                  // inputs unwired
-  for (std::size_t j = 0; j < n->out_count; ++j)
-    s[n->in_count + j] = arena + bump(top, n->out_sizes[j]);                       // owned output cells
+  unsigned char* out = (unsigned char*)(s + nin + nout);
+  for (std::size_t j = 0; j < nin;  ++j) s[j] = nullptr;                          // inputs unwired
+  for (std::size_t j = 0; j < nout; ++j) { s[nin + j] = out; out += n->out_sizes[j]; }
   return b;
 }
 
@@ -44,9 +32,8 @@ void nop(void**) {}
 // from the tape and nop leaves it be, so the owned cell IS the constant. Now that
 // bindings own their outputs, a constant is just a node — no SET op needed.
 node constant() {
-  static constexpr std::size_t no_in[]    = { 0 };
-  static constexpr std::size_t one_cell[] = { sizeof(cell), 0 };
-  return { 0, no_in, 1, one_cell, nop };
+  static constexpr std::size_t one_cell[] = { sizeof(cell) };
+  return { {}, one_cell, nop };   // no inputs (empty span), one owned cell output
 }
 
 }

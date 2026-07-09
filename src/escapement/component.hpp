@@ -83,7 +83,6 @@ consteval std::vector<std::size_t> comp_sizes(std::meta::info C, bool refs) {
     m::info t = m::type_of(x);
     v.push_back(m::size_of(refs ? m::remove_reference(t) : t));
   }
-  v.push_back(0);   // never a 0-size array
   return v;
 }
 
@@ -95,7 +94,7 @@ node describe_component() {
   static constexpr auto insz  = std::define_static_array(comp_sizes(^^C, true));
   static constexpr auto outsz = std::define_static_array(comp_sizes(^^C, false));
   return {
-    ins.size(), insz.data(), outs.size(), outsz.data(),
+    insz, outsz,
     [](void** slots) {
       constexpr std::size_t nin = ins.size();            // outputs start at slots[in_count]
       C c = [&]<std::size_t... I, std::size_t... J>(std::index_sequence<I...>, std::index_sequence<J...>) {

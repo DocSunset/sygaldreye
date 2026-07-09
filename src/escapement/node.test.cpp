@@ -8,7 +8,7 @@ cell add(cell a, cell b) { return a + b; }
 
 int main() {
   node d = describe<add>();
-  assert(d.in_count == 2 && d.out_count == 1 && d.out_sizes[0] == sizeof(cell));
+  assert(d.in_sizes.size() == 2 && d.out_sizes.size() == 1 && d.out_sizes[0] == sizeof(cell));
 
   cell a = 3, b = 4, o = 0;
   void* slots[] = { &a, &b, &o };        // first in_count are inputs, the rest outputs

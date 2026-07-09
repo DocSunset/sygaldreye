@@ -1,5 +1,7 @@
 #pragma once
 #include <cstddef>
+#include <array>
+#include <span>
 #include <utility>
 #include <type_traits>
 #include "cell.hpp"
@@ -13,15 +15,14 @@ namespace syg::esc {
 using word = void (*)(void** slots);
 
 // A node is a declaration: a word plus what the planner needs to lay out state —
-// how many inputs and outputs, and how big each is. This struct is ONE reification
-// of a node in its declaration role; the binding (escapement.hpp) reifies the
-// binding role, and the instance is a node left un-reified entirely.
+// the sizes of each input and output cell (the counts are the spans' lengths). This
+// struct is ONE reification of a node in its declaration role; the binding
+// (escapement.hpp) reifies the binding role, and the instance is a node left
+// un-reified entirely.
 struct node {
-  std::size_t        in_count;
-  const std::size_t* in_sizes;
-  std::size_t        out_count;
-  const std::size_t* out_sizes;
-  word               fn;
+  std::span<const std::size_t> in_sizes;
+  std::span<const std::size_t> out_sizes;
+  word                         fn;
 };
 
 template <auto Fn, class R, class... Args>
@@ -41,11 +42,14 @@ node describe_(R (*)(Args...)) {
     "a word's reference input must be a const lvalue reference (const T&) — "
     "otherwise take it by value, or by pointer if you mean to go raw");
 
-  static constexpr std::size_t ins[]  = { sizeof(Args)..., 0 };  // trailing 0: never a 0-size array
+  static constexpr std::array<std::size_t, sizeof...(Args)> ins = { sizeof(Args)... };
   // a free function has exactly one output — its return — or none, if void
-  static constexpr std::size_t outs[] = { sizeof(std::conditional_t<std::is_void_v<R>, char, R>), 0 };
+  static constexpr auto outs = [] {
+    if constexpr (std::is_void_v<R>) return std::array<std::size_t, 0>{};
+    else                             return std::array<std::size_t, 1>{ sizeof(R) };
+  }();
   return {
-    sizeof...(Args), ins, std::size_t(std::is_void_v<R> ? 0 : 1), outs,
+    ins, outs,
     [](void** slots) {
       [=]<std::size_t... I>(std::index_sequence<I...>) {
         if constexpr (std::is_void_v<R>)

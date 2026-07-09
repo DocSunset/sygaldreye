@@ -1,4 +1,5 @@
 #pragma once
+#include <span>
 #include "cell.hpp"
 #include "node.hpp"
 
@@ -20,16 +21,15 @@ struct binding {
   void operator()() const { fn(slots()); }              // the type-ERASED twin of component::operator()
 };
 
-// The escapement: tick each binding in order. The movement is an array of
-// pointers to self-owning bindings (each carved from the arena by make_binding),
-// so we tick through the indirection.
-void tick(std::size_t steps, binding* const* movement) {
-  for (std::size_t i = 0; i < steps; ++i)
-    (*movement[i])();
+// The escapement: tick each binding in order. The movement is a span of pointers
+// to self-owning bindings (each mallocs its own blob in make_binding), so we tick
+// through the indirection.
+void tick(std::span<binding* const> movement) {
+  for (binding* b : movement) (*b)();
 }
 
-// A plan is a built movement ready to tick: the array of self-owning bindings and
-// how many. (tick's two arguments, bundled.)
-struct plan { binding** movement; std::size_t steps; };
+// A plan is a built movement ready to tick: the span of self-owning bindings.
+// (The count that used to ride alongside is now the span's length.)
+struct plan { std::span<binding*> movement; };
 
 }

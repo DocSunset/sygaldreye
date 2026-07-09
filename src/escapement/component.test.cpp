@@ -26,11 +26,11 @@ int main() {
   node d = describe_component<AddC>();
   cell ia = 3, ib = 4, io = 0;  void* s[] = { &ia, &ib, &io };
   d.fn(s);
-  assert(d.in_count == 2 && d.out_count == 1 && io == 7);
+  assert(d.in_sizes.size() == 2 && d.out_sizes.size() == 1 && io == 7);
 
   node d2 = describe_component<SplitC>();   // multiple outputs from a component
   cell xin = 10, lo = 0, hi = 0;  void* s2[] = { &xin, &lo, &hi };
   d2.fn(s2);
-  assert(d2.in_count == 1 && d2.out_count == 2 && lo == 5 && hi == 5);
+  assert(d2.in_sizes.size() == 1 && d2.out_sizes.size() == 2 && lo == 5 && hi == 5);
   return 0;
 }
