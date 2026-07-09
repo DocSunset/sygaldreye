@@ -1,4 +1,4 @@
-"""Rung 3 — The crown. FMT-3 verifies fixture consistency via the reference
+"""Rung 3 — The crown. fmt.boot_tape verifies fixture consistency via the reference
 tape oracle (runs today), then differentially tests crown replay (Pending
 until ./syg exists)."""
 import json, struct
@@ -19,13 +19,13 @@ def fmt3_tape_topology_equivalence():
 
 
 def cor2_ladder_start():
-    # COR-2's ladder start (appendix rung 3): a tape builds hello-cosine AT
+    # cor.crown_sufficiency's ladder start (appendix rung 3): a tape builds hello-cosine AT
     # RUNTIME — escapement + crown + linked natives + tape, zero code paths
     # outside op application — and the running plan renders the golden
     # audio. Deeper: the hand-frozen movement (rung 2) is the FROZEN form of
     # this same graph, so the two renders must be BYTE-IDENTICAL (freezing
     # is a pure optimizer — ADR-013/014). Full liveness (parser, store,
-    # mesh instated by tape) closes the rest of COR-2 at rung 4 (SZ-7).
+    # mesh instated by tape) closes the rest of cor.crown_sufficiency at rung 4 (sz.boot_without_store).
     live = syg("render-tape", "6", stdin=fixture("hello-cosine.tape").encode())
     golden_audio_check(struct.unpack(f"<{len(live) // 4}f", live))
     frozen = syg("render-movement", "hello-cosine", "6")
@@ -34,6 +34,6 @@ def cor2_ladder_start():
 
 
 TESTS = {
-    "COR-2": cor2_ladder_start,
-    "FMT-3": fmt3_tape_topology_equivalence,
+    "cor.crown_sufficiency": cor2_ladder_start,
+    "fmt.boot_tape": fmt3_tape_topology_equivalence,
 }

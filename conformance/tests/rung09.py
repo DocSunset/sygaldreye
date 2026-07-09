@@ -34,7 +34,7 @@ def _key(results, i):
     return results[i]["key"]
 
 
-# ---- MSH-1.1: keypairs, pairing, revocation --------------------------------
+# ---- msh.keypairs_pairing.pair_revoke_restore: keypairs, pairing, revocation --------------------------------
 def msh11_pairing_revocation_restores():
     # Three peers pair; put a blob on host; the paired quest can fetch it,
     # place on it, and subscribe to it. Revoke the quest's key on host: all
@@ -94,7 +94,7 @@ def msh11_pairing_revocation_restores():
     assert k[0]["key"] != k[1]["key"], "distinct peers, distinct keys"
 
 
-# ---- MSH-2.1: unpaired probe refused at every surface ----------------------
+# ---- msh.authenticated_transport.unpaired_refused: unpaired probe refused at every surface ----------------------
 def msh21_unpaired_probe_refused():
     # A port scan + protocol probe from an unpaired scanner. Every peer's one
     # listening surface reads a length-framed hello; a legacy HTTP verb or
@@ -130,7 +130,7 @@ def msh21_unpaired_probe_refused():
     assert live[2]["ok"], live[2]  # the same surface serves an authenticated peer
 
 
-# ---- MSH-4.1: pull-shaped placement — nothing lands off the run list -------
+# ---- msh.pull_shaped_placement.no_unadvertised_instantiation: pull-shaped placement — nothing lands off the run list -------
 def msh41_placement_fuzz_no_escape():
     # Fuzz the placement API with arbitrary type names; assert via the peer's
     # registry audit log that ZERO instantiations occur outside its advertised
@@ -169,7 +169,7 @@ def msh41_placement_fuzz_no_escape():
     assert placed == expected, (placed[:5], expected[:5])
 
 
-# ---- MSH-3.1: three lists — advertisement enforced, refusal visible --------
+# ---- msh.three_lists.typed_refusal: three lists — advertisement enforced, refusal visible --------
 def msh31_shell_exec_refused_falls_through():
     # The browser peer doesn't advertise `shell_exec` (selective advertisement
     # IS the sandbox). An engine requesting it there is refused with a TYPED
@@ -209,7 +209,7 @@ def msh31_shell_exec_refused_falls_through():
     assert none["refusals"][0]["refusal"]["error"] == "not-advertised", none
 
 
-# ---- MSH-8.1: per-store sharing by key subset ------------------------------
+# ---- msh.graded_circles.per_store_sharing: per-store sharing by key subset ------------------------------
 def msh81_second_store_shared_with_subset():
     # A second store graph shared with a SUBSET of paired keys. Both alice and
     # bob are paired with host and can fetch from the common (default) store;
@@ -246,7 +246,7 @@ def msh81_second_store_shared_with_subset():
     assert r[8]["reason"] == "not-shared-or-absent", r[8]
 
 
-# ---- MSH-6.1: signed capture testimony -------------------------------------
+# ---- msh.capture_testimony_keys.testimony_tamper_fails: signed capture testimony -------------------------------------
 def msh61_tampered_testimony_fails():
     # A capture's testimony carries the capturing peer's public key and a
     # signature over the take's content hash. Verification is signature-
@@ -277,7 +277,7 @@ def msh61_tampered_testimony_fails():
     assert bad2[0]["valid"] is False, bad2[0]
 
 
-# ---- ABI-4.1: plugin contract succession (reachability, not equality) ------
+# ---- abi.contract_succession.loads_iff_reachable: plugin contract succession (reachability, not equality) ------
 def abi41_contract_reachability():
     # A plugin records the contract hash it was built against. It loads on a
     # peer speaking C2 iff C2 declares a migration path from that hash. Same
@@ -310,7 +310,7 @@ def abi41_contract_reachability():
     assert r2[1]["loaded"] is False, r2[1]  # succession is directed
 
 
-# ---- MSH-5.1: graphs flow; plugins gated by signed provenance --------------
+# ---- msh.graphs_vs_plugins.plugin_gate: graphs flow; plugins gated by signed provenance --------------
 def msh51_plugin_trust_gate():
     # A graph dataset ships Quest->host and RUNS (no prompt). An unsigned .so
     # is refused and logged. Signed by an untrusted key: still refused. Signed
@@ -361,11 +361,11 @@ def msh51_plugin_trust_gate():
     assert prov["provenance"]["toolchain"] == "gcc-15", prov
 
 
-# ---- MSH-5.2: the browser's WASM form rides the SAME gate -------------------
+# ---- msh.graphs_vs_plugins.wasm_same_gate: the browser's WASM form rides the SAME gate -------------------
 def msh52_wasm_side_module_same_gate():
     # The browser peer's plugin form is a WASM side module over the same
     # channel and gate; the policy check is form-agnostic. (Execution is a
-    # host concern — ABI-5, rung 10; here the trust decision is exercised.)
+    # host concern — abi.three_packagings, rung 10; here the trust decision is exercised.)
     wasm = {"/": {"bytes": "AGFzbQEAAAA"}}  # a wasm magic-header stand-in
     peers = {"agent": {}, "browser": {}, "stranger": {}}
     r = _mesh(peers, [
@@ -386,11 +386,11 @@ def msh52_wasm_side_module_same_gate():
     assert r[2]["loaded"] is False and r[2]["error"] == "unsigned", r[2]
     assert r[3]["loaded"] is False and r[3]["error"] == "untrusted-signer", r[3]
     assert r[4]["loaded"] is True and r[4]["form"] == "wasm", r[4]
-    assert r[4]["executed"] is False, r[4]  # execution lands at rung 10 (ABI-5)
+    assert r[4]["executed"] is False, r[4]  # execution lands at rung 10 (abi.three_packagings)
     assert r[5]["known"] and r[5]["provenance"]["form"] == "wasm", r[5]
 
 
-# ---- FMT-4: wire golden transcripts ----------------------------------------
+# ---- fmt.wire_transcripts: wire golden transcripts ----------------------------------------
 def fmt4_wire_golden_transcript():
     # A recorded two-peer session (advertise-query, ops, subscribe, place,
     # fetch) replays BYTE-EXACT. The ciphertext isn't reproducible (ephemeral
@@ -418,7 +418,7 @@ def fmt4_wire_golden_transcript():
     assert any(len(m["body"]) > 2 for m in live)
 
 
-# ---- MSH-7.1: discovery is a swappable seam --------------------------------
+# ---- msh.discovery.discovery_swappable: discovery is a swappable seam --------------------------------
 def msh71_discovery_seam_static_or_mdns():
     # Discovery is an abstract provider: an integration battery touching MSH
     # (pair/fetch/place), STO (put/fetch by hash), and PKG (worker placement,
@@ -451,10 +451,10 @@ def msh71_discovery_seam_static_or_mdns():
         {"op": "put", "peer": "host", "bytes": {"/": {"bytes": "c2VhbQ"}}},
         # MSH: place a node on an advertiser
         {"op": "place", "from": "quest", "to": "host", "type": "osc"},
-        # PKG-5: worker placement by advertised capability, result by hash
+        # pkg.worker_derivation: worker placement by advertised capability, result by hash
         {"op": "place-derivation", "from": "quest", "candidates": ["host", "linux"],
          "graph": wgraph, "blocks": 64},
-        # PKG-6: the net discipline over the real transport
+        # pkg.net_package: the net discipline over the real transport
         {"op": "net-pair", "from": "quest", "to": "linux",
          "provider": provider, "consumer": consumer, "blocks": 120,
          "kill_at": 40, "reconnect_at": 80, "events": 60},
@@ -471,25 +471,25 @@ def msh71_discovery_seam_static_or_mdns():
     assert static[4]["cid"] == mdns[4]["cid"], "put cid differs by discovery"
     # MSH place
     assert static[5]["ok"] and mdns[5]["ok"], (static[5], mdns[5])
-    # PKG-5 worker placement: same worker, same result hash
+    # pkg.worker_derivation worker placement: same worker, same result hash
     assert static[6]["placed_on"] == mdns[6]["placed_on"] == "linux"
     assert static[6]["output"] == mdns[6]["output"], "derivation output differs"
-    # PKG-6 net discipline: identical delivery outcome
+    # pkg.net_package net discipline: identical delivery outcome
     for key in ("count", "disorder", "cube", "provider_latest"):
         assert static[7][key] == mdns[7][key], (key, static[7], mdns[7])
     assert static[7]["count"] == 60.0 and static[7]["disorder"] == 0.0, static[7]
 
 
 TESTS = {
-    "ABI-4.1": abi41_contract_reachability,
-    "FMT-4": fmt4_wire_golden_transcript,
-    "MSH-7.1": msh71_discovery_seam_static_or_mdns,
-    "MSH-5.1": msh51_plugin_trust_gate,
-    "MSH-5.2": msh52_wasm_side_module_same_gate,
-    "MSH-1.1": msh11_pairing_revocation_restores,
-    "MSH-2.1": msh21_unpaired_probe_refused,
-    "MSH-3.1": msh31_shell_exec_refused_falls_through,
-    "MSH-4.1": msh41_placement_fuzz_no_escape,
-    "MSH-6.1": msh61_tampered_testimony_fails,
-    "MSH-8.1": msh81_second_store_shared_with_subset,
+    "abi.contract_succession.loads_iff_reachable": abi41_contract_reachability,
+    "fmt.wire_transcripts": fmt4_wire_golden_transcript,
+    "msh.discovery.discovery_swappable": msh71_discovery_seam_static_or_mdns,
+    "msh.graphs_vs_plugins.plugin_gate": msh51_plugin_trust_gate,
+    "msh.graphs_vs_plugins.wasm_same_gate": msh52_wasm_side_module_same_gate,
+    "msh.keypairs_pairing.pair_revoke_restore": msh11_pairing_revocation_restores,
+    "msh.authenticated_transport.unpaired_refused": msh21_unpaired_probe_refused,
+    "msh.three_lists.typed_refusal": msh31_shell_exec_refused_falls_through,
+    "msh.pull_shaped_placement.no_unadvertised_instantiation": msh41_placement_fuzz_no_escape,
+    "msh.capture_testimony_keys.testimony_tamper_fails": msh61_tampered_testimony_fails,
+    "msh.graded_circles.per_store_sharing": msh81_second_store_shared_with_subset,
 }

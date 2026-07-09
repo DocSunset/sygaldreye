@@ -164,7 +164,7 @@ def cor51_natives_declare_clauses():
         found += 1
     assert found > 0, "no natives scanned"
     # and the gate itself enforces it (gates.sh carries the same scan)
-    assert "COR-5.1" in (HERE / "gates.sh").read_text()
+    assert "cor.native_ledger_discipline.clause_marker_required" in (HERE / "gates.sh").read_text()
 
 
 def cor52_unknown_clause_rejected():
@@ -182,7 +182,7 @@ def sz6_trampolines_small():
     for f in tramps:
         code = [ln for ln in f.read_text().split("\n")
                 if ln.strip() and not ln.strip().startswith("//")]
-        assert len(code) <= 10, f"{f} is {len(code)} lines (SZ-6: at most 10)"
+        assert len(code) <= 10, f"{f} is {len(code)} lines (sz.trampolines: at most 10)"
 
 
 
@@ -214,7 +214,7 @@ def aut31_descriptors_generated():
     gen = ROOT / "build" / "generated"
     if not gen.exists():
         raise Pending("generated/ not built")
-    # adding a field surfaced port + promises (ABI-1.1's pair) ...
+    # adding a field surfaced port + promises (abi.one_declaration.field_surfaces_port's pair) ...
     db = _json.loads((gen / "widget_b.descriptor.json").read_text())["ports"]
     assert db["brightness"] == {"dir": "in", "kind": "scalar",
                                 "discipline": "value"}
@@ -234,19 +234,19 @@ def aut31_descriptors_generated():
 TESTS = {
     # AUT joined the manifest 2026-07-05 (ch. 12 had been silently absent —
     # extractor prefix gap). None = pending: write each from criterion text.
-    "AUT-1.1": aut11_kernel_contract,
-    "AUT-1.2": aut12_n1_granularity,
-    "AUT-3.1": aut31_descriptors_generated,
-    "ABI-1.1": abi11_one_declaration,
-    "ABI-1.2": abi12_no_handwritten_serializers,
-    "ABI-2.1": abi21_hook_discipline,
-    "ABI-2.2": abi22_create_never_acquires,
-    "ABI-3.1": abi31_declared_fault_converts,
-    "ABI-3.2": abi32_undeclared_throw_kills_subprocess,
-    "COR-1": cor1_escapement_austerity,
-    "COR-3": cor3_core_names_match_book,
-    "SZ-1.1": sz11_no_platform_branches,
-    "SZ-6": sz6_trampolines_small,
-    "COR-5.1": cor51_natives_declare_clauses,
-    "COR-5.2": cor52_unknown_clause_rejected,
+    "aut.kernel_contract.no_wallclock_state": aut11_kernel_contract,
+    "aut.kernel_contract.ticks_at_single_sample": aut12_n1_granularity,
+    "aut.generated_descriptors.field_surfaces_descriptor": aut31_descriptors_generated,
+    "abi.one_declaration.field_surfaces_port": abi11_one_declaration,
+    "abi.one_declaration.no_handwritten_adapters": abi12_no_handwritten_serializers,
+    "abi.hook_discipline.rt_hooks_clean": abi21_hook_discipline,
+    "abi.hook_discipline.create_acquires_fails": abi22_create_never_acquires,
+    "abi.fault_declaration.declared_fault_recorded": abi31_declared_fault_converts,
+    "abi.fault_declaration.undeclared_throw_kills": abi32_undeclared_throw_kills_subprocess,
+    "cor.escapement_austerity": cor1_escapement_austerity,
+    "cor.ratchet_enforcement": cor3_core_names_match_book,
+    "sz.platform_invariance.ci_grep_gate": sz11_no_platform_branches,
+    "sz.trampolines": sz6_trampolines_small,
+    "cor.native_ledger_discipline.clause_marker_required": cor51_natives_declare_clauses,
+    "cor.native_ledger_discipline.no_clause_rejected": cor52_unknown_clause_rejected,
 }

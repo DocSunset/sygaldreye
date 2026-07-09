@@ -1,4 +1,4 @@
-"""Reference canonical dag-cbor encoder — the oracle for FMT-1.
+"""Reference canonical dag-cbor encoder — the oracle for fmt.encoder_conformance.
 
 Deliberately slow and obviously correct. This file is executable
 specification: an implementation is right when its bytes match this, byte

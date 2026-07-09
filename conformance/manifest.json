@@ -1,1036 +1,1036 @@
 {
- "ABI-1": {
+ "abi.contract_succession": {
   "chapter": "13-native-contract.md",
   "criteria": {
-   "ABI-1.1": "adding a field to a struct surfaces port + codec + binding with",
-   "ABI-1.2": "grep gate \u2014 no hand-written `try/catch` or serializer in node"
+   "abi.contract_succession.loads_iff_reachable": "a plugin generated against contract C1 loads on a peer speaking"
   },
-  "name": "one declaration",
-  "rung": 2,
-  "text": "Descriptor, codecs, shell, bindings generated"
- },
- "ABI-2": {
-  "chapter": "13-native-contract.md",
-  "criteria": {
-   "ABI-2.1": "EXE-3.1's instrumented run extended over the full hook table.",
-   "ABI-2.2": "a node acquiring a device in create() fails a debug assert with"
-  },
-  "name": "hook discipline",
-  "rung": 2,
-  "text": "RT hooks allocation/lock/syscall-free after"
- },
- "ABI-3": {
-  "chapter": "13-native-contract.md",
-  "criteria": {
-   "ABI-3.1": "a declared parser node converts a malformed-input exception to a",
-   "ABI-3.2": "an undeclared throw in a quarantined plugin kills the subprocess;"
-  },
-  "name": "fault declaration",
-  "rung": 2,
-  "text": "Only declared-fallible shells contain a"
- },
- "ABI-4": {
-  "chapter": "13-native-contract.md",
-  "criteria": {
-   "ABI-4.1": "a plugin generated against contract C1 loads on a peer speaking"
-  },
-  "name": "contract succession",
+  "name": "abi.contract_succession",
   "rung": 9,
   "text": "Plugins record their contract hash;"
  },
- "ABI-5": {
+ "abi.fault_declaration": {
+  "chapter": "13-native-contract.md",
+  "criteria": {
+   "abi.fault_declaration.declared_fault_recorded": "a declared parser node converts a malformed-input exception to a",
+   "abi.fault_declaration.undeclared_throw_kills": "an undeclared throw in a quarantined plugin kills the subprocess;"
+  },
+  "name": "abi.fault_declaration",
+  "rung": 2,
+  "text": "Only declared-fallible shells contain a"
+ },
+ "abi.hook_discipline": {
+  "chapter": "13-native-contract.md",
+  "criteria": {
+   "abi.hook_discipline.create_acquires_fails": "a node acquiring a device in create() fails a debug assert with",
+   "abi.hook_discipline.rt_hooks_clean": "exe.realtime_safety.zero_alloc_lock's instrumented run extended over the full hook table."
+  },
+  "name": "abi.hook_discipline",
+  "rung": 2,
+  "text": "RT hooks allocation/lock/syscall-free after"
+ },
+ "abi.one_declaration": {
+  "chapter": "13-native-contract.md",
+  "criteria": {
+   "abi.one_declaration.field_surfaces_port": "adding a field to a struct surfaces port + codec + binding with",
+   "abi.one_declaration.no_handwritten_adapters": "grep gate \u2014 no hand-written `try/catch` or serializer in node"
+  },
+  "name": "abi.one_declaration",
+  "rung": 2,
+  "text": "Descriptor, codecs, shell, bindings generated"
+ },
+ "abi.three_packagings": {
   "chapter": "13-native-contract.md",
   "criteria": {},
-  "name": "three packagings, one shell",
+  "name": "abi.three_packagings",
   "rung": 10,
   "text": "The same node source builds as"
  },
- "AUT-1": {
+ "aut.four_routes": {
   "chapter": "12-authoring-conformability.md",
   "criteria": {
-   "AUT-1.1": "synth_core kernel suite green; a kernel holding wall-clock state",
-   "AUT-1.2": "every kernel ticks correctly at N=1 sample granularity (island"
+   "aut.four_routes.four_routes_interchangeable": "hello-cosine's osc swapped for (a) a subgraph osc, (b) a frozen"
   },
-  "name": "kernel contract",
-  "rung": 2,
-  "text": "Kernels are per-sample, absolute-time-free,"
- },
- "AUT-2": {
-  "chapter": "12-authoring-conformability.md",
-  "criteria": {
-   "AUT-2.1": "grep gate for raw frame loops in ugens; exceptions annotated.",
-   "AUT-2.2": "ugens test suite unchanged across a stamp refactor (the"
-  },
-  "name": "shell stamps",
-  "rung": 8,
-  "text": "No hand-written block loops outside the documented"
- },
- "AUT-3": {
-  "chapter": "12-authoring-conformability.md",
-  "criteria": {
-   "AUT-3.1": "adding a field to an endpoints struct surfaces the port, its promises, and its widget with zero descriptor edits."
-  },
-  "name": "generated descriptors",
-  "rung": 2,
-  "text": "Port declarations, promises, and affordances"
- },
- "AUT-4": {
-  "chapter": "12-authoring-conformability.md",
-  "criteria": {
-   "AUT-4.1": "EXE-5.2 (cards by id) and LNG-2.1 (channels by index) both pass;",
-   "AUT-4.2": "a span into a lift-key port does not steal the lift (the"
-  },
-  "name": "lift guarantees",
-  "rung": 5,
-  "text": "Keyed clone state survives reorder/resize/"
- },
- "AUT-5": {
-  "chapter": "12-authoring-conformability.md",
-  "criteria": {
-   "AUT-5.1": "hello-cosine's osc swapped for (a) a subgraph osc, (b) a frozen"
-  },
-  "name": "four routes, one registry",
+  "name": "aut.four_routes",
   "rung": 8,
   "text": "Native, subgraph, frozen, and plugin"
  },
- "CMP-1": {
+ "aut.generated_descriptors": {
+  "chapter": "12-authoring-conformability.md",
+  "criteria": {
+   "aut.generated_descriptors.field_surfaces_descriptor": "adding a field to an endpoints struct surfaces the port, its promises, and its widget with zero descriptor edits."
+  },
+  "name": "aut.generated_descriptors",
+  "rung": 2,
+  "text": "Port declarations, promises, and affordances"
+ },
+ "aut.kernel_contract": {
+  "chapter": "12-authoring-conformability.md",
+  "criteria": {
+   "aut.kernel_contract.no_wallclock_state": "synth_core kernel suite green; a kernel holding wall-clock state",
+   "aut.kernel_contract.ticks_at_single_sample": "every kernel ticks correctly at N=1 sample granularity (island"
+  },
+  "name": "aut.kernel_contract",
+  "rung": 2,
+  "text": "Kernels are per-sample, absolute-time-free,"
+ },
+ "aut.lift_guarantees": {
+  "chapter": "12-authoring-conformability.md",
+  "criteria": {
+   "aut.lift_guarantees.key_port_keeps_lift": "a span into a lift-key port does not steal the lift (the",
+   "aut.lift_guarantees.keyed_and_indexed": "exe.migration.reorder_preserves_state (cards by id) and lng.span_semantics.span_stamps_clones (channels by index) both pass;"
+  },
+  "name": "aut.lift_guarantees",
+  "rung": 5,
+  "text": "Keyed clone state survives reorder/resize/"
+ },
+ "aut.shell_stamps": {
+  "chapter": "12-authoring-conformability.md",
+  "criteria": {
+   "aut.shell_stamps.no_raw_loops": "grep gate for raw frame loops in ugens; exceptions annotated.",
+   "aut.shell_stamps.suite_survives_refactor": "ugens test suite unchanged across a stamp refactor (the"
+  },
+  "name": "aut.shell_stamps",
+  "rung": 8,
+  "text": "No hand-written block loops outside the documented"
+ },
+ "cmp.compile_is_derivation": {
   "chapter": "05-compilation.md",
   "criteria": {
-   "CMP-1.1": "compiling hello-cosine twice runs passes once (counter).",
-   "CMP-1.2": "editing the *defaults* node only does not re-run structural passes"
+   "cmp.compile_is_derivation.defaults_edit_skips_structural": "editing the *defaults* node only does not re-run structural passes",
+   "cmp.compile_is_derivation.memoized": "compiling hello-cosine twice runs passes once (counter)."
   },
-  "name": "compile as committed derivation",
+  "name": "cmp.compile_is_derivation",
   "rung": 7,
   "text": "compile(app, engine) to execution dataset"
  },
- "CMP-2": {
+ "cmp.determinism_and_map": {
   "chapter": "05-compilation.md",
   "criteria": {
-   "CMP-2.1": "compile hello-cosine a hundred times; one distinct output hash.",
-   "CMP-2.2": "the map contains `nodes/osc0 to block/osc0` (or equivalent stable"
+   "cmp.determinism_and_map.deterministic_hash": "compile hello-cosine a hundred times; one distinct output hash.",
+   "cmp.determinism_and_map.map_covers_instances": "the map contains `nodes/osc0 to block/osc0` (or equivalent stable"
   },
-  "name": "determinism + map",
+  "name": "cmp.determinism_and_map",
   "rung": 7,
   "text": "Same inputs to identical execution graph hash"
  },
- "CMP-3": {
+ "cmp.engine_is_realized": {
   "chapter": "05-compilation.md",
   "criteria": {
-   "CMP-3.1": "the audio splice lands as ordinary edit ops on the live engine",
-   "CMP-3.2": "pass execution order equals topological order of the engine"
+   "cmp.engine_is_realized.engine_plan_run": "compiling hello-cosine is observably the engine plan's run:",
+   "cmp.engine_is_realized.graph_pass_runs": "a pass authored as a graph dataset (no C++) wired into a fan-in",
+   "cmp.engine_is_realized.honest_lock": "the lock is honest (ADR-026): the generator's descriptors commit",
+   "cmp.engine_is_realized.pass_edit_changes_compile": "an ordinary edit op wiring an additional pass node into a"
   },
-  "name": "extension ports",
-  "rung": 7,
-  "text": "Packages integrate exclusively by wiring into"
- },
- "CMP-4": {
-  "chapter": "05-compilation.md",
-  "criteria": {
-   "CMP-4.1": "replace hello-cosine's latch with `smoother` in the execution",
-   "CMP-4.2": "an edit whose target route vanished upstream surfaces a conflict"
-  },
-  "name": "projection editing",
-  "rung": 7,
-  "text": "Edits in realized views write back through"
- },
- "CMP-5": {
-  "chapter": "05-compilation.md",
-  "criteria": {
-   "CMP-5.1": "fork hello-cosine's execution graph, edit upstream app graph,"
-  },
-  "name": "fork",
-  "rung": 7,
-  "text": "Rebinding a ref away from a derivation's output records"
- },
- "CMP-6": {
-  "chapter": "05-compilation.md",
-  "criteria": {
-   "CMP-6.1": "steady-state hello-cosine playback instantiates zero engine"
-  },
-  "name": "laziness",
-  "rung": 7,
-  "text": "No engine graph above the level being edited is"
- },
- "CMP-7": {
-  "chapter": "05-compilation.md",
-  "criteria": {
-   "CMP-7.1": "while sounding, add noise0 to hello-cosine, re-compile, swap:"
-  },
-  "name": "identity across re-compilation",
-  "rung": 7,
-  "text": "State survives app-graph edits"
- },
- "CMP-8": {
-  "chapter": "05-compilation.md",
-  "criteria": {},
-  "name": "RETIRED 2026-07-04",
-  "rung": null,
-  "text": "The strangler migration path assumed"
- },
- "CMP-9": {
-  "chapter": "05-compilation.md",
-  "criteria": {
-   "CMP-9.1": "compiling hello-cosine is observably the engine plan's run:",
-   "CMP-9.2": "an ordinary edit op wiring an additional pass node into a",
-   "CMP-9.3": "a pass authored as a graph dataset (no C++) wired into a fan-in",
-   "CMP-9.4": "the lock is honest (ADR-026): the generator's descriptors commit"
-  },
-  "name": "the engine is realized \u2014 ADR-034",
+  "name": "cmp.engine_is_realized",
   "rung": 7,
   "text": "The engine graph runs through"
  },
- "CNF-1": {
-  "chapter": "17-conformance-evolution.md",
-  "criteria": {},
-  "name": "suite-as-data",
-  "rung": 12,
-  "text": "Every acceptance criterion in this book exists"
+ "cmp.extension_ports": {
+  "chapter": "05-compilation.md",
+  "criteria": {
+   "cmp.extension_ports.additive_splice": "the audio splice lands as ordinary edit ops on the live engine",
+   "cmp.extension_ports.order_is_topological": "pass execution order equals topological order of the engine"
+  },
+  "name": "cmp.extension_ports",
+  "rung": 7,
+  "text": "Packages integrate exclusively by wiring into"
  },
- "CNF-2": {
+ "cmp.fork": {
+  "chapter": "05-compilation.md",
+  "criteria": {
+   "cmp.fork.fork_untouched": "fork hello-cosine's execution graph, edit upstream app graph,"
+  },
+  "name": "cmp.fork",
+  "rung": 7,
+  "text": "Rebinding a ref away from a derivation's output records"
+ },
+ "cmp.identity_across_recompilation": {
+  "chapter": "05-compilation.md",
+  "criteria": {
+   "cmp.identity_across_recompilation.phase_continuous": "while sounding, add noise0 to hello-cosine, re-compile, swap:"
+  },
+  "name": "cmp.identity_across_recompilation",
+  "rung": 7,
+  "text": "State survives app-graph edits"
+ },
+ "cmp.laziness": {
+  "chapter": "05-compilation.md",
+  "criteria": {
+   "cmp.laziness.zero_resident_engine": "steady-state hello-cosine playback instantiates zero engine"
+  },
+  "name": "cmp.laziness",
+  "rung": 7,
+  "text": "No engine graph above the level being edited is"
+ },
+ "cmp.projection_editing": {
+  "chapter": "05-compilation.md",
+  "criteria": {
+   "cmp.projection_editing.vanished_route_conflict": "an edit whose target route vanished upstream surfaces a conflict",
+   "cmp.projection_editing.writeback_smoother": "replace hello-cosine's latch with `smoother` in the execution"
+  },
+  "name": "cmp.projection_editing",
+  "rung": 7,
+  "text": "Edits in realized views write back through"
+ },
+ "cmp.retired": {
+  "chapter": "05-compilation.md",
+  "criteria": {},
+  "name": "cmp.retired",
+  "rung": null,
+  "text": "The strangler migration path assumed"
+ },
+ "cnf.candidate_as_peer": {
   "chapter": "17-conformance-evolution.md",
   "criteria": {},
-  "name": "candidate-as-peer",
+  "name": "cnf.candidate_as_peer",
   "rung": 12,
   "text": "The harness runs entirely over the wire"
  },
- "CNF-3": {
-  "chapter": "17-conformance-evolution.md",
-  "criteria": {},
-  "name": "two profiles",
-  "rung": 12,
-  "text": "The movement profile passes on a crownless build;"
- },
- "CNF-4": {
-  "chapter": "17-conformance-evolution.md",
-  "criteria": {},
-  "name": "succession end-to-end",
-  "rung": 12,
-  "text": "Introduce kind-v2 with a migration:"
- },
- "CNF-5": {
-  "chapter": "17-conformance-evolution.md",
-  "criteria": {},
-  "name": "self-gate",
-  "rung": 12,
-  "text": "A core succession (N derives N+1) is admitted only"
- },
- "CNF-6": {
+ "cnf.derived_versions": {
   "chapter": "17-conformance-evolution.md",
   "criteria": {
-   "CNF-6.1": "a chain of successions (origin, fix, additive, breaking, fix)",
-   "CNF-6.2": "an \"additive\" succession that fails a predecessor criterion is",
-   "CNF-6.3": "`osc@1.2.0` as a ref-sugar address resolves to the same hash as"
+   "cnf.derived_versions.additive_verified": "an \"additive\" succession that fails a predecessor criterion is",
+   "cnf.derived_versions.version_address_resolves": "`osc@1.2.0` as a ref-sugar address resolves to the same hash as",
+   "cnf.derived_versions.version_chain": "a chain of successions (origin, fix, additive, breaking, fix)"
   },
-  "name": "derived versions, ADR-032",
+  "name": "cnf.derived_versions",
   "rung": 12,
   "text": "Succession classes are declared,"
  },
- "COR-1": {
-  "chapter": "16-the-core.md",
+ "cnf.self_gate": {
+  "chapter": "17-conformance-evolution.md",
   "criteria": {},
-  "name": "escapement austerity",
-  "rung": 2,
-  "text": "The escapement compiles freestanding;"
+  "name": "cnf.self_gate",
+  "rung": 12,
+  "text": "A core succession (N derives N+1) is admitted only"
  },
- "COR-2": {
+ "cnf.succession_end_to_end": {
+  "chapter": "17-conformance-evolution.md",
+  "criteria": {},
+  "name": "cnf.succession_end_to_end",
+  "rung": 12,
+  "text": "Introduce kind-v2 with a migration:"
+ },
+ "cnf.suite_as_data": {
+  "chapter": "17-conformance-evolution.md",
+  "criteria": {},
+  "name": "cnf.suite_as_data",
+  "rung": 12,
+  "text": "Every acceptance criterion in this book exists"
+ },
+ "cnf.two_profiles": {
+  "chapter": "17-conformance-evolution.md",
+  "criteria": {},
+  "name": "cnf.two_profiles",
+  "rung": 12,
+  "text": "The movement profile passes on a crownless build;"
+ },
+ "cor.crown_sufficiency": {
   "chapter": "16-the-core.md",
   "criteria": {},
-  "name": "crown sufficiency",
+  "name": "cor.crown_sufficiency",
   "rung": 3,
   "text": "From escapement + crown + linked liveness"
  },
- "COR-3": {
+ "cor.escapement_austerity": {
   "chapter": "16-the-core.md",
   "criteria": {},
-  "name": "ratchet enforcement",
+  "name": "cor.escapement_austerity",
   "rung": 2,
-  "text": "CI gate: the core-named list in this"
+  "text": "The escapement compiles freestanding;"
  },
- "COR-4": {
-  "chapter": "16-the-core.md",
-  "criteria": {},
-  "name": "two profiles",
-  "rung": 12,
-  "text": "Movement-level and peer-level conformance run"
- },
- "COR-5": {
+ "cor.native_ledger_discipline": {
   "chapter": "16-the-core.md",
   "criteria": {
-   "COR-5.1": "a gate scans native sources for a declared clause marker",
-   "COR-5.2": "a native claiming no clause a reviewer accepts is rejected in"
+   "cor.native_ledger_discipline.clause_marker_required": "a gate scans native sources for a declared clause marker",
+   "cor.native_ledger_discipline.no_clause_rejected": "a native claiming no clause a reviewer accepts is rejected in"
   },
-  "name": "native ledger discipline, ADR-033",
+  "name": "cor.native_ledger_discipline",
   "rung": 2,
   "text": "Every native declares its"
  },
- "EDR-1": {
-  "chapter": "09-editor-documents.md",
-  "criteria": {
-   "EDR-1.1": "replacing the palette subgraph live (swap+migrate) changes editor",
-   "EDR-1.2": "the surface is graphs: every editor-surface behavior \u2014 cards,"
-  },
-  "name": "editor is nodes",
-  "rung": 11,
-  "text": "No editor monolith returns; all editor behavior"
+ "cor.ratchet_enforcement": {
+  "chapter": "16-the-core.md",
+  "criteria": {},
+  "name": "cor.ratchet_enforcement",
+  "rung": 2,
+  "text": "CI gate: the core-named list in this"
  },
- "EDR-2": {
-  "chapter": "09-editor-documents.md",
-  "criteria": {
-   "EDR-2.1": "modulate vca0/gain with lfo0, save, reload: gain default is the"
-  },
-  "name": "defaults discipline",
-  "rung": 11,
-  "text": "Serialize captures defaults; connected"
+ "cor.two_profiles": {
+  "chapter": "16-the-core.md",
+  "criteria": {},
+  "name": "cor.two_profiles",
+  "rung": 12,
+  "text": "Movement-level and peer-level conformance run"
  },
- "EDR-3": {
+ "edr.agents_as_peers": {
   "chapter": "09-editor-documents.md",
   "criteria": {
-   "EDR-3.1": "sequence [add node, drag param, remove node, undo, undo] restores"
+   "edr.agents_as_peers.author_from_scratch": "authoring from scratch: a scripted gesture session in the host",
+   "edr.agents_as_peers.human_agent_identical": "the full editor integration suite runs twice \u2014 human-input"
   },
-  "name": "undo",
-  "rung": 11,
-  "text": "Structural-snapshot undo; ref-trail undo for commits; the"
- },
- "EDR-4": {
-  "chapter": "09-editor-documents.md",
-  "criteria": {
-   "EDR-4.1": "scripted gesture test drives the smoother replacement of CMP-4.1"
-  },
-  "name": "realized-view editing",
-  "rung": 11,
-  "text": "The latch of hello-cosine is visible,"
- },
- "EDR-5": {
-  "chapter": "09-editor-documents.md",
-  "criteria": {
-   "EDR-5.1": "walk ground to graphs/hello-cosine to topology to osc0 to type osc  to",
-   "EDR-5.2": "frontier of a node with 100,000 links paginates without blocking the"
-  },
-  "name": "store browser",
-  "rung": 11,
-  "text": "here/path/frontier/mark over any store graph;"
- },
- "EDR-6": {
-  "chapter": "09-editor-documents.md",
-  "criteria": {
-   "EDR-6.1": "a document transcluding `graphs/hello-cosine:nodes/osc0/freq`",
-   "EDR-6.2": "round-trip metric harness: decompose a small permissive C++ file"
-  },
-  "name": "documents",
-  "rung": 11,
-  "text": "Transclusion renders live and fixed correctly;"
- },
- "EDR-7": {
-  "chapter": "09-editor-documents.md",
-  "criteria": {
-   "EDR-7.1": "the full editor integration suite runs twice \u2014 human-input",
-   "EDR-7.2": "authoring from scratch: a scripted gesture session in the host"
-  },
-  "name": "agents as peers",
+  "name": "edr.agents_as_peers",
   "rung": 11,
   "text": "Every editor gesture is drivable through source"
  },
- "EDR-8": {
+ "edr.defaults_discipline": {
   "chapter": "09-editor-documents.md",
   "criteria": {
-   "EDR-8.1": "a probe mapping attached to any edge exposes its value stream"
+   "edr.defaults_discipline.default_is_fallback": "modulate vca0/gain with lfo0, save, reload: gain default is the"
   },
-  "name": "observability",
+  "name": "edr.defaults_discipline",
+  "rung": 11,
+  "text": "Serialize captures defaults; connected"
+ },
+ "edr.documents": {
+  "chapter": "09-editor-documents.md",
+  "criteria": {
+   "edr.documents.cpp_roundtrip": "round-trip metric harness: decompose a small permissive C++ file",
+   "edr.documents.live_vs_fixed_transclusion": "a document transcluding `graphs/hello-cosine:nodes/osc0/freq`"
+  },
+  "name": "edr.documents",
+  "rung": 11,
+  "text": "Transclusion renders live and fixed correctly;"
+ },
+ "edr.editor_is_nodes": {
+  "chapter": "09-editor-documents.md",
+  "criteria": {
+   "edr.editor_is_nodes.palette_swap_live": "replacing the palette subgraph live (swap+migrate) changes editor",
+   "edr.editor_is_nodes.surface_is_graphs": "the surface is graphs: every editor-surface behavior \u2014 cards,"
+  },
+  "name": "edr.editor_is_nodes",
+  "rung": 11,
+  "text": "No editor monolith returns; all editor behavior"
+ },
+ "edr.observability": {
+  "chapter": "09-editor-documents.md",
+  "criteria": {
+   "edr.observability.probe_any_edge": "a probe mapping attached to any edge exposes its value stream"
+  },
+  "name": "edr.observability",
   "rung": 11,
   "text": "Pull-observability (values snapshot, probes) and"
  },
- "EXE-1": {
-  "chapter": "04-execution.md",
+ "edr.realized_view_editing": {
+  "chapter": "09-editor-documents.md",
   "criteria": {
-   "EXE-1.1": "hello-cosine's plan holds raw pointers for edges 0 and 2 (true",
-   "EXE-1.2": "saving mid-modulation persists gain's *default*, not the LFO's"
+   "edr.realized_view_editing.gesture_replaces_latch": "scripted gesture test drives the smoother replacement of cmp.projection_editing.writeback_smoother"
   },
-  "name": "plan cache",
-  "rung": 5,
-  "text": "Build plans exactly as above; `serialize(plan.graph)`"
+  "name": "edr.realized_view_editing",
+  "rung": 11,
+  "text": "The latch of hello-cosine is visible,"
  },
- "EXE-10": {
-  "chapter": "04-execution.md",
+ "edr.store_browser": {
+  "chapter": "09-editor-documents.md",
   "criteria": {
-   "EXE-10.1": "a one-node Karplus-Strong loop (delay-line kernel + damping,",
-   "EXE-10.2": "inserting an explicit block-sized delay into the loop reverts",
-   "EXE-10.3": "wiring a spectrogram (block-override) into a cycle yields an",
-   "EXE-10.4": "frozen versus interpreted render of the same feedback patch:"
+   "edr.store_browser.frontier_paginates": "frontier of a node with 100,000 links paginates without blocking the",
+   "edr.store_browser.walk_and_mark": "walk ground to graphs/hello-cosine to topology to osc0 to type osc  to"
   },
-  "name": "per-sample islands, ADR-013",
-  "rung": 5,
-  "text": "Cycle detection per edit;"
+  "name": "edr.store_browser",
+  "rung": 11,
+  "text": "here/path/frontier/mark over any store graph;"
  },
- "EXE-11": {
-  "chapter": "04-execution.md",
+ "edr.undo": {
+  "chapter": "09-editor-documents.md",
   "criteria": {
-   "EXE-11.1": "a static scene (no clock-wired nodes, no incoming events)",
-   "EXE-11.2": "one param write recomputes exactly the dirty downstream cone,",
-   "EXE-11.3": "the inert-node lint flags a node with no demanded output and no",
-   "EXE-11.4": "event delivery is unaffected by quiescence: a bang into a"
+   "edr.undo.undo_sequence_restores": "sequence [add node, drag param, remove node, undo, undo] restores"
   },
-  "name": "quiescence and demand, ADR-015",
-  "rung": 5,
-  "text": ""
+  "name": "edr.undo",
+  "rung": 11,
+  "text": "Structural-snapshot undo; ref-trail undo for commits; the"
  },
- "EXE-2": {
+ "exe.canonical_mappings": {
   "chapter": "04-execution.md",
   "criteria": {
-   "EXE-2.1": "hello-cosine infers {osc0, vca0, dac0} block, {lfo0} frame.",
-   "EXE-2.2": "deleting edge 2 (vca0 to dac0) moves osc0/vca0 out of the block"
+   "exe.canonical_mappings.cycle_delay": "a feedback cycle certifies tick-1 delay semantics (existing",
+   "exe.canonical_mappings.latch_at_boundary": "step lfo0 to a constant 0.7 to vca0 sees exactly 0.7 from the next",
+   "exe.canonical_mappings.queue_no_loss": "N palette-press events across threads arrive N times, in order."
   },
-  "name": "region inference",
-  "rung": 5,
-  "text": "Recomputed on every edit; dac upstream closure"
- },
- "EXE-3": {
-  "chapter": "04-execution.md",
-  "criteria": {
-   "EXE-3.1": "instrumented allocator + lock detector report zero events across"
-  },
-  "name": "real-time safety",
-  "rung": 5,
-  "text": "The block region allocates nothing and takes no"
- },
- "EXE-4": {
-  "chapter": "04-execution.md",
-  "criteria": {
-   "EXE-4.1": "step lfo0 to a constant 0.7 to vca0 sees exactly 0.7 from the next",
-   "EXE-4.2": "N palette-press events across threads arrive N times, in order.",
-   "EXE-4.3": "a feedback cycle certifies tick-1 delay semantics (existing"
-  },
-  "name": "canonical mappings",
+  "name": "exe.canonical_mappings",
   "rung": 5,
   "text": "Latch applies at block start; snapshot"
  },
- "EXE-5": {
+ "exe.derivation_mode": {
   "chapter": "04-execution.md",
   "criteria": {
-   "EXE-5.1": "swap hello-cosine for a version with an added noise0: osc0's phase",
-   "EXE-5.2": "reordering editor cards (lift_key = id) preserves each card's drag"
+   "exe.derivation_mode.offline_render_memoized": "\"render 2 s of hello-cosine offline\" produces a wav dataset with"
   },
-  "name": "migration",
-  "rung": 4,
-  "text": "State survives swap keyed by route; clones keyed by"
- },
- "EXE-6": {
-  "chapter": "04-execution.md",
-  "criteria": {
-   "EXE-6.1": "grep-level check: no `::instance()` reach from node code into",
-   "EXE-6.2": "with no audio device, pump_offline paces the block region and"
-  },
-  "name": "executor contract",
-  "rung": 5,
-  "text": "Executors own device + pacing; inner node"
- },
- "EXE-7": {
-  "chapter": "04-execution.md",
-  "criteria": {
-   "EXE-7.1": "\"render 2 s of hello-cosine offline\" produces a wav dataset with"
-  },
-  "name": "derivation mode",
+  "name": "exe.derivation_mode",
   "rung": 5,
   "text": "A worker-region execution runs a pipeline to"
  },
- "EXE-8": {
+ "exe.executor_contract": {
   "chapter": "04-execution.md",
   "criteria": {
-   "EXE-8.1": "the latch in hello-cosine appears as a node card; replacing it"
+   "exe.executor_contract.headless_computes": "with no audio device, pump_offline paces the block region and",
+   "exe.executor_contract.no_singleton_reach": "grep-level check: no `::instance()` reach from node code into"
   },
-  "name": "visible boundaries",
+  "name": "exe.executor_contract",
   "rung": 5,
-  "text": "Every auto-inserted mapping is present in the"
+  "text": "Executors own device + pacing; inner node"
  },
- "EXE-9": {
+ "exe.existence_is_reference": {
   "chapter": "04-execution.md",
   "criteria": {
-   "EXE-9.1": "removing lfo0 and edge 1 in one edit op collects lfo0's state;"
+   "exe.existence_is_reference.unlink_collects": "removing lfo0 and edge 1 in one edit op collects lfo0's state;"
   },
-  "name": "existence = reference",
+  "name": "exe.existence_is_reference",
   "rung": 5,
   "text": "Instances are created by edits that link"
  },
- "FMT-1": {
-  "chapter": "14-formats-protocols.md",
-  "criteria": {},
-  "name": "",
-  "rung": 1,
-  "text": "Encoder conformance: a corpus of value/bytes pairs (grown per"
+ "exe.migration": {
+  "chapter": "04-execution.md",
+  "criteria": {
+   "exe.migration.phase_continuous": "swap hello-cosine for a version with an added noise0: osc0's phase",
+   "exe.migration.reorder_preserves_state": "reordering editor cards (lift_key = id) preserves each card's drag"
+  },
+  "name": "exe.migration",
+  "rung": 4,
+  "text": "State survives swap keyed by route; clones keyed by"
  },
- "FMT-2": {
-  "chapter": "14-formats-protocols.md",
-  "criteria": {},
-  "name": "",
-  "rung": 1,
-  "text": "Address grammar: parse-after-print identity property test (NAM-1.1)"
+ "exe.per_sample_islands": {
+  "chapter": "04-execution.md",
+  "criteria": {
+   "exe.per_sample_islands.block_delay_opts_out": "inserting an explicit block-sized delay into the loop reverts",
+   "exe.per_sample_islands.frozen_equals_interpreted": "frozen versus interpreted render of the same feedback patch:",
+   "exe.per_sample_islands.karplus_one_sample": "a one-node Karplus-Strong loop (delay-line kernel + damping,",
+   "exe.per_sample_islands.override_in_cycle_errors": "wiring a spectrogram (block-override) into a cycle yields an"
+  },
+  "name": "exe.per_sample_islands",
+  "rung": 5,
+  "text": "Cycle detection per edit;"
  },
- "FMT-3": {
+ "exe.plan_cache": {
+  "chapter": "04-execution.md",
+  "criteria": {
+   "exe.plan_cache.pointers_and_latch": "hello-cosine's plan holds raw pointers for edges 0 and 2 (true",
+   "exe.plan_cache.saves_default": "saving mid-modulation persists gain's *default*, not the LFO's"
+  },
+  "name": "exe.plan_cache",
+  "rung": 5,
+  "text": "Build plans exactly as above; `serialize(plan.graph)`"
+ },
+ "exe.quiescence_and_demand": {
+  "chapter": "04-execution.md",
+  "criteria": {
+   "exe.quiescence_and_demand.dirty_cone_only": "one param write recomputes exactly the dirty downstream cone,",
+   "exe.quiescence_and_demand.event_wakes_cone": "event delivery is unaffected by quiescence: a bang into a",
+   "exe.quiescence_and_demand.inert_lint": "the inert-node lint flags a node with no demanded output and no",
+   "exe.quiescence_and_demand.static_quiesces": "a static scene (no clock-wired nodes, no incoming events)"
+  },
+  "name": "exe.quiescence_and_demand",
+  "rung": 5,
+  "text": ""
+ },
+ "exe.realtime_safety": {
+  "chapter": "04-execution.md",
+  "criteria": {
+   "exe.realtime_safety.zero_alloc_lock": "instrumented allocator + lock detector report zero events across"
+  },
+  "name": "exe.realtime_safety",
+  "rung": 5,
+  "text": "The block region allocates nothing and takes no"
+ },
+ "exe.region_inference": {
+  "chapter": "04-execution.md",
+  "criteria": {
+   "exe.region_inference.edit_moves_region": "deleting edge 2 (vca0 to dac0) moves osc0/vca0 out of the block",
+   "exe.region_inference.infers_membership": "hello-cosine infers {osc0, vca0, dac0} block, {lfo0} frame."
+  },
+  "name": "exe.region_inference",
+  "rung": 5,
+  "text": "Recomputed on every edit; dac upstream closure"
+ },
+ "exe.visible_boundaries": {
+  "chapter": "04-execution.md",
+  "criteria": {
+   "exe.visible_boundaries.latch_is_card": "the latch in hello-cosine appears as a node card; replacing it"
+  },
+  "name": "exe.visible_boundaries",
+  "rung": 5,
+  "text": "Every auto-inserted mapping is present in the"
+ },
+ "fmt.address_grammar": {
   "chapter": "14-formats-protocols.md",
   "criteria": {},
-  "name": "",
+  "name": "fmt.address_grammar",
+  "rung": 1,
+  "text": "Address grammar: parse-after-print identity property test (nam.addresses.parse_print_roundtrip)"
+ },
+ "fmt.boot_tape": {
+  "chapter": "14-formats-protocols.md",
+  "criteria": {},
+  "name": "fmt.boot_tape",
   "rung": 3,
   "text": "Boot tape: tape to crown replay to serialize yields the same"
  },
- "FMT-4": {
+ "fmt.encoder_conformance": {
   "chapter": "14-formats-protocols.md",
   "criteria": {},
-  "name": "",
-  "rung": 9,
-  "text": "Wire golden transcripts: a recorded two-peer session (pair,"
+  "name": "fmt.encoder_conformance",
+  "rung": 1,
+  "text": "Encoder conformance: a corpus of value/bytes pairs (grown per"
  },
- "FMT-5": {
+ "fmt.pins_frozen": {
   "chapter": "14-formats-protocols.md",
   "criteria": {},
-  "name": "",
+  "name": "fmt.pins_frozen",
   "rung": 1,
   "text": "Every pin above is FROZEN as of 2026-07-05; changing one is a"
  },
- "FRZ-1": {
-  "chapter": "05-compilation.md",
-  "criteria": {
-   "FRZ-1.1": "A/B chime interpreted-vs-frozen: spectrogram diff roughly equals 0; block-time",
-   "FRZ-1.2": "unfreeze(artifact) yields the source graph hash; re-freezing is a"
-  },
-  "name": "round-trip",
-  "rung": 8,
-  "text": "freeze(graph, target) to artifact with recipe"
+ "fmt.wire_transcripts": {
+  "chapter": "14-formats-protocols.md",
+  "criteria": {},
+  "name": "fmt.wire_transcripts",
+  "rung": 9,
+  "text": "Wire golden transcripts: a recorded two-peer session (pair,"
  },
- "FRZ-2": {
+ "frz.freestanding_proof": {
   "chapter": "05-compilation.md",
   "criteria": {
-   "FRZ-2.1": "hello-cosine's block region reports tier 1; add a tmux node and"
+   "frz.freestanding_proof.freestanding_links": "arm-none-eabi build of frozen chime links clean (long before real"
   },
-  "name": "tier computation",
-  "rung": 8,
-  "text": "Tier is derived per subgraph from native"
- },
- "FRZ-3": {
-  "chapter": "05-compilation.md",
-  "criteria": {
-   "FRZ-3.1": "arm-none-eabi build of frozen chime links clean (long before real"
-  },
-  "name": "freestanding proof",
+  "name": "frz.freestanding_proof",
   "rung": 8,
   "text": "Tier-1 artifacts compile"
  },
- "FRZ-4": {
+ "frz.round_trip": {
   "chapter": "05-compilation.md",
   "criteria": {
-   "FRZ-4.1": "Quest wires a graph to the remote freeze node; the signed .so"
+   "frz.round_trip.ab_spectrogram": "A/B chime interpreted-vs-frozen: spectrogram diff roughly equals 0; block-time",
+   "frz.round_trip.unfreeze_roundtrip": "unfreeze(artifact) yields the source graph hash; re-freezing is a"
   },
-  "name": "service",
+  "name": "frz.round_trip",
+  "rung": 8,
+  "text": "freeze(graph, target) to artifact with recipe"
+ },
+ "frz.service": {
+  "chapter": "05-compilation.md",
+  "criteria": {
+   "frz.service.remote_freeze_loads": "Quest wires a graph to the remote freeze node; the signed .so"
+  },
+  "name": "frz.service",
   "rung": 8,
   "text": "Freezing places onto a toolchain-advertising peer and"
  },
- "LNG-1": {
-  "chapter": "11-language-core.md",
+ "frz.tier_computation": {
+  "chapter": "05-compilation.md",
   "criteria": {
-   "LNG-1.1": "enumerating the kind registry yields the catalog above; each"
+   "frz.tier_computation.tier_derived": "hello-cosine's block region reports tier 1; add a tmux node and"
   },
-  "name": "kind catalog",
-  "rung": 5,
-  "text": "The fiat payload kinds exist as kind nodes in the"
+  "name": "frz.tier_computation",
+  "rung": 8,
+  "text": "Tier is derived per subgraph from native"
  },
- "LNG-10": {
+ "lng.context_seam": {
   "chapter": "11-language-core.md",
   "criteria": {
-   "LNG-10.1": "\"takes whose lineage includes CID_osc-type\" wired from the four",
-   "LNG-10.2": "the standing form updates within one demand cycle of a new",
-   "LNG-10.3": "fixpoint over a cyclic link structure terminates (visited-set",
-   "LNG-10.4": "the palette and the back-link index are expressed as queries"
+   "lng.context_seam.context_forwards": "static audit (exe.executor_contract.no_singleton_reach's grep) plus: a subgraph two levels deep"
   },
-  "name": "query vocabulary \u2014 core, ADR-024",
-  "rung": 6,
-  "text": "traverse, filter, join,"
- },
- "LNG-11": {
-  "chapter": "11-language-core.md",
-  "criteria": {
-   "LNG-11.1": "a graph value flows over an edge between two realized instances",
-   "LNG-11.2": "the RT audits (EXE-3.1, NAM-5.4) and golden audio re-run green",
-   "LNG-11.3": "a node emits an edit op as an event payload; wired into another",
-   "LNG-11.4": "the query four run as realized instances exchanging set values"
-  },
-  "name": "structured payloads \u2014 ADR-034",
-  "rung": 7,
-  "text": "The node contract carries"
- },
- "LNG-2": {
-  "chapter": "11-language-core.md",
-  "criteria": {
-   "LNG-2.1": "N-by-3 span to vec3 input stamps N clones; N=1 degenerates to one;",
-   "LNG-2.2": "N-by-3 span to color_mesh instance input draws N instances in ONE"
-  },
-  "name": "span semantics",
-  "rung": 5,
-  "text": "cell_rank derives from kind; excess-rank edges"
- },
- "LNG-3": {
-  "chapter": "11-language-core.md",
-  "criteria": {
-   "LNG-3.1": "10,000 bangs through [button to queue to counter across threads]"
-  },
-  "name": "event discipline",
-  "rung": 5,
-  "text": "Events never drop or duplicate across any"
- },
- "LNG-4": {
-  "chapter": "11-language-core.md",
-  "criteria": {
-   "LNG-4.1": "EXE-1.2 / EDR-2.1 (defaults never capture live modulation).",
-   "LNG-4.2": "the widget table is data-driven: adding range metadata to a"
-  },
-  "name": "inlet model",
-  "rung": 5,
-  "text": "Defaults persist; edges override; connected inlets"
- },
- "LNG-5": {
-  "chapter": "11-language-core.md",
-  "criteria": {
-   "LNG-5.1": "recording the ops of an editor session and replaying them onto",
-   "LNG-5.2": "an op arriving over the mesh carries its author peer key"
-  },
-  "name": "edit ops",
-  "rung": 5,
-  "text": "One structured vocabulary for all mutation; ops are"
- },
- "LNG-6": {
-  "chapter": "11-language-core.md",
-  "criteria": {
-   "LNG-6.1": "`card.json` in graphs_dir appears in the palette; spawning it",
-   "LNG-6.2": "a subgraph containing dac is refused lifting with the"
-  },
-  "name": "subgraphs",
-  "rung": 5,
-  "text": "Templates clone behind trampolines; defaults-as-"
- },
- "LNG-7": {
-  "chapter": "11-language-core.md",
-  "criteria": {
-   "LNG-7.1": "static audit (EXE-6.1's grep) plus: a subgraph two levels deep"
-  },
-  "name": "context seam",
+  "name": "lng.context_seam",
   "rung": 5,
   "text": "No node reaches a global; context arrives by"
  },
- "LNG-8": {
+ "lng.edit_ops": {
   "chapter": "11-language-core.md",
   "criteria": {
-   "LNG-8.1": "property test over the graphs_dir corpus: serialize(parse(j))"
+   "lng.edit_ops.op_attributed": "an op arriving over the mesh carries its author peer key",
+   "lng.edit_ops.replay_reproduces": "recording the ops of an editor session and replaying them onto"
   },
-  "name": "round-trip",
+  "name": "lng.edit_ops",
+  "rung": 5,
+  "text": "One structured vocabulary for all mutation; ops are"
+ },
+ "lng.event_discipline": {
+  "chapter": "11-language-core.md",
+  "criteria": {
+   "lng.event_discipline.bangs_exact_stateless": "10,000 bangs through [button to queue to counter across threads]"
+  },
+  "name": "lng.event_discipline",
+  "rung": 5,
+  "text": "Events never drop or duplicate across any"
+ },
+ "lng.inlet_model": {
+  "chapter": "11-language-core.md",
+  "criteria": {
+   "lng.inlet_model.default_not_live": "exe.plan_cache.saves_default / edr.defaults_discipline.default_is_fallback (defaults never capture live modulation).",
+   "lng.inlet_model.widget_data_driven": "the widget table is data-driven: adding range metadata to a"
+  },
+  "name": "lng.inlet_model",
+  "rung": 5,
+  "text": "Defaults persist; edges override; connected inlets"
+ },
+ "lng.kind_catalog": {
+  "chapter": "11-language-core.md",
+  "criteria": {
+   "lng.kind_catalog.catalog_enumerable": "enumerating the kind registry yields the catalog above; each"
+  },
+  "name": "lng.kind_catalog",
+  "rung": 5,
+  "text": "The fiat payload kinds exist as kind nodes in the"
+ },
+ "lng.query_vocabulary": {
+  "chapter": "11-language-core.md",
+  "criteria": {
+   "lng.query_vocabulary.fixpoint_terminates": "fixpoint over a cyclic link structure terminates (visited-set",
+   "lng.query_vocabulary.lineage_query": "\"takes whose lineage includes CID_osc-type\" wired from the four",
+   "lng.query_vocabulary.palette_is_query": "the palette and the back-link index are expressed as queries",
+   "lng.query_vocabulary.standing_incremental": "the standing form updates within one demand cycle of a new"
+  },
+  "name": "lng.query_vocabulary",
+  "rung": 6,
+  "text": "traverse, filter, join,"
+ },
+ "lng.round_trip": {
+  "chapter": "11-language-core.md",
+  "criteria": {
+   "lng.round_trip.roundtrip_no_derived": "property test over the graphs_dir corpus: serialize(parse(j))"
+  },
+  "name": "lng.round_trip",
   "rung": 4,
   "text": "parse -after- serialize = identity on the persisted"
  },
- "LNG-9": {
+ "lng.span_semantics": {
+  "chapter": "11-language-core.md",
+  "criteria": {
+   "lng.span_semantics.span_stamps_clones": "N-by-3 span to vec3 input stamps N clones; N=1 degenerates to one;",
+   "lng.span_semantics.span_whole_one_draw": "N-by-3 span to color_mesh instance input draws N instances in ONE"
+  },
+  "name": "lng.span_semantics",
+  "rung": 5,
+  "text": "cell_rank derives from kind; excess-rank edges"
+ },
+ "lng.structured_payloads": {
+  "chapter": "11-language-core.md",
+  "criteria": {
+   "lng.structured_payloads.float_path_free": "the RT audits (exe.realtime_safety.zero_alloc_lock, nam.promise_oracle.no_lookup_at_tick) and golden audio re-run green",
+   "lng.structured_payloads.graph_value_zero_copy": "a graph value flows over an edge between two realized instances",
+   "lng.structured_payloads.op_event_applies": "a node emits an edit op as an event payload; wired into another",
+   "lng.structured_payloads.query_evaluator_dissolves": "the query four run as realized instances exchanging set values"
+  },
+  "name": "lng.structured_payloads",
+  "rung": 7,
+  "text": "The node contract carries"
+ },
+ "lng.subgraphs": {
+  "chapter": "11-language-core.md",
+  "criteria": {
+   "lng.subgraphs.dataset_is_node_type": "`card.json` in graphs_dir appears in the palette; spawning it",
+   "lng.subgraphs.resource_holder_refuses": "a subgraph containing dac is refused lifting with the"
+  },
+  "name": "lng.subgraphs",
+  "rung": 5,
+  "text": "Templates clone behind trampolines; defaults-as-"
+ },
+ "lng.text_events": {
   "chapter": "11-language-core.md",
   "criteria": {},
-  "name": "text events \u2014 OPEN",
+  "name": "lng.text_events",
   "rung": 5,
   "text": "Design the text event payload; until"
  },
- "MSH-1": {
+ "msh.authenticated_transport": {
   "chapter": "08-mesh-trust.md",
   "criteria": {
-   "MSH-1.1": "three-peer pairing; revoke the Quest's key on host; Quest can no"
+   "msh.authenticated_transport.unpaired_refused": "port scan + protocol probe from an unpaired host on the LAN: every"
   },
-  "name": "keypairs + pairing",
-  "rung": 9,
-  "text": "Peers generate keypairs; pairing exchanges"
- },
- "MSH-2": {
-  "chapter": "08-mesh-trust.md",
-  "criteria": {
-   "MSH-2.1": "port scan + protocol probe from an unpaired host on the LAN: every"
-  },
-  "name": "authenticated transport",
+  "name": "msh.authenticated_transport",
   "rung": 9,
   "text": "All inter-peer traffic (control, store"
  },
- "MSH-3": {
+ "msh.capture_testimony_keys": {
   "chapter": "08-mesh-trust.md",
   "criteria": {
-   "MSH-3.1": "a request to instantiate `shell_exec` on the browser peer (which"
+   "msh.capture_testimony_keys.testimony_tamper_fails": "tamper with a take's testimony peer-id; verification fails."
   },
-  "name": "three lists",
-  "rung": 9,
-  "text": "Advertisement of run/serve/subscribe is explicit,"
- },
- "MSH-4": {
-  "chapter": "08-mesh-trust.md",
-  "criteria": {
-   "MSH-4.1": "fuzz the placement API with arbitrary type names; zero"
-  },
-  "name": "pull-shaped placement",
-  "rung": 9,
-  "text": "There is no code path that instantiates a"
- },
- "MSH-5": {
-  "chapter": "08-mesh-trust.md",
-  "criteria": {
-   "MSH-5.1": "ship a graph Quest to host: runs. Ship an unsigned .so: refused,",
-   "MSH-5.2": "the browser peer's plugin form is a WASM side module over the"
-  },
-  "name": "graphs versus plugins",
-  "rung": 9,
-  "text": "Graph datasets flow and realize in-mesh"
- },
- "MSH-6": {
-  "chapter": "08-mesh-trust.md",
-  "criteria": {
-   "MSH-6.1": "tamper with a take's testimony peer-id; verification fails."
-  },
-  "name": "capture testimony keys",
+  "name": "msh.capture_testimony_keys",
   "rung": 9,
   "text": "Every capture's testimony carries the"
  },
- "MSH-7": {
+ "msh.discovery": {
   "chapter": "08-mesh-trust.md",
   "criteria": {
-   "MSH-7.1": "all MSH/STO/PKG integration tests pass with discovery swapped for"
+   "msh.discovery.discovery_swappable": "all MSH/STO/PKG integration tests pass with discovery swapped for"
   },
-  "name": "discovery",
+  "name": "msh.discovery",
   "rung": 9,
   "text": "mDNS presence + direct holdings/capability queries"
  },
- "MSH-8": {
+ "msh.graded_circles": {
   "chapter": "08-mesh-trust.md",
   "criteria": {
-   "MSH-8.1": "configure a second store graph shared with a subset of keys; the"
+   "msh.graded_circles.per_store_sharing": "configure a second store graph shared with a subset of keys; the"
   },
-  "name": "graded circles, seam only",
+  "name": "msh.graded_circles",
   "rung": 9,
   "text": "Sharing is configurable per store"
  },
- "NAM-1": {
+ "msh.graphs_vs_plugins": {
+  "chapter": "08-mesh-trust.md",
+  "criteria": {
+   "msh.graphs_vs_plugins.plugin_gate": "ship a graph Quest to host: runs. Ship an unsigned .so: refused,",
+   "msh.graphs_vs_plugins.wasm_same_gate": "the browser peer's plugin form is a WASM side module over the"
+  },
+  "name": "msh.graphs_vs_plugins",
+  "rung": 9,
+  "text": "Graph datasets flow and realize in-mesh"
+ },
+ "msh.keypairs_pairing": {
+  "chapter": "08-mesh-trust.md",
+  "criteria": {
+   "msh.keypairs_pairing.pair_revoke_restore": "three-peer pairing; revoke the Quest's key on host; Quest can no"
+  },
+  "name": "msh.keypairs_pairing",
+  "rung": 9,
+  "text": "Peers generate keypairs; pairing exchanges"
+ },
+ "msh.pull_shaped_placement": {
+  "chapter": "08-mesh-trust.md",
+  "criteria": {
+   "msh.pull_shaped_placement.no_unadvertised_instantiation": "fuzz the placement API with arbitrary type names; zero"
+  },
+  "name": "msh.pull_shaped_placement",
+  "rung": 9,
+  "text": "There is no code path that instantiates a"
+ },
+ "msh.three_lists": {
+  "chapter": "08-mesh-trust.md",
+  "criteria": {
+   "msh.three_lists.typed_refusal": "a request to instantiate `shell_exec` on the browser peer (which"
+  },
+  "name": "msh.three_lists",
+  "rung": 9,
+  "text": "Advertisement of run/serve/subscribe is explicit,"
+ },
+ "nam.addresses": {
   "chapter": "02-data-naming-kinds.md",
   "criteria": {
-   "NAM-1.1": "`parse(print(a)) == a` for all addresses (property test).",
-   "NAM-1.2": "`#a11/nodes/osc0/out` resolves identically on any peer holding"
+   "nam.addresses.location_independent": "`#a11/nodes/osc0/out` resolves identically on any peer holding",
+   "nam.addresses.parse_print_roundtrip": "`parse(print(a)) == a` for all addresses (property test)."
   },
-  "name": "addresses",
+  "name": "nam.addresses",
   "rung": 1,
   "text": "Implement the address grammar: first steps of all"
  },
- "NAM-2": {
+ "nam.edit_stable_routes": {
   "chapter": "02-data-naming-kinds.md",
   "criteria": {
-   "NAM-2.1": "`graphs/hello-cosine:nodes/osc0/freq` is live; after",
-   "NAM-2.2": "moving ref `graphs/hello-cosine` re-delivers to all live-address"
+   "nam.edit_stable_routes.insertion_stable": "inserting `nodes/noise0` into #b22's topology does not change the"
   },
-  "name": "liveness",
-  "rung": 1,
-  "text": "Classify every address fixed/live by traversal; fixed"
- },
- "NAM-3": {
-  "chapter": "02-data-naming-kinds.md",
-  "criteria": {
-   "NAM-3.1": "inserting `nodes/noise0` into #b22's topology does not change the"
-  },
-  "name": "edit-stable routes",
+  "name": "nam.edit_stable_routes",
   "rung": 1,
   "text": "Routes are keyed by local names only; no byte"
  },
- "NAM-4": {
+ "nam.hash_format": {
   "chapter": "02-data-naming-kinds.md",
   "criteria": {
-   "NAM-4.1": "a `scalar` on a wire and a committed `scalar` dataset carry the"
+   "nam.hash_format.chunk_dedup": "two takes sharing a chunk store it once (dedup observable in",
+   "nam.hash_format.rehash_verifies": "re-hashing fetched data verifies it; a corrupted byte is detected."
   },
-  "name": "one kind system",
-  "rung": 1,
-  "text": "Port payload kinds and dataset kinds resolve"
- },
- "NAM-5": {
-  "chapter": "02-data-naming-kinds.md",
-  "criteria": {
-   "NAM-5.1": "`osc0/out (audio, block) to vca0/in (audio, block)` legal, true edge.",
-   "NAM-5.2": "`lfo0/out (scalar, frame) to vca0/gain (scalar, block)` legal via",
-   "NAM-5.3": "`draw_call to audio` is ILLEGAL (both surfaces reject identically).",
-   "NAM-5.4": "no kind/promise lookup occurs during tick (assert via instrumentation"
-  },
-  "name": "promise oracle",
-  "rung": 1,
-  "text": "`connection_legal(from, to)` over (kind,"
- },
- "NAM-6": {
-  "chapter": "02-data-naming-kinds.md",
-  "criteria": {
-   "NAM-6.1": "re-hashing fetched data verifies it; a corrupted byte is detected.",
-   "NAM-6.2": "two takes sharing a chunk store it once (dedup observable in"
-  },
-  "name": "hash format",
+  "name": "nam.hash_format",
   "rung": 1,
   "text": "CID/multihash for all hashes; Merkle-DAG chunking for"
  },
- "NAM-7": {
+ "nam.liveness": {
   "chapter": "02-data-naming-kinds.md",
   "criteria": {
-   "NAM-7.1": "after inserting a line at the top of a text dataset, a link"
+   "nam.liveness.live_fixed_memo": "`graphs/hello-cosine:nodes/osc0/freq` is live; after",
+   "nam.liveness.ref_move_delivers_once": "moving ref `graphs/hello-cosine` re-delivers to all live-address"
   },
-  "name": "sequence traversal",
+  "name": "nam.liveness",
+  "rung": 1,
+  "text": "Classify every address fixed/live by traversal; fixed"
+ },
+ "nam.one_kind_system": {
+  "chapter": "02-data-naming-kinds.md",
+  "criteria": {
+   "nam.one_kind_system.one_kind_hash": "a `scalar` on a wire and a committed `scalar` dataset carry the"
+  },
+  "name": "nam.one_kind_system",
+  "rung": 1,
+  "text": "Port payload kinds and dataset kinds resolve"
+ },
+ "nam.promise_oracle": {
+  "chapter": "02-data-naming-kinds.md",
+  "criteria": {
+   "nam.promise_oracle.kind_mismatch_illegal": "`draw_call to audio` is ILLEGAL (both surfaces reject identically).",
+   "nam.promise_oracle.latch_boundary": "`lfo0/out (scalar, frame) to vca0/gain (scalar, block)` legal via",
+   "nam.promise_oracle.no_lookup_at_tick": "no kind/promise lookup occurs during tick (assert via instrumentation",
+   "nam.promise_oracle.true_edge_legal": "`osc0/out (audio, block) to vca0/in (audio, block)` legal, true edge."
+  },
+  "name": "nam.promise_oracle",
+  "rung": 1,
+  "text": "`connection_legal(from, to)` over (kind,"
+ },
+ "nam.sequence_traversal": {
+  "chapter": "02-data-naming-kinds.md",
+  "criteria": {
+   "nam.sequence_traversal.span_survives_edit": "after inserting a line at the top of a text dataset, a link"
+  },
+  "name": "nam.sequence_traversal",
   "rung": 1,
   "text": "Text/media kinds expose span traversal that is"
  },
- "PKG-1": {
+ "pkg.audio_retrofit": {
   "chapter": "07-capability-packages.md",
   "criteria": {
-   "PKG-1.1": "a package can be omitted from a target at build time and the"
+   "pkg.audio_retrofit.audio_suite_green": "full existing audio test suite green after the retrofit; region"
   },
-  "name": "package shape",
-  "rung": 8,
-  "text": "Every package ships exactly"
- },
- "PKG-2": {
-  "chapter": "07-capability-packages.md",
-  "criteria": {
-   "PKG-2.1": "full existing audio test suite green after the retrofit; region"
-  },
-  "name": "audio retrofit, the reference",
+  "name": "pkg.audio_retrofit",
   "rung": 8,
   "text": "AudioRegion becomes the audio"
  },
- "PKG-3": {
+ "pkg.environment_observation": {
   "chapter": "07-capability-packages.md",
   "criteria": {
-   "PKG-3.1": "on-device: editor operable in-headset with the xr executor owning",
-   "PKG-3.2": "head_pose/controller data reaches the graph only through package",
-   "PKG-3.3": "the view is an edge (ADR-037): rewiring the head's view_pose"
+   "pkg.environment_observation.hotplug_splices": "hot-plugging a USB audio device on host splices the audio package"
   },
-  "name": "xr package",
-  "rung": 8,
-  "text": "Absorbs xr.cpp + XrSessionObj + FrameLoop + Renderer/"
- },
- "PKG-4": {
-  "chapter": "07-capability-packages.md",
-  "criteria": {
-   "PKG-4.1": "`grep -rn glDraw components/ | grep -v render_region` is empty.",
-   "PKG-4.2": "a draw node not wired into the head's chain does not render.",
-   "PKG-4.3": "pixels are real: `syg frame` renders a fixture graph headless",
-   "PKG-4.4": "the shell is the same peer: a windowed host shell is the"
-  },
-  "name": "render package",
-  "rung": 8,
-  "text": "render_region is the GL boundary and the only"
- },
- "PKG-5": {
-  "chapter": "07-capability-packages.md",
-  "criteria": {
-   "PKG-5.1": "Quest schedules a heavy analysis derivation; with the worker"
-  },
-  "name": "worker/derivation",
-  "rung": 8,
-  "text": "The worker region runs derivation-mode"
- },
- "PKG-6": {
-  "chapter": "07-capability-packages.md",
-  "criteria": {
-   "PKG-6.1": "two-peer test \u2014 consumer patch drives a cube from a provider lfo"
-  },
-  "name": "net package",
-  "rung": 8,
-  "text": "Peers exchange advertised node types and provided"
- },
- "PKG-7": {
-  "chapter": "07-capability-packages.md",
-  "criteria": {
-   "PKG-7.1": "the same hello-cosine compiles locally on host (audio present) and"
-  },
-  "name": "placement as fallthrough",
-  "rung": 8,
-  "text": "No placement-specific pass exists;"
- },
- "PKG-8": {
-  "chapter": "07-capability-packages.md",
-  "criteria": {
-   "PKG-8.1": "hot-plugging a USB audio device on host splices the audio package"
-  },
-  "name": "environment observation",
+  "name": "pkg.environment_observation",
   "rung": 8,
   "text": "Package splice-in is triggered by"
  },
- "STO-1": {
-  "chapter": "03-store.md",
+ "pkg.net_package": {
+  "chapter": "07-capability-packages.md",
   "criteria": {
-   "STO-1.1": "put(bytes) to hash; get(hash) to identical bytes; get of unknown"
+   "pkg.net_package.reconnect_discipline": "two-peer test \u2014 consumer patch drives a cube from a provider lfo"
   },
-  "name": "object machinery",
-  "rung": 6,
-  "text": "Content-addressed put/get over the object"
+  "name": "pkg.net_package",
+  "rung": 8,
+  "text": "Peers exchange advertised node types and provided"
  },
- "STO-2": {
-  "chapter": "03-store.md",
+ "pkg.package_shape": {
+  "chapter": "07-capability-packages.md",
   "criteria": {
-   "STO-2.1": "hello-cosine's editor session reads #b22 by wiring to the store"
+   "pkg.package_shape.omittable": "a package can be omitted from a target at build time and the"
   },
-  "name": "store-graph face",
-  "rung": 6,
-  "text": "get = wiring, put = graph edit, ref = named"
+  "name": "pkg.package_shape",
+  "rung": 8,
+  "text": "Every package ships exactly"
  },
- "STO-3": {
-  "chapter": "03-store.md",
+ "pkg.placement_as_fallthrough": {
+  "chapter": "07-capability-packages.md",
   "criteria": {
-   "STO-3.1": "compiling #a11 yields an execution-graph dataset whose provenance",
-   "STO-3.2": "recording 2 s of dac output yields a wav dataset whose testimony"
+   "pkg.placement_as_fallthrough.placement_same_passes": "the same hello-cosine compiles locally on host (audio present) and"
   },
-  "name": "commit paths",
-  "rung": 6,
-  "text": "Committing records provenance as recipe (derive)"
+  "name": "pkg.placement_as_fallthrough",
+  "rung": 8,
+  "text": "No placement-specific pass exists;"
  },
- "STO-4": {
-  "chapter": "03-store.md",
+ "pkg.render_package": {
+  "chapter": "07-capability-packages.md",
   "criteria": {
-   "STO-4.1": "edit hello-cosine (freq 220 to 330), commit, undo: ref points at"
+   "pkg.render_package.gl_confined": "`grep -rn glDraw components/ | grep -v render_region` is empty.",
+   "pkg.render_package.real_pixels": "pixels are real: `syg frame` renders a fixture graph headless",
+   "pkg.render_package.shell_is_peer": "the shell is the same peer: a windowed host shell is the",
+   "pkg.render_package.unwired_no_render": "a draw node not wired into the head's chain does not render."
   },
-  "name": "refs and undo",
-  "rung": 6,
-  "text": "Refs bind local name to hash; every rebind appends"
+  "name": "pkg.render_package",
+  "rung": 8,
+  "text": "render_region is the GL boundary and the only"
  },
- "STO-5": {
-  "chapter": "03-store.md",
+ "pkg.worker_derivation": {
+  "chapter": "07-capability-packages.md",
   "criteria": {
-   "STO-5.1": "Quest holds #a11 unprovided; after cache pressure, #a11 is gone",
-   "STO-5.2": "a fresh capture on Quest reports `provided-by: nobody` until the"
+   "pkg.worker_derivation.remote_worker": "Quest schedules a heavy analysis derivation; with the worker"
   },
-  "name": "provide/compatible",
-  "rung": 6,
-  "text": "Peers advertise provided datasets alongside"
+  "name": "pkg.worker_derivation",
+  "rung": 8,
+  "text": "The worker region runs derivation-mode"
  },
- "STO-6": {
-  "chapter": "03-store.md",
+ "pkg.xr_package": {
+  "chapter": "07-capability-packages.md",
   "criteria": {
-   "STO-6.1": "interrupting a 100 MB take transfer at 50% and retrying moves only"
+   "pkg.xr_package.in_headset": "on-device: editor operable in-headset with the xr executor owning",
+   "pkg.xr_package.pose_via_sources": "head_pose/controller data reaches the graph only through package",
+   "pkg.xr_package.view_is_edge": "the view is an edge (ADR-037): rewiring the head's view_pose"
   },
-  "name": "fetch",
-  "rung": 6,
-  "text": "Content-addressed fetch by hash from any providing peer;"
+  "name": "pkg.xr_package",
+  "rung": 8,
+  "text": "Absorbs xr.cpp + XrSessionObj + FrameLoop + Renderer/"
  },
- "STO-7": {
+ "sto.back_link_index": {
   "chapter": "03-store.md",
   "criteria": {
-   "STO-7.1": "two presets of hello-cosine share topology hash #b22 (observable:",
-   "STO-7.2": "deleting osc0 from the topology surfaces a conflict for the"
+   "sto.back_link_index.index_is_derived": "the index is itself derived data \u2014 deleting and re-deriving it"
   },
-  "name": "composite graphs",
-  "rung": 6,
-  "text": "Topology and defaults are separate datasets;"
- },
- "STO-8": {
-  "chapter": "03-store.md",
-  "criteria": {
-   "STO-8.1": "integration test across three peers confirms convergence and that"
-  },
-  "name": "retention and forgetting",
-  "rung": 6,
-  "text": "Unpin-everywhere converges: after all"
- },
- "STO-9": {
-  "chapter": "03-store.md",
-  "criteria": {
-   "STO-9.1": "the index is itself derived data \u2014 deleting and re-deriving it"
-  },
-  "name": "back-link index",
+  "name": "sto.back_link_index",
   "rung": 6,
   "text": "Each store indexes provenance's downstream"
  },
- "SZ-1": {
-  "chapter": "06-stage0-boot.md",
+ "sto.commit_paths": {
+  "chapter": "03-store.md",
   "criteria": {
-   "SZ-1.1": "CI grep gate. SZ-1.2: same object code (per-arch) links into"
+   "sto.commit_paths.capture_testimony": "recording 2 s of dac output yields a wav dataset whose testimony",
+   "sto.commit_paths.compile_recipe_memo": "compiling #a11 yields an execution-graph dataset whose provenance"
   },
-  "name": "platform invariance",
-  "rung": 2,
-  "text": "No platform conditionals in escapement,"
+  "name": "sto.commit_paths",
+  "rung": 6,
+  "text": "Committing records provenance as recipe (derive)"
  },
- "SZ-2": {
-  "chapter": "06-stage0-boot.md",
+ "sto.composite_graphs": {
+  "chapter": "03-store.md",
   "criteria": {
-   "SZ-2.1": "deleting a native's object breaks the link naming the symbol."
+   "sto.composite_graphs.orphan_conflict": "deleting osc0 from the topology surfaces a conflict for the",
+   "sto.composite_graphs.shared_topology": "two presets of hello-cosine share topology hash #b22 (observable:"
   },
-  "name": "generated registration",
-  "rung": 4,
-  "text": "The TU is generated; omission is a loud"
+  "name": "sto.composite_graphs",
+  "rung": 6,
+  "text": "Topology and defaults are separate datasets;"
  },
- "SZ-3": {
-  "chapter": "06-stage0-boot.md",
+ "sto.fetch": {
+  "chapter": "03-store.md",
   "criteria": {
-   "SZ-3.1": "with the store package broken, the resolver still loads a graph"
+   "sto.fetch.resumable_fetch": "interrupting a 100 MB take transfer at 50% and retrying moves only"
   },
-  "name": "naive resolver, hosted default",
-  "rung": 4,
-  "text": "hash to bytes with verification;"
+  "name": "sto.fetch",
+  "rung": 6,
+  "text": "Content-addressed fetch by hash from any providing peer;"
  },
- "SZ-4": {
-  "chapter": "06-stage0-boot.md",
+ "sto.object_machinery": {
+  "chapter": "03-store.md",
   "criteria": {
-   "SZ-4.1": "`unfreeze(stage0)` recovers tape + manifest; rebuild compares."
+   "sto.object_machinery.put_get_roundtrip": "put(bytes) to hash; get(hash) to identical bytes; get of unknown"
   },
-  "name": "frozen-with-provenance",
-  "rung": 4,
-  "text": "The stage-0 artifact links its tape +"
+  "name": "sto.object_machinery",
+  "rung": 6,
+  "text": "Content-addressed put/get over the object"
  },
- "SZ-5": {
-  "chapter": "06-stage0-boot.md",
+ "sto.provide_compatible": {
+  "chapter": "03-store.md",
   "criteria": {
-   "SZ-5.1": "kill stage 1 a hundred times; restart each time; SZ-5.2: edits addressed at"
+   "sto.provide_compatible.evict_refetch": "Quest holds #a11 unprovided; after cache pressure, #a11 is gone",
+   "sto.provide_compatible.provided_is_query": "a fresh capture on Quest reports `provided-by: nobody` until the"
   },
-  "name": "spawn-and-park",
-  "rung": 4,
-  "text": "The parked fallback restarts stage 1 per its"
+  "name": "sto.provide_compatible",
+  "rung": 6,
+  "text": "Peers advertise provided datasets alongside"
  },
- "SZ-6": {
+ "sto.refs_and_undo": {
+  "chapter": "03-store.md",
+  "criteria": {
+   "sto.refs_and_undo.undo_ref_trail": "edit hello-cosine (freq 220 to 330), commit, undo: ref points at"
+  },
+  "name": "sto.refs_and_undo",
+  "rung": 6,
+  "text": "Refs bind local name to hash; every rebind appends"
+ },
+ "sto.retention_and_forgetting": {
+  "chapter": "03-store.md",
+  "criteria": {
+   "sto.retention_and_forgetting.forgetting_converges": "integration test across three peers confirms convergence and that"
+  },
+  "name": "sto.retention_and_forgetting",
+  "rung": 6,
+  "text": "Unpin-everywhere converges: after all"
+ },
+ "sto.store_graph_face": {
+  "chapter": "03-store.md",
+  "criteria": {
+   "sto.store_graph_face.no_ambient_store": "hello-cosine's editor session reads #b22 by wiring to the store"
+  },
+  "name": "sto.store_graph_face",
+  "rung": 6,
+  "text": "get = wiring, put = graph edit, ref = named"
+ },
+ "sz.boot_without_store": {
   "chapter": "06-stage0-boot.md",
   "criteria": {},
-  "name": "trampolines",
-  "rung": 2,
-  "text": "at most 10 lines each; CI line-count gate."
- },
- "SZ-7": {
-  "chapter": "06-stage0-boot.md",
-  "criteria": {},
-  "name": "boot without store",
+  "name": "sz.boot_without_store",
   "rung": 4,
   "text": "Empty object directory to live engine graph"
  },
- "SZ-8": {
+ "sz.frozen_with_provenance": {
+  "chapter": "06-stage0-boot.md",
+  "criteria": {
+   "sz.frozen_with_provenance.unfreeze_recovers": "`unfreeze(stage0)` recovers tape + manifest; rebuild compares."
+  },
+  "name": "sz.frozen_with_provenance",
+  "rung": 4,
+  "text": "The stage-0 artifact links its tape +"
+ },
+ "sz.generated_registration": {
+  "chapter": "06-stage0-boot.md",
+  "criteria": {
+   "sz.generated_registration.missing_native_link_error": "deleting a native's object breaks the link naming the symbol."
+  },
+  "name": "sz.generated_registration",
+  "rung": 4,
+  "text": "The TU is generated; omission is a loud"
+ },
+ "sz.naive_resolver": {
+  "chapter": "06-stage0-boot.md",
+  "criteria": {
+   "sz.naive_resolver.resolver_independent": "with the store package broken, the resolver still loads a graph"
+  },
+  "name": "sz.naive_resolver",
+  "rung": 4,
+  "text": "hash to bytes with verification;"
+ },
+ "sz.platform_invariance": {
+  "chapter": "06-stage0-boot.md",
+  "criteria": {
+   "sz.platform_invariance.ci_grep_gate": "CI grep gate. sz.platform_invariance.same_object_all_targets: same object code (per-arch) links into"
+  },
+  "name": "sz.platform_invariance",
+  "rung": 2,
+  "text": "No platform conditionals in escapement,"
+ },
+ "sz.spawn_and_park": {
+  "chapter": "06-stage0-boot.md",
+  "criteria": {
+   "sz.spawn_and_park.restart_survives": "kill stage 1 a hundred times; restart each time; sz.spawn_and_park.stage0_rejects_edits: edits addressed at"
+  },
+  "name": "sz.spawn_and_park",
+  "rung": 4,
+  "text": "The parked fallback restarts stage 1 per its"
+ },
+ "sz.the_ladder": {
   "chapter": "06-stage0-boot.md",
   "criteria": {},
-  "name": "the ladder, ADR-028",
+  "name": "sz.the_ladder",
   "rung": 4,
   "text": "Escapement + crown + tape reaches full"
  },
- "TCF-1": {
-  "chapter": "15-time-concurrency-faults.md",
+ "sz.trampolines": {
+  "chapter": "06-stage0-boot.md",
   "criteria": {},
-  "name": "mapping guarantees",
-  "rung": 5,
-  "text": "Each row of the table has a stress test:"
+  "name": "sz.trampolines",
+  "rung": 2,
+  "text": "at most 10 lines each; CI line-count gate."
  },
- "TCF-2": {
+ "tcf.clock_honesty": {
   "chapter": "15-time-concurrency-faults.md",
   "criteria": {},
-  "name": "swap safety",
-  "rung": 5,
-  "text": "10,000 random swaps under load: no torn values, no"
- },
- "TCF-3": {
-  "chapter": "15-time-concurrency-faults.md",
-  "criteria": {},
-  "name": "clock honesty",
+  "name": "tcf.clock_honesty",
   "rung": 5,
   "text": "No wall-clock syscalls from any node"
  },
- "TCF-4": {
+ "tcf.fault_matrix": {
   "chapter": "15-time-concurrency-faults.md",
   "criteria": {},
-  "name": "fault matrix",
+  "name": "tcf.fault_matrix",
   "rung": 5,
   "text": "One test per fault class by region kind:"
  },
- "TCF-5": {
+ "tcf.mapping_guarantees": {
   "chapter": "15-time-concurrency-faults.md",
   "criteria": {},
-  "name": "movement austerity",
+  "name": "tcf.mapping_guarantees",
+  "rung": 5,
+  "text": "Each row of the table has a stress test:"
+ },
+ "tcf.movement_austerity": {
+  "chapter": "15-time-concurrency-faults.md",
+  "criteria": {},
+  "name": "tcf.movement_austerity",
   "rung": 5,
   "text": "A frozen movement build contains no fault"
+ },
+ "tcf.swap_safety": {
+  "chapter": "15-time-concurrency-faults.md",
+  "criteria": {},
+  "name": "tcf.swap_safety",
+  "rung": 5,
+  "text": "10,000 random swaps under load: no torn values, no"
  }
 }

@@ -17,7 +17,7 @@ updates the fallback default; serialization captures defaults, never live
 values. Undo snapshots on structural change; param drift never trashes
 history.
 
-**Projection editing UX (CMP-4 surfaced).** The editor can open any level:
+**Projection editing UX (cmp.projection_editing surfaced).** The editor can open any level:
 app graph, execution graph (realized view), engine graph. In realized views,
 compiler-introduced structure (mappings, adapters, placement) is visible;
 edits write back through the inverse compilation map; a write-back conflict
@@ -34,8 +34,8 @@ The ground is the synthetic node connected to all nodes; walks begin there.
 **Documents.** A document is a graph; transclusion is an address-valued edge
 (fixed = quotation, live = subscription); a document's proposed render
 program is a declinable graph run in the reader's advertised vocabulary
-(MSH-3). Bidirectional links: attach to hashes, derive per-version positions
-through the version map (NAM-7), index back-links per store (STO-9).
+(msh.three_lists). Bidirectional links: attach to hashes, derive per-version positions
+through the version map (nam.sequence_traversal), index back-links per store (sto.back_link_index).
 Validation targets inherited from the rhizome probe: the **round-trip
 metric** (C++  and back  document form, byte-identical) and the **trace** (a user's or
 agent's remixed transcluded path through a corpus, itself a committable
@@ -57,69 +57,69 @@ example below).
 
 ## Requirements
 
-**EDR-1 (editor is nodes).** No editor monolith returns; all editor behavior
+**edr.editor_is_nodes** No editor monolith returns; all editor behavior
 is node compositions replaceable at runtime.
-- EDR-1.1: replacing the palette subgraph live (swap+migrate) changes editor
+- edr.editor_is_nodes.palette_swap_live: replacing the palette subgraph live (swap+migrate) changes editor
   behavior without restart.
-- EDR-1.2: the surface is graphs: every editor-surface behavior — cards,
+- edr.editor_is_nodes.surface_is_graphs: the surface is graphs: every editor-surface behavior — cards,
   wires, labels, palette, layout, gesture logic — lives in
   graphs/editor/*.json over the render/text leaf vocabulary; the set of
   registered natives exactly equals vocabulary/packages.json, and no
   source file under src/ implements an editor-surface concept (gate grep:
   card/palette/wire_drag/slider_drag/dwell/gesture).
 
-**EDR-2 (defaults discipline).** Serialize captures defaults; connected
+**edr.defaults_discipline** Serialize captures defaults; connected
 inlets are meters; editing one updates the fallback.
-- EDR-2.1: modulate vca0/gain with lfo0, save, reload: gain default is the
-  edited fallback, not an LFO sample (EXE-1.2 at the UX level).
+- edr.defaults_discipline.default_is_fallback: modulate vca0/gain with lfo0, save, reload: gain default is the
+  edited fallback, not an LFO sample (exe.plan_cache.saves_default at the UX level).
 
-**EDR-3 (undo).** Structural-snapshot undo; ref-trail undo for commits; the
+**edr.undo** Structural-snapshot undo; ref-trail undo for commits; the
 two compose.
-- EDR-3.1: sequence [add node, drag param, remove node, undo, undo] restores
+- edr.undo.undo_sequence_restores: sequence [add node, drag param, remove node, undo, undo] restores
   the original topology and defaults exactly.
 
-**EDR-4 (realized-view editing).** The latch of hello-cosine is visible,
+**edr.realized_view_editing** The latch of hello-cosine is visible,
 labeled as compiler-inserted, replaceable; conflict and fork flows per
-CMP-4/5 have explicit UI.
-- EDR-4.1: scripted gesture test drives the smoother replacement of CMP-4.1
-  through the editor's own gesture nodes (agent-driven, per EDR-7).
+cmp.projection_editing, cmp.fork have explicit UI.
+- edr.realized_view_editing.gesture_replaces_latch: scripted gesture test drives the smoother replacement of cmp.projection_editing.writeback_smoother
+  through the editor's own gesture nodes (agent-driven, per edr.agents_as_peers).
 
-**EDR-5 (store browser).** here/path/frontier/mark over any store graph;
+**edr.store_browser** here/path/frontier/mark over any store graph;
 frontier latency stays interactive (demand-driven, memoized).
-- EDR-5.1: walk ground to graphs/hello-cosine to topology to osc0 to type osc  to 
+- edr.store_browser.walk_and_mark: walk ground to graphs/hello-cosine to topology to osc0 to type osc  to 
   ports; mark osc0; the marked map persists as a dataset and re-opens.
-- EDR-5.2: frontier of a node with 100,000 links paginates without blocking the
+- edr.store_browser.frontier_paginates: frontier of a node with 100,000 links paginates without blocking the
   frame region.
 
-**EDR-6 (documents).** Transclusion renders live and fixed correctly;
+**edr.documents** Transclusion renders live and fixed correctly;
 declining a proposed renderer falls back to the reader's kind decoder.
-- EDR-6.1: a document transcluding `graphs/hello-cosine:nodes/osc0/freq`
+- edr.documents.live_vs_fixed_transclusion: a document transcluding `graphs/hello-cosine:nodes/osc0/freq`
   (live) updates when the ref moves; the same address normalized (fixed)
   does not.
-- EDR-6.2: round-trip metric harness: decompose a small permissive C++ file
+- edr.documents.cpp_roundtrip: round-trip metric harness: decompose a small permissive C++ file
   to document form and regenerate byte-identically (modulo clang-format);
   wire as a CI property test over a corpus directory.
 
-**EDR-7 (agents as peers).** Every editor gesture is drivable through source
+**edr.agents_as_peers** Every editor gesture is drivable through source
 nodes over the mesh; no privileged agent API exists.
-- EDR-7.1: the full editor integration suite runs twice — human-input
+- edr.agents_as_peers.human_agent_identical: the full editor integration suite runs twice — human-input
   simulation and agent-source driving — with identical resulting graphs.
-- EDR-7.2: authoring from scratch: a scripted gesture session in the host
+- edr.agents_as_peers.author_from_scratch: authoring from scratch: a scripted gesture session in the host
   shell, starting from an EMPTY graph, authors hello-cosine end-to-end
   through pointer-source-driven gesture ops (spawn from palette, wire,
   set params, save); the saved doc's topology matches the fixture modulo
   generated ids, and its render passes the golden-audio properties.
 
-**EDR-8 (observability).** Pull-observability (values snapshot, probes) and
+**edr.observability** Pull-observability (values snapshot, probes) and
 purpose-built engine-graph probes; audio inspection emits
 spectrogram/waveform + numeric features (agents can't hear).
-- EDR-8.1: a probe mapping attached to any edge exposes its value stream
+- edr.observability.probe_any_edge: a probe mapping attached to any edge exposes its value stream
   over the values surface without altering region inference.
 
 ## Worked example (test seed)
 
 An agent peer, using only advertised source nodes: opens the editor, walks
 the store browser to hello-cosine, patches noise0 through a new vca, replaces
-the auto latch with smoother (EDR-4.1), commits (ref moves), records a take,
+the auto latch with smoother (edr.realized_view_editing.gesture_replaces_latch), commits (ref moves), records a take,
 marks its path through the store as a trace dataset — the medium's whole
 gesture set exercised in one scripted, assertable run.

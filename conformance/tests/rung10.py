@@ -4,5 +4,5 @@ Never weaken a test to pass it — amend the book by ADR instead."""
 
 TESTS = {
     # 13-native-contract.md: The same node source builds as
-    "ABI-5": None,
+    "abi.three_packagings": None,
 }

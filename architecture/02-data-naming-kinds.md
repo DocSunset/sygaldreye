@@ -33,7 +33,7 @@ petnames humanize keys in a private local store graph.
 through, according to its kind's traversal vocabulary (a graph answers
 `nodes/`, `edges/`, port names; a wav answers channels/ranges; a text answers
 spans). Resolution is demand-driven and memoized. It grounds in stage 0's
-naive resolver (SZ-3). Sequence kinds implement traversal with enfilade
+naive resolver (sz.naive_resolver). Sequence kinds implement traversal with enfilade
 descendants (ropes / persistent trees; git's tree object is the directory
 case); links attach to hashes and positions are derived per version, so links
 survive editing.
@@ -50,12 +50,12 @@ each named member is a named link in the kind's convention, so the struct IS
 the one-level-up declaration written in the machine's language. The generator
 derives everything from it (in-motion layout, canonical codec, JSON
 projection, descriptor), and the committed descriptor IS the kind node
-(CMP-9.4) — so a C++ type and a kind correspond **by generated declaration,
+(cmp.engine_is_realized.honest_lock) — so a C++ type and a kind correspond **by generated declaration,
 never by convention or folklore**. A node type's endpoints struct is this
 same surface for a kind that carries behavior (ADR-030); bulk raw-lane kinds
 (audio, wav, mesh payloads) author decoders instead of schemas (ADR-017's two
 lanes). A hand-maintained kind table is the descriptor-drift bug this design
-exists to kill (AUT-3).
+exists to kill (aut.generated_descriptors).
 
 **Port promises (ADR-030 — "type" dissolved).** A port declaration attaches
 its promises directly as links: `ports/foo/kind` and `ports/foo/discipline`
@@ -68,51 +68,51 @@ an instance's `type` link is its kind link.
 
 ## Requirements
 
-**NAM-1 (addresses).** Implement the address grammar: first steps of all
+**nam.addresses** Implement the address grammar: first steps of all
 three spellings (lexical ref-name, cid, peer-key), local-name routes;
 parse/print round-trips exactly; resolution starts at the environment node.
-- NAM-1.1: `parse(print(a)) == a` for all addresses (property test).
-- NAM-1.2: `#a11/nodes/osc0/out` resolves identically on any peer holding
+- nam.addresses.parse_print_roundtrip: `parse(print(a)) == a` for all addresses (property test).
+- nam.addresses.location_independent: `#a11/nodes/osc0/out` resolves identically on any peer holding
   `#a11` (location independence).
 
-**NAM-2 (liveness).** Classify every address fixed/live by traversal; fixed
+**nam.liveness** Classify every address fixed/live by traversal; fixed
 addresses normalize to a hash.
-- NAM-2.1: `graphs/hello-cosine:nodes/osc0/freq` is live; after
+- nam.liveness.live_fixed_memo: `graphs/hello-cosine:nodes/osc0/freq` is live; after
   `normalize`, `#a11/nodes/osc0/freq` is fixed and its resolution is
   memoized (second resolve performs zero I/O — observable via a counter).
-- NAM-2.2: moving ref `graphs/hello-cosine` re-delivers to all live-address
+- nam.liveness.ref_move_delivers_once: moving ref `graphs/hello-cosine` re-delivers to all live-address
   subscribers exactly once (event, never polled).
 
-**NAM-3 (edit-stable routes).** Routes are keyed by local names only; no byte
+**nam.edit_stable_routes** Routes are keyed by local names only; no byte
 offsets or ordinal positions above the sequence-kind substrate.
-- NAM-3.1: inserting `nodes/noise0` into #b22's topology does not change the
+- nam.edit_stable_routes.insertion_stable: inserting `nodes/noise0` into #b22's topology does not change the
   meaning of `nodes/osc0/freq` (contrast: an index-based scheme fails this).
 
-**NAM-4 (one kind system).** Port payload kinds and dataset kinds resolve
+**nam.one_kind_system** Port payload kinds and dataset kinds resolve
 against the same kind registry.
-- NAM-4.1: a `scalar` on a wire and a committed `scalar` dataset carry the
+- nam.one_kind_system.one_kind_hash: a `scalar` on a wire and a committed `scalar` dataset carry the
   same kind hash; committing a port value requires no translation step.
 
-**NAM-5 (promise oracle).** `connection_legal(from, to)` over (kind,
+**nam.promise_oracle** `connection_legal(from, to)` over (kind,
 discipline) pairs and
 `boundary_mapping(from, to)` are one shared first-order implementation used by
 both parse-time validation and editor wire-drop.
-- NAM-5.1: `osc0/out (audio, block) to vca0/in (audio, block)` legal, true edge.
-- NAM-5.2: `lfo0/out (scalar, frame) to vca0/gain (scalar, block)` legal via
+- nam.promise_oracle.true_edge_legal: `osc0/out (audio, block) to vca0/in (audio, block)` legal, true edge.
+- nam.promise_oracle.latch_boundary: `lfo0/out (scalar, frame) to vca0/gain (scalar, block)` legal via
   `latch` (returned as the boundary mapping).
-- NAM-5.3: `draw_call to audio` is ILLEGAL (both surfaces reject identically).
-- NAM-5.4: no kind/promise lookup occurs during tick (assert via instrumentation
+- nam.promise_oracle.kind_mismatch_illegal: `draw_call to audio` is ILLEGAL (both surfaces reject identically).
+- nam.promise_oracle.no_lookup_at_tick: no kind/promise lookup occurs during tick (assert via instrumentation
   in debug builds).
 
-**NAM-6 (hash format).** CID/multihash for all hashes; Merkle-DAG chunking for
+**nam.hash_format** CID/multihash for all hashes; Merkle-DAG chunking for
 blobs above a threshold.
-- NAM-6.1: re-hashing fetched data verifies it; a corrupted byte is detected.
-- NAM-6.2: two takes sharing a chunk store it once (dedup observable in
+- nam.hash_format.rehash_verifies: re-hashing fetched data verifies it; a corrupted byte is detected.
+- nam.hash_format.chunk_dedup: two takes sharing a chunk store it once (dedup observable in
   object-directory size).
 
-**NAM-7 (sequence traversal).** Text/media kinds expose span traversal that is
+**nam.sequence_traversal** Text/media kinds expose span traversal that is
 stable under edits, with structural sharing between versions.
-- NAM-7.1: after inserting a line at the top of a text dataset, a link
+- nam.sequence_traversal.span_survives_edit: after inserting a line at the top of a text dataset, a link
   attached to a hash-identified span still resolves to the same characters in
   the new version via the version map.
 

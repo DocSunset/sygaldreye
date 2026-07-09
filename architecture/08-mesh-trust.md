@@ -42,54 +42,54 @@ decoders) — a kind, not a mechanism.
 
 ## Requirements
 
-**MSH-1 (keypairs + pairing).** Peers generate keypairs; pairing exchanges
+**msh.keypairs_pairing** Peers generate keypairs; pairing exchanges
 and records acceptance; revocation removes a key and severs its sessions.
-- MSH-1.1: three-peer pairing; revoke the Quest's key on host; Quest can no
+- msh.keypairs_pairing.pair_revoke_restore: three-peer pairing; revoke the Quest's key on host; Quest can no
   longer fetch, place, or subscribe; re-pairing restores.
 
-**MSH-2 (authenticated transport).** All inter-peer traffic (control, store
+**msh.authenticated_transport** All inter-peer traffic (control, store
 fetch, net mappings) is authenticated and encrypted under the pairing keys;
 no unauthenticated listener remains.
-- MSH-2.1: port scan + protocol probe from an unpaired host on the LAN: every
+- msh.authenticated_transport.unpaired_refused: port scan + protocol probe from an unpaired host on the LAN: every
   surface refuses; the legacy HTTP behavior is demonstrably gone.
 
-**MSH-3 (three lists).** Advertisement of run/serve/subscribe is explicit,
+**msh.three_lists** Advertisement of run/serve/subscribe is explicit,
 queryable, and enforced at request time.
-- MSH-3.1: a request to instantiate `shell_exec` on the browser peer (which
+- msh.three_lists.typed_refusal: a request to instantiate `shell_exec` on the browser peer (which
   doesn't advertise it) is refused with a typed error, and the refusal is
   visible to the requesting engine graph (compilation falls through to
   another peer or reports unplaceable).
 
-**MSH-4 (pull-shaped placement).** There is no code path that instantiates a
+**msh.pull_shaped_placement** There is no code path that instantiates a
 node type on a peer absent from that peer's run list.
-- MSH-4.1: fuzz the placement API with arbitrary type names; zero
+- msh.pull_shaped_placement.no_unadvertised_instantiation: fuzz the placement API with arbitrary type names; zero
   instantiations occur outside the advertised set (assert via registry
   audit log).
 
-**MSH-5 (graphs versus plugins).** Graph datasets flow and realize in-mesh
+**msh.graphs_vs_plugins** Graph datasets flow and realize in-mesh
 without prompts; plugin datasets require the provenance-policy gate before
 dlopen/side-module load.
-- MSH-5.1: ship a graph Quest to host: runs. Ship an unsigned .so: refused,
+- msh.graphs_vs_plugins.plugin_gate: ship a graph Quest to host: runs. Ship an unsigned .so: refused,
   logged. Sign it with a paired key whose policy is accepted: loads
   hot (existing dlopen hot-reload machinery), and its provenance (source
   dataset, toolchain) is queryable.
-- MSH-5.2: the browser peer's plugin form is a WASM side module over the
+- msh.graphs_vs_plugins.wasm_same_gate: the browser peer's plugin form is a WASM side module over the
   same channel and gate; the policy check is form-agnostic.
 
-**MSH-6 (capture testimony keys).** Every capture's testimony carries the
+**msh.capture_testimony_keys** Every capture's testimony carries the
 capturing peer's public key; verification is signature-checking, not trust.
-- MSH-6.1: tamper with a take's testimony peer-id; verification fails.
+- msh.capture_testimony_keys.testimony_tamper_fails: tamper with a take's testimony peer-id; verification fails.
 
-**MSH-7 (discovery).** mDNS presence + direct holdings/capability queries
+**msh.discovery** mDNS presence + direct holdings/capability queries
 serve the household scale; the discovery interface is abstract enough that a
 DHT provider could replace it without touching semantics.
-- MSH-7.1: all MSH/STO/PKG integration tests pass with discovery swapped for
+- msh.discovery.discovery_swappable: all MSH/STO/PKG integration tests pass with discovery swapped for
   a static peer list (proving the seam).
 
-**MSH-8 (graded circles, seam only).** Sharing is configurable per store
+**msh.graded_circles** Sharing is configurable per store
 graph and per advertisement list; the flat domain is expressed as "everything
 shared with every paired key," not hardcoded.
-- MSH-8.1: configure a second store graph shared with a subset of keys; the
+- msh.graded_circles.per_store_sharing: configure a second store graph shared with a subset of keys; the
   excluded peer's fetch is refused for those hashes but succeeds for the
   common store.
 
@@ -98,6 +98,6 @@ shared with every paired key," not hardcoded.
 The codegen loop under law: an agent peer authors a new node type's C++
 (a capture — human/agent testimony), a worker derivation cross-compiles it
 (recipe provenance), the artifact ships by hash, the Quest's policy verifies
-the chain (MSH-5.1, MSH-6.1) and hot-loads it, and hello-cosine gains a new
+the chain (msh.graphs_vs_plugins.plugin_gate, msh.capture_testimony_keys.testimony_tamper_fails) and hot-loads it, and hello-cosine gains a new
 node type mid-performance — no restart (the guiding star, exercised across
 the trust boundary).

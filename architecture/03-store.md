@@ -44,60 +44,60 @@ bounded by trust domain).
 
 ## Requirements
 
-**STO-1 (object machinery).** Content-addressed put/get over the object
+**sto.object_machinery** Content-addressed put/get over the object
 directory; verification is re-hashing.
-- STO-1.1: put(bytes) to hash; get(hash) to identical bytes; get of unknown
-  hash is a clean miss (triggering fetch, STO-6).
+- sto.object_machinery.put_get_roundtrip: put(bytes) to hash; get(hash) to identical bytes; get of unknown
+  hash is a clean miss (triggering fetch, sto.fetch).
 
-**STO-2 (store-graph face).** get = wiring, put = graph edit, ref = named
+**sto.store_graph_face** get = wiring, put = graph edit, ref = named
 node, query = traversal; no ambient store API anywhere in node code.
-- STO-2.1: hello-cosine's editor session reads #b22 by wiring to the store
+- sto.store_graph_face.no_ambient_store: hello-cosine's editor session reads #b22 by wiring to the store
   graph; grep confirms no global store singleton is reachable from node
   implementations.
 
-**STO-3 (commit paths).** Committing records provenance as recipe (derive)
+**sto.commit_paths** Committing records provenance as recipe (derive)
 or testimony (capture); a stream cannot be committed directly.
-- STO-3.1: compiling #a11 yields an execution-graph dataset whose provenance
+- sto.commit_paths.compile_recipe_memo: compiling #a11 yields an execution-graph dataset whose provenance
   = (compile, inputs: #a11, engine-hash); re-compiling is a memo hit (zero
   passes run — counter-observable).
-- STO-3.2: recording 2 s of dac output yields a wav dataset whose testimony
+- sto.commit_paths.capture_testimony: recording 2 s of dac output yields a wav dataset whose testimony
   carries peer key + wiring route `nodes/dac0/in`; attempting to "commit the
   adc stream" without a recorder node is refused at edit time.
 
-**STO-4 (refs and undo).** Refs bind local name to hash; every rebind appends
+**sto.refs_and_undo** Refs bind local name to hash; every rebind appends
 to the trail; undo = rebind to trail predecessor.
-- STO-4.1: edit hello-cosine (freq 220 to 330), commit, undo: ref points at
+- sto.refs_and_undo.undo_ref_trail: edit hello-cosine (freq 220 to 330), commit, undo: ref points at
   #a11 again; both versions remain fetchable.
 
-**STO-5 (provide/compatible).** Peers advertise provided datasets alongside
+**sto.provide_compatible** Peers advertise provided datasets alongside
 provided node types; compatible-only copies are evictable.
-- STO-5.1: Quest holds #a11 unprovided; after cache pressure, #a11 is gone
+- sto.provide_compatible.evict_refetch: Quest holds #a11 unprovided; after cache pressure, #a11 is gone
   locally but re-fetchable from the Linux peer (which provides it).
-- STO-5.2: a fresh capture on Quest reports `provided-by: nobody` until the
+- sto.provide_compatible.provided_is_query: a fresh capture on Quest reports `provided-by: nobody` until the
   archive replicates it, then flips — the flag is a query, not stored state.
 
-**STO-6 (fetch).** Content-addressed fetch by hash from any providing peer;
+**sto.fetch** Content-addressed fetch by hash from any providing peer;
 idempotent, cacheable, chunked for large blobs; resumable.
-- STO-6.1: interrupting a 100 MB take transfer at 50% and retrying moves only
+- sto.fetch.resumable_fetch: interrupting a 100 MB take transfer at 50% and retrying moves only
   the missing chunks.
 
-**STO-7 (composite graphs).** Topology and defaults are separate datasets;
+**sto.composite_graphs** Topology and defaults are separate datasets;
 single-file JSON remains the interchange form.
-- STO-7.1: two presets of hello-cosine share topology hash #b22 (observable:
+- sto.composite_graphs.shared_topology: two presets of hello-cosine share topology hash #b22 (observable:
   one topology object, two defaults objects).
-- STO-7.2: deleting osc0 from the topology surfaces a conflict for the
+- sto.composite_graphs.orphan_conflict: deleting osc0 from the topology surfaces a conflict for the
   orphaned default `osc0/freq` (rebase semantics), not silence.
 
-**STO-8 (retention and forgetting).** Unpin-everywhere converges: after all
+**sto.retention_and_forgetting** Unpin-everywhere converges: after all
 providers drop a dataset and caches cycle, the hash is unfetchable in-mesh.
-- STO-8.1: integration test across three peers confirms convergence and that
+- sto.retention_and_forgetting.forgetting_converges: integration test across three peers confirms convergence and that
   provenance records referencing the forgotten hash still parse (dangling is
   legal, dishonest is not).
 
-**STO-9 (back-link index).** Each store indexes provenance's downstream
+**sto.back_link_index** Each store indexes provenance's downstream
 inverse at commit time; `query(lineage: #a11)` lists the execution graph and
 the take.
-- STO-9.1: the index is itself derived data — deleting and re-deriving it
+- sto.back_link_index.index_is_derived: the index is itself derived data — deleting and re-deriving it
   yields an identical index (hash-equal).
 
 ## Worked example (test seed)

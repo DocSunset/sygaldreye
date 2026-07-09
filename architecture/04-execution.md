@@ -32,15 +32,15 @@ node with no demanded output and no clock input is provably inert (edit-time
 lint). This dissolves hot/cold-inlet conventions and trigger-object
 sequencing into the kind-and-discipline system and order-is-wiring.
 
-**EXE-11 (quiescence and demand, ADR-015).**
-- EXE-11.1: a static scene (no clock-wired nodes, no incoming events)
+**exe.quiescence_and_demand**
+- exe.quiescence_and_demand.static_quiesces: a static scene (no clock-wired nodes, no incoming events)
   performs zero node recomputations across 1,000 frames while still
   presenting (the plan replays cached draw state).
-- EXE-11.2: one param write recomputes exactly the dirty downstream cone,
+- exe.quiescence_and_demand.dirty_cone_only: one param write recomputes exactly the dirty downstream cone,
   nothing else (counter per node).
-- EXE-11.3: the inert-node lint flags a node with no demanded output and no
+- exe.quiescence_and_demand.inert_lint: the inert-node lint flags a node with no demanded output and no
   clock input at edit time.
-- EXE-11.4: event delivery is unaffected by quiescence: a bang into a
+- exe.quiescence_and_demand.event_wakes_cone: event delivery is unaffected by quiescence: a bang into a
   quiesced subgraph wakes exactly its cone, same-tick semantics preserved.
 
 **Regions are inferred, never declared** — connected components quotiented by
@@ -92,81 +92,81 @@ index; resource holders refuse to lift with a hard, messaged error.
 
 ## Requirements
 
-**EXE-1 (plan cache).** Build plans exactly as above; `serialize(plan.graph)`
+**exe.plan_cache** Build plans exactly as above; `serialize(plan.graph)`
 round-trips to the source graph (defaults, never live values).
-- EXE-1.1: hello-cosine's plan holds raw pointers for edges 0 and 2 (true
+- exe.plan_cache.pointers_and_latch: hello-cosine's plan holds raw pointers for edges 0 and 2 (true
   edges) and a latch for edge 1; serialize shows the latch in the derived
   mappings array, not in the persisted topology.
-- EXE-1.2: saving mid-modulation persists gain's *default*, not the LFO's
+- exe.plan_cache.saves_default: saving mid-modulation persists gain's *default*, not the LFO's
   current sample.
 
-**EXE-2 (region inference).** Recomputed on every edit; dac upstream closure
+**exe.region_inference** Recomputed on every edit; dac upstream closure
 through audio edges to block; else frame; queue-implied worker.
-- EXE-2.1: hello-cosine infers {osc0, vca0, dac0} block, {lfo0} frame.
-- EXE-2.2: deleting edge 2 (vca0 to dac0) moves osc0/vca0 out of the block
+- exe.region_inference.infers_membership: hello-cosine infers {osc0, vca0, dac0} block, {lfo0} frame.
+- exe.region_inference.edit_moves_region: deleting edge 2 (vca0 to dac0) moves osc0/vca0 out of the block
   region on the very next edit application.
 
-**EXE-3 (real-time safety).** The block region allocates nothing and takes no
+**exe.realtime_safety** The block region allocates nothing and takes no
 locks after first-tick init.
-- EXE-3.1: instrumented allocator + lock detector report zero events across
+- exe.realtime_safety.zero_alloc_lock: instrumented allocator + lock detector report zero events across
   10,000 callbacks of hello-cosine under live param edits.
 
-**EXE-4 (canonical mappings).** Latch applies at block start; snapshot
+**exe.canonical_mappings** Latch applies at block start; snapshot
 exposes the last completed block; queue never drops events; ring carries
 streams SPSC; z-inverse delays exactly one tick with empty-until-first-capture.
-- EXE-4.1: step lfo0 to a constant 0.7 to vca0 sees exactly 0.7 from the next
+- exe.canonical_mappings.latch_at_boundary: step lfo0 to a constant 0.7 to vca0 sees exactly 0.7 from the next
   block boundary, never mid-block.
-- EXE-4.2: N palette-press events across threads arrive N times, in order.
-- EXE-4.3: a feedback cycle certifies tick-1 delay semantics (existing
+- exe.canonical_mappings.queue_no_loss: N palette-press events across threads arrive N times, in order.
+- exe.canonical_mappings.cycle_delay: a feedback cycle certifies tick-1 delay semantics (existing
   DelayMapping tests inherit here).
 
-**EXE-5 (migration).** State survives swap keyed by route; clones keyed by
+**exe.migration** State survives swap keyed by route; clones keyed by
 lift key survive reorder and resize.
-- EXE-5.1: swap hello-cosine for a version with an added noise0: osc0's phase
+- exe.migration.phase_continuous: swap hello-cosine for a version with an added noise0: osc0's phase
   is continuous across the swap (record output; no discontinuity beyond one
   block boundary).
-- EXE-5.2: reordering editor cards (lift_key = id) preserves each card's drag
+- exe.migration.reorder_preserves_state: reordering editor cards (lift_key = id) preserves each card's drag
   state.
 
-**EXE-6 (executor contract).** Executors own device + pacing; inner node
+**exe.executor_contract** Executors own device + pacing; inner node
 families bind through the package's contract; no node reaches for a singleton.
-- EXE-6.1: grep-level check: no `::instance()` reach from node code into
+- exe.executor_contract.no_singleton_reach: grep-level check: no `::instance()` reach from node code into
   engine machinery (retires AudioEngine::instance pattern).
-- EXE-6.2: with no audio device, pump_offline paces the block region and
+- exe.executor_contract.headless_computes: with no audio device, pump_offline paces the block region and
   hello-cosine still computes (headless peers keep computing).
 
-**EXE-7 (derivation mode).** A worker-region execution runs a pipeline to
+**exe.derivation_mode** A worker-region execution runs a pipeline to
 completion and records provenance.
-- EXE-7.1: "render 2 s of hello-cosine offline" produces a wav dataset with
+- exe.derivation_mode.offline_render_memoized: "render 2 s of hello-cosine offline" produces a wav dataset with
   recipe provenance; re-running is a memo hit.
 
-**EXE-8 (visible boundaries).** Every auto-inserted mapping is present in the
-editor's view and replaceable; replacement writes back per CMP-4.
-- EXE-8.1: the latch in hello-cosine appears as a node card; replacing it
+**exe.visible_boundaries** Every auto-inserted mapping is present in the
+editor's view and replaceable; replacement writes back per cmp.projection_editing.
+- exe.visible_boundaries.latch_is_card: the latch in hello-cosine appears as a node card; replacing it
   with `smoother` persists as an app-graph edit and survives re-compilation.
 
-**EXE-9 (existence = reference).** Instances are created by edits that link
+**exe.existence_is_reference** Instances are created by edits that link
 them and collected when unlinked; no other lifecycle API.
-- EXE-9.1: removing lfo0 and edge 1 in one edit op collects lfo0's state;
+- exe.existence_is_reference.unlink_collects: removing lfo0 and edge 1 in one edit op collects lfo0's state;
   undo restores it (from the structural snapshot, not the live cell).
 
-**EXE-10 (per-sample islands, ADR-013).** Cycle detection per edit;
+**exe.per_sample_islands** Cycle detection per edit;
 sample-interleaved execution of islands; explicit block delay opts out;
 block-override membership rejected at edit time with a forced explicit delay.
-- EXE-10.1: a one-node Karplus-Strong loop (delay-line kernel + damping,
+- exe.per_sample_islands.karplus_one_sample: a one-node Karplus-Strong loop (delay-line kernel + damping,
   fed back) sounds correct interpreted: pitch matches 1-sample feedback
   math, not block-delayed math.
-- EXE-10.2: inserting an explicit block-sized delay into the loop reverts
+- exe.per_sample_islands.block_delay_opts_out: inserting an explicit block-sized delay into the loop reverts
   the island to block execution (observable: per-callback kernel-call count
   drops to per-node-per-block).
-- EXE-10.3: wiring a spectrogram (block-override) into a cycle yields an
+- exe.per_sample_islands.override_in_cycle_errors: wiring a spectrogram (block-override) into a cycle yields an
   edit-time error naming the edge that needs an explicit delay.
-- EXE-10.4: frozen versus interpreted render of the same feedback patch:
+- exe.per_sample_islands.frozen_equals_interpreted: frozen versus interpreted render of the same feedback patch:
   spectrogram diff roughly equals 0 (the freezer changed cost, not sound).
 
 ## Worked example (test seed)
 
 Golden-audio test: realize hello-cosine headless, pump 1 s, assert (a) 220 Hz
-peak in FFT, (b) amplitude envelope at 0.5 Hz, (c) EXE-3 counters zero, (d)
+peak in FFT, (b) amplitude envelope at 0.5 Hz, (c) exe.realtime_safety counters zero, (d)
 swap to freq=330 mid-run and assert phase continuity and new peak — the whole
 chapter in one run.

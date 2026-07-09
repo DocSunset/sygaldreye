@@ -9,7 +9,7 @@ serialization round-trip.*
 
 ## Design
 
-**The value vocabulary (payload kinds).** One kind system (NAM-4) spans wires
+**The value vocabulary (payload kinds).** One kind system (nam.one_kind_system) spans wires
 and store. The fiat payload kinds: `scalar, bool, vec2, vec3, vec4, quat,
 mat4, text, bang, audio, texture, draw_call, mesh, surface, span, any,
 graph, ops, cidset` (the last three joined with ADR-034's structured
@@ -40,7 +40,7 @@ persistence-only.
 
 **Inlets: persistence and affordance (two derived qualities, not a "param"
 category).** An inlet whose payload has value semantics carries a persisted
-DEFAULT — the value it holds when unconnected; the defaults node (STO-7) is
+DEFAULT — the value it holds when unconnected; the defaults node (sto.composite_graphs) is
 exactly the map of these. The editor derives a WIDGET from payload + metadata
 (scalar+range to slider, bool to toggle, text to field, vec3 to gizmo, bang  to 
 momentary; stream/GPU payloads get a wire handle only). An edge into an inlet
@@ -58,7 +58,7 @@ replace as the degenerate case). Ops are data — queueable, serializable,
 attributable, replayable; they carry INVERSES and PRECONDITIONS (ADR-018 and 023);
 gestures are transactions (coalescing brackets); history is the op tree,
 linearity a view; the editor's gestures, remote peers, agents, and projection
-editing (CMP-4) all emit the same vocabulary, toward each live instance's one
+editing (cmp.projection_editing) all emit the same vocabulary, toward each live instance's one
 arbiter queue. The boot tape is these ops in fixed-format records (ch. 14).
 
 **Subgraphs (composition).** A subgraph node clones a template graph behind
@@ -87,99 +87,99 @@ never persisted). parse -after- serialize = identity on the persisted surface.
 
 ## Requirements
 
-**LNG-1 (kind catalog).** The fiat payload kinds exist as kind nodes in the
+**lng.kind_catalog** The fiat payload kinds exist as kind nodes in the
 one kind system; constraints (rate pins, region pins) live on the kind node.
-- LNG-1.1: enumerating the kind registry yields the catalog above; each
+- lng.kind_catalog.catalog_enumerable: enumerating the kind registry yields the catalog above; each
   entry resolves to decoders + constraints (no hardcoded switch elsewhere —
   the legality oracle reads kind nodes).
 
-**LNG-2 (span semantics).** cell_rank derives from kind; excess-rank edges
+**lng.span_semantics** cell_rank derives from kind; excess-rank edges
 lift; span to cell and cell to span are legal; whole-by-kind never lifts.
-- LNG-2.1: N-by-3 span to vec3 input stamps N clones; N=1 degenerates to one;
-  resize preserves clone state by key (EXE-5.2).
-- LNG-2.2: N-by-3 span to color_mesh instance input draws N instances in ONE
+- lng.span_semantics.span_stamps_clones: N-by-3 span to vec3 input stamps N clones; N=1 degenerates to one;
+  resize preserves clone state by key (exe.migration.reorder_preserves_state).
+- lng.span_semantics.span_whole_one_draw: N-by-3 span to color_mesh instance input draws N instances in ONE
   call (no clones — the draw boundary consumes the span whole).
 
-**LNG-3 (event discipline).** Events never drop or duplicate across any
+**lng.event_discipline** Events never drop or duplicate across any
 legal path; bangs carry no state.
-- LNG-3.1: 10,000 bangs through [button to queue to counter across threads]
+- lng.event_discipline.bangs_exact_stateless: 10,000 bangs through [button to queue to counter across threads]
   count exactly 10,000; serialize of the patch contains no bang state.
 
-**LNG-4 (inlet model).** Defaults persist; edges override; connected inlets
+**lng.inlet_model** Defaults persist; edges override; connected inlets
 meter; affordances derive from kind + metadata.
-- LNG-4.1: EXE-1.2 / EDR-2.1 (defaults never capture live modulation).
-- LNG-4.2: the widget table is data-driven: adding range metadata to a
+- lng.inlet_model.default_not_live: exe.plan_cache.saves_default / edr.defaults_discipline.default_is_fallback (defaults never capture live modulation).
+- lng.inlet_model.widget_data_driven: the widget table is data-driven: adding range metadata to a
   scalar inlet switches its widget without editor code changes.
 
-**LNG-5 (edit ops).** One structured vocabulary for all mutation; ops are
+**lng.edit_ops** One structured vocabulary for all mutation; ops are
 serializable and attributable; whole-graph replace routes through it.
-- LNG-5.1: recording the ops of an editor session and replaying them onto
+- lng.edit_ops.replay_reproduces: recording the ops of an editor session and replaying them onto
   the session's initial graph reproduces the final topology hash.
-- LNG-5.2: an op arriving over the mesh carries its author peer key
+- lng.edit_ops.op_attributed: an op arriving over the mesh carries its author peer key
   (attribution for MSH audit and documentary provenance).
 
-**LNG-6 (subgraphs).** Templates clone behind trampolines; defaults-as-
+**lng.subgraphs** Templates clone behind trampolines; defaults-as-
 creation-args; resource-holder inference; graph datasets register as node
 types.
-- LNG-6.1: `card.json` in graphs_dir appears in the palette; spawning it
+- lng.subgraphs.dataset_is_node_type: `card.json` in graphs_dir appears in the palette; spawning it
   clones the template; its inner position inlet takes the node entry's
   param as default.
-- LNG-6.2: a subgraph containing dac is refused lifting with the
+- lng.subgraphs.resource_holder_refuses: a subgraph containing dac is refused lifting with the
   resource-holder error (message names the inner culprit).
 
-**LNG-7 (context seam).** No node reaches a global; context arrives by
+**lng.context_seam** No node reaches a global; context arrives by
 injection and forwards through nested subgraphs.
-- LNG-7.1: static audit (EXE-6.1's grep) plus: a subgraph two levels deep
+- lng.context_seam.context_forwards: static audit (exe.executor_contract.no_singleton_reach's grep) plus: a subgraph two levels deep
   containing graph_source still publishes the root graph's keys.
 
-**LNG-8 (round-trip).** parse -after- serialize = identity on the persisted
+**lng.round_trip** parse -after- serialize = identity on the persisted
 surface; derived structure never persists.
-- LNG-8.1: property test over the graphs_dir corpus: serialize(parse(j))
+- lng.round_trip.roundtrip_no_derived: property test over the graphs_dir corpus: serialize(parse(j))
   is JSON-equal to j modulo key order; no `mappings` key in any persisted
   file.
 
-**LNG-9 (text events — OPEN).** Design the text event payload; until
+**lng.text_events** Design the text event payload; until
 ratified, text inlets are persistence-only. (ADR-034 unblocked graph-edit
 events separately: ops ride the structured lane as their own kind —
-LNG-11.3. This requirement now gates only text semantics and the seq-bump
+lng.structured_payloads.op_event_applies. This requirement now gates only text semantics and the seq-bump
 retirement.)
 
-**LNG-10 (query vocabulary — core, ADR-024).** traverse, filter, join,
+**lng.query_vocabulary** traverse, filter, join,
 fixpoint are core node types; queries run as committed derivations (memoized index datasets) or as standing reactive values (incrementally maintained under
 ADR-015).
-- LNG-10.1: "takes whose lineage includes CID_osc-type" wired from the four
+- lng.query_vocabulary.lineage_query: "takes whose lineage includes CID_osc-type" wired from the four
   primitives returns the expected set over a seeded store corpus; re-running
   is a memo hit.
-- LNG-10.2: the standing form updates within one demand cycle of a new
+- lng.query_vocabulary.standing_incremental: the standing form updates within one demand cycle of a new
   qualifying commit, and recomputes only its dirty cone (counter).
-- LNG-10.3: fixpoint over a cyclic link structure terminates (visited-set
+- lng.query_vocabulary.fixpoint_terminates: fixpoint over a cyclic link structure terminates (visited-set
   semantics) — no query can hang the store.
-- LNG-10.4: the palette and the back-link index are expressed as queries
+- lng.query_vocabulary.palette_is_query: the palette and the back-link index are expressed as queries
   (no bespoke search code paths).
 
-**LNG-11 (structured payloads — ADR-034).** The node contract carries
+**lng.structured_payloads** The node contract carries
 kind-tagged structured values (graph, edit ops, text, the catalog's
 non-float kinds) on the event and value disciplines: declared in endpoints
-structs like any port, codec and accessors generated (ABI-1), legality by
+structs like any port, codec and accessors generated (abi.one_declaration), legality by
 the one promise oracle, zero-copy in-process, canonical encoding only at
 commit boundaries. The float/stream path is unchanged; the oracle refuses
 structured payloads on stream.
-- LNG-11.1: a graph value flows over an edge between two realized instances
+- lng.structured_payloads.graph_value_zero_copy: a graph value flows over an edge between two realized instances
   (the engine's receive0 → regions0 hop); the consumer reads it through
   generated accessors; no serialization on the hop.
-- LNG-11.2: the RT audits (EXE-3.1, NAM-5.4) and golden audio re-run green
+- lng.structured_payloads.float_path_free: the RT audits (exe.realtime_safety.zero_alloc_lock, nam.promise_oracle.no_lookup_at_tick) and golden audio re-run green
   after the widening — the float path pays nothing.
-- LNG-11.3: a node emits an edit op as an event payload; wired into another
+- lng.structured_payloads.op_event_applies: a node emits an edit op as an event payload; wired into another
   graph's arbiter inlet, the op applies — a graph edits a graph through
-  wiring alone, no privileged surface (the LNG-9 unblock for op events).
-- LNG-11.4: the query four run as realized instances exchanging set values
+  wiring alone, no privileged surface (the lng.text_events unblock for op events).
+- lng.structured_payloads.query_evaluator_dissolves: the query four run as realized instances exchanging set values
   over the structured lane; the bespoke query evaluator dissolves
-  (scaffolding retired; LNG-10's criteria stay green through the swap).
+  (scaffolding retired; lng.query_vocabulary's criteria stay green through the swap).
 
 ## Worked example (test seed)
 
 A polyphonic hello-cosine without new machinery: wire an 8-by-1 span of
-frequencies into osc0/freq — LNG-2.1 stamps 8 clones keyed by index; their
-audio mixes (an explicit `mix` node) into vca0. Save/reload (LNG-8.1),
-replay the session's edit ops (LNG-5.1), and confirm the palette spawned it
-all from a `poly8.json` subgraph template (LNG-6.1).
+frequencies into osc0/freq — lng.span_semantics.span_stamps_clones stamps 8 clones keyed by index; their
+audio mixes (an explicit `mix` node) into vca0. Save/reload (lng.round_trip.roundtrip_no_derived),
+replay the session's edit ops (lng.edit_ops.replay_reproduces), and confirm the palette spawned it
+all from a `poly8.json` subgraph template (lng.subgraphs.dataset_is_node_type).

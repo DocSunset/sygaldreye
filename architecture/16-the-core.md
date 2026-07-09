@@ -24,7 +24,7 @@ A **movement** is a frozen realized graph the escapement ticks.
 
 The plan as mutable data, one applier primitive (instantiate-linked-native,
 link, unlink, remove, write-default; applied at tick boundaries), an op
-inlet. Boot input is the **tape** (FMT-3). The full slot is the crown grown
+inlet. Boot input is the **tape** (fmt.boot_tape). The full slot is the crown grown
 up. A sealed movement omits the crown entirely.
 
 ## Stratum 2 — the specs (definitional, code nowhere)
@@ -48,7 +48,7 @@ liveness organs a live peer's tape instates:
 | subgraph | clone-behind-trampolines composition |
 | reflection seam | a node seeing its enclosing graph (context injection) |
 | traverse · filter · join · fixpoint | the query four (ADR-024) |
-| z⁻¹ · latch · snapshot · queue · ring · net · probe | the seven mapping *definitions* — their guarantees are core semantics (TCF-1); implementations ride executors |
+| z⁻¹ · latch · snapshot · queue · ring · net · probe | the seven mapping *definitions* — their guarantees are core semantics (tcf.mapping_guarantees); implementations ride executors |
 | parser · codec · naive resolver · registry-face | the decode organs: each crosses data↔machinery, which composition cannot |
 
 Nineteen names. Everything else in the universe — every executor, every
@@ -77,9 +77,9 @@ codegen). CMP governs its contract; packages populate it.
 
 The default is graph. A native declares one of three clauses — **machinery**
 (touches the world; interior couldn't be links), **per-sample floor**
-(kernels, AUT-1), **maturity import** (wrapping tested code) — and when a
+(kernels, aut.kernel_contract), **maturity import** (wrapping tested code) — and when a
 graph is too slow, FREEZE it: after rung 8, performance alone never
-justifies a native. Trivial natives are generated one-liners (AUT-3).
+justifies a native. Trivial natives are generated one-liners (aut.generated_descriptors).
 
 Expected set at maturity (roughly 70, half generated — THIS LEDGER IS
 EXPECTED TO CHURN as implementation teaches; changes are ordinary reviewed
@@ -99,8 +99,8 @@ commits declaring their clause, never ADRs):
 - render set (~5): draw, render_head, shader-specific nodes — shaders
   themselves are datasets, so this set trends graph-ward.
 - SCAFFOLDING (marked, dissolves — each marker names its dissolution
-  criterion, ADR-034): the monolithic `compile` walk (dissolves: CMP-9.2),
-  the bespoke query evaluator (dissolves: LNG-11.4); gesture-FSM helpers if
+  criterion, ADR-034): the monolithic `compile` walk (dissolves: cmp.engine_is_realized.pass_edit_changes_compile),
+  the bespoke query evaluator (dissolves: lng.structured_payloads.query_evaluator_dissolves); gesture-FSM helpers if
   the editor needs them before event-logic subgraphs are comfortable.
 
 Everything with semantic content is a graph: the engine pipeline, all
@@ -111,23 +111,23 @@ the periodic table; everything anyone will call sygaldreye is chemistry.
 
 ## Requirements
 
-**COR-1 (escapement austerity).** The escapement compiles freestanding;
+**cor.escapement_austerity** The escapement compiles freestanding;
 symbol audit shows no vocabulary, no codec, no allocator beyond the
 target's chosen pool.
-**COR-2 (crown sufficiency).** From escapement + crown + linked liveness
+**cor.crown_sufficiency** From escapement + crown + linked liveness
 organs + a tape, a peer reaches full liveness (parser, store, mesh
 instated) with zero code paths outside op application — the bootstrap
-ladder test (extends SZ-7).
-**COR-3 (ratchet enforcement).** CI gate: the core-named list in this
+ladder test (extends sz.boot_without_store).
+**cor.ratchet_enforcement** CI gate: the core-named list in this
 chapter matches a machine-readable manifest; a PR adding a name without a
 proof section fails.
-**COR-5 (native ledger discipline, ADR-033).** Every native declares its
+**cor.native_ledger_discipline** Every native declares its
 clause; the ledger tracks the source tree.
-- COR-5.1: a gate scans native sources for a declared clause marker
+- cor.native_ledger_discipline.clause_marker_required: a gate scans native sources for a declared clause marker
   (machinery | floor | maturity | scaffolding); an unmarked native fails CI.
-- COR-5.2: a native claiming no clause a reviewer accepts is rejected in
+- cor.native_ledger_discipline.no_clause_rejected: a native claiming no clause a reviewer accepts is rejected in
   review with "author it as a graph, freeze it if slow."
 
-**COR-4 (two profiles).** Movement-level and peer-level conformance run
+**cor.two_profiles** Movement-level and peer-level conformance run
 against every target (ch. 17); a sealed movement passes movement-level with
-the crown absent (TCF-5).
+the crown absent (tcf.movement_austerity).

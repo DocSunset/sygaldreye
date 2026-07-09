@@ -12,7 +12,7 @@ iff it passes. Two profiles (ADR-028):
   outputs; carry provenance; honor severance/defaults semantics. What a
   sealed firmware must pass.
 - **peer-level** (protocol): pairing, advertisement, ops, fetch,
-  subscription, placement refusal — FMT-4's golden transcripts plus live
+  subscription, placement refusal — fmt.wire_transcripts's golden transcripts plus live
   property tests. What a mesh citizen must pass.
 
 **The suite is written in the system** (ADR-027): a test is a derivation —
@@ -43,7 +43,7 @@ double-compilation. Structural answer, standing.
   never topologies.
 - **Mixed-version mesh**: peers advertise the kinds/contracts they speak;
   compatibility = reachability over supersedes/migrates-from (a fixpoint
-  query, LNG-10); an old peer fetches a migration (it's a dataset) or asks
+  query, lng.query_vocabulary); an old peer fetches a migration (it's a dataset) or asks
   a capable peer to derive the upgrade (placement).
 - **Versions are derived** (ADR-032): each declared succession carries a
   class — breaking | additive | fix; `name@M.m.p` is computed from the chain
@@ -56,29 +56,29 @@ double-compilation. Structural answer, standing.
 
 ## Requirements
 
-**CNF-1 (suite-as-data).** Every acceptance criterion in this book exists
+**cnf.suite_as_data** Every acceptance criterion in this book exists
 as a test dataset (graph + blessing + comparator) queryable by chapter and
 requirement id; CI = run the suite as derivations; a criterion without a
 test is itself a reported gap (the suite tests its own coverage).
-**CNF-2 (candidate-as-peer).** The harness runs entirely over the wire
+**cnf.candidate_as_peer** The harness runs entirely over the wire
 protocol against a candidate binary it did not link — proven by running it
 against (a) the reference core and (b) a deliberately broken mutant (which
 must fail with the failing requirement named).
-**CNF-3 (two profiles).** The movement profile passes on a crownless build;
+**cnf.two_profiles** The movement profile passes on a crownless build;
 the peer profile fails on it (absence of the wire surface is detected, not
 excused).
-**CNF-4 (succession end-to-end).** Introduce kind-v2 with a migration:
+**cnf.succession_end_to_end** Introduce kind-v2 with a migration:
 old objects readable via lazy migrate-on-read (memo hit second time);
 mixed-version two-peer exchange works both directions; lock-swap upgrades
 one graph without touching its topology hash's provenance chain.
-**CNF-6 (derived versions, ADR-032).** Succession classes are declared,
+**cnf.derived_versions** Succession classes are declared,
 versions computed, classes verified.
-- CNF-6.1: a chain of successions (origin, fix, additive, breaking, fix)
+- cnf.derived_versions.version_chain: a chain of successions (origin, fix, additive, breaking, fix)
   derives `@0.0.1`, `@0.1.0`, `@1.0.0`, `@1.0.1` at the respective heads.
-- CNF-6.2: an "additive" succession that fails a predecessor criterion is
+- cnf.derived_versions.additive_verified: an "additive" succession that fails a predecessor criterion is
   rejected by the gate with the failing criterion named.
-- CNF-6.3: `osc@1.2.0` as a ref-sugar address resolves to the same hash as
+- cnf.derived_versions.version_address_resolves: `osc@1.2.0` as a ref-sugar address resolves to the same hash as
   walking the chain manually.
 
-**CNF-5 (self-gate).** A core succession (N derives N+1) is admitted only
+**cnf.self_gate** A core succession (N derives N+1) is admitted only
 by the suite run by N (and, when they exist, by non-N implementations).

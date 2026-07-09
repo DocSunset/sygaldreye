@@ -9,7 +9,7 @@ plugin packagings, and contract succession. Governing ADRs: 016, 017, 019,
 
 **One declaration.** A node type is authored as one endpoints struct (real
 named fields; PFR now, static reflection later). Everything else is
-generated from it (AUT-3, ADR-017): the descriptor (ports, their promises, affordance
+generated from it (aut.generated_descriptors, ADR-017): the descriptor (ports, their promises, affordance
 metadata), the codecs, the bindings, and the shell that adapts the author's
 code to the hooks below. Authors write a struct and behavior; they never
 write serialization, registration, or try/catch.
@@ -42,40 +42,40 @@ records which contract hash its shell was generated against; loadability =
 reachability. (The probe's v1–v8 integer history ends here.)
 
 **Packagings.** The same generated shell wraps: statically linked natives
-(registration TU — SZ-2), `.so` plugins (dlopen, hot-reload), and WASM side
+(registration TU — sz.generated_registration), `.so` plugins (dlopen, hot-reload), and WASM side
 modules (browser/Node). All are datasets with recipe provenance; all pass the
-MSH-5 gate; fresh plugins realize in the quarantine tier (subprocess) until
+msh.graphs_vs_plugins gate; fresh plugins realize in the quarantine tier (subprocess) until
 trust promotes them.
 
 ## Requirements
 
-**ABI-1 (one declaration).** Descriptor, codecs, shell, bindings generated
+**abi.one_declaration** Descriptor, codecs, shell, bindings generated
 from the endpoints struct; zero hand-written adapters in the tree.
-- ABI-1.1: adding a field to a struct surfaces port + codec + binding with
-  no other edits (AUT-3.1 restated at the ABI level).
-- ABI-1.2: grep gate — no hand-written `try/catch` or serializer in node
+- abi.one_declaration.field_surfaces_port: adding a field to a struct surfaces port + codec + binding with
+  no other edits (aut.generated_descriptors.field_surfaces_descriptor restated at the ABI level).
+- abi.one_declaration.no_handwritten_adapters: grep gate — no hand-written `try/catch` or serializer in node
   sources.
 
-**ABI-2 (hook discipline).** RT hooks allocation/lock/syscall-free after
+**abi.hook_discipline** RT hooks allocation/lock/syscall-free after
 prepare; create never acquires resources.
-- ABI-2.1: EXE-3.1's instrumented run extended over the full hook table.
-- ABI-2.2: a node acquiring a device in create() fails a debug assert with
+- abi.hook_discipline.rt_hooks_clean: exe.realtime_safety.zero_alloc_lock's instrumented run extended over the full hook table.
+- abi.hook_discipline.create_acquires_fails: a node acquiring a device in create() fails a debug assert with
   the allocation-discipline message.
 
-**ABI-3 (fault declaration).** Only declared-fallible shells contain a
+**abi.fault_declaration** Only declared-fallible shells contain a
 catch; undeclared throws kill the containment unit and testify.
-- ABI-3.1: a declared parser node converts a malformed-input exception to a
+- abi.fault_declaration.declared_fault_recorded: a declared parser node converts a malformed-input exception to a
   fault record on its output; the region keeps ticking.
-- ABI-3.2: an undeclared throw in a quarantined plugin kills the subprocess;
+- abi.fault_declaration.undeclared_throw_kills: an undeclared throw in a quarantined plugin kills the subprocess;
   testimony names the node route; the supervisor's policy patch restarts per
   its wiring.
 
-**ABI-4 (contract succession).** Plugins record their contract hash;
+**abi.contract_succession** Plugins record their contract hash;
 loading checks reachability, not integer equality.
-- ABI-4.1: a plugin generated against contract C1 loads on a peer speaking
+- abi.contract_succession.loads_iff_reachable: a plugin generated against contract C1 loads on a peer speaking
   C2 if and only if C2 declares a migration path from C1; refusal is typed and names
   the missing path.
 
-**ABI-5 (three packagings, one shell).** The same node source builds as
+**abi.three_packagings** The same node source builds as
 linked native, .so, and WASM side module and passes the same behavioral
-tests (AUT-5.1 extended to the WASM form).
+tests (aut.four_routes.four_routes_interchangeable extended to the WASM form).

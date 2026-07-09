@@ -1,4 +1,4 @@
-"""Reference boot-tape parser — the oracle for FMT-3 (ADR-028).
+"""Reference boot-tape parser — the oracle for fmt.boot_tape (ADR-028).
 
 Record grammar (pinned, ch. 14): newline-delimited ASCII, space-separated
 fields, percent-escaped as in address.py. NODE id kind | LINK from to |

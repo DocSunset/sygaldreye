@@ -24,5 +24,5 @@
     "osc0/shape": "cosine",
     "lfo0/freq": 0.5
   },
-  "_": "The canonical worked example (book ch. 1 section 2), in interchange form. Lock values are placeholders until the first kind registry exists; FMT-3 requires tape<->topology equivalence with hello-cosine.tape."
+  "_": "The canonical worked example (book ch. 1 section 2), in interchange form. Lock values are placeholders until the first kind registry exists; fmt.boot_tape requires tape<->topology equivalence with hello-cosine.tape."
 }

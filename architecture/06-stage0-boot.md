@@ -44,44 +44,44 @@ IS how stage 0 is built (ADR-014 and 027).
 
 ## Requirements
 
-**SZ-1 (platform invariance).** No platform conditionals in escapement,
+**sz.platform_invariance** No platform conditionals in escapement,
 crown, or organ sources; per-target variance only in trampoline, TU, tape.
-- SZ-1.1: CI grep gate. SZ-1.2: same object code (per-arch) links into
+- sz.platform_invariance.ci_grep_gate: CI grep gate. sz.platform_invariance.same_object_all_targets: same object code (per-arch) links into
   host, Quest, and web targets.
 
-**SZ-2 (generated registration).** The TU is generated; omission is a loud
+**sz.generated_registration** The TU is generated; omission is a loud
 link error; the palette equals the manifest.
-- SZ-2.1: deleting a native's object breaks the link naming the symbol.
+- sz.generated_registration.missing_native_link_error: deleting a native's object breaks the link naming the symbol.
 
-**SZ-3 (naive resolver, hosted default).** hash to bytes with verification;
+**sz.naive_resolver** hash to bytes with verification;
 no dependency on any package; independently invokable when stage 1 is
 wedged (the debugger of last resort).
-- SZ-3.1: with the store package broken, the resolver still loads a graph
+- sz.naive_resolver.resolver_independent: with the store package broken, the resolver still loads a graph
   by hash from the object directory.
 
-**SZ-4 (frozen-with-provenance).** The stage-0 artifact links its tape +
+**sz.frozen_with_provenance** The stage-0 artifact links its tape +
 native manifest by hash; regeneration via the Nix derivation reproduces it
 (or provenance-equal where the toolchain is honest about nondeterminism —
 ADR-021 platform-exact).
-- SZ-4.1: `unfreeze(stage0)` recovers tape + manifest; rebuild compares.
+- sz.frozen_with_provenance.unfreeze_recovers: `unfreeze(stage0)` recovers tape + manifest; rebuild compares.
 
-**SZ-5 (spawn-and-park).** The parked fallback restarts stage 1 per its
+**sz.spawn_and_park** The parked fallback restarts stage 1 per its
 wired policy; stage 0's own graph rejects runtime edits.
-- SZ-5.1: kill stage 1 a hundred times; restart each time; SZ-5.2: edits addressed at
+- sz.spawn_and_park.restart_survives: kill stage 1 a hundred times; restart each time; sz.spawn_and_park.stage0_rejects_edits: edits addressed at
   stage 0 refused with a clear error.
 
-**SZ-6 (trampolines).** at most 10 lines each; CI line-count gate.
+**sz.trampolines** at most 10 lines each; CI line-count gate.
 
-**SZ-7 (boot without store).** Empty object directory to live engine graph
+**sz.boot_without_store** Empty object directory to live engine graph
 from embedded tape alone, all targets.
 
-**SZ-8 (the ladder, ADR-028).** Escapement + crown + tape reaches full
-liveness with zero code paths outside op application (= COR-2); a
-crownless movement build passes movement-level conformance only (CNF-3).
+**sz.the_ladder** Escapement + crown + tape reaches full
+liveness with zero code paths outside op application (= cor.crown_sufficiency); a
+crownless movement build passes movement-level conformance only (cnf.two_profiles).
 
 ## Worked example
 
 Cold boot on host: trampoline to escapement to crown replays tape to organs +
 supervisor instated to engine slot spawned to audio package spliced (device
 observed) to hello-cosine arrives via cli-args stash to compiled to realized  to 
-sound. Probe log asserts phase order; then SZ-5.1's crash-restart loop.
+sound. Probe log asserts phase order; then sz.spawn_and_park.restart_survives's crash-restart loop.

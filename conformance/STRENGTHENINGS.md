@@ -3,23 +3,23 @@
 One entry per unilateral tightening of the conformance regime. Weakening
 is ADR-gated, always; nothing here may relax an assertion.
 
-- 2026-07-05 · LNG-1.1 — the catalog's expected set grew by `graph`, `ops`, and
+- 2026-07-05 · lng.kind_catalog.catalog_enumerable — the catalog's expected set grew by `graph`, `ops`, and
   `cidset` (ADR-034's payload kinds; ch. 11's list was the stale side of
   the ADR-wins rule and was fixed in the same commit). The assertion is
   still exact-set equality — a larger set to match exactly is a tightening,
   not a relaxation.
-- 2026-07-05 · LNG-11.1 — beyond the criterion text, the test also asserts
+- 2026-07-05 · lng.structured_payloads.graph_value_zero_copy — beyond the criterion text, the test also asserts
   the oracle refuses structured kinds on BOTH directions of a stream
   crossing, and pins the zero-encode witness (encode-counter delta == 0),
   not merely "no serialization observed".
-- 2026-07-05 · LNG-10.2 — rewritten for the realized standing query
-  (LNG-11.4): instead of a full-vs-delta eval-count proxy, the test now
+- 2026-07-05 · lng.query_vocabulary.standing_incremental — rewritten for the realized standing query
+  (lng.structured_payloads.query_evaluator_dissolves): instead of a full-vs-delta eval-count proxy, the test now
   proves cone ISOLATION directly — an out-of-cone control chain sharing
   the live plan recomputes zero times while the seeded cone recomputes.
   Strictly stronger: the old proxy could pass with the control chain
   churning.
 
-## LNG-11.1 — 2026-07-05 (rung-7 audit, blocker)
+## lng.structured_payloads.graph_value_zero_copy — 2026-07-05 (rung-7 audit, blocker)
 The oracle's structured-kind mirror omitted `cidset`: a cidset legally rode
 the block clock (empirically shown, `mapping: snapshot`). Three hand copies
 existed (kinds.json, crown.hpp, oracle.cpp); the catalog itself lacked
@@ -29,7 +29,7 @@ vocabulary/kinds.json — the ONE copy, honoring the catalog's own charter
 copies deleted. Test strengthened: probes EVERY structured kind in the
 catalog, both directions, instead of graph only.
 
-## CMP-9.2 — 2026-07-05 (rung-7 audit)
+## cmp.engine_is_realized.pass_edit_changes_compile — 2026-07-05 (rung-7 audit)
 The rules lane was inert transport: nothing consumed `__rules`, so the
 spliced pass changed only an echoed string (hash change without compile
 consequence). Now `block:<id>` rules claim an instance for the block
@@ -37,29 +37,29 @@ region in choose-adapters, and the test asserts lfo0's placement actually
 moves (frame → block) and moves back on unsplice. realize's `backend`
 port is read instead of decorative.
 
-## CMP-9.2 dissolution + CMP-1.2 — 2026-07-05 (rung-7 audit, blocker)
+## cmp.engine_is_realized.pass_edit_changes_compile dissolution + cmp.compile_is_derivation.defaults_edit_skips_structural — 2026-07-05 (rung-7 audit, blocker)
 The bespoke walk (compiler.cpp) still backed 11 green criteria under a
-false `dissolves: CMP-9.2` marker. Retired for real: `syg compile` now
+false `dissolves: cmp.engine_is_realized.pass_edit_changes_compile` marker. Retired for real: `syg compile` now
 runs the SAME realized engine plan as `syg peer` (shared core,
 realized_compile.cpp); compiler.cpp is deleted. The structural stage is
 realized as a committed store derivation inside the choose-adapters hook
 (keyed on topology + rules); recognize-region short-circuits to identity
-when nothing can expand. CMP-1.2's `structural_memo` is now derived from
+when nothing can expand. cmp.compile_is_derivation.defaults_edit_skips_structural's `structural_memo` is now derived from
 an abi counter of actual expansion/inference runs — the test additionally
 pins that the FIRST compile does structural work (a dead counter fails).
 `passes_run` became the executor's tick trace. New runner gate: a live
 `dissolves:` marker naming a GREEN criterion fails the suite.
 
-## CMP-6.1 — 2026-07-05 (rung-7 audit)
+## cmp.laziness.zero_resident_engine — 2026-07-05 (rung-7 audit)
 `engine_alive` was a hand tally in the session code it audited. Now an
 executor-side census: exec_plan counts live plans whose expanded doc
 contains a realize instance; sessions just read it.
 
-## CMP-9.2 + EXE-11.4 — 2026-07-05 (remediation audit)
+## cmp.engine_is_realized.pass_edit_changes_compile + exe.quiescence_and_demand.event_wakes_cone — 2026-07-05 (remediation audit)
 The remediation audit demonstrated a stale-memo hole: live set_text /
 set_param edits never reached the plan's persisted doc, so the compile
 recipe under-covered the engine definition — blanking a rule's text
-memo-hit the OLD execution. Fixed at the root (L13): param ops now fold
+memo-hit the OLD execution. Fixed at the root (law.one_definition): param ops now fold
 into doc defaults (and die with their node on remove_node); the receive
 inlet is stripped from the engine identity (the app rides the recipe as
 its own input). cmp92 gained the regression: a param-only engine edit
@@ -68,21 +68,21 @@ must miss the memo and undo the placement. Also killed rung05's
 tightened the dissolution gate (verb/case variants, trailing digits,
 .c/.cc/.h/.hh/.inl/.py coverage).
 
-## AUT-5.1 — 2026-07-05
+## aut.four_routes.four_routes_interchangeable — 2026-07-05
 Criterion asks "same golden audio within tolerance" across the four
 authoring routes; the test asserts BYTE-IDENTITY of all three swapped
 renders against the native baseline (subgraph expansion, frozen artifact
 via its emitted node-type contract, shipped plugin through the gate),
 plus golden properties on the baseline and one-registry promise checks.
 
-## LNG-2.2 fixture amendment — 2026-07-05 (PKG-4 retrofit)
+## lng.span_semantics.span_whole_one_draw fixture amendment — 2026-07-05 (pkg.render_package retrofit)
 instanced_draw was self-clocked ("presents per frame" via clocked=true) —
 exactly the "always dirty as node property" ADR-015 retired. The present
 is now driven by render_head's chain (clocks are INPUTS, visible as
-wiring). LNG-2.2's fixture gains the head + one edge; every assertion
-unchanged. PKG-4.2 pins the consequence: an unchained draw renders zero.
+wiring). lng.span_semantics.span_whole_one_draw's fixture gains the head + one edge; every assertion
+unchanged. pkg.render_package.unwired_no_render pins the consequence: an unchained draw renders zero.
 
-## FRZ-1.1 — 2026-07-05 (rung-8 audit, blocker fixed)
+## frz.round_trip.ab_spectrogram — 2026-07-05 (rung-8 audit, blocker fixed)
 The scc_order extraction was NOT verbatim: cut delay edges lost their
 ordering role, so scheduling fell to name order (auditor's probe: renaming
 pulse0→apulse0 moved a 200-sample delay's impulse to 328 interpreted /
@@ -97,19 +97,19 @@ frozen). Codegen also now REFUSES loudly what it would silently drop
 (unknown frame emitters, unbakeable defaults); tier>1 reports without
 emitting.
 
-## MSH-5.1 — plugin gate: witness the bad-signature branch (2026-07-05, rung-9 audit)
+## msh.graphs_vs_plugins.plugin_gate — plugin gate: witness the bad-signature branch (2026-07-05, rung-9 audit)
 
-The rung-9 fresh-context audit demonstrated that MSH-5.1's negative cases
+The rung-9 fresh-context audit demonstrated that msh.graphs_vs_plugins.plugin_gate's negative cases
 (unsigned, untrusted-signer) never exercised the plugin gate's SIGNATURE
-check: with `verify()` neutered, MSH-5.1 still passed (the shared primitive
-was witnessed only by MSH-6.1). Added a forged-signature case — a TRUSTED
+check: with `verify()` neutered, msh.graphs_vs_plugins.plugin_gate still passed (the shared primitive
+was witnessed only by msh.capture_testimony_keys.testimony_tamper_fails). Added a forged-signature case — a TRUSTED
 signer's signature corrupted in transit (new test-only `forge_sig` knob on
 `ship-plugin`) — asserting the gate rejects at `bad-signature`, not on trust
-alone. Now neutering `verify()` turns BOTH MSH-6.1 and MSH-5.1 red.
+alone. Now neutering `verify()` turns BOTH msh.capture_testimony_keys.testimony_tamper_fails and msh.graphs_vs_plugins.plugin_gate red.
 
-## EDR-8.1 — non-vacuous region-invariance witness (2026-07-06, rung-11 audit)
+## edr.observability.probe_any_edge — non-vacuous region-invariance witness (2026-07-06, rung-11 audit)
 
-The rung-11 audit found EDR-8.1's region witness vacuous: it compared
+The rung-11 audit found edr.observability.probe_any_edge's region witness vacuous: it compared
 `infer_regions(G)` to `infer_regions(G)` (no probe entity in either
 partition), so the criterion's claim — a probe attached to an edge does not
 move regions — could not fail. Fixed: the probe op now attaches a REAL inert
@@ -120,7 +120,7 @@ added probe — a demanding probe (a block sink) would land in block and pull
 its source with it, failing the witness. The value-stream half was already
 real (measured moving over 200 blocks).
 
-## EDR-4.1 — derive the mapping label, don't stamp it (2026-07-06, rung-11 audit)
+## edr.realized_view_editing.gesture_replaces_latch — derive the mapping label, don't stamp it (2026-07-06, rung-11 audit)
 
 The realized-view labels `compiler_inserted`/`replaceable` were hardcoded
 `true` on every mapping, making that assertion decorative. Fixed:
@@ -134,16 +134,16 @@ smoother replacement).
 ## 2026-07-06 — Phase 0 of the embodiment plan (new criteria + witnesses)
 
 Added criteria (one-way ratchet, Judgement §1; plan:
-planning/embodiment_plan.md): **PKG-4.3** (pixels are real — `syg frame`
+planning/embodiment_plan.md): **pkg.render_package.real_pixels** (pixels are real — `syg frame`
 + fixtures/golden-frame.md property checks; the pkg42 chain law restated
-in pixels), **PKG-4.4** (the shell is the same peer; pointer/key input
-only as source nodes), **PKG-3.3** (the view is an edge — eyeballs-in-hand
-as one live graph edit; gated on ADR-037, drafted), **EDR-1.2** (the
-editor surface is graphs — natives == packages.json exactly, plus an L22
-grep over src/nodes for editor-surface concepts), **EDR-7.2** (authoring
-hello-cosine from scratch through pointer-driven gestures). PKG-4.3/4.4
-tests are written test-first and pend on their subcommands; EDR-1.2
-self-activates when graphs/editor/ lands; PKG-3.3/EDR-7.2 are registered
+in pixels), **pkg.render_package.shell_is_peer** (the shell is the same peer; pointer/key input
+only as source nodes), **pkg.xr_package.view_is_edge** (the view is an edge — eyeballs-in-hand
+as one live graph edit; gated on ADR-037, drafted), **edr.editor_is_nodes.surface_is_graphs** (the
+editor surface is graphs — natives == packages.json exactly, plus an law.graphs_first
+grep over src/nodes for editor-surface concepts), **edr.agents_as_peers.author_from_scratch** (authoring
+hello-cosine from scratch through pointer-driven gestures). pkg.render_package.real_pixels/4.4
+tests are written test-first and pend on their subcommands; edr.editor_is_nodes.surface_is_graphs
+self-activates when graphs/editor/ lands; pkg.xr_package.view_is_edge/edr.agents_as_peers.author_from_scratch are registered
 pending (hardware / Phase C layout). golden-frame.md fixes the pixel
 witness discipline: properties, never byte-golden images (GPU variance —
 a byte-golden would pass on exactly one machine).
@@ -156,7 +156,7 @@ consumer declaring only `apply` (op_button) never received a native-emitted
 bang — only externally `post_event`ed ones. The poll now delivers to
 `sapply` if present, else `apply` (symmetric with the post_event drain,
 which calls apply). This is what lets a `pointer` source node's click reach
-an `op_button` node-to-node (PKG-4.4). No existing test changed behavior
+an `op_button` node-to-node (pkg.render_package.shell_is_peer). No existing test changed behavior
 (the head-chain uses sapply; graph-edits-graph uses post_event).
 
 **Reservation — mesh_from_spans reads a data default, not a span edge (v1).**
@@ -170,4 +170,4 @@ span svalue on a wired edge, so card/deck geometry can flow through the
 graph as values (needed by the Phase C editor surface). Until then the
 `positions` input is an UNDECLARED data default (no port), so no span edge
 can be silently dropped. Also latent (flag): dx/dy vertex translation is
-done in C++ — graph-expressible arithmetic, a small L22 debt to revisit.
+done in C++ — graph-expressible arithmetic, a small law.graphs_first debt to revisit.

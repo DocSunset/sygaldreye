@@ -49,7 +49,7 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     and the 2026-07-09 documentary entry.
 
 - **Next action:** open the crown's parked seams (kinds-by-index → registry
-  organ; typed constants; bounds-as-fault, L19), OR the smallest playable
+  organ; typed constants; bounds-as-fault, law.errors_are_values), OR the smallest playable
   graph driving one sense. Do NOT race `conformance/run.py`; it trails.
   NOTE: `src/escapement/` is the live tree; `src/syg/main.cpp` still dispatches
   nothing. Tests are in-tree beside their source (`X.hpp` ↔ `X.test.cpp`) and

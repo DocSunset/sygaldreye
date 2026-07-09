@@ -17,11 +17,11 @@ def _edit(ops):
     return json.loads(out)["results"]
 
 
-# ---- EDR-2.1: serialize captures the default, never a live sample ----------
+# ---- edr.defaults_discipline.default_is_fallback: serialize captures the default, never a live sample ----------
 def edr21_defaults_not_live_values():
     # vca0/gain is a CONNECTED inlet — modulated by lfo0 (a live cell swinging
     # every block). Editing it updates the fallback DEFAULT; save/reload keeps
-    # that default, never a captured LFO sample (EXE-1.2 at the UX level).
+    # that default, never a captured LFO sample (exe.plan_cache.saves_default at the UX level).
     g = _hello()
     assert {"from": "lfo0/out", "to": "vca0/gain"} in g["topology"]["edges"]
     r = _edit([
@@ -38,7 +38,7 @@ def edr21_defaults_not_live_values():
     assert r2[1]["graph"]["defaults"]["vca0/gain"] == 0.7, r2[1]["graph"]
 
 
-# ---- EDR-3.1: structural-snapshot undo restores topology + defaults --------
+# ---- edr.undo.undo_sequence_restores: structural-snapshot undo restores topology + defaults --------
 def edr31_undo_restores_exactly():
     # [add node, drag param, remove node, undo, undo] restores the original
     # topology AND defaults exactly. Undo snapshots on STRUCTURAL change; the
@@ -71,7 +71,7 @@ def edr31_undo_restores_exactly():
     assert mid["defaults"].get("osc0/freq") == 440.0, mid["defaults"]
 
 
-# ---- EDR-1.1: the palette is a subgraph, swappable live --------------------
+# ---- edr.editor_is_nodes.palette_swap_live: the palette is a subgraph, swappable live --------------------
 def edr11_palette_swap_changes_behavior():
     # The editor is nodes: its palette is a subgraph that, banged, emits an
     # add_node op into a target's arbiter (graphs editing graphs). Swapping
@@ -104,13 +104,13 @@ def edr11_palette_swap_changes_behavior():
     assert after.get("osc_spawn", {}).get("type") == "osc", "migrate lost state"
 
 
-# ---- EDR-4.1: gesture-driven smoother replacement (CMP-4.1) ----------------
+# ---- edr.realized_view_editing.gesture_replaces_latch: gesture-driven smoother replacement (cmp.projection_editing.writeback_smoother) ----------------
 def edr41_smoother_replacement_gesture():
     # The realized view shows hello-cosine's auto latch as compiler-inserted
     # and replaceable. A scripted gesture (agent-driven through the editor's
-    # own op_button source nodes, per EDR-7) replaces it with a smoother; the
+    # own op_button source nodes, per edr.agents_as_peers) replaces it with a smoother; the
     # write-back is app-graph edit ops, and re-compilation inserts NO latch —
-    # the user's smoother survives (CMP-4.1).
+    # the user's smoother survives (cmp.projection_editing.writeback_smoother).
     hello = _hello()
     before = _edit([{"op": "realized", "graph": hello}])[0]["mappings"]
     # the latch is a compiler-DERIVED boundary adapter (present in the derived
@@ -146,7 +146,7 @@ def edr41_smoother_replacement_gesture():
         f"re-compilation re-inserted a latch over the smoother: {after}"
 
 
-# ---- EDR-7.1: human-input and agent-source yield identical graphs ----------
+# ---- edr.agents_as_peers.human_agent_identical: human-input and agent-source yield identical graphs ----------
 def edr71_human_and_agent_identical():
     # Every editor gesture is drivable through source nodes; there is no
     # privileged agent API. The same gesture suite, run two ways — human-input
@@ -191,7 +191,7 @@ def _walk(store, ops):
     return json.loads(out)["results"]
 
 
-# ---- EDR-6.1: transclusion — live subscribes, fixed quotes -----------------
+# ---- edr.documents.live_vs_fixed_transclusion: transclusion — live subscribes, fixed quotes -----------------
 def edr61_live_vs_fixed_transclusion():
     # A document transcluding an address LIVE (refname:route) updates when the
     # ref moves; the same address FIXED (cid/route, normalized) does not. Live
@@ -217,7 +217,7 @@ def edr61_live_vs_fixed_transclusion():
     assert r[4]["value"] == 220.0, "fixed transclusion moved with the ref"
 
 
-# ---- EDR-6.2: the C++ round-trip metric over a corpus ----------------------
+# ---- edr.documents.cpp_roundtrip: the C++ round-trip metric over a corpus ----------------------
 def edr62_cpp_roundtrip_corpus():
     # Decompose a small permissive C++ file to document form (top-level segment
     # nodes linked in sequence) and regenerate byte-identically. A property
@@ -236,7 +236,7 @@ def edr62_cpp_roundtrip_corpus():
         assert res["segments"] > 1, f"{f.name} was not decomposed into parts"
 
 
-# ---- EDR-5.1: the store browser walks + marks -------------------------------
+# ---- edr.store_browser.walk_and_mark: the store browser walks + marks -------------------------------
 def edr51_walk_and_mark():
     # here/path/frontier/mark over a store graph. Walk ground -> the
     # hello-cosine ref -> topology -> nodes -> osc0 -> its type -> the osc type
@@ -265,7 +265,7 @@ def edr51_walk_and_mark():
     assert m["links"] == [{"note": "the oscillator"}], m
 
 
-# ---- EDR-5.2: frontier paginates over 100k links ---------------------------
+# ---- edr.store_browser.frontier_paginates: frontier paginates over 100k links ---------------------------
 def edr52_frontier_paginates():
     # A node with 100,000 links: the frontier is demand-driven — each page is
     # bounded, the pages are disjoint and cover, and no call ever returns the
@@ -284,7 +284,7 @@ def edr52_frontier_paginates():
     assert all(s["kind"] == "link" for s in a["steps"]), a["steps"][:3]
 
 
-# ---- EDR-8.1: an edge probe exposes the value stream, regions unaltered ----
+# ---- edr.observability.probe_any_edge: an edge probe exposes the value stream, regions unaltered ----
 def edr81_probe_does_not_move_regions():
     # A probe attached to an edge exposes its value stream on the values
     # surface (pull-observability) WITHOUT altering region inference. The probe
@@ -312,7 +312,7 @@ def edr81_probe_does_not_move_regions():
 
 
 def edr12_surface_is_graphs():
-    # EDR-1.2: every editor-surface behavior lives in graphs/editor/*.json;
+    # edr.editor_is_nodes.surface_is_graphs: every editor-surface behavior lives in graphs/editor/*.json;
     # the registered natives exactly equal vocabulary/packages.json; no
     # source file under src/nodes implements an editor-surface concept
     import json as _json, re as _re
@@ -335,25 +335,25 @@ def edr12_surface_is_graphs():
         for i, ln in enumerate(f.read_text().splitlines(), 1):
             if banned.search(ln):
                 hits.append(f"{f.relative_to(ROOT)}:{i}")
-    assert not hits, f"editor-surface concept in native source (L22): {hits}"
-    # every surface graph parses through the persisted surface (LNG-8)
+    assert not hits, f"editor-surface concept in native source (law.graphs_first): {hits}"
+    # every surface graph parses through the persisted surface (lng.round_trip)
     for gf in sorted((ROOT / "graphs" / "editor").glob("*.json")):
         syg("roundtrip", stdin=gf.read_bytes())
 
 
 TESTS = {
-    "EDR-1.1": edr11_palette_swap_changes_behavior,
-    "EDR-1.2": edr12_surface_is_graphs,
-    "EDR-2.1": edr21_defaults_not_live_values,
-    "EDR-3.1": edr31_undo_restores_exactly,
-    "EDR-5.1": edr51_walk_and_mark,
-    "EDR-5.2": edr52_frontier_paginates,
-    "EDR-4.1": edr41_smoother_replacement_gesture,
-    "EDR-6.1": edr61_live_vs_fixed_transclusion,
-    "EDR-6.2": edr62_cpp_roundtrip_corpus,
-    "EDR-7.1": edr71_human_and_agent_identical,
-    # EDR-7.2 pends until Phase C pins the palette layout the
+    "edr.editor_is_nodes.palette_swap_live": edr11_palette_swap_changes_behavior,
+    "edr.editor_is_nodes.surface_is_graphs": edr12_surface_is_graphs,
+    "edr.defaults_discipline.default_is_fallback": edr21_defaults_not_live_values,
+    "edr.undo.undo_sequence_restores": edr31_undo_restores_exactly,
+    "edr.store_browser.walk_and_mark": edr51_walk_and_mark,
+    "edr.store_browser.frontier_paginates": edr52_frontier_paginates,
+    "edr.realized_view_editing.gesture_replaces_latch": edr41_smoother_replacement_gesture,
+    "edr.documents.live_vs_fixed_transclusion": edr61_live_vs_fixed_transclusion,
+    "edr.documents.cpp_roundtrip": edr62_cpp_roundtrip_corpus,
+    "edr.agents_as_peers.human_agent_identical": edr71_human_and_agent_identical,
+    # edr.agents_as_peers.author_from_scratch pends until Phase C pins the palette layout the
     # pointer script must hit (embodiment plan)
-    "EDR-7.2": None,
-    "EDR-8.1": edr81_probe_does_not_move_regions,
+    "edr.agents_as_peers.author_from_scratch": None,
+    "edr.observability.probe_any_edge": edr81_probe_does_not_move_regions,
 }

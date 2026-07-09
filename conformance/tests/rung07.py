@@ -190,7 +190,7 @@ def cmp61_lazy_tower():
     assert r[5]["engine_alive"] == 0
 def cmp71_state_survives_recompilation():
     # while sounding, add noise0, re-compile, swap: osc0's phase continuous —
-    # CMP-2's stable map composed with EXE-5's migration. The live path was
+    # cmp.determinism_and_map's stable map composed with exe.migration's migration. The live path was
     # proven byte-identical at rungs 4/5; here the MAP's stability across
     # the recompilation is the load-bearing half.
     r = _compile([
@@ -228,7 +228,7 @@ def _exec_audit(graph, blocks=1, ops=None, watch=None):
 def lng111_graph_value_over_an_edge():
     # a graph value flows between two realized instances; the consumer
     # reads it through generated accessors; ZERO canonical encodes on the
-    # hop (the commit-boundary witness). CMP-9.1 exercises the same
+    # hop (the commit-boundary witness). cmp.engine_is_realized.engine_plan_run exercises the same
     # mechanism on the engine's own receive0 -> regions0 hop.
     g = {"kind": "graph", "lock": {},
          "topology": {"nodes": {"g0": {"type": "graph_cell"},
@@ -300,15 +300,15 @@ def lng114_query_four_realized():
     for organ in ("seed", "traverse", "filter", "join", "fixpoint"):
         assert organ in pal, f"{organ} is not a registered node type"
     # the standing query's per-instance recompute counters exist only
-    # because the query IS a plan (LNG-10.2's cone assertions ride them)
+    # because the query IS a plan (lng.query_vocabulary.standing_incremental's cone assertions ride them)
     import rung06
     rung06.lng102_standing_query_incremental()
     # the bespoke evaluator DISSOLVED: no scaffolding marker names this
     # criterion anymore, anywhere in the tree
     for f in (ROOT / "src").rglob("*.[ch]pp"):
-        assert "dissolves: LNG-11.4" not in f.read_text(), \
+        assert "dissolves: lng.structured_payloads.query_evaluator_dissolves" not in f.read_text(), \
             f"{f} still carries the walk this criterion dissolves"
-    # and LNG-10's criteria stay green through the swap
+    # and lng.query_vocabulary's criteria stay green through the swap
     rung06.lng101_lineage_query()
     rung06.lng103_fixpoint_terminates_on_cycles()
     rung06.lng104_no_bespoke_search()
@@ -338,7 +338,7 @@ def cmp91_the_engine_ticks():
         f"compile work escaped the node hooks: {c['outside_hook_work']}"
     assert c["memo"] is False and c["execution_body"]["map"]["nodes/osc0"] == "block/osc0"
     # and the engine's own receive0 -> regions0 hop carried the graph value
-    # (LNG-11.1's engine half): recognize saw the app, or the map could not
+    # (lng.structured_payloads.graph_value_zero_copy's engine half): recognize saw the app, or the map could not
     # have been derived — asserted through the output above
 
 
@@ -438,26 +438,26 @@ def cmp94_the_lock_is_honest():
 
 
 TESTS = {
-    "CMP-1.1": cmp11_passes_run_once,
-    "CMP-1.2": cmp12_defaults_edit_skips_structure,
-    "CMP-2.1": cmp21_deterministic,
-    "CMP-2.2": cmp22_the_map,
-    "CMP-3.1": cmp31_splice_is_additive,
-    "CMP-3.2": cmp32_pass_order_is_wiring,
-    "CMP-4.1": cmp41_projection_editing,
-    "CMP-4.2": cmp42_vanished_target_conflicts,
-    "CMP-5.1": cmp51_fork_detaches,
-    "CMP-6.1": cmp61_lazy_tower,
-    "CMP-7.1": cmp71_state_survives_recompilation,
+    "cmp.compile_is_derivation.memoized": cmp11_passes_run_once,
+    "cmp.compile_is_derivation.defaults_edit_skips_structural": cmp12_defaults_edit_skips_structure,
+    "cmp.determinism_and_map.deterministic_hash": cmp21_deterministic,
+    "cmp.determinism_and_map.map_covers_instances": cmp22_the_map,
+    "cmp.extension_ports.additive_splice": cmp31_splice_is_additive,
+    "cmp.extension_ports.order_is_topological": cmp32_pass_order_is_wiring,
+    "cmp.projection_editing.writeback_smoother": cmp41_projection_editing,
+    "cmp.projection_editing.vanished_route_conflict": cmp42_vanished_target_conflicts,
+    "cmp.fork.fork_untouched": cmp51_fork_detaches,
+    "cmp.laziness.zero_resident_engine": cmp61_lazy_tower,
+    "cmp.identity_across_recompilation.phase_continuous": cmp71_state_survives_recompilation,
     # ADR-034 (2026-07-05): the realized engine and the structured lane.
     # None = pending — write each test FIRST from its criterion text
     # (BUILDER.md loop), extending HARNESS.md in the same commit.
-    "CMP-9.1": cmp91_the_engine_ticks,
-    "CMP-9.2": cmp92_an_edit_op_changes_the_compile,
-    "CMP-9.3": cmp93_graph_authored_pass,
-    "CMP-9.4": cmp94_the_lock_is_honest,
-    "LNG-11.1": lng111_graph_value_over_an_edge,
-    "LNG-11.2": lng112_float_path_pays_nothing,
-    "LNG-11.3": lng113_a_graph_edits_a_graph,
-    "LNG-11.4": lng114_query_four_realized,
+    "cmp.engine_is_realized.engine_plan_run": cmp91_the_engine_ticks,
+    "cmp.engine_is_realized.pass_edit_changes_compile": cmp92_an_edit_op_changes_the_compile,
+    "cmp.engine_is_realized.graph_pass_runs": cmp93_graph_authored_pass,
+    "cmp.engine_is_realized.honest_lock": cmp94_the_lock_is_honest,
+    "lng.structured_payloads.graph_value_zero_copy": lng111_graph_value_over_an_edge,
+    "lng.structured_payloads.float_path_free": lng112_float_path_pays_nothing,
+    "lng.structured_payloads.op_event_applies": lng113_a_graph_edits_a_graph,
+    "lng.structured_payloads.query_evaluator_dissolves": lng114_query_four_realized,
 }

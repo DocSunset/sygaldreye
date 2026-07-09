@@ -18,7 +18,7 @@ automated tests.
 | 7. Capability packages (PKG) | 07-capability-packages.md |
 | 8. Mesh & trust (MSH) | 08-mesh-trust.md |
 | 9. Editor & documents (EDR) | 09-editor-documents.md |
-| 10. The Law (needs N1–N8, laws, traceability) | 10-laws.md |
+| 10. The Law (needs need.liveness–need.safety, laws, traceability) | 10-laws.md |
 | 11. The language core (LNG) | 11-language-core.md |
 | 12. Node authoring & conformability (AUT) | 12-authoring-conformability.md |
 | 13. The native contract (ABI) | 13-native-contract.md |

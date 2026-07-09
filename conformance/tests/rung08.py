@@ -85,7 +85,7 @@ def frz11_ab_chime_interpreted_vs_frozen():
     assert frozen_ns < interp_ns,         f"no speedup: frozen {frozen_ns} ns/block vs interpreted {interp_ns}"
     # hot-reload: ONE process renders interpreted, loads the .so live at a
     # block boundary, and the artifact takes over the stream (fresh state:
-    # the re-strike is the artifact's own t=0; migration joins EXE-5 later)
+    # the re-strike is the artifact's own t=0; migration joins exe.migration later)
     swap = syg("render-swap", str(so), "2", stdin=json.dumps(_chime()).encode())
     half = len(interp) // 2
     assert swap[:half] == interp[:half], "the interpreted half diverged"
@@ -165,7 +165,7 @@ def aut21_no_raw_frame_loops():
         for i, ln in enumerate(lines):
             if re.search(r"for \(int i = 0; i < frames", ln):
                 window = "\n".join(lines[max(0, i - 3):i + 1])
-                if "AUT-2" in window:
+                if "aut.shell_stamps" in window:
                     annotated += 1
                 else:
                     hits.append(f"{f.relative_to(ROOT)}:{i + 1}")
@@ -392,7 +392,7 @@ def pkg11_package_omitted_at_build_time():
 def pkg21_audio_package_no_behavior_change():
     # the audio package with no behavior change: region membership (dac
     # closure), latch/snapshot semantics, and offline pump re-run
-    # UNCHANGED (EXE-2, EXE-4.1, EXE-6.2), and the package's declared
+    # UNCHANGED (exe.region_inference, exe.canonical_mappings.latch_at_boundary, exe.executor_contract.headless_computes), and the package's declared
     # vocabulary is exactly what omission removes from the palette
     import rung05
     rung05.exe21_hello_regions()
@@ -404,7 +404,7 @@ def pkg21_audio_package_no_behavior_change():
     full = set(json.loads(syg("palette")))
     omitted_exe = ROOT / "build-omit" / "syg"
     if not omitted_exe.exists():
-        raise Pending("build-omit target absent (PKG-1.1 builds it)")
+        raise Pending("build-omit target absent (pkg.package_shape.omittable builds it)")
     omitted = set(json.loads(subprocess.run(
         [str(omitted_exe), "palette"], cwd=ROOT, capture_output=True).stdout))
     assert full - omitted == audio, \
@@ -526,7 +526,7 @@ def pkg71_placement_is_fallthrough():
 
 
 def pkg51_worker_placement_by_capability():
-    # Worker placement by ADVERTISED capability, over the mesh (MSH-3.1
+    # Worker placement by ADVERTISED capability, over the mesh (msh.three_lists.typed_refusal
     # dissolved the test-supplied capability table). A requester without the
     # worker capability schedules a heavy analysis derivation; only "linux"
     # advertises `render-analysis`, so placement lands there and the result
@@ -602,7 +602,7 @@ def pkg61_net_reconnect_discipline():
                                        {"from": "proxy0/out", "to": "cube0/in"},
                                        {"from": "efeed0/out", "to": "counter0/in"}]},
                 "defaults": {"cube0/k": 1.0}}
-    # PKG-6 now runs over the MESH transport (MSH-7.1 dissolved the harness
+    # pkg.net_package now runs over the MESH transport (msh.discovery.discovery_swappable dissolved the harness
     # link): the provider ships its flavored delivery log across the real
     # authenticated channel to a paired consumer.
     res = json.loads(syg("mesh", stdin=json.dumps(
@@ -690,7 +690,7 @@ def pkg44_shell_is_the_same_peer():
     # the shell is the ORDINARY peer: render executor presenting offscreen
     # under test; pointer input arrives ONLY as a package source node; a
     # pointer click bangs op_buttons whose ops land in the arbiter — the
-    # SAME path every gesture graph uses (EDR-7, N4)
+    # SAME path every gesture graph uses (edr.agents_as_peers, need.agency)
     from _helpers import frame_stats
     W = H = 128
     g = _tri_scene()
@@ -734,25 +734,25 @@ def pkg44_shell_is_the_same_peer():
 
 
 TESTS = {
-    "AUT-2.1": aut21_no_raw_frame_loops,
-    "AUT-2.2": aut22_stamp_preserves_block_semantics,
-    "AUT-5.1": aut51_four_routes_one_registry,
-    "FRZ-1.1": frz11_ab_chime_interpreted_vs_frozen,
-    "FRZ-1.2": frz12_unfreeze_is_reading_provenance,
-    "FRZ-2.1": frz21_tier_derived_from_native_closure,
-    "FRZ-3.1": frz31_arm_freestanding_link,
-    "FRZ-4.1": None,
-    "PKG-1.1": pkg11_package_omitted_at_build_time,
-    "PKG-2.1": pkg21_audio_package_no_behavior_change,
-    "PKG-3.1": None,
-    "PKG-3.2": None,
-    "PKG-3.3": None,  # ADR-037 + Quest in hand (embodiment plan, Phase E)
-    "PKG-4.1": pkg41_gl_boundary_gate,
-    "PKG-4.2": pkg42_unchained_draw_does_not_render,
-    "PKG-4.3": pkg43_pixels_are_real,
-    "PKG-4.4": pkg44_shell_is_the_same_peer,
-    "PKG-5.1": pkg51_worker_placement_by_capability,
-    "PKG-6.1": pkg61_net_reconnect_discipline,
-    "PKG-7.1": pkg71_placement_is_fallthrough,
-    "PKG-8.1": None,
+    "aut.shell_stamps.no_raw_loops": aut21_no_raw_frame_loops,
+    "aut.shell_stamps.suite_survives_refactor": aut22_stamp_preserves_block_semantics,
+    "aut.four_routes.four_routes_interchangeable": aut51_four_routes_one_registry,
+    "frz.round_trip.ab_spectrogram": frz11_ab_chime_interpreted_vs_frozen,
+    "frz.round_trip.unfreeze_roundtrip": frz12_unfreeze_is_reading_provenance,
+    "frz.tier_computation.tier_derived": frz21_tier_derived_from_native_closure,
+    "frz.freestanding_proof.freestanding_links": frz31_arm_freestanding_link,
+    "frz.service.remote_freeze_loads": None,
+    "pkg.package_shape.omittable": pkg11_package_omitted_at_build_time,
+    "pkg.audio_retrofit.audio_suite_green": pkg21_audio_package_no_behavior_change,
+    "pkg.xr_package.in_headset": None,
+    "pkg.xr_package.pose_via_sources": None,
+    "pkg.xr_package.view_is_edge": None,  # ADR-037 + Quest in hand (embodiment plan, Phase E)
+    "pkg.render_package.gl_confined": pkg41_gl_boundary_gate,
+    "pkg.render_package.unwired_no_render": pkg42_unchained_draw_does_not_render,
+    "pkg.render_package.real_pixels": pkg43_pixels_are_real,
+    "pkg.render_package.shell_is_peer": pkg44_shell_is_the_same_peer,
+    "pkg.worker_derivation.remote_worker": pkg51_worker_placement_by_capability,
+    "pkg.net_package.reconnect_discipline": pkg61_net_reconnect_discipline,
+    "pkg.placement_as_fallthrough.placement_same_passes": pkg71_placement_is_fallthrough,
+    "pkg.environment_observation.hotplug_splices": None,
 }

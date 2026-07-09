@@ -1,7 +1,7 @@
 # Chapter 14 — Formats and wire protocols (FMT)
 
 *Everything that must be spelled exactly once. Governing ADRs: 007, 017, 018,
-023, 028, 031. All pins were chosen and recorded 2026-07-05 (FMT-5): boring on
+023, 028, 031. All pins were chosen and recorded 2026-07-05 (fmt.pins_frozen): boring on
 purpose, frozen on purpose.*
 
 ## The canonical encoding (ADR-017)
@@ -74,7 +74,7 @@ mechanical.
 
 ## Wire protocol (peer-level conformance surface)
 
-All messages authenticated under pairing keys (MSH-2); payloads dag-cbor.
+All messages authenticated under pairing keys (msh.authenticated_transport); payloads dag-cbor.
 
 | message | carries |
 |---|---|
@@ -84,7 +84,7 @@ All messages authenticated under pairing keys (MSH-2); payloads dag-cbor.
 | OPS | attributed edit ops toward an instance's arbiter (ADR-023) |
 | FETCH / CHUNK | content-addressed get; resumable Merkle chunks |
 | QUERY | a query graph (or its CID) + arguments; answers are datasets |
-| PLACE / REFUSE | compilation placement request; typed refusal (MSH-3.1) |
+| PLACE / REFUSE | compilation placement request; typed refusal (msh.three_lists.typed_refusal) |
 | FAULT | fault records crossing peers (just EVENTs on fault outputs) |
 
 Transport: WebSocket-capable framing (browser constraint), one duplex
@@ -101,25 +101,25 @@ verifies and the remote identity key is in its accepted-keys set.
 Channel confidentiality+integrity: **XChaCha20-Poly1305**
 (`crypto_secretstream`) keyed by the handshake — every framed message is one
 secretstream message. Revocation drops the key from the accepted set and
-severs live sessions. Unpaired ⇒ no service surface (MSH-2). Boring on
-purpose; changing a primitive is a succession, never an edit (FMT-5).
+severs live sessions. Unpaired ⇒ no service surface (msh.authenticated_transport). Boring on
+purpose; changing a primitive is a succession, never an edit (fmt.pins_frozen).
 
 ## Compilation map
 
 `{ app-route to execution-route }`, dag-cbor, emitted with every compile
-(CMP-2), consumed by migration and projection editing. Deterministic: same
+(cmp.determinism_and_map), consumed by migration and projection editing. Deterministic: same
 compile inputs to byte-identical map (exact-class derivation).
 
 ## Requirements
 
-**FMT-1.** Encoder conformance: a corpus of value/bytes pairs (grown per
+**fmt.encoder_conformance** Encoder conformance: a corpus of value/bytes pairs (grown per
 kind automatically — ADR-017) round-trips in every host language binding.
-**FMT-2.** Address grammar: parse-after-print identity property test (NAM-1.1)
+**fmt.address_grammar** Address grammar: parse-after-print identity property test (nam.addresses.parse_print_roundtrip)
 against a generated corpus including all reserved steps and escapes.
-**FMT-3.** Boot tape: tape to crown replay to serialize yields the same
+**fmt.boot_tape** Boot tape: tape to crown replay to serialize yields the same
 topology hash as the tape's source graph.
-**FMT-4.** Wire golden transcripts: a recorded two-peer session (pair,
+**fmt.wire_transcripts** Wire golden transcripts: a recorded two-peer session (pair,
 advertise, subscribe, ops, fetch, place) replays byte-exact against a
 candidate implementation (the peer-level conformance backbone, ch. 17).
-**FMT-5.** Every pin above is FROZEN as of 2026-07-05; changing one is a
+**fmt.pins_frozen** Every pin above is FROZEN as of 2026-07-05; changing one is a
 succession of this spec (ADR-025), never an edit.

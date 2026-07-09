@@ -37,7 +37,7 @@ endpoints struct (reflection via PFR — real named fields, so endpoint structs
 stay authored); the descriptor machinery GENERATES the one-level-up
 declarations (ports, their kind and discipline promises, affordance metadata) from the struct. The strong
 compiler verifies inside nodes; the first-order oracle verifies between them;
-the generated descriptor is the border crossing, so it cannot drift (L3, L7).
+the generated descriptor is the border crossing, so it cannot drift (law.declarations_one_level_up, law.format_is_law).
 Convention: processor audio in = `audio`, out = `audio_out`.
 
 **Lifting (conformability).** The executor cannot lift what it cannot see
@@ -53,52 +53,52 @@ the planner:
 - Stateless cell-kind maps loop without clones (CellMap).
 - Resource holders refuse to lift with a hard, messaged error; subgraphs
   infer resource-holder-ness from their interior.
-- GPU instancing is the render boundary consuming a span whole (LNG-2.2) —
+- GPU instancing is the render boundary consuming a span whole (lng.span_semantics.span_whole_one_draw) —
   instancing is not a strategy, it falls out of rank.
 
-**Authoring beyond C++.** A subgraph dataset is a node type (LNG-6); a frozen
+**Authoring beyond C++.** A subgraph dataset is a node type (lng.subgraphs); a frozen
 artifact is a node type (ch. 5); a shipped plugin is a node type under the
-trust gate (MSH-5). All four authoring routes — native struct, subgraph,
+trust gate (msh.graphs_vs_plugins). All four authoring routes — native struct, subgraph,
 frozen artifact, plugin — land in the same registry and are indistinguishable
 to a patch.
 
 ## Requirements
 
-**AUT-1 (kernel contract).** Kernels are per-sample, absolute-time-free,
+**aut.kernel_contract** Kernels are per-sample, absolute-time-free,
 allocation-free in tick, unit-tested directly.
-- AUT-1.1: synth_core kernel suite green; a kernel holding wall-clock state
+- aut.kernel_contract.no_wallclock_state: synth_core kernel suite green; a kernel holding wall-clock state
   fails review by grep (`time(`, epoch fields) and the metro exception is
   documented in-source.
-- AUT-1.2: every kernel ticks correctly at N=1 sample granularity (island
+- aut.kernel_contract.ticks_at_single_sample: every kernel ticks correctly at N=1 sample granularity (island
   readiness — ADR-013).
 
-**AUT-2 (shell stamps).** No hand-written block loops outside the documented
+**aut.shell_stamps** No hand-written block loops outside the documented
 exceptions; both stamps preserve block semantics exactly.
-- AUT-2.1: grep gate for raw frame loops in ugens; exceptions annotated.
-- AUT-2.2: ugens test suite unchanged across a stamp refactor (the
+- aut.shell_stamps.no_raw_loops: grep gate for raw frame loops in ugens; exceptions annotated.
+- aut.shell_stamps.suite_survives_refactor: ugens test suite unchanged across a stamp refactor (the
   kernel-extraction acceptance, kept green forever).
 
-**AUT-3 (generated descriptors).** Port declarations, promises, and affordances
+**aut.generated_descriptors** Port declarations, promises, and affordances
 are generated from endpoint structs; no hand-maintained descriptor tables.
-- AUT-3.1: adding a field to an endpoints struct surfaces the port, its promises, and its widget with zero descriptor edits.
+- aut.generated_descriptors.field_surfaces_descriptor: adding a field to an endpoints struct surfaces the port, its promises, and its widget with zero descriptor edits.
 
-**AUT-4 (lift guarantees).** Keyed clone state survives reorder/resize/
+**aut.lift_guarantees** Keyed clone state survives reorder/resize/
 migration; index-keyed suffices for channels; resource holders refuse.
-- AUT-4.1: EXE-5.2 (cards by id) and LNG-2.1 (channels by index) both pass;
-  LNG-6.2's refusal message names the culprit.
-- AUT-4.2: a span into a lift-key port does not steal the lift (the
+- aut.lift_guarantees.keyed_and_indexed: exe.migration.reorder_preserves_state (cards by id) and lng.span_semantics.span_stamps_clones (channels by index) both pass;
+  lng.subgraphs.resource_holder_refuses's refusal message names the culprit.
+- aut.lift_guarantees.key_port_keeps_lift: a span into a lift-key port does not steal the lift (the
   rung-3 selection bug's regression test).
 
-**AUT-5 (four routes, one registry).** Native, subgraph, frozen, and plugin
+**aut.four_routes** Native, subgraph, frozen, and plugin
 node types are palette-identical and patch-interchangeable.
-- AUT-5.1: hello-cosine's osc swapped for (a) a subgraph osc, (b) a frozen
+- aut.four_routes.four_routes_interchangeable: hello-cosine's osc swapped for (a) a subgraph osc, (b) a frozen
   osc artifact, (c) a shipped plugin osc — same patch JSON otherwise, same
   golden audio within tolerance.
 
 ## Worked example (test seed)
 
 The forest, both routes: (route 2) one tree mesh + an N-by-3 positions span into
-the instanced draw — one draw call (LNG-2.2); (route 1) an N-seed span into a
+the instanced draw — one draw call (lng.span_semantics.span_whole_one_draw); (route 1) an N-seed span into a
 lifted tree_generator — N distinct meshes, clone state keyed by seed
-(AUT-4.1); resize N live and watch identity hold. The same test then swaps
-tree_generator for its frozen artifact (AUT-5.1).
+(aut.lift_guarantees.keyed_and_indexed); resize N live and watch identity hold. The same test then swaps
+tree_generator for its frozen artifact (aut.four_routes.four_routes_interchangeable).

@@ -1,5 +1,5 @@
 {
- "_": "BLAKE3 official test vectors (subset), from the flake-pinned BLAKE3-team/BLAKE3 repo test_vectors.json. Input is the repeating byte pattern 0,1,...,250,0,1,... of the given length; hash is blake3-256 hex (first 32 bytes of the extended output). NAM-6.1 seed.",
+ "_": "BLAKE3 official test vectors (subset), from the flake-pinned BLAKE3-team/BLAKE3 repo test_vectors.json. Input is the repeating byte pattern 0,1,...,250,0,1,... of the given length; hash is blake3-256 hex (first 32 bytes of the extended output). nam.hash_format.rehash_verifies seed.",
  "cases": [
   {
    "input_len": 0,

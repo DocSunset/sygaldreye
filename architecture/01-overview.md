@@ -29,7 +29,7 @@ every line of implementation:
    graph is realized through the one contract (ADR-034). When something
    cannot yet be authored as a graph, the missing vocabulary is the bug:
    build the reusable pieces as nodes so that it can — then author it
-   (L22).
+   (law.graphs_first).
 
 ## 2. The running example
 
@@ -194,5 +194,5 @@ rides the plugin channel under provenance policy.
 Each part chapter gives context, design, **enumerated requirements**
 (`XXX-n`), **acceptance criteria** (`XXX-n.m`, phrased to become automated
 tests), and worked examples. Chapter 10 states the fundamental needs
-(`N1–N8`) and laws and maps every requirement to them. ADR-013 through 028 (the
+(`need.liveness–need.safety`) and laws and maps every requirement to them. ADR-013 through 028 (the
 greenfield session, 2026-07-03/04) govern throughout.

@@ -1,5 +1,5 @@
 {
-  "_": "Starter canonical dag-cbor vectors (value -> hex of canonical bytes). FMT-1 seed; extend from the IPLD test suite when online. Any conformant encoder must reproduce these exactly.",
+  "_": "Starter canonical dag-cbor vectors (value -> hex of canonical bytes). fmt.encoder_conformance seed; extend from the IPLD test suite when online. Any conformant encoder must reproduce these exactly.",
   "vectors": [
     { "value": null, "hex": "f6" },
     { "value": true, "hex": "f5" },

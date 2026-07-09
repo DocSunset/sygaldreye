@@ -1,4 +1,4 @@
-"""Rung 1 — Formats & naming. FMT-1/FMT-2/NAM-1.1 are REAL tests backed by
+"""Rung 1 — Formats & naming. fmt.encoder_conformance/fmt.address_grammar/nam.addresses.parse_print_roundtrip are REAL tests backed by
 the reference oracles in conformance/reference/ (executable specification):
 they verify the oracle against fixtures always, then differentially test the
 implementation binary (HARNESS.md) — Pending until ./syg exists. Never
@@ -246,7 +246,7 @@ def nam53_kind_mismatch_illegal():
 
 
 def nam54_no_lookup_during_tick():
-    # Structurally guaranteed (COR-1: the escapement links no vocabulary,
+    # Structurally guaranteed (cor.escapement_austerity: the escapement links no vocabulary,
     # so it CANNOT reach the registry), and observably audited: tick the
     # frozen hello-cosine movement with the naming instrumentation live and
     # count kind/promise lookups on the tick path. Pending until the
@@ -316,20 +316,20 @@ def fmt5_pins_frozen():
 
 
 TESTS = {
-    "FMT-1": fmt1_encoder_conformance,
-    "FMT-2": fmt2_address_roundtrip,
-    "NAM-1.1": fmt2_address_roundtrip,  # same property, book cross-reference
-    "FMT-5": fmt5_pins_frozen,
-    "NAM-1.2": nam12_location_independence,
-    "NAM-2.1": nam21_live_fixed_memo,
-    "NAM-2.2": nam22_ref_move_delivers_once,
-    "NAM-3.1": nam31_routes_survive_insertion,
-    "NAM-4.1": nam41_one_kind_system,
-    "NAM-5.1": nam51_true_edge,
-    "NAM-5.2": nam52_latch_boundary,
-    "NAM-5.3": nam53_kind_mismatch_illegal,
-    "NAM-5.4": nam54_no_lookup_during_tick,
-    "NAM-6.1": nam61_rehash_verifies,
-    "NAM-6.2": nam62_chunks_dedup,
-    "NAM-7.1": nam71_spans_survive_edits,
+    "fmt.encoder_conformance": fmt1_encoder_conformance,
+    "fmt.address_grammar": fmt2_address_roundtrip,
+    "nam.addresses.parse_print_roundtrip": fmt2_address_roundtrip,  # same property, book cross-reference
+    "fmt.pins_frozen": fmt5_pins_frozen,
+    "nam.addresses.location_independent": nam12_location_independence,
+    "nam.liveness.live_fixed_memo": nam21_live_fixed_memo,
+    "nam.liveness.ref_move_delivers_once": nam22_ref_move_delivers_once,
+    "nam.edit_stable_routes.insertion_stable": nam31_routes_survive_insertion,
+    "nam.one_kind_system.one_kind_hash": nam41_one_kind_system,
+    "nam.promise_oracle.true_edge_legal": nam51_true_edge,
+    "nam.promise_oracle.latch_boundary": nam52_latch_boundary,
+    "nam.promise_oracle.kind_mismatch_illegal": nam53_kind_mismatch_illegal,
+    "nam.promise_oracle.no_lookup_at_tick": nam54_no_lookup_during_tick,
+    "nam.hash_format.rehash_verifies": nam61_rehash_verifies,
+    "nam.hash_format.chunk_dedup": nam62_chunks_dedup,
+    "nam.sequence_traversal.span_survives_edit": nam71_spans_survive_edits,
 }

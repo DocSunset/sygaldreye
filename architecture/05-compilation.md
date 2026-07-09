@@ -43,78 +43,78 @@ early; pull-observability is the substrate; pass order readable off the patch.
 
 ## Requirements
 
-**CMP-1 (compile as committed derivation).** compile(app, engine) to execution dataset
+**cmp.compile_is_derivation** compile(app, engine) to execution dataset
 with recipe provenance; memoized on input hashes.
-- CMP-1.1: compiling hello-cosine twice runs passes once (counter).
-- CMP-1.2: editing the *defaults* node only does not re-run structural passes
+- cmp.compile_is_derivation.memoized: compiling hello-cosine twice runs passes once (counter).
+- cmp.compile_is_derivation.defaults_edit_skips_structural: editing the *defaults* node only does not re-run structural passes
   (topology hash unchanged to memo hit on the structural stage).
 
-**CMP-2 (determinism + map).** Same inputs to identical execution graph hash
+**cmp.determinism_and_map** Same inputs to identical execution graph hash
 AND identical compilation map.
-- CMP-2.1: compile hello-cosine a hundred times; one distinct output hash.
-- CMP-2.2: the map contains `nodes/osc0 to block/osc0` (or equivalent stable
+- cmp.determinism_and_map.deterministic_hash: compile hello-cosine a hundred times; one distinct output hash.
+- cmp.determinism_and_map.map_covers_instances: the map contains `nodes/osc0 to block/osc0` (or equivalent stable
   scheme) and every app instance appears exactly once.
 
-**CMP-3 (extension ports).** Packages integrate exclusively by wiring into
+**cmp.extension_ports** Packages integrate exclusively by wiring into
 published fan-ins in the well-behaved path; the audio package passes this
 bar. (Strengthened by ADR-034: both criteria observe the realized engine
 plan, never the compiler's self-report.)
-- CMP-3.1: the audio splice lands as ordinary edit ops on the live engine
+- cmp.extension_ports.additive_splice: the audio splice lands as ordinary edit ops on the live engine
   graph; the diff against vanilla is additive wiring only (no rewrites of
   existing engine nodes).
-- CMP-3.2: pass execution order equals topological order of the engine
+- cmp.extension_ports.order_is_topological: pass execution order equals topological order of the engine
   patch, observed as per-instance tick counts in the realized engine plan
   (never a list the compiler prints about itself).
 
-**CMP-4 (projection editing).** Edits in realized views write back through
+**cmp.projection_editing** Edits in realized views write back through
 the inverse map; insert-if-absent for default mappings.
-- CMP-4.1: replace hello-cosine's latch with `smoother` in the execution
+- cmp.projection_editing.writeback_smoother: replace hello-cosine's latch with `smoother` in the execution
   view to the app graph now contains smoother0 wired at edge 1; re-compiling
   inserts NO latch there.
-- CMP-4.2: an edit whose target route vanished upstream surfaces a conflict
+- cmp.projection_editing.vanished_route_conflict: an edit whose target route vanished upstream surfaces a conflict
   (not silence, not a crash).
 
-**CMP-5 (fork).** Rebinding a ref away from a derivation's output records
+**cmp.fork** Rebinding a ref away from a derivation's output records
 detachment; upstream re-compilation no longer applies; the fork is visible in
 lineage queries.
-- CMP-5.1: fork hello-cosine's execution graph, edit upstream app graph,
+- cmp.fork.fork_untouched: fork hello-cosine's execution graph, edit upstream app graph,
   re-compile: the forked ref is untouched and lineage marks the detachment.
 
-**CMP-6 (laziness).** No engine graph above the level being edited is
+**cmp.laziness** No engine graph above the level being edited is
 resident.
-- CMP-6.1: steady-state hello-cosine playback instantiates zero engine
+- cmp.laziness.zero_resident_engine: steady-state hello-cosine playback instantiates zero engine
   instances (only stage 0's parked loop + the running execution graph);
   opening the engine editor instantiates exactly one level.
 
-**CMP-7 (identity across re-compilation).** State survives app-graph edits
-end-to-end (composition of CMP-2's map with EXE-5's migration).
-- CMP-7.1: while sounding, add noise0 to hello-cosine, re-compile, swap:
+**cmp.identity_across_recompilation** State survives app-graph edits
+end-to-end (composition of cmp.determinism_and_map's map with exe.migration's migration).
+- cmp.identity_across_recompilation.phase_continuous: while sounding, add noise0 to hello-cosine, re-compile, swap:
   osc0's phase continuous; latch state preserved.
 
-**CMP-8 (RETIRED 2026-07-04).** The strangler migration path assumed
+**cmp.retired** The strangler migration path assumed
 refactoring the probe; the ratified greenfield build (appendix,
 18-appendix-greenfield.md) supersedes it. The probe is reference and
 salvage, never migrated. Kept as a numbered tombstone so citations resolve.
 
-**CMP-9 (the engine is realized — ADR-034).** The engine graph runs through
+**cmp.engine_is_realized** The engine graph runs through
 the one node contract: its passes are registered node types, instantiated
 from the registry into a plan, ticked by the same crown/plan machinery as
-any graph; compilation is a derivation-mode run of that plan (EXE-7). No
+any graph; compilation is a derivation-mode run of that plan (exe.derivation_mode). No
 pass behavior executes outside a node hook; a bespoke evaluator over engine
 data is scaffolding and names this requirement as its dissolution.
-- CMP-9.1: compiling hello-cosine is observably the engine plan's run:
+- cmp.engine_is_realized.engine_plan_run: compiling hello-cosine is observably the engine plan's run:
   per-pass-instance tick counters match the engine patch's topology, and an
   instrumented audit shows zero compile work outside node hooks (the
   hollow-engine regression).
-- CMP-9.2: an ordinary edit op wiring an additional pass node into a
+- cmp.engine_is_realized.pass_edit_changes_compile: an ordinary edit op wiring an additional pass node into a
   published fan-in changes the next compile's output accordingly — no C++
   change, no restart; removing it restores the prior output hash.
-- CMP-9.3: a pass authored as a graph dataset (no C++) wired into a fan-in
+- cmp.engine_is_realized.graph_pass_runs: a pass authored as a graph dataset (no C++) wired into a fan-in
   runs in the engine plan and is indistinguishable from a native pass
-  (AUT-5 extended to engine vocabulary).
-- CMP-9.4: the lock is honest (ADR-026): the generator's descriptors commit
+  (aut.four_routes extended to engine vocabulary).
+- cmp.engine_is_realized.honest_lock: the lock is honest (ADR-026): the generator's descriptors commit
   through the canonical encoder as type nodes; graph locks carry those CIDs
-  (never placeholder strings); resolver traversal (NAM-1.2's walk through
+  (never placeholder strings); resolver traversal (nam.addresses.location_independent's walk through
   lock → type → ports) and the runtime registry answer a port's promises
   from the SAME committed declaration — one representation, two caches.
 
@@ -145,37 +145,37 @@ provenance shape — one compilation model, never two. Ratified substance
   microcontroller advertising a fixed vocabulary (naming pending).
 - **Freeze is a node** on the worker region; peers without toolchains use a
   peer that advertises it (capability placement fallthrough); the artifact
-  returns by hash through the plugin gate (MSH-5) with recipe provenance —
+  returns by hash through the plugin gate (msh.graphs_vs_plugins) with recipe provenance —
   the canonical trusted plugin. Unfreezing = reading provenance. Frozen
   programs bypass the bootloader; stage 0 is ultimately the freezer applied
-  to the boot graph (SZ-4's far end).
+  to the boot graph (sz.frozen_with_provenance's far end).
 
-**FRZ-1 (round-trip).** freeze(graph, target) to artifact with recipe
+**frz.round_trip** freeze(graph, target) to artifact with recipe
 provenance; unfreeze recovers the editable source graph.
-- FRZ-1.1: A/B chime interpreted-vs-frozen: spectrogram diff roughly equals 0; block-time
+- frz.round_trip.ab_spectrogram: A/B chime interpreted-vs-frozen: spectrogram diff roughly equals 0; block-time
   stat shows the speedup; hot-reload swaps it live.
-- FRZ-1.2: unfreeze(artifact) yields the source graph hash; re-freezing is a
+- frz.round_trip.unfreeze_roundtrip: unfreeze(artifact) yields the source graph hash; re-freezing is a
   memo hit.
 
-**FRZ-2 (tier computation).** Tier is derived per subgraph from native
+**frz.tier_computation** Tier is derived per subgraph from native
 closure and shown in the editor.
-- FRZ-2.1: hello-cosine's block region reports tier 1; add a tmux node and
+- frz.tier_computation.tier_derived: hello-cosine's block region reports tier 1; add a tmux node and
   the enclosing graph reports tier 3 with the culprit named.
 
-**FRZ-3 (freestanding proof).** Tier-1 artifacts compile
+**frz.freestanding_proof** Tier-1 artifacts compile
 `-ffreestanding` with no OS symbols.
-- FRZ-3.1: arm-none-eabi build of frozen chime links clean (long before real
+- frz.freestanding_proof.freestanding_links: arm-none-eabi build of frozen chime links clean (long before real
   hardware).
 
-**FRZ-4 (service).** Freezing places onto a toolchain-advertising peer and
+**frz.service** Freezing places onto a toolchain-advertising peer and
 returns by hash under the plugin gate.
-- FRZ-4.1: Quest wires a graph to the remote freeze node; the signed .so
-  arrives and hot-loads (MSH-5.1's flow, provenance-chained to the graph).
+- frz.service.remote_freeze_loads: Quest wires a graph to the remote freeze node; the signed .so
+  arrives and hot-loads (msh.graphs_vs_plugins.plugin_gate's flow, provenance-chained to the graph).
 
 ## Worked example (test seed)
 
 The projection-editing loop as one scripted test: compile hello-cosine  to 
 replace latch with smoother in the realized view to assert app-graph gained
-smoother0 (CMP-4.1) to edit app freq to re-compile to assert smoother survived,
-map stable (CMP-2.2), phase continuous (CMP-7.1) to fork to edit upstream  to 
-assert fork untouched (CMP-5.1).
+smoother0 (cmp.projection_editing.writeback_smoother) to edit app freq to re-compile to assert smoother survived,
+map stable (cmp.determinism_and_map.map_covers_instances), phase continuous (cmp.identity_across_recompilation.phase_continuous) to fork to edit upstream  to 
+assert fork untouched (cmp.fork.fork_untouched).

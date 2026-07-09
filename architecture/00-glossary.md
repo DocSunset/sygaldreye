@@ -69,7 +69,7 @@ destroyed by unlinking (existence = being referenced). *Example: `osc0` is an
 instance of node type `osc`.* An instance is **emergent, not reified** (ADR-038):
 at stratum 0 there is no instance struct — an instance is a *reading* of the
 state array against the movement (state × bindings), a derivation produced on
-demand, existence purely by reference (L10). Higher strata may reify it (ch. 15's
+demand, existence purely by reference (law.existence_is_reference). Higher strata may reify it (ch. 15's
 "instance owns its state struct" is one such reification); the thing itself is
 the un-reified node.
 

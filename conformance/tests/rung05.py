@@ -188,7 +188,7 @@ def tcf5_movement_austerity():
 
 
 def lng9_text_events_still_open():
-    # LNG-9 is OPEN by design: until text events are ratified, no vocabulary
+    # lng.text_events is OPEN by design: until text events are ratified, no vocabulary
     # may declare a text-kind event port — text inlets are persistence-only
     gen = ROOT / "build" / "generated"
     if not gen.exists():
@@ -415,9 +415,9 @@ def exe114_bang_wakes_cone_same_tick():
 
 def tcf1_mapping_guarantees():
     # each mapping row's stress test, where its machinery lives today:
-    # queue — multi-producer MPSC, no loss/dup (this run); latch — EXE-4.1;
-    # z⁻¹ — EXE-4.3 + EXE-10.1; snapshot — the block→frame publish below;
-    # ring/net — their packages' rungs (PKG-6.1 / rung 8+), cross-referenced
+    # queue — multi-producer MPSC, no loss/dup (this run); latch — exe.canonical_mappings.latch_at_boundary;
+    # z⁻¹ — exe.canonical_mappings.cycle_delay + exe.per_sample_islands.karplus_one_sample; snapshot — the block→frame publish below;
+    # ring/net — their packages' rungs (pkg.net_package.reconnect_discipline / rung 8+), cross-referenced
     out = json.loads(syg("queue-audit", "20000", "4"))
     assert out["count"] == 20000, out
     # snapshot: the frame side sees exactly the last completed block's value
@@ -455,10 +455,10 @@ def lng11_kind_catalog():
 
 
 def lng41_defaults_are_the_inlet_model():
-    # EXE-1.2 / EDR-2.1 restated: an edge overrides while connected; the
+    # exe.plan_cache.saves_default / edr.defaults_discipline.default_is_fallback restated: an edge overrides while connected; the
     # persisted default never captures live modulation
     exe12_defaults_never_capture_modulation()
-    # and an unconnected inlet actually holds its default (EXE-4.1's step)
+    # and an unconnected inlet actually holds its default (exe.canonical_mappings.latch_at_boundary's step)
     out = _exec_audit(_const_hello(with_lfo=False), blocks=3, watch=["out"])
     assert out["watched"]["out"][2][0] == 0.30000001192092896 or \
         abs(out["watched"]["out"][2][0] - 0.3) < 1e-6
@@ -559,7 +559,7 @@ def lng71_context_two_levels_deep():
     out = _exec_audit(g, blocks=30, watch=["deck0.gs0/keys"])
     assert out["watched"]["deck0.gs0/keys"][-1] == 3.0, \
         f"the seam did not forward the root context: {out['watched']}"
-    # and the static audit half: no singleton reach anywhere (EXE-6.1)
+    # and the static audit half: no singleton reach anywhere (exe.executor_contract.no_singleton_reach)
     exe61_no_singleton_reach()
 
 
@@ -602,7 +602,7 @@ def lng21_excess_rank_lifts():
     # N=1 degenerates to one clone
     out1 = _exec_audit(_poly([220.0]), blocks=2)
     assert [n for n in out1["realized"] if n.startswith("osc0#")] == ["osc0#0"]
-    # resize preserves clone state by key (EXE-5.2's identity story): the
+    # resize preserves clone state by key (exe.migration.reorder_preserves_state's identity story): the
     # first half of a resized render is byte-identical to the unresized one
     ops = [{"block": 187, "route": "freqs0/values",
             "value": "[220.0, 330.0, 440.0, 550.0]"}]
@@ -617,7 +617,7 @@ def lng21_excess_rank_lifts():
 
 def lng22_draw_consumes_span_whole():
     # an N-instance span into the draw boundary: ONE call, no clones.
-    # (2026-07-05, PKG-4 retrofit: the present is driven by render_head's
+    # (2026-07-05, pkg.render_package retrofit: the present is driven by render_head's
     # chain — ADR-015's clocks-are-inputs — so the head joins the fixture;
     # every assertion below is unchanged.)
     g = {"kind": "graph", "lock": {},
@@ -699,8 +699,8 @@ def tcf4_fault_matrix():
 
 
 def aut41_keyed_clone_guarantees():
-    # the three keyed-identity guarantees, composed: cards by id (EXE-5.2),
-    # channels by index (LNG-2.1), and the refusal naming the culprit
+    # the three keyed-identity guarantees, composed: cards by id (exe.migration.reorder_preserves_state),
+    # channels by index (lng.span_semantics.span_stamps_clones), and the refusal naming the culprit
     import rung04
     rung04.exe52_clones_keyed_survive_reorder()
     lng21_excess_rank_lifts()
@@ -729,45 +729,45 @@ def aut42_key_span_never_steals_the_lift():
 
 
 TESTS = {
-    "EXE-1.1": exe11_plan_cache,
-    "EXE-1.2": exe12_defaults_never_capture_modulation,
-    "EXE-2.1": exe21_hello_regions,
-    "EXE-2.2": exe22_regions_recompute_per_edit,
-    "EXE-3.1": exe31_rt_safety_under_live_edits,
-    "EXE-4.1": exe41_latch_at_block_start,
-    "EXE-4.2": exe42_events_in_order,
-    "EXE-4.3": exe43_z_inverse_certified,
-    "EXE-6.1": exe61_no_singleton_reach,
-    "EXE-6.2": exe62_pump_offline,
-    "EXE-7.1": exe71_derivation_mode,
-    "EXE-8.1": exe81_boundary_replaceable,
-    "EXE-9.1": exe91_existence_is_reference,
-    "EXE-10.1": exe101_island_pitch,
-    "EXE-10.2": exe102_explicit_delay_opts_out,
-    "EXE-10.3": exe103_block_override_in_cycle_rejected,
-    "EXE-10.4": exe104_frozen_equals_interpreted,
-    "EXE-11.1": exe111_static_scene_quiesces,
-    "EXE-11.2": exe112_dirty_cone_exactly,
-    "EXE-11.3": exe113_inert_lint,
-    "EXE-11.4": exe114_bang_wakes_cone_same_tick,
-    "LNG-1.1": lng11_kind_catalog,
-    "LNG-2.1": lng21_excess_rank_lifts,
-    "LNG-2.2": lng22_draw_consumes_span_whole,
-    "LNG-3.1": lng31_queue_never_drops,
-    "LNG-4.1": lng41_defaults_are_the_inlet_model,
-    "LNG-4.2": lng42_widget_table_is_data,
-    "LNG-5.1": lng51_ops_replay_to_same_hash,
-    "LNG-5.2": lng52_ops_carry_authors,
-    "LNG-6.1": lng61_graphs_dir_is_the_palette,
-    "LNG-6.2": lng62_resource_holder_refuses_lift,
-    "LNG-7.1": lng71_context_two_levels_deep,
-    "LNG-9": lng9_text_events_still_open,
-    "TCF-1": tcf1_mapping_guarantees,
+    "exe.plan_cache.pointers_and_latch": exe11_plan_cache,
+    "exe.plan_cache.saves_default": exe12_defaults_never_capture_modulation,
+    "exe.region_inference.infers_membership": exe21_hello_regions,
+    "exe.region_inference.edit_moves_region": exe22_regions_recompute_per_edit,
+    "exe.realtime_safety.zero_alloc_lock": exe31_rt_safety_under_live_edits,
+    "exe.canonical_mappings.latch_at_boundary": exe41_latch_at_block_start,
+    "exe.canonical_mappings.queue_no_loss": exe42_events_in_order,
+    "exe.canonical_mappings.cycle_delay": exe43_z_inverse_certified,
+    "exe.executor_contract.no_singleton_reach": exe61_no_singleton_reach,
+    "exe.executor_contract.headless_computes": exe62_pump_offline,
+    "exe.derivation_mode.offline_render_memoized": exe71_derivation_mode,
+    "exe.visible_boundaries.latch_is_card": exe81_boundary_replaceable,
+    "exe.existence_is_reference.unlink_collects": exe91_existence_is_reference,
+    "exe.per_sample_islands.karplus_one_sample": exe101_island_pitch,
+    "exe.per_sample_islands.block_delay_opts_out": exe102_explicit_delay_opts_out,
+    "exe.per_sample_islands.override_in_cycle_errors": exe103_block_override_in_cycle_rejected,
+    "exe.per_sample_islands.frozen_equals_interpreted": exe104_frozen_equals_interpreted,
+    "exe.quiescence_and_demand.static_quiesces": exe111_static_scene_quiesces,
+    "exe.quiescence_and_demand.dirty_cone_only": exe112_dirty_cone_exactly,
+    "exe.quiescence_and_demand.inert_lint": exe113_inert_lint,
+    "exe.quiescence_and_demand.event_wakes_cone": exe114_bang_wakes_cone_same_tick,
+    "lng.kind_catalog.catalog_enumerable": lng11_kind_catalog,
+    "lng.span_semantics.span_stamps_clones": lng21_excess_rank_lifts,
+    "lng.span_semantics.span_whole_one_draw": lng22_draw_consumes_span_whole,
+    "lng.event_discipline.bangs_exact_stateless": lng31_queue_never_drops,
+    "lng.inlet_model.default_not_live": lng41_defaults_are_the_inlet_model,
+    "lng.inlet_model.widget_data_driven": lng42_widget_table_is_data,
+    "lng.edit_ops.replay_reproduces": lng51_ops_replay_to_same_hash,
+    "lng.edit_ops.op_attributed": lng52_ops_carry_authors,
+    "lng.subgraphs.dataset_is_node_type": lng61_graphs_dir_is_the_palette,
+    "lng.subgraphs.resource_holder_refuses": lng62_resource_holder_refuses_lift,
+    "lng.context_seam.context_forwards": lng71_context_two_levels_deep,
+    "lng.text_events": lng9_text_events_still_open,
+    "tcf.mapping_guarantees": tcf1_mapping_guarantees,
     # AUT joined the manifest 2026-07-05 (extractor prefix gap)
-    "AUT-4.1": aut41_keyed_clone_guarantees,
-    "AUT-4.2": aut42_key_span_never_steals_the_lift,
-    "TCF-2": tcf2_swaps_under_load,
-    "TCF-3": tcf3_clock_honesty,
-    "TCF-4": tcf4_fault_matrix,
-    "TCF-5": tcf5_movement_austerity,
+    "aut.lift_guarantees.keyed_and_indexed": aut41_keyed_clone_guarantees,
+    "aut.lift_guarantees.key_port_keeps_lift": aut42_key_span_never_steals_the_lift,
+    "tcf.swap_safety": tcf2_swaps_under_load,
+    "tcf.clock_honesty": tcf3_clock_honesty,
+    "tcf.fault_matrix": tcf4_fault_matrix,
+    "tcf.movement_austerity": tcf5_movement_austerity,
 }

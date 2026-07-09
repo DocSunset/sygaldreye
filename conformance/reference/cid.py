@@ -1,4 +1,4 @@
-"""Reference CID assembly and text form — oracle half of NAM-6 (the hash
+"""Reference CID assembly and text form — oracle half of nam.hash_format (the hash
 itself is pinned by fixtures/blake3-vectors.json; Python has no blake3).
 CIDv1 per architecture/14-formats-protocols.md: 0x01, varint multicodec,
 multihash blake3-256 (0x1e, 0x20), 32-byte digest; text is multibase 'b' +

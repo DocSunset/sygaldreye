@@ -1,4 +1,4 @@
-"""Reference address parse/print — the oracle for FMT-2 / NAM-1.
+"""Reference address parse/print — the oracle for fmt.address_grammar / nam.addresses.
 
 Grammar per architecture/14-formats-protocols.md (ADR-029). Percent-escape
 %, /, :, # and whitespace inside a local name; nothing else. An address is

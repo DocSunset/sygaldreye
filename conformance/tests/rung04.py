@@ -88,7 +88,7 @@ def sz21_registration_by_linkage():
     import shutil, subprocess, tempfile
     manifest = json.loads((ROOT / "build" / "generated" / "registration.json")
                           .read_text())
-    # the palette equals the manifest plus graphs_dir datasets (LNG-6):
+    # the palette equals the manifest plus graphs_dir datasets (lng.subgraphs):
     # every native in the manifest is present, and every extra palette
     # entry is a graph dataset on disk — nothing appears from nowhere
     palette = json.loads(syg("palette"))
@@ -155,7 +155,7 @@ def sz41_unfreeze_stage0():
 def sz51_spawn_and_park():
     out = json.loads(syg("park-audit"))
     assert out["kills"] == 100 and out["restarts"] == 100, out
-    # SZ-5.2: edits addressed at stage 0 are refused with a clear error
+    # sz.spawn_and_park.stage0_rejects_edits: edits addressed at stage 0 are refused with a clear error
     assert "stage 0 rejects runtime edits" in out["stage0_edit_refused"], out
 
 
@@ -198,13 +198,13 @@ def sz8_the_ladder():
 
 
 TESTS = {
-    "EXE-5.1": exe51_state_survives_swap,
-    "EXE-5.2": exe52_clones_keyed_survive_reorder,
-    "LNG-8.1": lng81_roundtrip,
-    "SZ-2.1": sz21_registration_by_linkage,
-    "SZ-3.1": sz31_naive_resolver,
-    "SZ-4.1": sz41_unfreeze_stage0,
-    "SZ-5.1": sz51_spawn_and_park,
-    "SZ-7": sz7_boot_without_store,
-    "SZ-8": sz8_the_ladder,
+    "exe.migration.phase_continuous": exe51_state_survives_swap,
+    "exe.migration.reorder_preserves_state": exe52_clones_keyed_survive_reorder,
+    "lng.round_trip.roundtrip_no_derived": lng81_roundtrip,
+    "sz.generated_registration.missing_native_link_error": sz21_registration_by_linkage,
+    "sz.naive_resolver.resolver_independent": sz31_naive_resolver,
+    "sz.frozen_with_provenance.unfreeze_recovers": sz41_unfreeze_stage0,
+    "sz.spawn_and_park.restart_survives": sz51_spawn_and_park,
+    "sz.boot_without_store": sz7_boot_without_store,
+    "sz.the_ladder": sz8_the_ladder,
 }

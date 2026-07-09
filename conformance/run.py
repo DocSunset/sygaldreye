@@ -5,7 +5,7 @@ Usage:  python3 conformance/run.py [--rung N]
 
 Every acceptance criterion in the book appears in manifest.json (regenerate
 via extract_manifest.py). Tests live in tests/rung*.py: each module defines
-TESTS = {"NAM-1.1": callable_or_None}. None = pending (not yet written).
+TESTS = {"nam.addresses.parse_print_roundtrip": callable_or_None}. None = pending (not yet written).
 A callable returns normally (pass) or raises (fail, with the reason).
 
 The runner walks the twelve build rungs of Appendix A in order and reports
@@ -90,7 +90,7 @@ for rung in sorted(by_rung):
 SRC_SUFFIXES = {".c", ".cc", ".cpp", ".h", ".hh", ".hpp", ".inl", ".py"}
 for f in sorted(p for p in (HERE.parent / "src").rglob("*")
                 if p.suffix in SRC_SUFFIXES):
-    for m in re.finditer(r"[Dd]issolve[sd]?:\s*([A-Z]+-[0-9]+(?:\.[0-9]+)*)",
+    for m in re.finditer(r"[Dd]issolve[sd]?:\s*([a-z]{2,4}\.[a-z0-9_.]+)",
                          f.read_text()):
         if m.group(1) in passed:
             total["fail"] += 1
@@ -103,7 +103,7 @@ print()
 print(f"pass {total['pass']}  fail {total['fail']}  pending {total['pending']}"
       f"  uncovered {total['uncovered']}")
 if total["uncovered"]:
-    print("uncovered criteria are themselves a reported gap (CNF-1).")
+    print("uncovered criteria are themselves a reported gap (cnf.suite_as_data).")
 if first_unmet:
     print(f"\nYOU ARE HERE: rung {first_unmet} — {RUNG_NAMES[first_unmet]}.")
     print("Next action: take that rung's first pending/failing criterion,")

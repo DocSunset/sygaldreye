@@ -1,6 +1,6 @@
 # golden frame — properties, not bytes
 
-The PKG-4.3 gate (and every pixel witness after it) asserts PROPERTIES of
+The pkg.render_package.real_pixels gate (and every pixel witness after it) asserts PROPERTIES of
 the rendered RGBA output. Determinism class: approximate — rasterization
 varies across GPUs and drivers (Mesa on the host, Adreno on the Quest), so
 BYTE EQUALITY IS NEVER THE TEST. A byte-golden image would be a lie that
@@ -22,7 +22,7 @@ STRAY draw carrying a second triangle but NOT wired into the head's chain.
    (±20%).
 5. The stray (unchained) draw contributes ZERO coverage: frames with and
    without the stray node have identical foreground pixel counts
-   (PKG-4.2's chain law, restated in pixels).
+   (pkg.render_package.unwired_no_render's chain law, restated in pixels).
 6. No pixel channel is NaN-patterned garbage: the set of distinct colors
    in a flat-shaded frame is small (clear + one fill ± MSAA edge blends).
 
