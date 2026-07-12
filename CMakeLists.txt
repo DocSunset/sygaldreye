@@ -17,3 +17,10 @@ enable_testing()
 
 add_subdirectory(src/syg)
 add_subdirectory(src/escapement)
+
+# stage0: reflection-driven node description. Needs GCC 16 -freflection; its
+# splices trip -Wpedantic, so it is dropped here (tests are held looser).
+add_executable(stage0_test src/stage0.test.cpp)
+set_target_properties(stage0_test PROPERTIES CXX_STANDARD 26)
+target_compile_options(stage0_test PRIVATE -std=c++26 -freflection -Wno-pedantic)
+add_test(NAME stage0 COMMAND stage0_test)
