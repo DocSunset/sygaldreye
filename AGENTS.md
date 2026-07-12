@@ -40,6 +40,21 @@ acceptance criterion; excitement that outruns understanding buys nothing.
   live in-tree beside their source (`crown.hpp` ↔ `crown.test.cpp`), build and
   run under CMake/CTest, and are held to a looser bar than the rest — Travis
   doesn't care about them and they don't count against the 50-line limit.
+- **Sketch first; write only on agreement.** New or reshaped C++ (types,
+  structs, signatures, algorithms) is proposed as a SKETCH — a fenced code
+  block IN THE MESSAGE, for reading — and nothing is committed to a file until
+  Travis and you both agree the shape is right. Concretely: do NOT reach for
+  Write/Edit on `src/**` C++ during a design discussion; the message is the
+  medium. Once he signs off, THEN use Edit/Write to land it, and Bash +
+  CMake/CTest to build and verify. This is the read-before-write dual of the
+  50-line cap: the cap bounds how much he reads at once; this bounds WHEN it
+  becomes real. Exempt (write directly, no sketch gate): tests, build/Nix/CMake
+  files, and throwaway probes in the scratchpad compiled with `g++` to check a
+  reflection idiom or reproduce a compiler bug — those are yours to iterate on,
+  not his to read. Reflection metaprogramming is landmine-rich (GCC 16
+  `if constexpr`-consteval mis-selection, non-structural `string_view`, ICEs),
+  so scratch-compile a minimal repro to de-risk BEFORE landing, then land the
+  blessed shape.
 - **Travis's comprehension is the clock.** Order slices so each builds the
   next in his head. Bring code to him to READ, not to rubber-stamp.
 - **Gate on his taste, not the suite.** He is a C++ veteran — a PhD spent
