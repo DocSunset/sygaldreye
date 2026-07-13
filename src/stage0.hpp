@@ -318,7 +318,7 @@ template <class T> inline constexpr syg_type_t value_type_v = {
   /*name_hash*/ syg_hash_str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
   /*shape*/ syg_hash_mix(sizeof(T), leaf_category<T>()),
   /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T),
-  /*members*/ 0, nullptr, /*statics*/ 0, nullptr,
+  /*members*/ 0, nullptr, /*template args*/ 0, nullptr,
   /*place*/ [](void* p, void**){ ::new (p) T{}; },              // no inputs; just construct
   /*erase*/ [](void* p){ static_cast<T*>(p)->~T(); },
   /*move*/  [](void* d, void* s){ ::new (d) T{ std::move(*static_cast<T*>(s)) }; },
@@ -356,7 +356,7 @@ template <class T> inline constexpr syg_type_t component_type_v = {
   /*name_hash*/ syg_hash_str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
   /*shape*/ product_shape<T>(),
   /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T),
-  /*members*/ fields_v<T>.size(), fields_v<T>.data(), /*statics*/ 0, nullptr,
+  /*members*/ fields_v<T>.size(), fields_v<T>.data(), /*template args*/ 0, nullptr,
   /*place*/ [](void* p, void**){ ::new (p) T{}; },
   /*erase*/ [](void* p){ static_cast<T*>(p)->~T(); },
   /*move*/  [](void* d, void* s){ ::new (d) T{ std::move(*static_cast<T*>(s)) }; },

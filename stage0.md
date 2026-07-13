@@ -23,10 +23,21 @@ describable lives in the type; the node adds only `run`.
 
 ## Members, inputs, outputs, state — all one bit
 
-Members are **array-of-structs**, self-naming: `syg_field_t {name, type, offset}` for
-instance members, `syg_static_t {name, type, addr}` for shared class-level ones (an
-instance member is located by an offset into the object; a static by an absolute
-address — the *only* difference). A member's name lives once, on the member.
+Members are **array-of-structs**, self-naming: `syg_field_t {name, type, offset}` — an
+instance member, located by an offset into the object. A member's name lives once, on
+the member.
+
+A type's **template arguments** — the "statics" reframed by role, what monomorphizes it
+(`constant<440>`, `latch<float>`) — are a *second* array-of-structs, `syg_template_arg_t
+{name, type, addr}`. **One struct, kind read off `addr`:** non-null ⇒ a **value** arg
+(`type` decodes the bytes at `addr`); null ⇒ a **type** arg (`type` IS the argument, no
+storage). Value args always have storage, so null is a safe sentinel; a single array
+keeps interleaved args (`<class T, int N>`) in declaration order. They fold into
+`params_hash` (below): value args by their bytes, type args by their `id` — so
+`meters`/`feet` (a phantom type arg over a bare `float`) share a `shape` but split on
+`id`, the cheap on-ramp to refinement/sized types. Committing to this means a
+*non-identity* shared datum (a cache) may **not** be a template arg — recompute it in
+`place`, or feed it as a value node.
 
 The **input/output distinction is read off the member's type, not a flag**:
 
@@ -37,7 +48,7 @@ And **"state" is not a third category** — it's just an output the wiring reads
 (implicit `z⁻¹` feedback). The struct can't tell state from output; the graph can.
 
 `syg_value_t {type, data}` is the typed-value primitive (a decoder + a blob); a cell,
-an edge payload, an inlet default, and a static's storage are all instances of it.
+an edge payload, an inlet default, and a template value-arg's storage are all instances.
 
 ## Authoring vs the reified ABI
 
@@ -103,17 +114,17 @@ initial values, unwired inputs' default slots, the held functor).
 - **`id` = `hash_mix(scope_hash, name_hash, params_hash)`** — nominal,
   namespace-qualified, **monomorphization-aware**, stable across layout changes. Wiring
   intent, one-word compare. `name_hash`/`scope_hash` are the parts
-  (same-name-across-scopes / group-by-namespace). `params_hash` = a fold over each
-  **static member's bytes** (`data`, sized by `type->size`) — because a static is, by
-  definition, frozen-and-shared, i.e. *part of what every instance of the type is*, so
-  it belongs in identity. This is the identity half of **monomorphization**: `constant<3>`
-  ≠ `constant<5>`, `route 2` ≠ `route 3` — same name/scope, different frozen statics ⇒
-  different type. (Generating unique *name strings* per instantiation is the hack that
-  avoids this; it only works when the value is nameable and smuggles semantics into a
-  string. Folding the bytes is the principled form and handles a matrix or config-struct
-  static as easily as an int.) Nothing about *instance* state enters `id` — a `constant`
-  whose value were a mutable inlet default would be a single type, because then the value
-  isn't static.
+  (same-name-across-scopes / group-by-namespace). `params_hash` = a fold over the
+  **template args** — a value arg by its bytes (`addr`, sized by `type->size`), a type arg
+  by its `type->id` — because the args are *what every instance of the type is made from*,
+  so they belong in identity. This is the identity half of **monomorphization**: `constant<3>`
+  ≠ `constant<5>`, `route 2` ≠ `route 3` — same name/scope, different args ⇒ different
+  type. (Generating unique *name strings* per instantiation is the hack that avoids this;
+  it only works when the value is nameable and smuggles semantics into a string. Folding
+  the args is the principled form and handles a matrix or config-struct value arg as
+  easily as an int.) Nothing about *instance* state enters `id` — a `constant` whose
+  value were a mutable inlet default would be a single type, because then the value isn't
+  a template arg.
 - **`shape` = fold of the flattened, packed primitive leaves** — byte-layout only: no
   names, no scope, no offsets, platform-independent (packed wire order, not in-memory
   offsets — else peers fork at the leaves). Answers "do our bytes agree." `vec3`/`rgb`
