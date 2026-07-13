@@ -317,11 +317,11 @@ template <class T> inline constexpr syg_type_t value_type_v = {
   /*id*/ syg_hash_mix(scope_fold<T>(), syg_hash_str(type_name<T>())),   // params_hash: a value has no statics
   /*name_hash*/ syg_hash_str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
   /*shape*/ syg_hash_mix(sizeof(T), leaf_category<T>()),
-  /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T),
+  /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T), /*align*/ alignof(T),
   /*members*/ 0, nullptr, /*template args*/ 0, nullptr,
-  /*place*/ [](void* p, void**){ ::new (p) T{}; },              // no inputs; just construct
-  /*erase*/ [](void* p){ static_cast<T*>(p)->~T(); },
-  /*move*/  [](void* d, void* s){ ::new (d) T{ std::move(*static_cast<T*>(s)) }; },
+  /*place*/ [](syg_value_t v, void**){ ::new (v.data) T{}; },   // no inputs; just construct
+  /*erase*/ [](syg_value_t v){ static_cast<T*>(v.data)->~T(); },
+  /*move*/  [](syg_value_t d, void* s){ ::new (d.data) T{ std::move(*static_cast<T*>(s)) }; },
 };
 template <class T> consteval const syg_type_t* generate_value() { return &value_type_v<T>; }
 
@@ -355,11 +355,11 @@ template <class T> inline constexpr syg_type_t component_type_v = {
   /*id*/ syg_hash_mix(scope_fold<T>(), syg_hash_str(type_name<T>())),
   /*name_hash*/ syg_hash_str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
   /*shape*/ product_shape<T>(),
-  /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T),
+  /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T), /*align*/ alignof(T),
   /*members*/ fields_v<T>.size(), fields_v<T>.data(), /*template args*/ 0, nullptr,
-  /*place*/ [](void* p, void**){ ::new (p) T{}; },
-  /*erase*/ [](void* p){ static_cast<T*>(p)->~T(); },
-  /*move*/  [](void* d, void* s){ ::new (d) T{ std::move(*static_cast<T*>(s)) }; },
+  /*place*/ [](syg_value_t v, void**){ ::new (v.data) T{}; },
+  /*erase*/ [](syg_value_t v){ static_cast<T*>(v.data)->~T(); },
+  /*move*/  [](syg_value_t d, void* s){ ::new (d.data) T{ std::move(*static_cast<T*>(s)) }; },
 };
 template <class T> consteval const syg_type_t* generate_component() {
   if constexpr (std::is_arithmetic_v<T>) return generate_value<T>();

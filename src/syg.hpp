@@ -1,13 +1,12 @@
 #pragma once
-// syg.hpp — the type-erased node ABI (stage 0).
+// syg.hpp — the type-erased type ABI (stage 0).
 //
-// POD, C-ABI structs a foreign .so could hand back, plus the runtime helpers over
-// them. This is the shape the reflection layer (stage0.hpp) will GENERATE into; here
-// it is authored by hand as the design's target. Sketch-stage — the reasoning lives
-// in ../stage0.md. Not yet wired to the reflection layer.
+// POD, C-ABI structs a foreign .so could hand back: a type descriptor (identity +
+// layout + RAII). This is the shape the reflection layer (stage0.hpp) generates into
+// and the runtime type-family builders (syg::variant, …) mint at spawn. The reasoning
+// lives in ../stage0.md.
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 
 // ── identity hashes: FNV-1a, 64-bit. A DEFINED function (NOT std::hash, which isn't
 //    stable across implementations) so every peer computes the same value. Pinned —
@@ -34,8 +33,6 @@ constexpr syg_hash syg_hash_mix(syg_hash a, syg_hash b) {
 
 extern "C" {
 typedef struct syg_type_t syg_type_t;
-typedef struct syg_meta_t syg_meta_t;
-typedef struct syg_node_t syg_node_t;
 
 // a typed value = a decoder (type) paired with an encoded blob (data). A cell, an
 // edge payload, an inlet default, a template value-arg's storage are all instances.
@@ -61,35 +58,15 @@ struct syg_type_t {
   const char*               name;        // bare slug
   const char* const*        scope;       // enclosing namespaces, outermost first
   std::size_t               size;        // one instance's bytes
+  std::size_t               align;        // one instance's alignment (widest leaf) — for inline layout
   std::size_t               member_count;
   const syg_field_t*        members;     // instance members (const T* => input; else output/state)
   std::size_t               template_arg_count;
   const syg_template_arg_t* template_args;  // the args that monomorphize this type; fold into params_hash
-  void (*place)(void* mem, void** inputs);  // ctor + bind each const T* input to inputs[i]
-  void (*erase)(void* obj);                 // dtor, no free
-  void (*move)(void* dst, void* src);       // migrate: steal owned, copy borrowed
+  // RAII over a typed object. `self`/`dst` bundle (type, storage) as a syg_value_t so a
+  // runtime-generic impl (a variant, any minted type family) can dispatch on its own type.
+  void (*place)(syg_value_t self, void** inputs);  // ctor + bind each const T* input to inputs[i]
+  void (*erase)(syg_value_t self);                 // dtor, no free
+  void (*move)(syg_value_t dst, void* src);        // migrate from same-typed src: steal owned, copy borrowed
 };
-
-// a NODE = a type + the one thing data can't do: run.
-struct syg_meta_t { const syg_type_t* type; void (*run)(void* self); };
-
-// an INSTANCE: an intrusive meta header, then the component state.
-struct syg_node_t { const syg_meta_t* meta; /* state (type->size bytes) follows the header */ };
 }
-
-using syg_meta = const syg_meta_t*;   // shared static class/vtable
-using syg_node = syg_node_t*;         // instance handle — one pointer, passes as void*
-
-// derived at runtime, never stored — the point of the split.
-inline syg_meta          meta_of(syg_node n) { return *reinterpret_cast<syg_meta*>(n); }  // first member
-inline const syg_type_t* type_of(syg_node n) { return meta_of(n)->type; }
-inline void*             state(syg_node n)   { return reinterpret_cast<char*>(n) + sizeof(syg_meta); }
-
-inline syg_node create(syg_meta m, void** inputs) {                            // = new: alloc + place
-  syg_node n = static_cast<syg_node>(std::malloc(sizeof(syg_meta) + m->type->size));
-  *reinterpret_cast<syg_meta*>(n) = m;                                         // write the vptr header
-  m->type->place(state(n), inputs);
-  return n;
-}
-inline void destroy(syg_node n) { type_of(n)->erase(state(n)); std::free(n); }  // = delete: erase + free
-inline void tick(syg_node n)    { meta_of(n)->run(state(n)); }

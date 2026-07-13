@@ -1,25 +1,24 @@
-# stage0: the type-erased node
+# stage0: the type-erased type
 
-Working design note for the runtime C-ABI layer of stage 0 — the structs in
-`src/syg.hpp`, the shape the reflection layer (`src/stage0.hpp`) will generate into,
-and the shape a foreign `.so` hands back. Sketch-stage; the code in `syg.hpp` is the
-target, not yet wired to reflection. Captured from a long design conversation so it
-survives context loss.
+Working design note for the runtime C-ABI layer of stage 0 — the `syg_type` descriptor
+in `src/syg.hpp`, how the reflection layer (`src/stage0.hpp`) generates one from a C++
+type, and how runtime builders (`src/variant.hpp`) mint one at spawn. Captured from a
+long design conversation so it survives context loss.
 
-## The three reifications
+## What's real, and what's in flux
 
-One thing described three ways, each a distinct POD struct (`syg.hpp`):
+We committed to ONE reification: **`syg_type_t`** — a **type**: pure data description
+(identity + members + layout) plus RAII (`place`/`erase`/`move`). One instance per type,
+shared, and produced two ways (seam #3): `generate_value` / `generate_component` at
+comptime (reflection over a C++ type — `src/stage0.hpp`), and `syg::variant::make` and
+kin at runtime (`src/variant.hpp`). A type is self-describing: its members are its
+endpoints, so almost everything lives here.
 
-- **`syg_type_t`** — a **type**: pure data description (identity + members + layout)
-  plus RAII (`place`/`erase`/`move`). One static instance per type; shared.
-- **`syg_meta_t`** — a **node**: a type plus the one thing data can't do, `run`. The
-  shared class/vtable, one per component type.
-- **`syg_node_t`** — an **instance**: an intrusive `const syg_meta_t*` header followed
-  by the component's state. A running node is one pointer, self-describing (recover
-  its class with `meta_of` — a first-member cast).
-
-A node **is** a type — its members are its endpoints — so almost everything
-describable lives in the type; the node adds only `run`.
+The **node / instance / `run` layer is deleted, pending redesign.** We had `syg_meta_t`
+(type + `run`) and `syg_node_t` (an intrusive `meta*` header + state); they conflated
+too much and we're taking a different direction. What replaces them — where `run` lives,
+how a running instance is laid out and self-describes, where lift semantics attach — is
+the big open question (seam #2). The type layer below stands on its own regardless.
 
 ## Members, inputs, outputs, state — all one bit
 
@@ -53,7 +52,10 @@ an edge payload, an inlet default, and a template value-arg's storage are all in
 ## Authoring vs the reified ABI
 
 Authors write **natural C++ with references**; the generator reifies each into an ABI
-component where **inputs become `const T*` and everything else is owned output/state**:
+component where **inputs become `const T*` and everything else is owned output/state**.
+(The `run()` shown below is behavior; where it *attaches* now that the node layer is
+gone is seam #2. The member shape — inputs as `const T*`, owned outputs — is what the
+`syg_type` already captures.)
 
 ```cpp
 cell add(const cell& a, const cell& b) { return a + b; }                 // authored: free fn
@@ -83,12 +85,15 @@ Rules that make this honest:
 
 ## Lifecycle from ownership legibility
 
-`place`/`erase` are the only irreducible type behavior (ctor / dtor). Alloc/free stays
-generic on `size`: `create = malloc(size) + place`, `destroy = erase + free`. `place`
-also **binds inputs** — `place(mem, void** inputs)` sets each `const T*` from
+`place`/`erase`/`move` are the type's RAII, and each takes a **`syg_value_t {type,
+data}`** — the object bundled with its type — so a runtime-generic impl (a variant, any
+minted type family) can dispatch on its own type; monomorphic reflected types ignore the
+type and act on `data`. Alloc/free stays generic on `size`/`align`; the old
+`create`/`destroy` helpers lived in the deleted node layer and went with it. `place`
+also **binds inputs** — `place(self, void** inputs)` sets each `const T*` from
 `inputs[i]` in generated, typed code (legal; no punning, no reference-rebinding). No
 `connect` primitive is needed; dynamic rewire, if ever wanted, is the same generated
-`n->in_i = (const T*)src` write.
+`in_i = (const T*)src` write.
 
 Because ownership is **legible from each member's form**, the whole lifecycle is
 mechanically derivable — the Rust bargain (ownership in the type ⇒ derived
@@ -145,31 +150,35 @@ content-addressed decoder-blobs) and **defaults**, not every component.
 
 ## FFI
 
-`node` **is** the plugin boundary: a `dlsym`'d `.so` hands back the same POD structs
-because they're reflection-free data + function pointers. Reflection is just how
-*native* code mints one. Layout is already C-POD; add a **version** field to make it a
-real boundary. A stateful foreign node places itself into a byte region we own — so a
-separate opaque `binding` survives only for a foreign node that insists on owning its
-own heap and hiding its size.
+`syg_type` **is** the plugin boundary: a `dlsym`'d `.so` hands back the same POD struct
+because it's reflection-free data + function pointers. Reflection is just how *native*
+code mints one; a runtime builder is another producer (seam #3). Layout is already
+C-POD; add a **version** field to make it a real boundary (seam #4). How a foreign
+type's *instances* run and self-describe rides on the node-layer redesign (seam #2).
 
 ## Open seams
 
-1. **Node-instance header alignment** — if a component needs alignment > pointer, the
-   header pads to `alignof(max)`; `state(n)` accounts for it.
-2. **Node-level metadata** — lift semantics (stateful / pure / keyed) ride on
-   `syg_meta`; undesigned.
-3. **Templates** — type families minted comptime (reflection over a C++ template) or at
-   runtime (build the POD descriptor at spawn, for generic-lifecycle nodes like
-   `route`). Same abstraction, two producers — mirrors native/foreign.
+1. **Alignment** — `syg_type` now carries `align` (widest leaf), used for inline layout
+   (a variant's payload). The remaining piece — how a *running instance* pads its header
+   — folds into the node-layer redesign (seam #2).
+2. **The node / `run` layer — THE BIG OPEN ONE.** Deleted `syg_meta_t`/`syg_node_t`; not
+   yet replaced. Needs: where `run` lives, how a running instance is laid out and
+   self-describes (the old intrusive `meta*` header), and where lift semantics (stateful
+   / pure / keyed) attach. Whatever we design, the `syg_type` layer stays underneath it.
+3. **Templates** — type families from two producers, both now REAL: comptime
+   (`generate_value`/`generate_component`, reflection over a C++ type) and runtime
+   (`syg::variant::make` builds the POD descriptor at spawn). Same abstraction, two
+   producers — mirrors native/foreign. `constant<V>` / `latch<T>` are the next ones.
 4. **Versioning** — the `.so` ABI version field, and how it gates loading.
-5. **Type-theory roadmap** — see `agent_notes/type-theory.md`: sums, then graph-region
-   lifetimes, then sized/refinement types, added reactively.
+5. **Type-theory roadmap** — see `agent_notes/type-theory.md`: **sums have their first
+   implementation** (`syg::variant` — tag + cases in `template_args`); next is
+   graph-region lifetimes, then sized/refinement types, added reactively.
 6. **The mapping is two-way — PICK UP LATER.** We keep saying "the reflection layer
    *generates into* `syg_type`," but the relationship is a bijection we'll want both
    directions of:
-   - **forward** (have): authored representation → `syg_type`. Input is a function, a
-     component struct, or *more forms TBD* (a variant's cases table, a value node's
-     static, …).
+   - **forward** (have): authored representation → `syg_type`. Today: a value (leaf), a
+     component struct (product), a runtime variant (sum); *more forms TBD* (`constant`,
+     `latch`, a function's splayed outputs).
    - **reverse** (TBD): at **consteval** time, `syg_type` → an authored, type-rich
      representation — reconstruct real C++ types/members from the POD descriptor, so a
      `syg_type` known at compile time can be spliced back into typed code (typed

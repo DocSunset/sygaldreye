@@ -112,9 +112,10 @@ int main() {
 
   // the RAII lifecycle runs: place constructs, then we read the value back.
   alignas(vec3) unsigned char buf[sizeof(vec3)];
-  v3->place(buf, nullptr);
+  assert(v3->align == alignof(vec3));
+  v3->place({v3, buf}, nullptr);
   reinterpret_cast<vec3*>(buf)->y = 1.5f;
   assert(reinterpret_cast<vec3*>(buf)->y == 1.5f);
-  v3->erase(buf);
+  v3->erase({v3, buf});
   return 0;
 }

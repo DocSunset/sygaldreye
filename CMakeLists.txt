@@ -24,3 +24,9 @@ add_executable(stage0_test src/stage0.test.cpp)
 set_target_properties(stage0_test PROPERTIES CXX_STANDARD 26)
 target_compile_options(stage0_test PRIVATE -std=c++26 -freflection -Wno-pedantic)
 add_test(NAME stage0 COMMAND stage0_test)
+
+# variant: a sum type minted at runtime as a syg_type. Includes stage0.hpp (reflection).
+add_executable(variant_test src/variant.test.cpp)
+set_target_properties(variant_test PROPERTIES CXX_STANDARD 26)
+target_compile_options(variant_test PRIVATE -std=c++26 -freflection -Wno-pedantic)
+add_test(NAME variant COMMAND variant_test)
