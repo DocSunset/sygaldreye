@@ -1,4 +1,5 @@
 #pragma once
+#include "syg.hpp"
 #include <array>
 #include <cstdlib>
 #include <meta>
@@ -37,6 +38,7 @@ struct node {
 consteval std::vector<std::string_view> enclosing_namespaces(std::meta::info x) {
   namespace m = std::meta;
   std::vector<std::string_view> v;
+  if (!m::has_parent(x)) return v;               // a primitive (e.g. ^^float) has no parent
   for (m::info s = m::parent_of(x); m::is_namespace(s) && m::has_identifier(s); s = m::parent_of(s))
     v.insert(v.begin(), m::identifier_of(s));    // walk up; outermost ends up first
   return v;
@@ -284,6 +286,84 @@ binding* make_binding(const node& n) {
   for (std::size_t j = 0; j < nin;  ++j) s[j] = nullptr; // inputs unwired
   for (std::size_t j = 0; j < nout; ++j) { s[nin + j] = out; out += n.out_sizes[j]; }
   return b;
+}
+
+// ── reflection → syg_type_t: mint the POD type descriptor for a data type ───────────
+// shared naming/identity plumbing. A user type carries an identifier; a primitive is a
+// keyword (no identifier), so fall back to its display name. scope_fold folds the
+// enclosing namespaces; leaf_category is the byte-semantics tag that keeps float(4,fp)
+// distinct from uint32(4,uint) — 0 means "opaque" (a non-arithmetic held as a leaf).
+template <class T> consteval const char* type_name() {
+  namespace m = std::meta;
+  if constexpr (m::has_identifier(^^T)) return std::define_static_string(m::identifier_of(^^T));
+  else                                  return std::define_static_string(m::display_string_of(^^T));
+}
+template <class T> consteval syg_hash scope_fold() {
+  syg_hash h = 0;
+  for (std::string_view s : enclosing_namespaces(^^T)) h = syg_hash_mix(h, syg_hash_str(std::define_static_string(s)));
+  return h;
+}
+template <class T> consteval syg_hash leaf_category() {
+  if constexpr (std::is_floating_point_v<T>) return 1;
+  else if constexpr (std::is_signed_v<T>)    return 2;
+  else if constexpr (std::is_unsigned_v<T>)  return 3;
+  else return 0;
+}
+
+// generate_value<T>: the BASE CASE — a leaf syg_type. No fields; T IS the value; RAII
+// straight from T's own special members (a float, or an opaque type held whole). shape
+// is the byte-semantics atom, never a field fold, because a leaf has no fields to fold.
+template <class T> inline constexpr syg_type_t value_type_v = {
+  /*id*/ syg_hash_mix(scope_fold<T>(), syg_hash_str(type_name<T>())),   // params_hash: a value has no statics
+  /*name_hash*/ syg_hash_str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
+  /*shape*/ syg_hash_mix(sizeof(T), leaf_category<T>()),
+  /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T),
+  /*members*/ 0, nullptr, /*statics*/ 0, nullptr,
+  /*place*/ [](void* p, void**){ ::new (p) T{}; },              // no inputs; just construct
+  /*erase*/ [](void* p){ static_cast<T*>(p)->~T(); },
+  /*move*/  [](void* d, void* s){ ::new (d) T{ std::move(*static_cast<T*>(s)) }; },
+};
+template <class T> consteval const syg_type_t* generate_value() { return &value_type_v<T>; }
+
+// generate_component<T>: THE BRANCH + THE RECURSION. Arithmetic ⇒ leaf (generate_value);
+// else reflect fields and recurse each field type through the same branch. Grounds out
+// at leaves. (A leaf-set policy — treat chosen templates like std::vector<X> as opaque
+// leaves — is the planned extension; today only arithmetic terminates the descent.)
+template <class T> consteval const syg_type_t* generate_component();
+
+// member infos ride as a static array indexed by a pack, so each field's type splices
+// in a CONSTANT context (a runtime loop variable can't be spliced — see operator()).
+template <class T> inline constexpr auto member_infos =
+    std::define_static_array(std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::current()));
+template <class T, std::size_t... I>
+consteval auto build_fields(std::index_sequence<I...>) {
+  namespace m = std::meta;
+  return std::array<syg_field_t, sizeof...(I)>{ syg_field_t{
+      std::define_static_string(m::identifier_of(member_infos<T>[I])),
+      generate_component<typename [: m::type_of(member_infos<T>[I]) :]>(),   // recurse
+      m::offset_of(member_infos<T>[I]).bytes }... };
+}
+template <class T> inline constexpr auto fields_v =
+    build_fields<T>(std::make_index_sequence<member_infos<T>.size()>{});
+
+template <class T> consteval syg_hash product_shape() {          // fold of the field shapes
+  syg_hash h = 0;
+  for (const syg_field_t& f : fields_v<T>) h = syg_hash_mix(h, f.type->shape);
+  return h;
+}
+template <class T> inline constexpr syg_type_t component_type_v = {
+  /*id*/ syg_hash_mix(scope_fold<T>(), syg_hash_str(type_name<T>())),
+  /*name_hash*/ syg_hash_str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
+  /*shape*/ product_shape<T>(),
+  /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T),
+  /*members*/ fields_v<T>.size(), fields_v<T>.data(), /*statics*/ 0, nullptr,
+  /*place*/ [](void* p, void**){ ::new (p) T{}; },
+  /*erase*/ [](void* p){ static_cast<T*>(p)->~T(); },
+  /*move*/  [](void* d, void* s){ ::new (d) T{ std::move(*static_cast<T*>(s)) }; },
+};
+template <class T> consteval const syg_type_t* generate_component() {
+  if constexpr (std::is_arithmetic_v<T>) return generate_value<T>();
+  else                                   return &component_type_v<T>;
 }
 
 

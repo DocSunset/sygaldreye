@@ -100,13 +100,26 @@ initial values, unwired inputs' default slots, the held functor).
 
 ## Identity
 
-- **`id` = `hash_mix(scope_hash, name_hash)`** — nominal, namespace-qualified, stable
-  across layout changes. Wiring intent, one-word compare. `name_hash`/`scope_hash` are
-  the parts (same-name-across-scopes / group-by-namespace).
+- **`id` = `hash_mix(scope_hash, name_hash, params_hash)`** — nominal,
+  namespace-qualified, **monomorphization-aware**, stable across layout changes. Wiring
+  intent, one-word compare. `name_hash`/`scope_hash` are the parts
+  (same-name-across-scopes / group-by-namespace). `params_hash` = a fold over each
+  **static member's bytes** (`data`, sized by `type->size`) — because a static is, by
+  definition, frozen-and-shared, i.e. *part of what every instance of the type is*, so
+  it belongs in identity. This is the identity half of **monomorphization**: `constant<3>`
+  ≠ `constant<5>`, `route 2` ≠ `route 3` — same name/scope, different frozen statics ⇒
+  different type. (Generating unique *name strings* per instantiation is the hack that
+  avoids this; it only works when the value is nameable and smuggles semantics into a
+  string. Folding the bytes is the principled form and handles a matrix or config-struct
+  static as easily as an int.) Nothing about *instance* state enters `id` — a `constant`
+  whose value were a mutable inlet default would be a single type, because then the value
+  isn't static.
 - **`shape` = fold of the flattened, packed primitive leaves** — byte-layout only: no
   names, no scope, no offsets, platform-independent (packed wire order, not in-memory
   offsets — else peers fork at the leaves). Answers "do our bytes agree." `vec3`/`rgb`
-  share a `shape`; that's correct. Concatenate `id`+`shape` for strictest sameness.
+  share a `shape`; that's correct. `constant<3>`/`constant<5>` also share a `shape` (same
+  bytes ⇒ a value can flow between them) while differing in `id` — permissive-shape /
+  strict-id working as intended. Concatenate `id`+`shape` for strictest sameness.
 - **Permissive `shape`, strict `id`.** Same layout, different name ⇒ bytes flow, meaning
   refuses. Offsets are per-peer, in the descriptor, never in a hash.
 
@@ -140,3 +153,18 @@ own heap and hiding its size.
 4. **Versioning** — the `.so` ABI version field, and how it gates loading.
 5. **Type-theory roadmap** — see `agent_notes/type-theory.md`: sums, then graph-region
    lifetimes, then sized/refinement types, added reactively.
+6. **The mapping is two-way — PICK UP LATER.** We keep saying "the reflection layer
+   *generates into* `syg_type`," but the relationship is a bijection we'll want both
+   directions of:
+   - **forward** (have): authored representation → `syg_type`. Input is a function, a
+     component struct, or *more forms TBD* (a variant's cases table, a value node's
+     static, …).
+   - **reverse** (TBD): at **consteval** time, `syg_type` → an authored, type-rich
+     representation — reconstruct real C++ types/members from the POD descriptor, so a
+     `syg_type` known at compile time can be spliced back into typed code (typed
+     `place`/`run` bodies, static asserts, generic nodes specialized on a comptime type).
+   The forward direction erases; the reverse re-derives. Both matter: forward mints the
+   ABI from source, reverse lets comptime code *consume* an ABI descriptor as if it were
+   a native type. Open questions: what authored forms exist (the "…TBD" above), and how
+   much of the reverse is expressible given a `syg_type` is runtime data — the consteval
+   reverse only applies to descriptors that are themselves `constexpr`.

@@ -14,13 +14,23 @@
 //    a peer that hashes differently can't agree on a type. For runtime identity
 //    compares only, not content-addressing (widen `shape` to crypto if that changes).
 using syg_hash = std::uint64_t;
+// runtime blob hash — for value bytes/params. The void* pun bars it from constant
+// expressions, so the compile-time paths below never route through it.
 inline syg_hash syg_hash_bytes(const void* p, std::size_t n, syg_hash h = 0xcbf29ce484222325ull) {
   const unsigned char* b = static_cast<const unsigned char*>(p);
   for (std::size_t i = 0; i < n; ++i) { h ^= b[i]; h *= 0x100000001b3ull; }
   return h;
 }
-inline syg_hash syg_hash_str(const char* s) { return syg_hash_bytes(s, __builtin_strlen(s)); }
-inline syg_hash syg_hash_mix(syg_hash a, syg_hash b) { return syg_hash_bytes(&b, sizeof b, a); }
+// constexpr-clean twins (no punning): a name over its chars, a mix that absorbs the
+// eight bytes of `b` LSB-first (endian-defined ⇒ same value on every peer).
+constexpr syg_hash syg_hash_str(const char* s, syg_hash h = 0xcbf29ce484222325ull) {
+  for (; *s; ++s) { h ^= static_cast<unsigned char>(*s); h *= 0x100000001b3ull; }
+  return h;
+}
+constexpr syg_hash syg_hash_mix(syg_hash a, syg_hash b) {
+  for (int i = 0; i < 8; ++i) { a ^= (b >> (i * 8)) & 0xff; a *= 0x100000001b3ull; }
+  return a;
+}
 
 extern "C" {
 typedef struct syg_type_t syg_type_t;

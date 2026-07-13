@@ -25,6 +25,14 @@ namespace comp {
 struct [[=outputs{}]] divmod_out { int q; int r; };
 namespace demo::math { divmod_out idivmod(int a, int b) { return { a / b, a % b }; } }
 
+// generate_value / generate_component: reflection -> syg_type_t. A value is a leaf (no
+// fields); a component decomposes into fields and recurses; the descent grounds at
+// arithmetic leaves.
+struct vec3 { float x, y, z; };
+struct rgb  { float r, g, b; };            // same layout as vec3 -> same shape, different id
+struct ray  { vec3 origin; vec3 dir; };    // recursion: fields that are themselves products
+namespace geo { struct vec2 { float x, y; }; }
+
 int main() {
   // single output: name, inputs, the lone "out", and the namespace chain.
   node n = describe_function<^^demo::math::add>();
@@ -72,5 +80,41 @@ int main() {
   assert(ds2.in_sizes.size() == 1 && ds2.out_sizes.size() == 2 && lo == 5 && hi == 5);
   assert(ds2.name == "SplitC" && ds2.in_names[0] == "x");
   assert(ds2.out_names[0] == "lo" && ds2.out_names[1] == "hi");
+
+  // a value is a leaf: no fields, T IS the value. name recovered even for a primitive.
+  const syg_type_t* fv = generate_value<float>();
+  assert(fv->member_count == 0 && fv->size == sizeof(float) && fv->name == std::string_view{"float"});
+  // generate_component routes an arithmetic type straight to the leaf.
+  assert(generate_component<float>()->member_count == 0);
+  // shape is byte-semantics: float and uint32 are the same width but different shape,
+  // and being different names they also carry a different id.
+  const syg_type_t* uv = generate_value<std::uint32_t>();
+  assert(uv->size == fv->size && uv->shape != fv->shape && uv->id != fv->id);
+
+  // a component decomposes: three float fields at the natural offsets, each a leaf.
+  const syg_type_t* v3 = generate_component<vec3>();
+  assert(v3->member_count == 3 && v3->size == sizeof(vec3) && v3->name == std::string_view{"vec3"});
+  assert(v3->members[0].name == std::string_view{"x"} && v3->members[0].offset == 0);
+  assert(v3->members[1].offset == 4 && v3->members[2].offset == 8);
+  assert(v3->members[0].type->member_count == 0 && v3->members[0].type->name == std::string_view{"float"});
+
+  // structural vs nominal: same layout ⇒ same shape; different name ⇒ different id.
+  const syg_type_t* col = generate_component<rgb>();
+  assert(col->shape == v3->shape && col->id != v3->id);
+
+  // recursion grounds out: a ray's fields are themselves three-field products.
+  const syg_type_t* rv = generate_component<ray>();
+  assert(rv->member_count == 2 && rv->members[0].type->member_count == 3);
+
+  // scope enters identity: a namespaced type folds its enclosing namespaces into id.
+  const syg_type_t* v2 = generate_component<geo::vec2>();
+  assert(v2->scope_hash != 0 && v2->name == std::string_view{"vec2"});
+
+  // the RAII lifecycle runs: place constructs, then we read the value back.
+  alignas(vec3) unsigned char buf[sizeof(vec3)];
+  v3->place(buf, nullptr);
+  reinterpret_cast<vec3*>(buf)->y = 1.5f;
+  assert(reinterpret_cast<vec3*>(buf)->y == 1.5f);
+  v3->erase(buf);
   return 0;
 }
