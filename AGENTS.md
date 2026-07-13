@@ -40,15 +40,23 @@ acceptance criterion; excitement that outruns understanding buys nothing.
   live in-tree beside their source (`crown.hpp` ↔ `crown.test.cpp`), build and
   run under CMake/CTest, and are held to a looser bar than the rest — Travis
   doesn't care about them and they don't count against the 50-line limit.
-- **Sketch first; write only on agreement.** New or reshaped C++ (types,
-  structs, signatures, algorithms) is proposed as a SKETCH — a fenced code
-  block IN THE MESSAGE, for reading — and nothing is committed to a file until
-  Travis and you both agree the shape is right. Concretely: do NOT reach for
-  Write/Edit on `src/**` C++ during a design discussion; the message is the
-  medium. Once he signs off, THEN use Edit/Write to land it, and Bash +
-  CMake/CTest to build and verify. This is the read-before-write dual of the
-  50-line cap: the cap bounds how much he reads at once; this bounds WHEN it
-  becomes real. Exempt (write directly, no sketch gate): tests, build/Nix/CMake
+- **Sketch first; write only when EXPLICITLY told to land it.** New or reshaped
+  C++ (types, structs, signatures, algorithms) is proposed as a SKETCH — a fenced
+  code block IN THE MESSAGE, for reading — and nothing is committed to a file
+  until Travis gives an **explicit instruction to write it** ("land it", "write
+  it", "commit it", "go ahead"). The trigger is a direct command to land, NOT
+  your inference that the shape is settled. This is the crux: a message that
+  *refines, approves, or proposes* a shape ("yes, that's right", "maybe we do X
+  instead?", "nominal seems better") advances the DESIGN — it is not permission
+  to write. Even when you are confident you have correctly anticipated what he
+  wants, and even when he proposes the exact final shape himself, **STOP at the
+  sketch and wait for the go.** If unsure whether a message is assent-to-write or
+  just design, treat it as design: present/repeat the sketch and ask. Concretely:
+  do NOT reach for Write/Edit on `src/**` C++ during a design discussion; the
+  message is the medium. Once he explicitly says to land it, THEN use Edit/Write,
+  and Bash + CMake/CTest to build and verify. This is the read-before-write dual
+  of the 50-line cap: the cap bounds how much he reads at once; this bounds WHEN
+  it becomes real — and "when" is his call to make, out loud, not yours to guess. Exempt (write directly, no sketch gate): tests, build/Nix/CMake
   files, and throwaway probes in the scratchpad compiled with `g++` to check a
   reflection idiom or reproduce a compiler bug — those are yours to iterate on,
   not his to read. Reflection metaprogramming is landmine-rich (GCC 16
