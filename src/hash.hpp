@@ -30,11 +30,13 @@ struct hash64_fnv1a {
     for (; *s; ++s) { h.digest ^= static_cast<unsigned char>(*s); h.digest *= prime; }
     return h;
   }
-  // absorb the eight bytes of b into a, LSB-first (endian-defined ⇒ same on every peer)
-  static constexpr hash64_fnv1a mix(hash64_fnv1a a, hash64_fnv1a b) {
-    for (int i = 0; i < 8; ++i) { a.digest ^= (b.digest >> (i * 8)) & 0xff; a.digest *= prime; }
+  // absorb the eight bytes of a u64, LSB-first (endian-defined ⇒ same on every peer)
+  static constexpr hash64_fnv1a mix(hash64_fnv1a a, std::uint64_t b) {
+    for (int i = 0; i < 8; ++i) { a.digest ^= (b >> (i * 8)) & 0xff; a.digest *= prime; }
     return a;
   }
+  // absorb another digest — same bytes; a digest is just its eight bytes here
+  static constexpr hash64_fnv1a mix(hash64_fnv1a a, hash64_fnv1a b) { return mix(a, b.digest); }
   // runtime blob hash — the void* pun bars it from constant expressions
   static hash64_fnv1a bytes(const void* p, std::size_t n, hash64_fnv1a h = {basis}) {
     const unsigned char* b = static_cast<const unsigned char*>(p);

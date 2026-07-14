@@ -299,11 +299,11 @@ template <class T> consteval const char* type_name() {
   else                                  return std::define_static_string(m::display_string_of(^^T));
 }
 template <class T> consteval syg_hash scope_fold() {
-  syg_hash h = 0;
-  for (std::string_view s : enclosing_namespaces(^^T)) h = syg_hash_mix(h, syg_hash_str(std::define_static_string(s)));
+  syg_hash h{};
+  for (std::string_view s : enclosing_namespaces(^^T)) h = syg_hash::mix(h, syg_hash::str(std::define_static_string(s)));
   return h;
 }
-template <class T> consteval syg_hash leaf_category() {
+template <class T> consteval std::uint64_t leaf_category() {   // a code, not a digest
   if constexpr (std::is_floating_point_v<T>) return 1;
   else if constexpr (std::is_signed_v<T>)    return 2;
   else if constexpr (std::is_unsigned_v<T>)  return 3;
@@ -314,9 +314,9 @@ template <class T> consteval syg_hash leaf_category() {
 // straight from T's own special members (a float, or an opaque type held whole). shape
 // is the byte-semantics atom, never a field fold, because a leaf has no fields to fold.
 template <class T> inline constexpr syg_type_t value_type_v = {
-  /*id*/ syg_hash_mix(scope_fold<T>(), syg_hash_str(type_name<T>())),   // params_hash: a value has no statics
-  /*name_hash*/ syg_hash_str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
-  /*shape*/ syg_hash_mix(sizeof(T), leaf_category<T>()),
+  /*id*/ syg_hash::mix(scope_fold<T>(), syg_hash::str(type_name<T>())),   // params_hash: a value has no statics
+  /*name_hash*/ syg_hash::str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
+  /*shape*/ syg_hash::mix({sizeof(T)}, leaf_category<T>()),
   /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T), /*align*/ alignof(T),
   /*members*/ 0, nullptr, /*template args*/ 0, nullptr,
   /*tick*/  [](syg_value_t){},                                  // pure data: no behavior
@@ -346,13 +346,13 @@ template <class T> inline constexpr auto fields_v =
     build_fields<T>(std::make_index_sequence<member_infos<T>.size()>{});
 
 template <class T> consteval syg_hash product_shape() {          // fold of the field shapes
-  syg_hash h = 0;
-  for (const syg_field_t& f : fields_v<T>) h = syg_hash_mix(h, f.type->shape);
+  syg_hash h{};
+  for (const syg_field_t& f : fields_v<T>) h = syg_hash::mix(h, f.type->shape);
   return h;
 }
 template <class T> inline constexpr syg_type_t component_type_v = {
-  /*id*/ syg_hash_mix(scope_fold<T>(), syg_hash_str(type_name<T>())),
-  /*name_hash*/ syg_hash_str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
+  /*id*/ syg_hash::mix(scope_fold<T>(), syg_hash::str(type_name<T>())),
+  /*name_hash*/ syg_hash::str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
   /*shape*/ product_shape<T>(),
   /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T), /*align*/ alignof(T),
   /*members*/ fields_v<T>.size(), fields_v<T>.data(), /*template args*/ 0, nullptr,

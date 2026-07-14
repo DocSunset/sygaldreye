@@ -108,7 +108,7 @@ int main() {
 
   // scope enters identity: a namespaced type folds its enclosing namespaces into id.
   const syg_type_t* v2 = generate_component<geo::vec2>();
-  assert(v2->scope_hash != 0 && v2->name == std::string_view{"vec2"});
+  assert(v2->scope_hash.digest != 0 && v2->name == std::string_view{"vec2"});
 
   // align is carried for inline layout (lifecycle is now the operator registry's job).
   assert(v3->align == alignof(vec3));
