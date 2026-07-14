@@ -121,11 +121,27 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     STRING/SCOPE/GROUND by type; identity vs resolution split). Demotion
     ratchet: a roster row stays fiat iff its content can't be said from
     inside. types_test + registry_test green.
-  - **Next action (this thread):** the decree document (versioned prose +
-    roster) for Travis to ratify. Then: tick-refs (behavior via ref, the ref
-    half of the registry); graph-form variable-arity nodes (structure as a
-    wired node — missing vocabulary); the arithmetic atom roster (float32…)
-    minted at floor-time?; un-park variant/graph onto the new world.
+  - **Landed (`a67f5c5`): the ENVIRONMENT INVERSION — `src/env.hpp` (was
+    registry.hpp).** `syg_env_t` = a lexical frame of grips (parent +
+    symbols); HERE is the only out-of-band handout (ADR-029). Stores are
+    ORGANS gripped at decreed names (CONTENT, REFS) — dumb maps; ONLY the
+    environment composes (frame walks). Three contracts, three verb sets:
+    wire/unwire/find (SITUATED — local, mortal, never ships; a symbol grip's
+    id IS its name), insert_or_get/get (FIXED — verified dedup: byte-compare
+    on id match, throw on mismatch ⇒ silent merge impossible), bind/follow
+    (LIVE — `address` = content|symbol tag, so refs point at immutable
+    content OR live grips; symbol-refs are local-only). Typed keys
+    content_id/ref_name/sym_name. Instances/mutable data live in PLACED
+    memory (arenas), never in stores; fn pointers are grips (never content —
+    location not meaning; wasm fn "ptrs" are table indices). derived(rel,
+    subj) = attach metadata without touching bytes (mesh-boundary note in
+    env.hpp: exact-pair keys or crypto hash before foreign content drives
+    local bindings). env_test green.
+  - **Next action (this thread):** TICK as relation/word — bind a type's
+    behavior via refs into symbols (WORD atom, word cells), resolve at build
+    time; then the decree document (versioned prose + roster); graph-form
+    variable-arity nodes; arithmetic atom roster at floor-time?; un-park
+    variant/graph.
 
 - **Next action (escapement thread):** open the crown's parked seams (kinds-by-index → registry
   organ; typed constants; bounds-as-fault, law.errors_are_values), OR the smallest playable
