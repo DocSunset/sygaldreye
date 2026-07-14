@@ -110,12 +110,7 @@ int main() {
   const syg_type_t* v2 = generate_component<geo::vec2>();
   assert(v2->scope_hash != 0 && v2->name == std::string_view{"vec2"});
 
-  // the RAII lifecycle runs: place constructs, then we read the value back.
-  alignas(vec3) unsigned char buf[sizeof(vec3)];
+  // align is carried for inline layout (lifecycle is now the operator registry's job).
   assert(v3->align == alignof(vec3));
-  v3->place({v3, buf}, nullptr);
-  reinterpret_cast<vec3*>(buf)->y = 1.5f;
-  assert(reinterpret_cast<vec3*>(buf)->y == 1.5f);
-  v3->erase({v3, buf});
   return 0;
 }

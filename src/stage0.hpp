@@ -319,9 +319,8 @@ template <class T> inline constexpr syg_type_t value_type_v = {
   /*shape*/ syg_hash_mix(sizeof(T), leaf_category<T>()),
   /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T), /*align*/ alignof(T),
   /*members*/ 0, nullptr, /*template args*/ 0, nullptr,
-  /*place*/ [](syg_value_t v, void**){ ::new (v.data) T{}; },   // no inputs; just construct
-  /*erase*/ [](syg_value_t v){ static_cast<T*>(v.data)->~T(); },
-  /*move*/  [](syg_value_t d, void* s){ ::new (d.data) T{ std::move(*static_cast<T*>(s)) }; },
+  /*tick*/  [](syg_value_t){},                                  // pure data: no behavior
+  /*impl*/  {},                                                 // native (source unspecified)
 };
 template <class T> consteval const syg_type_t* generate_value() { return &value_type_v<T>; }
 
@@ -357,9 +356,8 @@ template <class T> inline constexpr syg_type_t component_type_v = {
   /*shape*/ product_shape<T>(),
   /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T), /*align*/ alignof(T),
   /*members*/ fields_v<T>.size(), fields_v<T>.data(), /*template args*/ 0, nullptr,
-  /*place*/ [](syg_value_t v, void**){ ::new (v.data) T{}; },
-  /*erase*/ [](syg_value_t v){ static_cast<T*>(v.data)->~T(); },
-  /*move*/  [](syg_value_t d, void* s){ ::new (d.data) T{ std::move(*static_cast<T*>(s)) }; },
+  /*tick*/  [](syg_value_t){},
+  /*impl*/  {},
 };
 template <class T> consteval const syg_type_t* generate_component() {
   if constexpr (std::is_arithmetic_v<T>) return generate_value<T>();

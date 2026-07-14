@@ -7,18 +7,24 @@ long design conversation so it survives context loss.
 
 ## What's real, and what's in flux
 
-We committed to ONE reification: **`syg_type_t`** — a **type**: pure data description
-(identity + members + layout) plus RAII (`place`/`erase`/`move`). One instance per type,
-shared, and produced two ways (seam #3): `generate_value` / `generate_component` at
-comptime (reflection over a C++ type — `src/stage0.hpp`), and `syg::variant::make` and
-kin at runtime (`src/variant.hpp`). A type is self-describing: its members are its
-endpoints, so almost everything lives here.
+We committed to ONE reification: **`syg_type_t`** — **pure data** (identity + members +
+layout + `template_args` + `impl`) plus exactly ONE behavior, **`tick`**. An instance is a
+typed byte region held as **`syg_value_t {type, data}`** — the type rides alongside the
+bytes (a fat pointer), and *a `syg_value` is its own frame*: its members are the argument
+and return slots, so `tick` reads and writes them in place. Produced two ways (seam #3):
+`generate_value` / `generate_component` at comptime (reflection — `src/stage0.hpp`), and
+runtime builders at spawn.
 
-The **node / instance / `run` layer is deleted, pending redesign.** We had `syg_meta_t`
-(type + `run`) and `syg_node_t` (an intrusive `meta*` header + state); they conflated
-too much and we're taking a different direction. What replaces them — where `run` lives,
-how a running instance is laid out and self-describes, where lift semantics attach — is
-the big open question (seam #2). The type layer below stands on its own regardless.
+**Behavior is one hot entry (`tick`) plus a cold operator registry.** `tick` is the
+per-sample step, so it is cached as the type's single fn-pointer (no-op for pure data).
+Everything ELSE a type can do — `place` / `erase` / `move` / `wire`, and every multi-arg
+operator like `+` — is **cold** (construction, teardown, rewire) and lives NOT on the type
+but in the **operator registry**, keyed by `(name, endpoints)` and resolved at build/wire
+time (seam 0). So minting a type = *registering its operators*; multiple dispatch happens
+once, up front, yielding a monomorphic one-`tick` type; the hot loop is always a direct
+`tick`. (`syg_meta_t`/`syg_node_t` — the old node/instance structs — are long deleted.)
+What remains of the old lift seam: where lift semantics (stateful /
+pure / keyed) live so a scheduler can read them (seam #2).
 
 ## Members, inputs, outputs, state — all one bit
 
@@ -53,9 +59,8 @@ an edge payload, an inlet default, and a template value-arg's storage are all in
 
 Authors write **natural C++ with references**; the generator reifies each into an ABI
 component where **inputs become `const T*` and everything else is owned output/state**.
-(The `run()` shown below is behavior; where it *attaches* now that the node layer is
-gone is seam #2. The member shape — inputs as `const T*`, owned outputs — is what the
-`syg_type` already captures.)
+(The `run()` shown below is behavior; it attaches as the type's **`tick`** method. The
+member shape — inputs as `const T*`, owned outputs — is what the `syg_type` captures.)
 
 ```cpp
 cell add(const cell& a, const cell& b) { return a + b; }                 // authored: free fn
@@ -85,15 +90,17 @@ Rules that make this honest:
 
 ## Lifecycle from ownership legibility
 
-`place`/`erase`/`move` are the type's RAII, and each takes a **`syg_value_t {type,
-data}`** — the object bundled with its type — so a runtime-generic impl (a variant, any
-minted type family) can dispatch on its own type; monomorphic reflected types ignore the
-type and act on `data`. Alloc/free stays generic on `size`/`align`; the old
-`create`/`destroy` helpers lived in the deleted node layer and went with it. `place`
-also **binds inputs** — `place(self, void** inputs)` sets each `const T*` from
-`inputs[i]` in generated, typed code (legal; no punning, no reference-rebinding). No
-`connect` primitive is needed; dynamic rewire, if ever wanted, is the same generated
-`in_i = (const T*)src` write.
+`place` / `erase` / `move` / `wire` are the type's RAII — but they are **registry
+operators**, not fields on `syg_type` (only `tick` stays on the type). Each takes a
+**`syg_value_t {type, data}`** — the object bundled with its type — so a runtime-generic
+operator dispatches on the value's runtime type; a monomorphic reflected op ignores the
+type and acts on `data`. Alloc/free stays generic on `size`/`align`: you `malloc`, then
+resolve+apply `place`. `place` also **binds inputs** — it sets each `const T*` from a
+`void** inputs` in generated, typed code (legal; no punning, no reference-rebinding).
+`wire` is the per-endpoint form of that store — the ONLY legal rebind, and the live-patch
+primitive. `place` writes into memory it does not own; that's accepted — the builder is a
+privileged, *unsafe* kernel, and ownership safety holds for the constructed graph *while
+it runs*, not during construction (every allocator/compiler is this).
 
 Because ownership is **legible from each member's form**, the whole lifecycle is
 mechanically derivable — the Rust bargain (ownership in the type ⇒ derived
@@ -150,35 +157,81 @@ content-addressed decoder-blobs) and **defaults**, not every component.
 
 ## FFI
 
-`syg_type` **is** the plugin boundary: a `dlsym`'d `.so` hands back the same POD struct
-because it's reflection-free data + function pointers. Reflection is just how *native*
-code mints one; a runtime builder is another producer (seam #3). Layout is already
-C-POD; add a **version** field to make it a real boundary (seam #4). How a foreign
-type's *instances* run and self-describe rides on the node-layer redesign (seam #2).
+`syg_type` **is** the plugin boundary: a `dlsym`'d `.so` hands back the same POD struct —
+reflection-free **data** plus one `tick` pointer, its behavior otherwise resolved locally
+from the registry by `id`. Reflection is just how *native* code mints one; a runtime
+builder is another producer (seam #3). Layout is already C-POD; add a **version** field to
+make it a real boundary (seam #4). A foreign type's *instances* run through `tick` and are
+held as `syg_value_t` (type + bytes) — no intrusive header to agree on.
+
+## impl — the type's source
+
+`syg_type.impl` is the type's **source / definition** (declarative, not code) — ONE
+meaning now that behavior moved to the registry. **Graph ⇒ the topology** (`impl.data`);
+**native ⇒ its source text, or `{}`** if unspecified. It is what ships to a peer, folds
+into identity, and reconstructs the type (seam #6). Orthogonal to behavior: `impl` says
+*what the type is*; the registry's operators (resolved by `id`/endpoints) say *how to run
+it*. So two graph-types differ only in `impl` and share the same interpreter operators; a
+native type received as bare data (`impl == {}`) has its operators resolved *locally* by
+`id` — types are portable, behavior is resolved-or-sourced. (The old "package of methods"
+sense of `impl` is retired; the methods are registry operators.)
+
+Native *source* (a native type carrying its own text) is **not reachable from
+reflection** — reflection is semantic, not lexical: you get structure and
+`source_location`, never the characters, and consteval can't read files. The split:
+
+- **data-type source is synthesizable** — reflect the members, assemble `struct X {…};`
+  at consteval (this is seam #6's reverse mapping emitting text);
+- **function *bodies* are opaque** — statements aren't reflectable. Real body source needs
+  preprocessor **stringization** (a `SYG_NATIVE(…)` macro that compiles the tokens AND
+  captures `#__VA_ARGS__` as a string — DRY, opt-in) or external tooling slicing by
+  `source_location`.
+
+We're likely to take the macro. Its whitespace-normalization + comment-stripping — usually
+a downside — is a **feature for hashing**: the normalized text content-addresses cleanly,
+so a native type's source can seed its `id` the way a graph's topology seeds a graph-type's.
 
 ## Open seams
 
-1. **Alignment** — `syg_type` now carries `align` (widest leaf), used for inline layout
-   (a variant's payload). The remaining piece — how a *running instance* pads its header
-   — folds into the node-layer redesign (seam #2).
-2. **The node / `run` layer — THE BIG OPEN ONE.** Deleted `syg_meta_t`/`syg_node_t`; not
-   yet replaced. Needs: where `run` lives, how a running instance is laid out and
-   self-describes (the old intrusive `meta*` header), and where lift semantics (stateful
-   / pure / keyed) attach. Whatever we design, the `syg_type` layer stays underneath it.
-3. **Templates** — type families from two producers, both now REAL: comptime
-   (`generate_value`/`generate_component`, reflection over a C++ type) and runtime
-   (`syg::variant::make` builds the POD descriptor at spawn). Same abstraction, two
-   producers — mirrors native/foreign. `constant<V>` / `latch<T>` are the next ones.
+0. **Behavior → operator registry (struct half LANDED, registry TBD).** The lifecycle
+   fn-pointers are now REMOVED from `syg_type` (it keeps pure data + `tick` + `impl`);
+   `src/variant.hpp` and `src/graph.hpp` + tests are **parked** (they need the registry to
+   hold their operators). Still to build: the registry itself. Behavior becomes **operators
+   in a registry**, keyed by
+   `(name, endpoints)` — endpoints tagged (direction, index, type), outputs folded into
+   `id` too (needs seam-0 identity). `syg_type` keeps only pure data + one cached HOT
+   entry, **tick**; a `syg_value` is its own frame (members = args + return slots). Cold
+   ops (`place`/`erase`/`move`/`wire`, and multi-arg operators like `+`) live only in the
+   registry. Multiple dispatch is **resolve/build-time** (yields a monomorphic one-tick
+   node-type); the hot loop is always a single direct `tick`. Minting a type becomes
+   *registering its operators*. Stage-0 resolver = **exact match, asker supplies the name
+   and the full endpoint set**; the partial-match + ranking/tie-break **query engine** is a
+   known near-term want, deferred.
+0b. **Endpoints in identity (seam-0, to nail down).** Fold a type's endpoints (inputs and
+   outputs, by direction + index + type, maybe names) into `id`, so operator dispatch works:
+   same name, different signature ⇒ different type. Load-bearing for both operators and the
+   behavior-registry move above.
+1. **Alignment** — `syg_type` carries `align` (widest leaf), used for inline layout (a
+   variant's payload). No intrusive instance header remains (an instance is a typed byte
+   region held as `syg_value_t`), so there is nothing more to pad — resolved.
+2. **Lift semantics** — `run` became the type's `tick` and an instance is `syg_value_t`,
+   so the node/meta structs are gone. The one leftover: where stateful / pure / keyed
+   metadata lives so a scheduler can read it. A candidate is a small flags field on
+   `syg_type`; undesigned.
+3. **Templates** — type families from two producers: comptime
+   (`generate_value`/`generate_component`, reflection over a C++ type — LIVE) and runtime
+   (a builder minting the POD descriptor at spawn — prototyped in the now-parked
+   `syg::variant::make`). Same abstraction, two producers — mirrors native/foreign.
 4. **Versioning** — the `.so` ABI version field, and how it gates loading.
-5. **Type-theory roadmap** — see `agent_notes/type-theory.md`: **sums have their first
-   implementation** (`syg::variant` — tag + cases in `template_args`); next is
-   graph-region lifetimes, then sized/refinement types, added reactively.
+5. **Type-theory roadmap** — see `agent_notes/type-theory.md`: sums were first prototyped
+   (the parked `syg::variant` — tag + cases in `template_args`); next is graph-region
+   lifetimes, then sized/refinement types, added reactively.
 6. **The mapping is two-way — PICK UP LATER.** We keep saying "the reflection layer
    *generates into* `syg_type`," but the relationship is a bijection we'll want both
    directions of:
-   - **forward** (have): authored representation → `syg_type`. Today: a value (leaf), a
-     component struct (product), a runtime variant (sum); *more forms TBD* (`constant`,
-     `latch`, a function's splayed outputs).
+   - **forward** (have): authored representation → `syg_type`. Live: a value (leaf) and a
+     component struct (product); a runtime sum was prototyped (parked `syg::variant`);
+     *more forms TBD* (`latch<T>`, a function's splayed outputs).
    - **reverse** (TBD): at **consteval** time, `syg_type` → an authored, type-rich
      representation — reconstruct real C++ types/members from the POD descriptor, so a
      `syg_type` known at compile time can be spliced back into typed code (typed

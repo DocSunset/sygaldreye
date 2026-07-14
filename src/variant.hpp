@@ -33,6 +33,8 @@ inline void set(syg_value_t v, std::uint32_t k) {          // the one verb produ
   erase(v); key(v) = k;
   auto c = blob(v); c.type->place(c, nullptr);
 }
+inline void tick(syg_value_t) {}                           // a variant is data: no behavior
+inline void wire(syg_value_t, std::uint32_t, void*) {}     // no const T* inputs to bind
 
 // an opaque leaf: layout only (size/align), raw-byte RAII. The variant's `data` field
 // points at one; its RAII is never called (the tag dispatches to the real case).
@@ -41,7 +43,7 @@ inline void raw_erase(syg_value_t) {}
 inline void raw_move(syg_value_t dst, void* src) { std::memcpy(dst.data, src, dst.type->size); }
 inline const syg_type_t* opaque(std::size_t size, std::size_t align) {
   return new syg_type_t{ 0, 0, 0, 0, "opaque", nullptr, size, align,
-                         0, nullptr, 0, nullptr, raw_place, raw_erase, raw_move };
+                         0, nullptr, 0, nullptr, raw_place, raw_erase, raw_move, tick, wire, {} };
 }
 
 inline syg_hash shape(std::span<const syg_type_t* const> cases) {
@@ -67,7 +69,7 @@ inline const syg_type_t* make(const char* name, std::span<const syg_type_t* cons
   return new syg_type_t{
     syg_hash_mix(syg_hash_mix(0, nh), params), nh, 0, shape(cases),
     name, nullptr, data_off + N, A, 2, fields, cases.size(), args,
-    place, erase, move,
+    place, erase, move, tick, wire, {},
   };
 }
 

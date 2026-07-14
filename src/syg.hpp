@@ -63,10 +63,14 @@ struct syg_type_t {
   const syg_field_t*        members;     // instance members (const T* => input; else output/state)
   std::size_t               template_arg_count;
   const syg_template_arg_t* template_args;  // the args that monomorphize this type; fold into params_hash
-  // RAII over a typed object. `self`/`dst` bundle (type, storage) as a syg_value_t so a
-  // runtime-generic impl (a variant, any minted type family) can dispatch on its own type.
-  void (*place)(syg_value_t self, void** inputs);  // ctor + bind each const T* input to inputs[i]
-  void (*erase)(syg_value_t self);                 // dtor, no free
-  void (*move)(syg_value_t dst, void* src);        // migrate from same-typed src: steal owned, copy borrowed
+  // The type's ONE behavior: its run/node step. A syg_value IS its own frame — its members
+  // are the argument and return slots, so tick reads and writes them in place. No-op for
+  // pure data. This is the single HOT entry, cached here; every COLD operation on the type
+  // (place/erase/move/wire, and multi-arg operators like `+`) lives in the operator
+  // REGISTRY, keyed by (name, endpoints), resolved at build time. See ../stage0.md.
+  void (*tick)(syg_value_t self);
+  // The type's source (declarative, not code): a graph's topology, native source text, or
+  // {} (unspecified/native). What ships to a peer, hashes into identity, and reconstructs.
+  syg_value_t impl;
 };
 }
