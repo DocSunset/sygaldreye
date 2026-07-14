@@ -48,7 +48,36 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     array exists only because erasure can't size outputs inline. See ADR-038
     and the 2026-07-09 documentary entry.
 
-- **Next action:** open the crown's parked seams (kinds-by-index → registry
+- **Stage-0 TYPE-SYSTEM thread (2026-07-12/13 — the live design front, separate
+  from `src/escapement/`):** designing `syg_type`, the POD type descriptor.
+  - **On disk:** `src/syg.hpp` = `syg_type_t` (PURE DATA now: id/name/scope/shape
+    hashes, name, scope, size, align, members[], template_args[], ONE `tick`
+    fn-pointer, `impl`) + `syg_value_t {type,data}` + `syg_field_t` +
+    `syg_template_arg_t`. `src/stage0.hpp` = reflection layer:
+    `generate_value<T>` / `generate_component<T>` mint a `syg_type` from a C++
+    type (leaf/product recursion; GCC16 `-freflection`). Tests: `stage0_test`
+    (green). Full design in **`stage0.md`** (thorough, incl. Open seams) +
+    `agent_notes/type-theory.md`.
+  - **PARKED (pre-registry sketches, CMake targets removed):** `src/variant.hpp`
+    (sum type minted at runtime), `src/graph.hpp` (runtime graph as a syg_type) +
+    their tests. They need the operator registry to hold their behavior; they
+    return once it exists.
+  - **Where the design landed:** behavior moved OFF `syg_type` into an **operator
+    registry** keyed by `(name, endpoints)`, resolved at BUILD time; `syg_type` =
+    pure data + one HOT `tick`; a `syg_value` is its own frame (members = args +
+    return slots). `impl` = the type's SOURCE (graph topology / native source /
+    `{}`). Deeper floor (horizon, in `stage0.md` "registry endgame"): a type's
+    minimal descriptor is a **construction-term** → type universe = Merkle DAG of
+    type-constructors; only `tick` is hot; grounding bottoms out in a pre-agreed
+    **genesis vocabulary** + the senses.
+  - **Next action (this thread):** build the minimal **exact-match operator
+    registry** (asker supplies operator name + full endpoint set → the type/
+    behavior). Then: nail seam-0 (how endpoints fold into `id`); mint an
+    input-bearing component so `wire` is real; un-park variant/graph onto the
+    registry. **Uncommitted:** `CMakeLists.txt` (the variant/graph parking) —
+    commit it. (Prior session work was swept into commit `447664b "misc"`.)
+
+- **Next action (escapement thread):** open the crown's parked seams (kinds-by-index → registry
   organ; typed constants; bounds-as-fault, law.errors_are_values), OR the smallest playable
   graph driving one sense. Do NOT race `conformance/run.py`; it trails.
   NOTE: `src/escapement/` is the live tree; `src/syg/main.cpp` still dispatches

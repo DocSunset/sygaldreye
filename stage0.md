@@ -191,6 +191,43 @@ We're likely to take the macro. Its whitespace-normalization + comment-stripping
 a downside — is a **feature for hashing**: the normalized text content-addresses cleanly,
 so a native type's source can seed its `id` the way a graph's topology seeds a graph-type's.
 
+## The registry endgame — descriptor = term, grounding = the senses (horizon)
+
+Not stage-0 work; the floor we found by pushing the registry idea to its limit, written
+so it isn't lost.
+
+- **A type's minimal descriptor is a *construction term*, not a record.** It is
+  `(constructor, child-id, child-id, …)` — a leaf is `(prim, size, category)`; a product
+  is `(product, id_x, id_y, …)` (a name-hash per child if endpoint names are in `id`).
+  Everything we store in the fat `syg_type` — `size`, `align`, offsets, `shape`, `id`,
+  even behavior — is **derived by folding the term**. So the struct is the *memoized fold*
+  (a cache), and the term is the truth. That term IS the operator-registry key
+  `(constructor-name, arg-ids)`: **descriptor = construction recipe = registry key**, one
+  thing. The type universe is a **Merkle DAG of type-constructors**, content-addressed
+  (`id` = hash of the term), grounding at nullary constructors (primitives).
+
+- **Only `tick` is hot.** `size`/`align`/`members`/`template_args`/`name`/`scope`/`shape`/
+  `impl` are all *build-time* (baked into offsets/topology, then never re-read). So the
+  value's type-handle could shrink all the way to an **`id`**, with hot consumers (a
+  graph's node array) caching resolved ticks at their use site. The irreducible native
+  kernel is then just `{a hash map} + {one native descriptor layout}` — you can't go below
+  "must know a descriptor's layout to read descriptors." (Mesh/portability win: ship
+  `{id, data}`, resolve behavior locally. Pull it when peers ship types, not before.)
+
+- **Grounding: self-description buys coherence, not meaning.** The fixed point (`Type :
+  Type`, `string` naming string) is *bedrock*, not an explanation — it marks where the
+  kernel ends, below which a reader must already know. So there is an irreducible
+  **genesis vocabulary**: a small, versioned set of primitive type-ids carved into the C
+  kernel and agreed *out of band* by every peer (like IPFS's multicodec table, CPython's
+  `PyTypeObject`, a CPU's ISA). And the *ultimate* grounding is the **senses** — recursive
+  metadata is a decoder chain whose last link is a sensation (rainfall hitting an eardrum),
+  not another hash. That is Sygaldreye's thesis ("terminating in someone's senses"), and
+  it means the seed is not a bug to engineer away — only a thing to carve deliberately.
+
+Stage-0 stance: keep the fat `syg_type` struct (it is both bootstrap rock and access
+cache); build a plain **exact-match** operator registry next. The term/DAG/genesis form is
+the horizon.
+
 ## Open seams
 
 0. **Behavior → operator registry (struct half LANDED, registry TBD).** The lifecycle

@@ -25,8 +25,7 @@ set_target_properties(stage0_test PROPERTIES CXX_STANDARD 26)
 target_compile_options(stage0_test PRIVATE -std=c++26 -freflection -Wno-pedantic)
 add_test(NAME stage0 COMMAND stage0_test)
 
-# variant: a sum type minted at runtime as a syg_type. Includes stage0.hpp (reflection).
-add_executable(variant_test src/variant.test.cpp)
-set_target_properties(variant_test PROPERTIES CXX_STANDARD 26)
-target_compile_options(variant_test PRIVATE -std=c++26 -freflection -Wno-pedantic)
-add_test(NAME variant COMMAND variant_test)
+# PARKED (pre-registry sketches): src/variant.{hpp,test.cpp} and src/graph.{hpp,test.cpp}
+# validated shapes we've since moved past — behavior (place/erase/move/wire) left syg_type
+# for the operator registry, which they need to work. They return once it exists. See
+# stage0.md. Their targets are intentionally not built.
