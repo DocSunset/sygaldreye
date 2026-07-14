@@ -1,12 +1,13 @@
 #pragma once
 // types.hpp — the type constructors of decree v1: fiat (the ground), atom,
-// structure, variant, and the two pointers. Every constructor mints a
-// syg_node_t whose data is its TERM — and a term holds only what cannot be
-// derived: atom carries size/align (ground facts); structure/variant carry
+// structure, variant, and the two pointers. Every constructor mints a node
+// whose content is its TERM — and a term holds only what cannot be derived:
+// atom carries instance size/align (ground facts); structure/variant carry
 // only (name, type) pairs (instance layout derives per-peer by folding
 // children); pointers carry only their pointee. Every mint ends at the
 // registry's insert_or_get (not yet built) — payload ownership transfers
-// there; until then the allocations here are cheques written on it.
+// there; until then the allocations here are cheques written on it, and
+// every handle's env is nullptr (homeless until the registry exists).
 #include "node.hpp"
 #include <cstdlib>
 #include <cstring>
@@ -20,60 +21,72 @@ namespace syg {
 // "anonymous" in a composite term's name slot.
 constexpr syg_hash GROUND{};
 
-// A fiat node: type GROUND, data its canonical name. One per decree-roster
-// row; its id falls out of the same preimage as every other id — ONE identity
-// scheme, recomputable by anyone holding the decree (names + algorithm).
-inline syg_node_t fiat(const char* name) {
-  return { syg_id(GROUND, std::strlen(name), name), GROUND, std::strlen(name), (void*)name };
+// A fiat node: type GROUND, data its canonical name — a fiat node IS a
+// decreed string. One per decree-roster row; its id falls out of the same
+// preimage as every other id — ONE identity scheme, recomputable by anyone
+// holding the decree (names + algorithm).
+inline syg_handle_t fiat(const char* name) {
+  return { syg_id(GROUND, std::strlen(name), name), GROUND, (void*)name, std::strlen(name), nullptr };
 }
 
 // ── the roster (so far) ─────────────────────────────────────────────────────
-inline const syg_node_t ATOM         = fiat("atom");          // primitive-type constructor
-inline const syg_node_t STRING       = fiat("string");        // utf-8 bytes; length in the header
-inline const syg_node_t STRUCTURE    = fiat("structure");     // product: all of the fields
-inline const syg_node_t VARIANT      = fiat("variant");       // sum: one of the cases (tag + widest)
-inline const syg_node_t MUTABLE_PTR  = fiat("mutable_ptr");   // may write through it
-inline const syg_node_t CONSTANT_PTR = fiat("constant_ptr");  // may only read through it
-
-// ── strings ─────────────────────────────────────────────────────────────────
-inline syg_node_t string_node(const char* s) {
-  std::uint64_t n = std::strlen(s);
-  return { syg_id(STRING.id, n, s), STRING.id, n, (void*)s };
-}
+inline const syg_handle_t ATOM         = fiat("atom");          // primitive-type constructor
+inline const syg_handle_t STRUCTURE    = fiat("structure");     // product: all of the fields
+inline const syg_handle_t VARIANT      = fiat("variant");       // sum: one of the cases (tag + widest)
+inline const syg_handle_t MUTABLE_PTR  = fiat("mutable_ptr");   // may write through it
+inline const syg_handle_t CONSTANT_PTR = fiat("constant_ptr");  // may only read through it
 
 // ── atom: mint a primitive type ─────────────────────────────────────────────
 // Authored spelling of ATOM's instance layout (reflection makes the layout
-// itself a node later; until then it is one decree row). The returned node IS
-// the term node: a three-field record through ATOM's eyes, a type through the
-// universe's. Instance size/align live INSIDE the term — facts about the
-// type; the header's size is the term's own byte length.
+// itself a node later; until then it is one decree row). The returned handle
+// grips the term node: a three-field record through ATOM's eyes, a type
+// through the universe's. Instance size/align live INSIDE the term — facts
+// about the type; the handle's size is the term's own byte length.
 struct atom_term { syg_hash name; std::uint64_t size, align; };
 
-inline syg_node_t atom(syg_hash name /* id of a STRING node */,
-                       std::uint64_t size, std::uint64_t align) {
+// instance length "dynamic": it comes from the handle/store, never the type
+// (an unsized type). Max, not 0 — a ZERO-size atom is legal and useful: a
+// `struct type_tag {};` carries no bytes but is still a type.
+inline constexpr std::uint64_t DYNAMIC = ~std::uint64_t{0};
+
+inline syg_handle_t atom(syg_hash name /* id of a STRING node */,
+                         std::uint64_t size, std::uint64_t align) {
   auto* t = new atom_term{name, size, align};
-  return { syg_id(ATOM.id, sizeof *t, t), ATOM.id, sizeof *t, t };
+  return { syg_id(ATOM.id, sizeof *t, t), ATOM.id, t, sizeof *t, nullptr };
 }
 // atom(const char* name, …) — the authored convenience — waits on the
 // registry: its whole job is insert_or_get(string_node(name)); hashing alone
 // would mint types whose name-ids point at nothing.
 
+// ── strings ─────────────────────────────────────────────────────────────────
+// STRING is a MINTED atom, not a roster row: unsized, byte granularity.
+// Bootstrap asymmetry, on purpose: its own name cannot be a STRING-typed
+// node (the id would contain itself — a hash fixed point), so it is named by
+// the fiat node "string", whose data is exactly its name's bytes. Every
+// later name is an ordinary STRING node.
+inline const syg_handle_t STRING = atom(fiat("string").id, DYNAMIC, 1);
+
+inline syg_handle_t string_node(const char* s) {
+  std::uint64_t n = std::strlen(s);
+  return { syg_id(STRING.id, n, s), STRING.id, (void*)s, n, nullptr };
+}
+
 // ── structure & variant: ONE term layout, two decoders ─────────────────────
 struct field_term { syg_hash name; syg_hash type; };   // one field / one case
 
 // term = [ name ][ field_term… ]; arity is NOT stored — it falls out of the
-// header: (size - 8) / 16. name = GROUND ⇒ anonymous (purely structural).
-inline syg_node_t composite(const syg_node_t& ctor, syg_hash name,
-                            std::span<const field_term> fields) {
+// handle: (size - 8) / 16. name = GROUND ⇒ anonymous (purely structural).
+inline syg_handle_t composite(const syg_handle_t& ctor, syg_hash name,
+                              std::span<const field_term> fields) {
   std::uint64_t sz = sizeof name + fields.size_bytes();
   auto* t = (unsigned char*)std::malloc(sz);
   std::memcpy(t, &name, sizeof name);
   std::memcpy(t + sizeof name, fields.data(), fields.size_bytes());
-  return { syg_id(ctor.id, sz, t), ctor.id, sz, t };
+  return { syg_id(ctor.id, sz, t), ctor.id, t, sz, nullptr };
 }
-inline syg_node_t structure(syg_hash name, std::span<const field_term> fields)
+inline syg_handle_t structure(syg_hash name, std::span<const field_term> fields)
   { return composite(STRUCTURE, name, fields); }
-inline syg_node_t variant(syg_hash name, std::span<const field_term> cases)
+inline syg_handle_t variant(syg_hash name, std::span<const field_term> cases)
   { return composite(VARIANT, name, cases); }
 
 // ── pointers: unary, anonymous, term = the pointee id ──────────────────────
@@ -81,11 +94,11 @@ inline syg_node_t variant(syg_hash name, std::span<const field_term> cases)
 // OWNERSHIP: a mutable_ptr may be owned heap or borrowed output memory a
 // builder placed (the privileged-unsafe seam). Ownership is a graph-level
 // fact — tick and the lifecycle operators decide what is input and output.
-inline syg_node_t pointer(const syg_node_t& ctor, syg_hash pointee) {
+inline syg_handle_t pointer(const syg_handle_t& ctor, syg_hash pointee) {
   auto* t = new syg_hash{pointee};
-  return { syg_id(ctor.id, sizeof *t, t), ctor.id, sizeof *t, t };
+  return { syg_id(ctor.id, sizeof *t, t), ctor.id, t, sizeof *t, nullptr };
 }
-inline syg_node_t mutable_ptr(syg_hash pointee)  { return pointer(MUTABLE_PTR,  pointee); }
-inline syg_node_t constant_ptr(syg_hash pointee) { return pointer(CONSTANT_PTR, pointee); }
+inline syg_handle_t mutable_ptr(syg_hash pointee)  { return pointer(MUTABLE_PTR,  pointee); }
+inline syg_handle_t constant_ptr(syg_hash pointee) { return pointer(CONSTANT_PTR, pointee); }
 
 }  // namespace syg

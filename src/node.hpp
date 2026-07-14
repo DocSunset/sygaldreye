@@ -1,19 +1,22 @@
 #pragma once
-// node.hpp — THE decree: the one struct a reader must already know in order to
-// read anything else. Everything in the universe is one of these — a value, a
-// type (a term whose `type` is its constructor), a behavior, the registry
-// itself. The portable half is {id, type, size} + the payload bytes; `data` is
-// this peer's pointer to them — local, never on the wire. Behavior (tick) is
-// NOT here: it attaches from outside (a ref per type), resolved at build time.
+// node.hpp — a NODE is (type, bytes): content, a mathematical object, not a
+// struct. What ships is bytes, framed by transport; the id is a DERIVED name
+// (recompute = verify); the size is a fact about the span; data and env are
+// where the bytes sit and resolve HERE. So the one struct is the HANDLE —
+// this peer's grip on a node. The eternal surface is only the preimage below
+// + the algorithm (hash.hpp) + the fiat roster (types.hpp).
 #include "hash.hpp"
 #include <cstdint>
 
 extern "C" {
-struct syg_node_t {
-  syg_hash      id;    // = syg_id(…) — content address; this node's name in the universe
-  syg_hash      type;  // the node that decodes this one; chains ground at the genesis roster
-  std::uint64_t size;  // byte length of data — hashable, shippable, without decoding
-  void*         data;  // the payload, meaningful only through `type`
+typedef struct syg_registry_t syg_registry_t;  // itself a node's payload; designed later
+
+struct syg_handle_t {
+  syg_hash        id;    // derived: the content's name (memoized fold)
+  syg_hash        type;  // ┐ the node — a (type, bytes) content;
+  void*           data;  // ┘ everything else is our grip on it
+  std::uint64_t   size;  // the span's length (store fact; also a preimage input)
+  syg_registry_t* env;   // resolution context HERE — what its ids resolve through
 };
 }
 
@@ -23,4 +26,4 @@ struct syg_node_t {
 inline syg_hash syg_id(syg_hash type, std::uint64_t size, const void* data) {
   return syg_hash::bytes(data, size, syg_hash::mix(syg_hash::mix({syg_hash::basis}, type), size));
 }
-inline syg_hash syg_id(const syg_node_t& n) { return syg_id(n.type, n.size, n.data); }
+inline syg_hash syg_id(const syg_handle_t& h) { return syg_id(h.type, h.size, h.data); }
