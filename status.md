@@ -97,12 +97,22 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     minimal descriptor is a **construction-term** → type universe = Merkle DAG of
     type-constructors; only `tick` is hot; grounding bottoms out in a pre-agreed
     **genesis vocabulary** + the senses.
-  - **Next action (this thread):** draft the decree document (versioned,
-    prose + roster table) for Travis to ratify; then the registry/table as a
-    node over `syg_node_t` (content-addressed half + ref half), onto which the
-    operator-registry plan (seam 0) and the parked variant/graph land. The
-    `struct_` constructor forces variable-arity nodes — missing vocabulary,
-    sketch next.
+  - **Landed (`11523a0`): `src/types.hpp` + test — decree-v1 constructors.**
+    `GROUND` (zero digest) terminates type chains + doubles as anonymous;
+    `fiat(name)` mints roster rows via the SAME preimage (one id scheme,
+    recomputable): ATOM, STRING, STRUCTURE, VARIANT, MUTABLE_PTR,
+    CONSTANT_PTR. Terms hold ONLY the underivable (atom = {name-id, size,
+    align}; structure/variant share one [name][fields…] layout, split by
+    constructor id; pointers = pointee id — ACCESS not ownership; arity rides
+    in header size, unstored). Names are ids of STRING nodes ("every hash
+    decodes"). All in `namespace syg`.
+  - **Next action (this thread):** the registry/table as a NODE over
+    `syg_node_t` (content-addressed half + ref half; `insert_or_get` — every
+    types.hpp mint writes cheques on it, incl. payload ownership + the
+    `atom(const char*)` convenience). Then: the decree document (versioned
+    prose + roster) for Travis to ratify; graph-form variable-arity nodes
+    (structure as a wired node — missing vocabulary); tick-refs; un-park
+    variant/graph.
 
 - **Next action (escapement thread):** open the crown's parked seams (kinds-by-index → registry
   organ; typed constants; bounds-as-fault, law.errors_are_values), OR the smallest playable
