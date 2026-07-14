@@ -9,14 +9,14 @@
 #include <cstdint>
 
 extern "C" {
-typedef struct syg_registry_t syg_registry_t;  // itself a node's payload; designed later
+typedef struct syg_env_t syg_env_t;  // the environment: a lexical frame of grips (env.hpp)
 
 struct syg_handle_t {
   syg_hash        id;    // derived: the content's name (memoized fold)
   syg_hash        type;  // ┐ the node — a (type, bytes) content;
   void*           data;  // ┘ everything else is our grip on it
   std::uint64_t   size;  // the span's length — a store fact (how many bytes to hash)
-  syg_registry_t* env;   // resolution context HERE — what its ids resolve through
+  syg_env_t*      env;   // resolution context HERE — what its ids resolve through
 };
 }
 

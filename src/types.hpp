@@ -5,9 +5,9 @@
 // atom carries instance size/align (ground facts); structure/variant carry
 // only (name, type) pairs (instance layout derives per-peer by folding
 // children); pointers carry only their pointee. Every mint ends at the
-// registry's insert_or_get (not yet built) — payload ownership transfers
+// environment's insert_or_get (env.hpp) — payload ownership transfers
 // there; until then the allocations here are cheques written on it, and
-// every handle's env is nullptr (homeless until the registry exists).
+// a freshly minted handle's env is nullptr until it is registered.
 #include "node.hpp"
 #include <cstdlib>
 #include <cstring>
@@ -53,11 +53,11 @@ inline constexpr std::uint64_t DYNAMIC = ~std::uint64_t{0};
 inline syg_handle_t atom(syg_hash name /* id of a STRING node */,
                          std::uint64_t size, std::uint64_t align) {
   auto* t = (atom_term*)std::malloc(sizeof(atom_term));   // malloc, uniformly: a term
-  *t = {name, size, align};                               // is a temporary the registry
+  *t = {name, size, align};                               // is a temporary the store
   return { syg_id(ATOM.id, sizeof *t, t), ATOM.id, t, sizeof *t, nullptr };  // copies then frees
 }
 // atom(const char* name, …) — the authored convenience — waits on the
-// registry: its whole job is insert_or_get(string_node(name)); hashing alone
+// environment: its whole job is insert_or_get(string_node(name)); hashing alone
 // would mint types whose name-ids point at nothing.
 
 // ── strings ─────────────────────────────────────────────────────────────────
@@ -109,7 +109,7 @@ inline syg_handle_t constant_ptr(syg_hash pointee) { return pointer(CONSTANT_PTR
 // scope(scope(GROUND, "geo"), "vec2"). A term's name slot may point at a
 // STRING (unqualified), a SCOPE chain (qualified), or GROUND (anonymous) —
 // the id's TYPE says which; :: is spelling, not structure. Qualification is
-// IDENTITY (it folds into ids); the environment (registry.hpp) is RESOLUTION
+// IDENTITY (it folds into ids); the environment (env.hpp) is RESOLUTION
 // (what's visible HERE, mutable, idless) — never conflate the two.
 struct scope_term { syg_hash parent; syg_hash name; };
 
