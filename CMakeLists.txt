@@ -28,6 +28,8 @@ add_test(NAME stage0 COMMAND stage0_test)
 # decree-v1 type constructors over syg_node_t (plain C++20, no reflection).
 add_executable(types_test src/types.test.cpp)
 add_test(NAME types COMMAND types_test)
+add_executable(registry_test src/registry.test.cpp)
+add_test(NAME registry COMMAND registry_test)
 
 # PARKED (pre-registry sketches): src/variant.{hpp,test.cpp} and src/graph.{hpp,test.cpp}
 # validated shapes we've since moved past — behavior (place/erase/move/wire) left syg_type

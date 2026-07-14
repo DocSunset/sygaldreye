@@ -35,6 +35,7 @@ inline const syg_handle_t STRUCTURE    = fiat("structure");     // product: all 
 inline const syg_handle_t VARIANT      = fiat("variant");       // sum: one of the cases (tag + widest)
 inline const syg_handle_t MUTABLE_PTR  = fiat("mutable_ptr");   // may write through it
 inline const syg_handle_t CONSTANT_PTR = fiat("constant_ptr");  // may only read through it
+inline const syg_handle_t SCOPE        = fiat("scope");         // one step of a qualified name
 
 // ── atom: mint a primitive type ─────────────────────────────────────────────
 // Authored spelling of ATOM's instance layout (reflection makes the layout
@@ -51,8 +52,9 @@ inline constexpr std::uint64_t DYNAMIC = ~std::uint64_t{0};
 
 inline syg_handle_t atom(syg_hash name /* id of a STRING node */,
                          std::uint64_t size, std::uint64_t align) {
-  auto* t = new atom_term{name, size, align};
-  return { syg_id(ATOM.id, sizeof *t, t), ATOM.id, t, sizeof *t, nullptr };
+  auto* t = (atom_term*)std::malloc(sizeof(atom_term));   // malloc, uniformly: a term
+  *t = {name, size, align};                               // is a temporary the registry
+  return { syg_id(ATOM.id, sizeof *t, t), ATOM.id, t, sizeof *t, nullptr };  // copies then frees
 }
 // atom(const char* name, …) — the authored convenience — waits on the
 // registry: its whole job is insert_or_get(string_node(name)); hashing alone
@@ -95,10 +97,26 @@ inline syg_handle_t variant(syg_hash name, std::span<const field_term> cases)
 // builder placed (the privileged-unsafe seam). Ownership is a graph-level
 // fact — tick and the lifecycle operators decide what is input and output.
 inline syg_handle_t pointer(const syg_handle_t& ctor, syg_hash pointee) {
-  auto* t = new syg_hash{pointee};
+  auto* t = (syg_hash*)std::malloc(sizeof(syg_hash));
+  *t = pointee;
   return { syg_id(ctor.id, sizeof *t, t), ctor.id, t, sizeof *t, nullptr };
 }
 inline syg_handle_t mutable_ptr(syg_hash pointee)  { return pointer(MUTABLE_PTR,  pointee); }
 inline syg_handle_t constant_ptr(syg_hash pointee) { return pointer(CONSTANT_PTR, pointee); }
+
+// ── scope: qualification as content ─────────────────────────────────────────
+// One step of a qualified name — a Merkle chain of names: geo::vec2 =
+// scope(scope(GROUND, "geo"), "vec2"). A term's name slot may point at a
+// STRING (unqualified), a SCOPE chain (qualified), or GROUND (anonymous) —
+// the id's TYPE says which; :: is spelling, not structure. Qualification is
+// IDENTITY (it folds into ids); the environment (registry.hpp) is RESOLUTION
+// (what's visible HERE, mutable, idless) — never conflate the two.
+struct scope_term { syg_hash parent; syg_hash name; };
+
+inline syg_handle_t scope(syg_hash parent, syg_hash name /* id of a STRING node */) {
+  auto* t = (scope_term*)std::malloc(sizeof(scope_term));
+  *t = {parent, name};
+  return { syg_id(SCOPE.id, sizeof *t, t), SCOPE.id, t, sizeof *t, nullptr };
+}
 
 }  // namespace syg
