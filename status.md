@@ -106,13 +106,26 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     constructor id; pointers = pointee id — ACCESS not ownership; arity rides
     in header size, unstored). Names are ids of STRING nodes ("every hash
     decodes"). All in `namespace syg`.
-  - **Next action (this thread):** the registry/table as a NODE over
-    `syg_node_t` (content-addressed half + ref half; `insert_or_get` — every
-    types.hpp mint writes cheques on it, incl. payload ownership + the
-    `atom(const char*)` convenience). Then: the decree document (versioned
-    prose + roster) for Travis to ratify; graph-form variable-arity nodes
-    (structure as a wired node — missing vocabulary); tick-refs; un-park
-    variant/graph.
+  - **Landed since (`b8b7a80`…`f90b159`):** node = (type, bytes) CONTENT; the
+    one struct is `syg_handle_t {id, type, data, size, env}` (id = derived
+    name, size = store fact, env = resolution context) — node.hpp. Preimage
+    SHORTENED: `id = fnv1a(type ∥ bytes)` (size dropped — one terminal
+    variable field is unambiguous). DYNAMIC = ~0 marks unsized (0 stays legal:
+    type_tag); STRING demoted to a minted unsized atom named by fiat("string")
+    (its own name can't be STRING-typed — hash fixed point; content-addressing
+    makes reference cycles unconstructable, type chains ground at GROUND).
+    `registry.hpp`: syg_registry_t {parent, table} — environments compose;
+    insert_or_get copies + stamps env, confluent; floor() pre-registers the
+    decree; atom/scope char* conveniences register names. `scope` constructor:
+    qualification-as-content (Merkle name chains; name slot polymorphic
+    STRING/SCOPE/GROUND by type; identity vs resolution split). Demotion
+    ratchet: a roster row stays fiat iff its content can't be said from
+    inside. types_test + registry_test green.
+  - **Next action (this thread):** the decree document (versioned prose +
+    roster) for Travis to ratify. Then: tick-refs (behavior via ref, the ref
+    half of the registry); graph-form variable-arity nodes (structure as a
+    wired node — missing vocabulary); the arithmetic atom roster (float32…)
+    minted at floor-time?; un-park variant/graph onto the new world.
 
 - **Next action (escapement thread):** open the crown's parked seams (kinds-by-index → registry
   organ; typed constants; bounds-as-fault, law.errors_are_values), OR the smallest playable
