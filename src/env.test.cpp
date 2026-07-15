@@ -100,5 +100,12 @@ int main() {
   // the method's type IS its signature — a resident, decodable structure.
   const syg_handle_t* m = follow(env, derived(CONSTRUCT.id, ATOM.id));
   assert(m && get(env, m->type) && get(env, m->type)->type == STRUCTURE.id);
+
+  // dispatch is all-purpose: any relation, any subject — a user relation is
+  // just a minted symbol bound to a method like any other.
+  method rm = resolve(env, CONSTRUCT.id, ATOM.id);
+  assert(rm.fn && rm.sig);                       // the cold half, cacheable
+  assert(call(env, rm, 3, args).id == f16.id);   // the hot half, no lookups
+  assert(dispatch(env, CONSTRUCT.id, ATOM.id, 3, args).id == f16.id);
   return 0;
 }

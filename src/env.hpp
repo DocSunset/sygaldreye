@@ -196,22 +196,31 @@ inline void bind_method(syg_env_t* env, syg_hash relation, syg_hash type, syg_ha
   bind(env, at, {address::symbol, at});
 }
 
-// emplace_or_get: mint BY TYPE ID. The ONE marshaller in the system —
-// handles in, raw frame out, driven by the method's signature:
+// resolve: the COLD half — follow any relation to a method. Cacheable: this
+// is what "binding at build time" means; a resolved method is what a graph's
+// node array holds, so the hot loop never walks a table. Today exact-match
+// on (relation, subject); the seam-0 query engine slots in behind this same
+// signature later.
+struct method { word fn; const syg_handle_t* sig; };
+inline method resolve(const syg_env_t* env, syg_hash relation, syg_hash subject) {
+  const syg_handle_t* m = follow(env, derived(relation, subject));
+  if (!m) return {};
+  return { *(word*)m->data, get(env, m->type) };   // the fn, and how to call it
+}
+
+// call: the ONE marshaller in the system — handles in, raw frame out, driven
+// by the method's signature:
 //   hash64 field  ⇒ the arg IS a reference: pass &arg.id
 //   envptr field  ⇒ HERE rides as a raw cell: pass &env
 //   rest_hash64   ⇒ consume ALL remaining args, as references
 //   last field    ⇒ the one output (stage-0 convention): pass &out
 //   otherwise     ⇒ pass arg.data (the payload cell)
 // Words never see a handle unless their signature declares one.
-inline syg_handle_t emplace_or_get(syg_env_t* env, syg_hash type,
-                                   std::uint64_t n, const syg_handle_t* args) {
-  const syg_handle_t* m = follow(env, derived(CONSTRUCT.id, type));
-  if (!m) throw std::runtime_error("syg: no constructor bound for this type");
-  const syg_handle_t* sig = get(env, m->type);
-  if (!sig) throw std::runtime_error("syg: method signature not resident");
-  auto* f = (const field_term*)((const char*)sig->data + sizeof(syg_hash));
-  std::uint64_t nf = (sig->size - sizeof(syg_hash)) / sizeof(field_term);
+inline syg_handle_t call(syg_env_t* env, const method& m,
+                         std::uint64_t n, const syg_handle_t* args) {
+  if (!m.sig) throw std::runtime_error("syg: method signature not resident");
+  auto* f = (const field_term*)((const char*)m.sig->data + sizeof(syg_hash));
+  std::uint64_t nf = (m.sig->size - sizeof(syg_hash)) / sizeof(field_term);
 
   syg_hash h64 = h64_type(env).id, envp = envptr_type(env).id, rest = rest_h64_type(env).id;
   syg_handle_t out{.data = nullptr, .type = {}, .id = {}, .size = 0, .env = env};
@@ -223,9 +232,25 @@ inline syg_handle_t emplace_or_get(syg_env_t* env, syg_hash type,
     else if (f[i].type == rest) while (a < n) frame.push_back((void*)&args[a++].id);
     else                        frame.push_back(args[a++].data);
   }
-  (*(word*)m->data)(frame.data());
+  m.fn(frame.data());
   return out;
 }
+
+// dispatch: resolve + call, over ANY relation — CONSTRUCT is a roster row,
+// TICK/ERASE are coming, a user relation is just a minted symbol. A boot-
+// tape record is (relation, subject, arg-ids…): the crown's applier is this
+// function in a while loop.
+inline syg_handle_t dispatch(syg_env_t* env, syg_hash relation, syg_hash subject,
+                             std::uint64_t n, const syg_handle_t* args) {
+  method m = resolve(env, relation, subject);
+  if (!m.fn) throw std::runtime_error("syg: no method bound for (relation, subject)");
+  return call(env, m, n, args);
+}
+
+// emplace_or_get: mint BY TYPE ID — the constructors' entry point, one line.
+inline syg_handle_t emplace_or_get(syg_env_t* env, syg_hash type,
+                                   std::uint64_t n, const syg_handle_t* args)
+  { return dispatch(env, CONSTRUCT.id, type, n, args); }
 
 // generated-shape shims. A reflection-enabled registration TU will emit
 // these from describe_function and DELETE the hand copies; the frame layouts
