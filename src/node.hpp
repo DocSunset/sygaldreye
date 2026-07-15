@@ -26,6 +26,11 @@ struct syg_handle_t {
 // A fixed-width type then ONE terminal variable field: no parse is ambiguous,
 // so length is NOT absorbed — size here only says how many bytes to hash (a
 // store fact, like the span itself). Keep the eternal sentence short.
+// ONE preimage, two entries differing only in pointer type (both bottom out
+// in syg_hash::chars — agreement by construction, not coincidence):
+constexpr syg_hash syg_id(syg_hash type, std::uint64_t size, const char* data) {
+  return syg_hash::seed().mix(type).chars(data, size);
+}
 inline syg_hash syg_id(syg_hash type, std::uint64_t size, const void* data) {
   return syg_hash::seed().mix(type).bytes(data, size);
 }

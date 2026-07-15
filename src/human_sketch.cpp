@@ -1,3 +1,10 @@
 #include "env.hpp"
 
-// we need constructors and destructors that the env and content registry can resolve
+struct stage0_symbols {
+};
+
+void load_stage0(content_store registry) {
+  inscribe_symbol(registry, "atom");
+  inscribe_symbol(registry, "structure");
+  inscribe_symbol(registry, "structure");
+}

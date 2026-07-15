@@ -1,4 +1,6 @@
-// env.test.cpp — the environment: floor, organs, three contracts, composition.
+// env.test.cpp — the environment: floor, organs, birth-registered nodes,
+// method dispatch. Every node here is a store resident (no unregistered
+// nodes besides the inscribed roster).
 #include "env.hpp"
 #include <cassert>
 #include <cstring>
@@ -7,62 +9,90 @@ using namespace syg;
 int main() {
   syg_env_t* env = floor();
 
-  // the decree is pre-registered and resolvable through the CONTENT organ.
-  assert(get(env, content_id{ATOM.id}) && get(env, content_id{STRING.id}));
+  // the decree is resident and every row rehashes to its id.
+  for (const syg_handle_t& h : ROSTER) {
+    const syg_handle_t* r = get(env, h.id);
+    assert(r && r->data != h.data && syg_id(*r) == r->id && r->env == env);
+  }
 
-  // every hash the floor carries decodes: STRING's name is a SYMBOL node.
-  const syg_handle_t* sname = get(env, content_id{((atom_term*)get(env, content_id{STRING.id})->data)->name});
-  assert(sname && sname->type == SYMBOL.id && std::memcmp(sname->data, "string", 6) == 0);
+  // symbol vs string: same chars, different type => different id.
+  syg_handle_t sx = symbol_node(env, "x");
+  assert(!(sx.id == string_node(env, "x").id) && sx.type == SYMBOL.id);
 
-  // insert copies (store owns), stamps the organ's frame; duplicate is a no-op.
-  syg_handle_t probe = string_node("hello");
-  syg_handle_t a = insert_or_get(env, probe);
-  assert(a.data != probe.data && a.env == env && a.id == probe.id);
-  assert(insert_or_get(env, string_node("hello")).data == a.data);
+  // STRING is an ordinary resident atom: unsized, named by a SYMBOL.
+  syg_handle_t st = string_type(env);
+  assert(st.type == ATOM.id && ((atom_term*)st.data)->size == DYNAMIC);
+
+  // atoms: idempotent mint (same facts, same resident); name decodes HERE.
+  syg_handle_t f32 = atom(env, symbol_node(env, "float32").id, 4, 4);
+  assert(atom(env, symbol_node(env, "float32").id, 4, 4).data == f32.data);
+  assert(!(atom(env, symbol_node(env, "float32").id, 8, 8).id == f32.id));
+  const syg_handle_t* nm = get(env, ((atom_term*)f32.data)->name);
+  assert(nm && nm->type == SYMBOL.id && std::memcmp(nm->data, "float32", 7) == 0);
+
+  // values are content: every "4" dedupes to one node.
+  assert(u64_node(env, 4).data == u64_node(env, 4).data);
+  assert(!(u64_node(env, 4).id == u64_node(env, 5).id));
 
   // VERIFIED dedup: same id, different bytes => throw, never a silent merge.
   bool threw = false;
-  try { insert_or_get(env, {.data = (void*)"evil!", .type = STRING.id, .id = a.id, .size = 5, .env = nullptr}); }
+  try { insert_or_get(env, {.data = (void*)"evil!", .type = st.id, .id = sx.id,
+                            .size = 5, .env = nullptr}); }
   catch (const std::exception&) { threw = true; }
   assert(threw);
 
-  // environments compose: a child frame with NO organs writes through to the
-  // floor's store and resolves through it.
-  syg_env_t child{env, {}};
-  assert(get(&child, content_id{a.id}));
-  syg_handle_t f32 = atom(&child, "float32", 4, 4);
-  assert(get(env, content_id{f32.id}));  // landed in the floor's organ
+  // structure vs variant: SAME term bytes, different constructor => different
+  // id; arity falls out of the handle, unstored; anonymity is identity.
+  field_term xy[] = { {symbol_node(env, "x").id, f32.id}, {symbol_node(env, "y").id, f32.id} };
+  syg_handle_t s = structure(env, symbol_node(env, "vec2").id, xy);
+  syg_handle_t v = variant(env, symbol_node(env, "vec2").id, xy);
+  assert(s.size == v.size && std::memcmp(s.data, v.data, s.size) == 0 && !(s.id == v.id));
+  assert((s.size - sizeof(syg_hash)) / sizeof(field_term) == 2);
+  assert(!(structure(env, GROUND, xy).id == s.id));
 
-  // a child with its OWN content organ overlays: writes stay local.
+  // pointers: access flavors split the id; the term is just the pointee.
+  assert(!(mutable_ptr(env, f32.id).id == constant_ptr(env, f32.id).id));
+  assert(*(syg_hash*)constant_ptr(env, f32.id).data == f32.id);
+
+  // scope chains dedupe; qualification is identity.
+  syg_handle_t geo = scope(env, GROUND, "geo");
+  syg_handle_t v2  = scope(env, geo.id, "vec2");
+  assert(((scope_term*)v2.data)->parent == geo.id);
+  assert(scope(env, GROUND, "geo").data == geo.data);
+  assert(!(structure(env, v2.id, xy).id == s.id));
+
+  // environments compose: an organless child writes through to the floor;
+  // a child with its OWN organ overlays (writes stay local, floor visible).
+  syg_env_t child{env, {}};
+  syg_handle_t f16 = atom(&child, symbol_node(&child, "float16").id, 2, 2);
+  assert(get(env, f16.id));
   syg_env_t scratch{env, {}};
   content_store local;
-  wire(&scratch, CONTENT, {.data = &local, .type = GROUND, .id = {}, .size = sizeof local, .env = nullptr});
-  syg_handle_t f64 = atom(&scratch, "float64", 8, 8);
-  assert(get(&scratch, content_id{f64.id}) && !get(env, content_id{f64.id}));
-  assert(get(&scratch, content_id{f32.id}));  // floor content still visible
+  wire(&scratch, CONTENT.id, {.data = &local, .type = GROUND, .id = {},
+                              .size = sizeof local, .env = nullptr});
+  syg_handle_t f64 = atom(&scratch, symbol_node(&scratch, "float64").id, 8, 8);
+  assert(get(&scratch, f64.id) && !get(env, f64.id) && get(&scratch, f32.id));
 
-  // symbols: wire/find/unwire — conferred HERE, invisible above, mortal.
+  // symbols: conferred HERE, invisible above, mortal. refs point at EITHER
+  // world; rebind = a name changing its mind.
   static int cell = 42;
-  sym_name CELL{fiat("cell").id};
+  syg_hash CELL = symbol_node(env, "cell").id;
   wire(&child, CELL, {.data = &cell, .type = GROUND, .id = {}, .size = sizeof cell, .env = nullptr});
-  const syg_handle_t* grip = find(&child, CELL);
-  assert(grip && *(int*)grip->data == 42 && grip->id == CELL.h && !find(env, CELL));
-  // refs: bind to a SYMBOL address (a live grip), then change the name's mind
-  // to a CONTENT address — follow resolves into either world.
-  ref_name r{derived(fiat("tick").id, f32.id)};
-  bind(&child, r, {address::symbol, CELL.h});
-  assert(follow(&child, r) && *(int*)follow(&child, r)->data == 42);
+  assert(find(&child, CELL) && *(int*)find(&child, CELL)->data == 42 && !find(env, CELL));
+  syg_hash r = derived(SYMBOL.id, f32.id);
+  bind(&child, r, {address::symbol, CELL});
+  assert(*(int*)follow(&child, r)->data == 42);
   bind(&child, r, {address::content, f32.id});
-  assert(follow(&child, r) && follow(&child, r)->id == f32.id);
+  assert(follow(&child, r)->id == f32.id);
   unwire(&child, CELL);
   assert(!find(&child, CELL));
 
-  // scope chains still mint and dedupe; qualification is identity.
-  syg_handle_t geo = scope(&child, GROUND, "geo");
-  syg_handle_t v2  = scope(&child, geo.id, "vec2");
-  assert(((scope_term*)v2.data)->parent == geo.id);
-  assert(scope(&child, GROUND, "geo").data == geo.data);
-  field_term xy[] = { {string_node("x").id, f32.id}, {string_node("y").id, f32.id} };
-  assert(!(structure(v2.id, xy).id == structure(string_node("vec2").id, xy).id));
+  // emplace_or_get: mint BY TYPE ID — dispatch and the typed path agree.
+  syg_handle_t args[] = { symbol_node(env, "float16"), u64_node(env, 2), u64_node(env, 2) };
+  syg_handle_t e16 = emplace_or_get(env, ATOM.id, 3, args);
+  assert(e16.id == f16.id && e16.data == get(env, f16.id)->data);
+  syg_handle_t sargs[] = { symbol_node(env, "vec2"),
+                           symbol_node(env, "x"), f32, symbol_node(env, "y"), f32 };
+  assert(emplace_or_get(env, STRUCTURE.id, 5, sargs).id == s.id);
   return 0;
 }

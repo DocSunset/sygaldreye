@@ -1,53 +1,23 @@
-// types.test.cpp — decree-v1 constructors: identity falls out of content.
+// types.test.cpp — the inscribed decree: compile-time truth.
 #include "types.hpp"
 #include <cassert>
-#include <cstring>
 using namespace syg;
 
+// distinct rows, computable ids, exactly the roster we decreed.
+static_assert(ROSTER.size() == 10);
+static_assert(!(ATOM.id == STRUCTURE.id));
+static_assert(inscribe_symbol("atom").id == ATOM.id);   // recomputable by anyone
+static_assert(ATOM.type == GROUND && ATOM.size == 4);
+
 int main() {
-  // fiat is deterministic and recomputable; roster rows are distinct.
-  assert(ATOM.id == fiat("atom").id);
-  assert(!(ATOM.id == STRUCTURE.id));
-
-  // symbol vs string: same chars, different type => different id (a name is
-  // not text). STRING is an ordinary minted atom named by a SYMBOL node.
-  assert(!(symbol_node("x").id == string_node("x").id));
-  assert(STRING.type == ATOM.id);
-  assert(((atom_term*)STRING.data)->size == DYNAMIC);
-  assert(((atom_term*)STRING.data)->name == symbol_node("string").id);
-
-  // atom: same ground facts => same id; different facts => different id.
-  syg_hash f32name = symbol_node("float32").id;
-  syg_handle_t f32 = atom(f32name, 4, 4);
-  assert(f32.id == atom(f32name, 4, 4).id);
-  assert(!(f32.id == atom(f32name, 8, 8).id));
-  assert(((atom_term*)f32.data)->size == 4 && f32.size == sizeof(atom_term));
-
-  // a zero-size atom is legal (type_tag for metaprogramming) and distinct.
-  syg_handle_t tag = atom(symbol_node("type_tag").id, 0, 1);
-  assert(!(tag.id == f32.id));
-
-  // structure vs variant: SAME term bytes, different constructor => different id.
-  field_term xy[] = { {symbol_node("x").id, f32.id}, {symbol_node("y").id, f32.id} };
-  syg_handle_t s = structure(symbol_node("vec2").id, xy);
-  syg_handle_t v = variant(symbol_node("vec2").id, xy);
-  assert(s.size == v.size && std::memcmp(s.data, v.data, s.size) == 0);
-  assert(!(s.id == v.id));
-
-  // arity falls out of the handle, unstored.
-  assert((s.size - sizeof(syg_hash)) / sizeof(field_term) == 2);
-
-  // the name is identity: anonymous (GROUND) differs from named.
-  assert(!(structure(GROUND, xy).id == s.id));
-
-  // pointers: access flavors split the id; the term is just the pointee.
-  assert(!(mutable_ptr(f32.id).id == constant_ptr(f32.id).id));
-  assert(*(syg_hash*)constant_ptr(f32.id).data == f32.id);
+  // the constexpr id twin and the runtime preimage are ONE function
+  // (both bottom out in syg_hash::chars) — verified over real content:
+  assert(syg_id(GROUND, ATOM.size, (const void*)ATOM.data) == ATOM.id);
 
   // data-first handle: a handle punned at its first member IS its payload.
-  assert(*(atom_term**)&f32 == (atom_term*)f32.data);
+  assert(*(char**)&ATOM == (char*)ATOM.data);
 
-  // ids verify: rehash the content, get the name back (the IPFS property).
-  assert(syg_id(s) == s.id && syg_id(f32) == f32.id && syg_id(STRING) == STRING.id);
+  // every roster row rehashes to its id (the IPFS property, at the floor).
+  for (const syg_handle_t& h : ROSTER) assert(syg_id(h) == h.id);
   return 0;
 }
