@@ -155,14 +155,28 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     destruction-ownership designed = unwire ticks ERASE word by grip type —
     NOT yet built, floor organs immortal). Data-first handle (first-member
     pun). All tests green.
-  - **Next action (this thread):** OPEN DISCUSSION — cold-word (replace
-    grips) vs hot-word (write through cells) frame disciplines; Travis finds
-    the split "not quite right"; candidate unification: slots ALWAYS
-    write-through, a cold word's return slot is just a handle-sized cell
-    (data points where the output goes, uniformly). Then: TICK binding +
-    the smallest ticking graph; ERASE + symbol-table ownership; decree doc;
-    parked: fiat+env, string_node borrow contract (comments in types.hpp…
-    now env.hpp).
+  - **Landed (`10d5cb7`, `87c3566`): ONE word ABI + the dispatcher.**
+    `word = void(*)(void**)` — IDENTICAL to the escapement's (frames
+    read-only structure, outputs write THROUGH slots, arity = signature
+    knowledge via count endpoints, HERE is data — no env/argc/handles in the
+    ABI). A method grip's TYPE IS ITS SIGNATURE (anonymous structure node,
+    (name,type) fields, inputs-then-outputs — the shape reflection reads off
+    C++; "the type of a behavior is how to call it" = the arrow, quietly).
+    `resolve` (cold, cacheable — a binding IS a resolved method; seam-0
+    query engine slots behind it) / `call` (the ONE marshaller: hash64 field
+    ⇒ &arg.id, envptr ⇒ &env, rest_hash64 ⇒ remaining args as refs, last
+    field ⇒ &out, else payload) / `dispatch` (any relation — a TAPE RECORD
+    is (relation, subject, arg-ids…); the crown's applier is dispatch in a
+    loop). `emplace_or_get` = dispatch(CONSTRUCT,…). Constructor words =
+    generated-SHAPE raw-cell shims (hand-written promissory notes). New
+    residents: hash64_fnv1a, envptr, handle, rest_hash64 (zero-size marker).
+  - **Next action (this thread): REVISIT REFLECTION** — the registration TU:
+    describe_function emits constructor words + signatures off the C++
+    (deletes hand shims + hand-built floor sigs); re-aim generate_component
+    from old fat syg_type_t to minting RESIDENT nodes through an env (start
+    retiring syg.hpp's old world). Then: TICK + smallest ticking graph;
+    ERASE + symbol-table ownership; decree doc. Parked: fiat+env,
+    string_node borrow contract.
 
 - **Next action (escapement thread):** open the crown's parked seams (kinds-by-index → registry
   organ; typed constants; bounds-as-fault, law.errors_are_values), OR the smallest playable
