@@ -137,11 +137,32 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     subj) = attach metadata without touching bytes (mesh-boundary note in
     env.hpp: exact-pair keys or crypto hash before foreign content drives
     local bindings). env_test green.
-  - **Next action (this thread):** TICK as relation/word — bind a type's
-    behavior via refs into symbols (WORD atom, word cells), resolve at build
-    time; then the decree document (versioned prose + roster); graph-form
-    variable-arity nodes; arithmetic atom roster at floor-time?; un-park
-    variant/graph.
+  - **Landed (`97203e9` + review sweep `61fec61`): nodes are BORN registered.**
+    types.hpp: `inscribe_symbol` = the SOLE unregistered factory (decree
+    precedes environments); constexpr roster constants, literals spelled
+    once, iterable ROSTER (10 rows incl. CONSTRUCT). hash.hpp: `chars()` THE
+    fold, str/bytes adapters, constexpr `syg_id` twin — preimage agreement BY
+    CONSTRUCTION. env.hpp: all constructors funnel through `node()` →
+    insert_or_get (stack terms, store's copy durable); typed key wrappers
+    DROPPED (the verb says how a hash reads); string/u64/word types minted
+    on demand (idempotent, literal once); SYMBOL/STRING split (a name ≠
+    text); `word = (env, argc, argv)` = the ONE behavior ABI;
+    `method_node` (grip on a word cell, id EMPTY: locations get names);
+    `bind_method(relation, type, method)` = the one binding pattern
+    (CONSTRUCT now; TICK/PLACE/ERASE verbatim later); `emplace_or_get` =
+    mint by type id = tick the constructor once (THE tape op). OWNERSHIP
+    LAW: handles never own; frames never own; tables own (symbol-table
+    destruction-ownership designed = unwire ticks ERASE word by grip type —
+    NOT yet built, floor organs immortal). Data-first handle (first-member
+    pun). All tests green.
+  - **Next action (this thread):** OPEN DISCUSSION — cold-word (replace
+    grips) vs hot-word (write through cells) frame disciplines; Travis finds
+    the split "not quite right"; candidate unification: slots ALWAYS
+    write-through, a cold word's return slot is just a handle-sized cell
+    (data points where the output goes, uniformly). Then: TICK binding +
+    the smallest ticking graph; ERASE + symbol-table ownership; decree doc;
+    parked: fiat+env, string_node borrow contract (comments in types.hpp…
+    now env.hpp).
 
 - **Next action (escapement thread):** open the crown's parked seams (kinds-by-index → registry
   organ; typed constants; bounds-as-fault, law.errors_are_values), OR the smallest playable
