@@ -131,8 +131,6 @@ inline syg_handle_t string_type(syg_env_t* env)
   { return atom(env, symbol_node(env, "string").id, DYNAMIC, 1); }
 inline syg_handle_t u64_type(syg_env_t* env)
   { return atom(env, symbol_node(env, "uint64").id, 8, 8); }
-inline syg_handle_t word_type(syg_env_t* env)
-  { return atom(env, symbol_node(env, "word").id, sizeof(void*), alignof(void*)); }
 
 inline syg_handle_t string_node(syg_env_t* env, const char* s)
   { return node(env, string_type(env).id, s, std::char_traits<char>::length(s)); }
@@ -161,19 +159,34 @@ inline syg_handle_t scope(syg_env_t* env, syg_hash parent, syg_hash name) {
 inline syg_handle_t scope(syg_env_t* env, syg_hash parent, const char* name)
   { return scope(env, parent, symbol_node(env, name).id); }
 
-// ── behavior: ONE ABI ───────────────────────────────────────────────────────
-// FRAME CONTRACT: slots are NON-OWNING grips; a cold word may replace a slot
-// freely — replacing a grip destroys nothing (ownership law above). Hot tick
-// words use the other discipline: write THROUGH output cells, never
-// reassign. The relation implies which applies.
-using word = void (*)(syg_env_t*, std::uint64_t argc, syg_handle_t* argv);
+// ── behavior: ONE ABI, ONE discipline ───────────────────────────────────────
+// THE word — void(*)(void**), IDENTICAL to the escapement's. A frame is
+// READ-ONLY structure; each slot points at a payload and the word writes
+// outputs THROUGH its slot. Slots follow the signature's declaration order,
+// inputs then outputs (component member order); arity is SIGNATURE
+// knowledge, never ABI knowledge (a variadic word declares a count input).
+// A generated word points slots at raw cells — zero indirection in the hot
+// loop; no env, no handles, no counts in the signature: even HERE is data.
+using word = void (*)(void** argv);
 
-// a method node: a grip on a word cell. id EMPTY on purpose: a fn pointer is
-// a location, not content — ASLR re-rolls its bytes per run; wasm has no
-// bytes at all. Locations get names (bind_method's derived name), never
-// content-hashes; when methods ship, their SOURCE ships, not these cells.
-inline syg_handle_t method_node(syg_env_t* env, word* cell) {
-  return {.data = cell, .type = word_type(env).id, .id = {}, .size = sizeof *cell, .env = env};
+// method-endpoint types, resident on demand — each literal spelled once:
+inline syg_handle_t h64_type(syg_env_t* env)      // an id field: "the arg IS a reference"
+  { return atom(env, symbol_node(env, "hash64_fnv1a").id, sizeof(syg_hash), alignof(syg_hash)); }
+inline syg_handle_t envptr_type(syg_env_t* env)   // HERE, as a declared endpoint
+  { return atom(env, symbol_node(env, "envptr").id, sizeof(void*), alignof(void*)); }
+inline syg_handle_t handle_type(syg_env_t* env)   // the grip struct itself; SITUATED, never ships
+  { return atom(env, symbol_node(env, "handle").id, sizeof(syg_handle_t), alignof(syg_handle_t)); }
+inline syg_handle_t rest_h64_type(syg_env_t* env) // zero-size marker: remaining args, as references
+  { return atom(env, symbol_node(env, "rest_hash64").id, 0, 1); }
+
+// a method node: a grip on a word cell whose TYPE IS ITS SIGNATURE — an
+// anonymous structure node of (name, type) fields, inputs then outputs:
+// exactly the shape reflection reads off a C++ function. "The type of a
+// behavior is how to call it." id EMPTY on purpose: a fn pointer is a
+// location, not content — ASLR re-rolls its bytes per run; wasm has no bytes
+// at all. Locations get names; when methods ship, their SOURCE ships.
+inline syg_handle_t method_node(syg_env_t* env, word* cell, syg_hash signature) {
+  return {.data = cell, .type = signature, .id = {}, .size = sizeof *cell, .env = env};
 }
 // the ONE binding pattern — CONSTRUCT today; TICK, PLACE, ERASE verbatim
 // later: grip the method at the derived name, point a ref at the grip.
@@ -182,29 +195,52 @@ inline void bind_method(syg_env_t* env, syg_hash relation, syg_hash type, syg_ha
   wire(env, at, method);
   bind(env, at, {address::symbol, at});
 }
-// emplace_or_get: mint BY TYPE ID — tick the type's constructor once. The
-// frame is args + one return slot; the caller stops knowing term layouts.
+
+// emplace_or_get: mint BY TYPE ID. The ONE marshaller in the system —
+// handles in, raw frame out, driven by the method's signature:
+//   hash64 field  ⇒ the arg IS a reference: pass &arg.id
+//   envptr field  ⇒ HERE rides as a raw cell: pass &env
+//   rest_hash64   ⇒ consume ALL remaining args, as references
+//   last field    ⇒ the one output (stage-0 convention): pass &out
+//   otherwise     ⇒ pass arg.data (the payload cell)
+// Words never see a handle unless their signature declares one.
 inline syg_handle_t emplace_or_get(syg_env_t* env, syg_hash type,
-                                   std::uint64_t argc, const syg_handle_t* argv) {
+                                   std::uint64_t n, const syg_handle_t* args) {
   const syg_handle_t* m = follow(env, derived(CONSTRUCT.id, type));
   if (!m) throw std::runtime_error("syg: no constructor bound for this type");
-  std::vector<syg_handle_t> frame(argv, argv + argc);
-  frame.push_back({});                            // the return slot
-  (*(word*)m->data)(env, frame.size(), frame.data());
-  return frame.back();
+  const syg_handle_t* sig = get(env, m->type);
+  if (!sig) throw std::runtime_error("syg: method signature not resident");
+  auto* f = (const field_term*)((const char*)sig->data + sizeof(syg_hash));
+  std::uint64_t nf = (sig->size - sizeof(syg_hash)) / sizeof(field_term);
+
+  syg_hash h64 = h64_type(env).id, envp = envptr_type(env).id, rest = rest_h64_type(env).id;
+  syg_handle_t out{.data = nullptr, .type = {}, .id = {}, .size = 0, .env = env};
+  std::vector<void*> frame;
+  for (std::uint64_t i = 0, a = 0; i < nf; ++i) {
+    if      (i == nf - 1)       frame.push_back(&out);
+    else if (f[i].type == envp) frame.push_back(&env);
+    else if (f[i].type == h64)  frame.push_back((void*)&args[a++].id);
+    else if (f[i].type == rest) while (a < n) frame.push_back((void*)&args[a++].id);
+    else                        frame.push_back(args[a++].data);
+  }
+  (*(word*)m->data)(frame.data());
+  return out;
 }
 
-// native folds, wearing the ABI — each delegates to its typed constructor:
-inline void atom_construct_word(syg_env_t* env, std::uint64_t argc, syg_handle_t* argv) {
-  argv[argc - 1] = atom(env, argv[0].id,                    // name: a SYMBOL resident
-                        *(std::uint64_t*)argv[1].data,      // size: a u64 VALUE resident
-                        *(std::uint64_t*)argv[2].data);     // align
+// generated-shape shims. A reflection-enabled registration TU will emit
+// these from describe_function and DELETE the hand copies; the frame layouts
+// below are exactly what it will produce:
+inline void atom_construct_word(void** argv) {       // (env, name, size, align) → handle
+  *(syg_handle_t*)argv[4] = atom(*(syg_env_t**)argv[0], *(syg_hash*)argv[1],
+                                 *(std::uint64_t*)argv[2], *(std::uint64_t*)argv[3]);
 }
-// composite fold: argv = [name, (field-name, field-type)…, out] — arity from argc.
-inline void structure_construct_word(syg_env_t* env, std::uint64_t argc, syg_handle_t* argv) {
+inline void structure_construct_word(void** argv) {  // (env, count, name, fields…) → handle
+  syg_env_t* env = *(syg_env_t**)argv[0];
+  std::uint64_t count = *(std::uint64_t*)argv[1];
   std::vector<field_term> f;
-  for (std::uint64_t i = 1; i + 1 < argc - 1; i += 2) f.push_back({argv[i].id, argv[i + 1].id});
-  argv[argc - 1] = structure(env, argv[0].id, f);
+  for (std::uint64_t i = 0; i < count; ++i)
+    f.push_back({*(syg_hash*)argv[3 + 2 * i], *(syg_hash*)argv[4 + 2 * i]});
+  *(syg_handle_t*)argv[3 + 2 * count] = structure(env, *(syg_hash*)argv[2], f);
 }
 // variant/pointer/scope folds: same shapes; bound when first needed.
 inline word atom_ctor_cell      = atom_construct_word;      // static homes for the
@@ -221,9 +257,20 @@ inline syg_env_t* floor() {
   wire(env, REFS.id,    {.data = new ref_store, .type = GROUND, .id = {},
                          .size = sizeof(ref_store), .env = nullptr});
   inscribe(env, ROSTER);                              // the decree becomes resident
-  string_type(env); u64_type(env); word_type(env);    // first citizens above it
-  bind_method(env, CONSTRUCT.id, ATOM.id,      method_node(env, &atom_ctor_cell));
-  bind_method(env, CONSTRUCT.id, STRUCTURE.id, method_node(env, &structure_ctor_cell));
+  string_type(env); u64_type(env);                    // first citizens above it
+  // constructor signatures: ANONYMOUS structure nodes (identical signatures
+  // unify by content). A registration TU will reflect these off the C++.
+  syg_hash E = envptr_type(env).id, H = h64_type(env).id, U = u64_type(env).id,
+           HN = handle_type(env).id, R = rest_h64_type(env).id;
+  auto sym = [&](const char* s) { return symbol_node(env, s).id; };
+  field_term atom_sig[] = {{sym("env"), E}, {sym("name"), H}, {sym("size"), U},
+                           {sym("align"), U}, {sym("out"), HN}};
+  bind_method(env, CONSTRUCT.id, ATOM.id,
+              method_node(env, &atom_ctor_cell, structure(env, GROUND, atom_sig).id));
+  field_term struct_sig[] = {{sym("env"), E}, {sym("count"), U}, {sym("name"), H},
+                             {sym("fields"), R}, {sym("out"), HN}};
+  bind_method(env, CONSTRUCT.id, STRUCTURE.id,
+              method_node(env, &structure_ctor_cell, structure(env, GROUND, struct_sig).id));
   return env;
 }
 

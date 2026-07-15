@@ -88,11 +88,17 @@ int main() {
   assert(!find(&child, CELL));
 
   // emplace_or_get: mint BY TYPE ID — dispatch and the typed path agree.
+  // The marshaller reads the method's signature: name by reference (&arg.id),
+  // sizes through payloads; structure's count endpoint arrives as a u64 node.
   syg_handle_t args[] = { symbol_node(env, "float16"), u64_node(env, 2), u64_node(env, 2) };
   syg_handle_t e16 = emplace_or_get(env, ATOM.id, 3, args);
   assert(e16.id == f16.id && e16.data == get(env, f16.id)->data);
-  syg_handle_t sargs[] = { symbol_node(env, "vec2"),
+  syg_handle_t sargs[] = { u64_node(env, 2), symbol_node(env, "vec2"),
                            symbol_node(env, "x"), f32, symbol_node(env, "y"), f32 };
-  assert(emplace_or_get(env, STRUCTURE.id, 5, sargs).id == s.id);
+  assert(emplace_or_get(env, STRUCTURE.id, 6, sargs).id == s.id);
+
+  // the method's type IS its signature — a resident, decodable structure.
+  const syg_handle_t* m = follow(env, derived(CONSTRUCT.id, ATOM.id));
+  assert(m && get(env, m->type) && get(env, m->type)->type == STRUCTURE.id);
   return 0;
 }
