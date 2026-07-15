@@ -9,26 +9,28 @@ int main() {
   assert(ATOM.id == fiat("atom").id);
   assert(!(ATOM.id == STRUCTURE.id));
 
-  // STRING is a minted atom (not a roster row): unsized, named by fiat("string").
+  // symbol vs string: same chars, different type => different id (a name is
+  // not text). STRING is an ordinary minted atom named by a SYMBOL node.
+  assert(!(symbol_node("x").id == string_node("x").id));
   assert(STRING.type == ATOM.id);
   assert(((atom_term*)STRING.data)->size == DYNAMIC);
-  assert(((atom_term*)STRING.data)->name == fiat("string").id);
+  assert(((atom_term*)STRING.data)->name == symbol_node("string").id);
 
   // atom: same ground facts => same id; different facts => different id.
-  syg_hash f32name = string_node("float32").id;
+  syg_hash f32name = symbol_node("float32").id;
   syg_handle_t f32 = atom(f32name, 4, 4);
   assert(f32.id == atom(f32name, 4, 4).id);
   assert(!(f32.id == atom(f32name, 8, 8).id));
   assert(((atom_term*)f32.data)->size == 4 && f32.size == sizeof(atom_term));
 
   // a zero-size atom is legal (type_tag for metaprogramming) and distinct.
-  syg_handle_t tag = atom(string_node("type_tag").id, 0, 1);
+  syg_handle_t tag = atom(symbol_node("type_tag").id, 0, 1);
   assert(!(tag.id == f32.id));
 
   // structure vs variant: SAME term bytes, different constructor => different id.
-  field_term xy[] = { {string_node("x").id, f32.id}, {string_node("y").id, f32.id} };
-  syg_handle_t s = structure(string_node("vec2").id, xy);
-  syg_handle_t v = variant(string_node("vec2").id, xy);
+  field_term xy[] = { {symbol_node("x").id, f32.id}, {symbol_node("y").id, f32.id} };
+  syg_handle_t s = structure(symbol_node("vec2").id, xy);
+  syg_handle_t v = variant(symbol_node("vec2").id, xy);
   assert(s.size == v.size && std::memcmp(s.data, v.data, s.size) == 0);
   assert(!(s.id == v.id));
 
@@ -41,6 +43,9 @@ int main() {
   // pointers: access flavors split the id; the term is just the pointee.
   assert(!(mutable_ptr(f32.id).id == constant_ptr(f32.id).id));
   assert(*(syg_hash*)constant_ptr(f32.id).data == f32.id);
+
+  // data-first handle: a handle punned at its first member IS its payload.
+  assert(*(atom_term**)&f32 == (atom_term*)f32.data);
 
   // ids verify: rehash the content, get the name back (the IPFS property).
   assert(syg_id(s) == s.id && syg_id(f32) == f32.id && syg_id(STRING) == STRING.id);

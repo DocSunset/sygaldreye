@@ -300,7 +300,7 @@ template <class T> consteval const char* type_name() {
 }
 template <class T> consteval syg_hash scope_fold() {
   syg_hash h{};
-  for (std::string_view s : enclosing_namespaces(^^T)) h = syg_hash::mix(h, syg_hash::str(std::define_static_string(s)));
+  for (std::string_view s : enclosing_namespaces(^^T)) h = syg_hash::mix(h, syg_hash::seed().str(std::define_static_string(s)));
   return h;
 }
 template <class T> consteval std::uint64_t leaf_category() {   // a code, not a digest
@@ -314,8 +314,8 @@ template <class T> consteval std::uint64_t leaf_category() {   // a code, not a 
 // straight from T's own special members (a float, or an opaque type held whole). shape
 // is the byte-semantics atom, never a field fold, because a leaf has no fields to fold.
 template <class T> inline constexpr syg_type_t value_type_v = {
-  /*id*/ syg_hash::mix(scope_fold<T>(), syg_hash::str(type_name<T>())),   // params_hash: a value has no statics
-  /*name_hash*/ syg_hash::str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
+  /*id*/ syg_hash::mix(scope_fold<T>(), syg_hash::seed().str(type_name<T>())),   // params_hash: a value has no statics
+  /*name_hash*/ syg_hash::seed().str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
   /*shape*/ syg_hash::mix({sizeof(T)}, leaf_category<T>()),
   /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T), /*align*/ alignof(T),
   /*members*/ 0, nullptr, /*template args*/ 0, nullptr,
@@ -351,8 +351,8 @@ template <class T> consteval syg_hash product_shape() {          // fold of the 
   return h;
 }
 template <class T> inline constexpr syg_type_t component_type_v = {
-  /*id*/ syg_hash::mix(scope_fold<T>(), syg_hash::str(type_name<T>())),
-  /*name_hash*/ syg_hash::str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
+  /*id*/ syg_hash::mix(scope_fold<T>(), syg_hash::seed().str(type_name<T>())),
+  /*name_hash*/ syg_hash::seed().str(type_name<T>()), /*scope_hash*/ scope_fold<T>(),
   /*shape*/ product_shape<T>(),
   /*name*/ type_name<T>(), /*scope*/ nullptr, /*size*/ sizeof(T), /*align*/ alignof(T),
   /*members*/ fields_v<T>.size(), fields_v<T>.data(), /*template args*/ 0, nullptr,

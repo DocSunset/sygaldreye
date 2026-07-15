@@ -12,9 +12,10 @@ extern "C" {
 typedef struct syg_env_t syg_env_t;  // the environment: a lexical frame of grips (env.hpp)
 
 struct syg_handle_t {
-  syg_hash        id;    // derived: the content's name (memoized fold)
-  syg_hash        type;  // ┐ the node — a (type, bytes) content;
-  void*           data;  // ┘ everything else is our grip on it
+  // data goes first so we can safely cast a syg_handle_t to a T* if we know its T.
+  void*           data;  // ┐ the node — a (type, bytes) content;
+  syg_hash        type;  // ┘ everything else is our grip on it
+  syg_hash        id;    // derived: the content's name (memoized fold); useful for looking up relations
   std::uint64_t   size;  // the span's length — a store fact (how many bytes to hash)
   syg_env_t*      env;   // resolution context HERE — what its ids resolve through
 };
@@ -26,6 +27,6 @@ struct syg_handle_t {
 // so length is NOT absorbed — size here only says how many bytes to hash (a
 // store fact, like the span itself). Keep the eternal sentence short.
 inline syg_hash syg_id(syg_hash type, std::uint64_t size, const void* data) {
-  return syg_hash::bytes(data, size, syg_hash::mix({syg_hash::basis}, type));
+  return syg_hash::seed().mix(type).bytes(data, size);
 }
 inline syg_hash syg_id(const syg_handle_t& h) { return syg_id(h.type, h.size, h.data); }

@@ -24,24 +24,39 @@ struct hash64_fnv1a {
 
   static constexpr std::uint64_t basis = 0xcbf29ce484222325ull;  // the decree
   static constexpr std::uint64_t prime = 0x100000001b3ull;       // constants, named
+  static constexpr hash64_fnv1a  seed() { return {basis}; }      // where every fold starts
 
-  // a name over its chars, terminator excluded (content, not encoding)
-  static constexpr hash64_fnv1a str(const char* s, hash64_fnv1a h = {basis}) {
-    for (; *s; ++s) { h.digest ^= static_cast<unsigned char>(*s); h.digest *= prime; }
+  // THE algorithm, once: absorb one byte.
+  static constexpr hash64_fnv1a step(hash64_fnv1a h, unsigned char b) {
+    h.digest = (h.digest ^ b) * prime;
     return h;
   }
-  // absorb the eight bytes of a u64, LSB-first (endian-defined ⇒ same on every peer)
+
+  // the statics — accumulator first, uniformly (a fold reads left to right).
+  // a name over its chars, terminator excluded (content, not encoding):
+  static constexpr hash64_fnv1a str(hash64_fnv1a h, const char* s) {
+    for (; *s; ++s) h = step(h, static_cast<unsigned char>(*s));
+    return h;
+  }
+  // absorb the eight bytes of a u64, LSB-first (endian-defined ⇒ same on every peer):
   static constexpr hash64_fnv1a mix(hash64_fnv1a a, std::uint64_t b) {
-    for (int i = 0; i < 8; ++i) { a.digest ^= (b >> (i * 8)) & 0xff; a.digest *= prime; }
+    for (int i = 0; i < 8; ++i) a = step(a, (b >> (i * 8)) & 0xff);
     return a;
   }
-  // absorb another digest — same bytes; a digest is just its eight bytes here
+  // absorb another digest — same bytes; a digest is just its eight bytes here:
   static constexpr hash64_fnv1a mix(hash64_fnv1a a, hash64_fnv1a b) { return mix(a, b.digest); }
-  // runtime blob hash — the void* pun bars it from constant expressions
-  static hash64_fnv1a bytes(const void* p, std::size_t n, hash64_fnv1a h = {basis}) {
+  // runtime blob hash — the void* pun bars it from constant expressions:
+  static hash64_fnv1a bytes(hash64_fnv1a h, const void* p, std::size_t n) {
     const unsigned char* b = static_cast<const unsigned char*>(p);
-    for (std::size_t i = 0; i < n; ++i) { h.digest ^= b[i]; h.digest *= prime; }
+    for (std::size_t i = 0; i < n; ++i) h = step(h, b[i]);
     return h;
   }
+
+  // member sugar: *this rides as the leading accumulator, so folds chain —
+  //   syg_hash::seed().mix(type).bytes(data, size)
+  constexpr hash64_fnv1a str(const char* s) const { return str(*this, s); }
+  constexpr hash64_fnv1a mix(std::uint64_t b) const { return mix(*this, b); }
+  constexpr hash64_fnv1a mix(hash64_fnv1a b) const { return mix(*this, b); }
+  hash64_fnv1a bytes(const void* p, std::size_t n) const { return bytes(*this, p, n); }
 };
 using syg_hash = hash64_fnv1a;

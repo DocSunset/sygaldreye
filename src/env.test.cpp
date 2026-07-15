@@ -10,9 +10,9 @@ int main() {
   // the decree is pre-registered and resolvable through the CONTENT organ.
   assert(get(env, content_id{ATOM.id}) && get(env, content_id{STRING.id}));
 
-  // every hash the floor carries decodes: STRING's name is the fiat "string".
+  // every hash the floor carries decodes: STRING's name is a SYMBOL node.
   const syg_handle_t* sname = get(env, content_id{((atom_term*)get(env, content_id{STRING.id})->data)->name});
-  assert(sname && sname->type == GROUND && std::memcmp(sname->data, "string", 6) == 0);
+  assert(sname && sname->type == SYMBOL.id && std::memcmp(sname->data, "string", 6) == 0);
 
   // insert copies (store owns), stamps the organ's frame; duplicate is a no-op.
   syg_handle_t probe = string_node("hello");
@@ -22,7 +22,7 @@ int main() {
 
   // VERIFIED dedup: same id, different bytes => throw, never a silent merge.
   bool threw = false;
-  try { insert_or_get(env, {a.id, STRING.id, (void*)"evil!", 5, nullptr}); }
+  try { insert_or_get(env, {.data = (void*)"evil!", .type = STRING.id, .id = a.id, .size = 5, .env = nullptr}); }
   catch (const std::exception&) { threw = true; }
   assert(threw);
 
@@ -36,7 +36,7 @@ int main() {
   // a child with its OWN content organ overlays: writes stay local.
   syg_env_t scratch{env, {}};
   content_store local;
-  wire(&scratch, CONTENT, { {}, GROUND, &local, sizeof local, nullptr });
+  wire(&scratch, CONTENT, {.data = &local, .type = GROUND, .id = {}, .size = sizeof local, .env = nullptr});
   syg_handle_t f64 = atom(&scratch, "float64", 8, 8);
   assert(get(&scratch, content_id{f64.id}) && !get(env, content_id{f64.id}));
   assert(get(&scratch, content_id{f32.id}));  // floor content still visible
@@ -44,7 +44,7 @@ int main() {
   // symbols: wire/find/unwire — conferred HERE, invisible above, mortal.
   static int cell = 42;
   sym_name CELL{fiat("cell").id};
-  wire(&child, CELL, { {}, GROUND, &cell, sizeof cell, nullptr });
+  wire(&child, CELL, {.data = &cell, .type = GROUND, .id = {}, .size = sizeof cell, .env = nullptr});
   const syg_handle_t* grip = find(&child, CELL);
   assert(grip && *(int*)grip->data == 42 && grip->id == CELL.h && !find(env, CELL));
   // refs: bind to a SYMBOL address (a live grip), then change the name's mind

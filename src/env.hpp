@@ -88,7 +88,8 @@ inline syg_handle_t insert_or_get(syg_env_t* env, const syg_handle_t& h) {
   void* copy = std::malloc(h.size);
   std::memcpy(copy, h.data, h.size);
   return ((content_store*)organ->data)
-      ->map.emplace(h.id, syg_handle_t{h.id, h.type, copy, h.size, organ->env})
+      ->map.emplace(h.id, syg_handle_t{.data = copy, .type = h.type, .id = h.id,
+                                       .size = h.size, .env = organ->env})
       .first->second;
 }
 
@@ -123,10 +124,10 @@ inline syg_handle_t mint(syg_env_t* env, syg_handle_t h) {
 // term carries decodes here.
 inline syg_handle_t atom(syg_env_t* env, const char* name,
                          std::uint64_t size, std::uint64_t align) {
-  return mint(env, atom(insert_or_get(env, string_node(name)).id, size, align));
+  return mint(env, atom(insert_or_get(env, symbol_node(name)).id, size, align));
 }
 inline syg_handle_t scope(syg_env_t* env, syg_hash parent, const char* name) {
-  return mint(env, scope(parent, insert_or_get(env, string_node(name)).id));
+  return mint(env, scope(parent, insert_or_get(env, symbol_node(name)).id));
 }
 
 // ── the floor: a fresh ground frame, organs wired, the decree registered ────
@@ -134,10 +135,10 @@ inline syg_handle_t scope(syg_env_t* env, syg_hash parent, const char* name) {
 // exactly what GROUND means; behavior-as-relations later removes the casts.
 inline syg_env_t* floor() {
   auto* env = new syg_env_t{nullptr, {}};
-  wire(env, CONTENT, { {}, GROUND, new content_store, sizeof(content_store), nullptr });
-  wire(env, REFS,    { {}, GROUND, new ref_store,     sizeof(ref_store),     nullptr });
+  wire(env, CONTENT, {.data = new content_store, .type = GROUND, .id = {}, .size = sizeof(content_store), .env = nullptr});
+  wire(env, REFS,    {.data = new ref_store, .type = GROUND, .id = {}, .size = sizeof(ref_store), .env = nullptr});
   for (const syg_handle_t& h : {ATOM, STRUCTURE, VARIANT, MUTABLE_PTR, CONSTANT_PTR, SCOPE,
-                                fiat("string"), STRING})
+                                SYMBOL, symbol_node("string"), STRING})
     insert_or_get(env, h);
   return env;
 }
