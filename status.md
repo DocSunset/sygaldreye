@@ -170,13 +170,35 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     loop). `emplace_or_get` = dispatch(CONSTRUCT,…). Constructor words =
     generated-SHAPE raw-cell shims (hand-written promissory notes). New
     residents: hash64_fnv1a, envptr, handle, rest_hash64 (zero-size marker).
-  - **Next action (this thread): REVISIT REFLECTION** — the registration TU:
-    describe_function emits constructor words + signatures off the C++
-    (deletes hand shims + hand-built floor sigs); re-aim generate_component
-    from old fat syg_type_t to minting RESIDENT nodes through an env (start
-    retiring syg.hpp's old world). Then: TICK + smallest ticking graph;
-    ERASE + symbol-table ownership; decree doc. Parked: fiat+env,
-    string_node borrow contract.
+  - **Landed (`a5a56f3`): ONE TABLE.** The environment = parent + one
+    pair-keyed table {context, designator} → handle (context = GROUND |
+    scope | relation). A row is a GRIP (data→live memory, never ships) or a
+    REFERENCE (type REF, data null, target in .id — handle-as-promise, pure
+    value, ships; type column = customs officer). find() derefs REF rows
+    (one level, from HERE); peek() = raw row; bind = wire-a-reference.
+    DELETED: ref_store, address, follow, derived(), REFS fiat row (roster 9),
+    bind_method's double write (ONE row now). REPEALED: "a grip's id IS its
+    name" — .id everywhere = what-this-refers-to. symbol_id() constexpr in
+    types.hpp; ref_type_id() env-free. Ch.2 live semantics (signed refs,
+    subscriptions) attach to REF rows later. Exact-pair keys: collision-
+    alias impossible; coordinate queries = filters (query-four substrate).
+  - **BLESSED, NOT YET LANDED (design settled in conversation 07-15/16):**
+    the CANON — second decree table {name,size,align} of sayable primitives,
+    SHORT names (nil,b8,i8..i64,u8..u64,f32,f64,str + hash64_fnv1a), minted
+    at floor, canon_name<T> maps C++ fundamentals by category+width (char→u8
+    decree; wide/long-double refused); TYPE relation (name→type ref;
+    canon_type = one find; fiat type-rows TYPE-bound too; organ names NOT);
+    CONSTRUCT demotes fiat→decreed symbol (sharpened fiat criterion:
+    unsayable OR precedes-the-store); scope-node/{scope,name} keys for
+    tables (SCOPE stays as-is — the type-field pun was retired: nominal
+    identity must ship, so qualification stays content; spellings shared by
+    reference). Landing order: canon slice next.
+  - **Then: REVISIT REFLECTION** — registration TU (describe_function emits
+    words + signatures off C++, deletes hand shims/floor sigs; scoped ids;
+    register_cpp<X>(env); component = type + CONSTRUCT/ERASE/TICK methods —
+    ERASE feeds table destruction-ownership); re-aim generate_component to
+    resident nodes (retire syg.hpp's old world). Then: TICK + smallest
+    ticking graph; decree doc. Parked: fiat+env, string_node borrow.
 
 - **Next action (escapement thread):** open the crown's parked seams (kinds-by-index → registry
   organ; typed constants; bounds-as-fault, law.errors_are_values), OR the smallest playable
