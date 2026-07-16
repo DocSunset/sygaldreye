@@ -182,23 +182,32 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     types.hpp; ref_type_id() env-free. Ch.2 live semantics (signed refs,
     subscriptions) attach to REF rows later. Exact-pair keys: collision-
     alias impossible; coordinate queries = filters (query-four substrate).
-  - **BLESSED, NOT YET LANDED (design settled in conversation 07-15/16):**
-    the CANON — second decree table {name,size,align} of sayable primitives,
-    SHORT names (nil,b8,i8..i64,u8..u64,f32,f64,str + hash64_fnv1a), minted
-    at floor, canon_name<T> maps C++ fundamentals by category+width (char→u8
-    decree; wide/long-double refused); TYPE relation (name→type ref;
-    canon_type = one find; fiat type-rows TYPE-bound too; organ names NOT);
-    CONSTRUCT demotes fiat→decreed symbol (sharpened fiat criterion:
-    unsayable OR precedes-the-store); scope-node/{scope,name} keys for
-    tables (SCOPE stays as-is — the type-field pun was retired: nominal
-    identity must ship, so qualification stays content; spellings shared by
-    reference). Landing order: canon slice next.
+  - **Landed (`fba630a`): the CANON, TYPE-less.** canon_row = AUTHORED twin
+    of atom_term (spelling for name-id; term() = the bridge); rows via
+    make_canon<T> (canon_name<T> category+width — char→u8 decree, aliases
+    collapse, wide/long-double refused; size/align from the compiler; a
+    static_assert pins the conforming platform). Short names: nil, b8,
+    i8..i64, u8..u64, f32, f64, str, ref, hash64_fnv1a (long on purpose —
+    the name IS the algorithm). canon_type RE-DERIVES from the decree
+    (mint-or-get; NOT a lookup — TYPE rows shelved until a spelling-
+    without-definition consumer exists: THE TAPE; the earlier TYPE-relation
+    detour was Travis's lookup instinct aimed at the wrong case — for canon,
+    re-derivation is the native idiom). CONSTRUCT demoted fiat→decreed
+    symbol (constexpr symbol_id; sharpened criterion: fiat iff UNSAYABLE or
+    PRECEDES-THE-STORE). Roster: 8, growth per relation ended. envptr/
+    handle/rest_hash64 deliberately non-canon (situated; open: canon status
+    if signatures ever ship). Parked: syg_id demotion-to-internal.
+  - **Next discussion (Travis's queue): CANONICAL NAMES** — so the tape can
+    look ALL things up by string. (This is the spelling-without-definition
+    consumer arriving = the shelved TYPE-as-context rows' real customer;
+    also connects: scoped names, name→denotation as per-env stipulation.)
   - **Then: REVISIT REFLECTION** — registration TU (describe_function emits
     words + signatures off C++, deletes hand shims/floor sigs; scoped ids;
     register_cpp<X>(env); component = type + CONSTRUCT/ERASE/TICK methods —
     ERASE feeds table destruction-ownership); re-aim generate_component to
     resident nodes (retire syg.hpp's old world). Then: TICK + smallest
-    ticking graph; decree doc. Parked: fiat+env, string_node borrow.
+    ticking graph; decree doc. Parked: fiat+env, string_node borrow,
+    syg_id demotion.
 
 - **Next action (escapement thread):** open the crown's parked seams (kinds-by-index → registry
   organ; typed constants; bounds-as-fault, law.errors_are_values), OR the smallest playable
