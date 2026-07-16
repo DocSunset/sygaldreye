@@ -138,21 +138,33 @@ inline syg_handle_t atom(syg_env_t* env, syg_hash name /* a SYMBOL or SCOPE id *
   return node(env, ATOM.id, &t, sizeof t);
 }
 
-// resident type mints, on demand, idempotent — each literal spelled once:
-inline syg_handle_t string_type(syg_env_t* env)
-  { return atom(env, symbol_node(env, "string").id, DYNAMIC, 1); }
-inline syg_handle_t u64_type(syg_env_t* env)
-  { return atom(env, symbol_node(env, "uint64").id, 8, 8); }
-inline syg_handle_t h64_type(syg_env_t* env)
-  { return atom(env, symbol_node(env, "hash64_fnv1a").id, sizeof(syg_hash), alignof(syg_hash)); }
+// canon_type: RE-DERIVE from the decree — mint-or-get, idempotent. Not a
+// lookup: the caller holds the definition (CANON is compile-time data), and
+// recomputing from knowledge is the system's native idiom.
+inline syg_handle_t canon_type(syg_env_t* env, std::string_view name) {
+  for (const canon_row& r : CANON)
+    if (r.name == name) {
+      node(env, SYMBOL.id, r.name.data(), r.name.size());   // the spelling decodes
+      atom_term t = r.term();
+      return node(env, ATOM.id, &t, sizeof t);              // the term, as decreed
+    }
+  throw std::runtime_error("syg: not a canonical type");
+}
+template <class T> syg_handle_t canon_type(syg_env_t* env)   // the kind-mapper's entry
+  { return canon_type(env, canon_name<T>()); }
+
+// named helpers — canon delegates, and the local (non-canon, situated,
+// never-ships) trio, minted on demand as before:
+inline syg_handle_t string_type(syg_env_t* env) { return canon_type(env, "str"); }
+inline syg_handle_t u64_type(syg_env_t* env)    { return canon_type(env, "u64"); }
+inline syg_handle_t h64_type(syg_env_t* env)    { return canon_type<syg_hash>(env); }
+inline syg_handle_t ref_type(syg_env_t* env)    { return canon_type(env, "ref"); }
 inline syg_handle_t envptr_type(syg_env_t* env)
   { return atom(env, symbol_node(env, "envptr").id, sizeof(void*), alignof(void*)); }
 inline syg_handle_t handle_type(syg_env_t* env)
   { return atom(env, symbol_node(env, "handle").id, sizeof(syg_handle_t), alignof(syg_handle_t)); }
 inline syg_handle_t rest_h64_type(syg_env_t* env)
   { return atom(env, symbol_node(env, "rest_hash64").id, 0, 1); }
-inline syg_handle_t ref_type(syg_env_t* env)
-  { return atom(env, symbol_node(env, "ref").id, 8, 8); }
 
 inline syg_handle_t string_node(syg_env_t* env, const char* s)
   { return node(env, string_type(env).id, s, std::char_traits<char>::length(s)); }
@@ -250,7 +262,7 @@ inline syg_handle_t dispatch(syg_env_t* env, syg_hash relation, syg_hash subject
 // emplace_or_get: mint BY TYPE ID — the constructors' entry point, one line.
 inline syg_handle_t emplace_or_get(syg_env_t* env, syg_hash type,
                                    std::uint64_t n, const syg_handle_t* args)
-  { return dispatch(env, CONSTRUCT.id, type, n, args); }
+  { return dispatch(env, CONSTRUCT, type, n, args); }
 
 // generated-shape shims. A reflection-enabled registration TU will emit
 // these from describe_function and DELETE the hand copies; the frame layouts
@@ -280,7 +292,8 @@ inline syg_env_t* floor() {
   wire(env, GROUND, CONTENT.id, {.data = new content_store, .type = GROUND, .id = {},
                                  .size = sizeof(content_store), .env = nullptr});
   inscribe(env, ROSTER);                              // the decree becomes resident
-  string_type(env); u64_type(env); ref_type(env);     // first citizens above it
+  for (const canon_row& r : CANON) canon_type(env, r.name);   // the canon becomes resident
+  symbol_node(env, "construct");                      // relations decode too
   // constructor signatures: ANONYMOUS structure nodes (identical signatures
   // unify by content). A registration TU will reflect these off the C++.
   syg_hash E = envptr_type(env).id, H = h64_type(env).id, U = u64_type(env).id,
@@ -288,11 +301,11 @@ inline syg_env_t* floor() {
   auto sym = [&](const char* s) { return symbol_node(env, s).id; };
   field_term atom_sig[] = {{sym("env"), E}, {sym("name"), H}, {sym("size"), U},
                            {sym("align"), U}, {sym("out"), HN}};
-  bind_method(env, CONSTRUCT.id, ATOM.id,
+  bind_method(env, CONSTRUCT, ATOM.id,
               method_node(env, &atom_ctor_cell, structure(env, GROUND, atom_sig).id));
   field_term struct_sig[] = {{sym("env"), E}, {sym("count"), U}, {sym("name"), H},
                              {sym("fields"), R}, {sym("out"), HN}};
-  bind_method(env, CONSTRUCT.id, STRUCTURE.id,
+  bind_method(env, CONSTRUCT, STRUCTURE.id,
               method_node(env, &structure_ctor_cell, structure(env, GROUND, struct_sig).id));
   return env;
 }

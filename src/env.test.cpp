@@ -25,6 +25,15 @@ int main() {
   // REF: the computed id and the minted resident agree.
   assert(ref_type(env).id == ref_type_id());
 
+  // the canon is resident: every row minted at the floor, terms as decreed.
+  for (const canon_row& r : CANON) {
+    syg_handle_t t = canon_type(env, r.name);
+    assert(get(env, t.id) && syg_id(t) == t.id);
+    assert(((atom_term*)t.data)->name == symbol_id(r.name));
+  }
+  assert(canon_type<float>(env).id == canon_type(env, "f32").id);  // the kind-mapper's entry
+  assert(get(env, CONSTRUCT));                                     // relations decode too
+
   // atoms: idempotent mint; the term's name decodes HERE.
   syg_handle_t f32 = atom(env, symbol_node(env, "float32").id, 4, 4);
   assert(atom(env, symbol_node(env, "float32").id, 4, 4).data == f32.data);
@@ -101,7 +110,7 @@ int main() {
   assert(emplace_or_get(env, STRUCTURE.id, 6, sargs).id == s.id);
 
   // the method's type IS its signature; binding is ONE row of the ONE table.
-  method rm = resolve(env, CONSTRUCT.id, ATOM.id);
+  method rm = resolve(env, CONSTRUCT, ATOM.id);
   assert(rm.fn && rm.sig && rm.sig->type == STRUCTURE.id);
   assert(call(env, rm, 3, args).id == f16.id);
   return 0;

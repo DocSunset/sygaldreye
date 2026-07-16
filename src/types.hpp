@@ -14,6 +14,7 @@
 #include <array>
 #include <cstdint>
 #include <string_view>
+#include <type_traits>
 
 namespace syg {
 
@@ -42,18 +43,26 @@ inline constexpr syg_handle_t CONSTANT_PTR = inscribe_symbol("constant_ptr");  /
 inline constexpr syg_handle_t SCOPE        = inscribe_symbol("scope");         // one step of a name
 inline constexpr syg_handle_t SYMBOL       = inscribe_symbol("symbol");        // a NAME (interned)
 inline constexpr syg_handle_t CONTENT      = inscribe_symbol("content");       // organ: the store
-inline constexpr syg_handle_t CONSTRUCT    = inscribe_symbol("construct");     // relation: type → fold
 
 // the decree's table of contents — iterate to visit every fiat symbol.
-// (REFS is gone: there is no refs organ — a reference is a REF-typed row of
-// the environment's ONE table, env.hpp.)
+// The sharpened fiat criterion: a row is fiat iff UNSAYABLE from inside or
+// PRECEDES-THE-STORE. (REFS is gone — a reference is a REF-typed row of the
+// environment's one table; CONSTRUCT is gone — relations are sayable,
+// post-floor, ordinary decreed symbols below.)
 inline constexpr std::array ROSTER{ATOM, STRUCTURE, VARIANT, MUTABLE_PTR, CONSTANT_PTR,
-                                   SCOPE, SYMBOL, CONTENT, CONSTRUCT};
+                                   SCOPE, SYMBOL, CONTENT};
 
 // a symbol's id, computable anywhere — the constexpr twin working for names.
 // (The NODE must still be minted resident by whoever refers to it.)
 constexpr syg_hash symbol_id(const char* s)
   { return syg_id(SYMBOL.id, std::char_traits<char>::length(s), s); }
+constexpr syg_hash symbol_id(std::string_view s)
+  { return syg_id(SYMBOL.id, s.size(), s.data()); }
+
+// ── decreed RELATIONS — canonical symbols, NOT fiat ─────────────────────────
+// The roster stops growing per relation, forever.
+inline constexpr syg_hash CONSTRUCT = symbol_id("construct");
+// later, verbatim: TICK = symbol_id("tick"); ERASE = symbol_id("erase");
 
 // ── atom: a primitive type's term ───────────────────────────────────────────
 // Three ground facts. Instance size/align live INSIDE the term — facts about
@@ -77,6 +86,62 @@ struct field_term { syg_hash name; syg_hash type; };  // one field / one case; n
 // may be owned heap or borrowed output memory a builder placed (the
 // privileged-unsafe seam). Ownership is a graph-level fact — tick and the
 // lifecycle operators decide what is input and output.
+
+// ── the CANON: decreed primitives ───────────────────────────────────────────
+// Ordinary ATOM residents, sayable from inside; the decree pins only the
+// NAMES so every peer mints identical ids. No lookup service: whoever holds
+// this table (everyone) RE-DERIVES — content addressing's whole point. A
+// canon_row is the AUTHORED twin of an atom_term (spelling instead of
+// name-id); term() is the one sanctioned bridge.
+struct canon_row {
+  std::string_view name;
+  std::uint64_t size, align;
+  constexpr atom_term term() const { return {symbol_id(name), size, align}; }
+};
+
+// C++ fundamental → canonical name: category + width, so aliases (size_t,
+// long, char) collapse to fixed-width truth. Pointers recurse elsewhere.
+template <class T> consteval std::string_view canon_name() {
+  static_assert(!std::is_same_v<T, wchar_t> && !std::is_same_v<T, char16_t> &&
+                !std::is_same_v<T, char32_t>, "no canonical wide char - refused");
+  if      constexpr (std::is_same_v<T, bool>) return "b8";
+  else if constexpr (std::is_same_v<T, char>) return "u8";   // by decree: UTF-8 code units
+  else if constexpr (std::is_same_v<T, hash64_fnv1a>) return "hash64_fnv1a";
+  else if constexpr (std::is_floating_point_v<T>) {
+    static_assert(sizeof(T) <= 8, "no canonical float of this width");   // long double refused
+    return sizeof(T) == 4 ? "f32" : "f64";
+  }
+  else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>)
+    return sizeof(T) == 1 ? "i8" : sizeof(T) == 2 ? "i16" : sizeof(T) == 4 ? "i32" : "i64";
+  else if constexpr (std::is_integral_v<T>)
+    return sizeof(T) == 1 ? "u8" : sizeof(T) == 2 ? "u16" : sizeof(T) == 4 ? "u32" : "u64";
+  else static_assert(false, "not a canonical primitive");
+}
+
+// rows built FROM the C++ types they carry — name, size, align all supplied
+// by the compiler, so the table cannot disagree with the ABI. The decree's
+// numbers are pinned by the asserts below: a platform where these fail
+// cannot be a conforming peer (its mints would fork every canonical id).
+template <class T> consteval canon_row make_canon()
+  { return {canon_name<T>(), sizeof(T), alignof(T)}; }
+static_assert(sizeof(bool) == 1 && alignof(bool) == 1 &&
+              sizeof(float) == 4 && alignof(float) == 4 &&
+              sizeof(double) == 8 && alignof(double) == 8 &&
+              alignof(std::int64_t) == 8 && alignof(hash64_fnv1a) == 8,
+              "non-conforming platform: canonical ids would fork");
+
+inline constexpr std::array CANON{
+  canon_row{"nil", 0, 1},           // no C++ carrier: void has no size; constant_ptr(nil) = void*
+  make_canon<bool>(),
+  make_canon<std::int8_t>(),  make_canon<std::int16_t>(),
+  make_canon<std::int32_t>(), make_canon<std::int64_t>(),
+  make_canon<std::uint8_t>(), make_canon<std::uint16_t>(),
+  make_canon<std::uint32_t>(), make_canon<std::uint64_t>(),
+  make_canon<float>(), make_canon<double>(),
+  canon_row{"str", DYNAMIC, 1},     // user text — unsized: no sizeof to trust
+  canon_row{"ref", 8, 8},           // an intent type: a hash's bytes, "deref me" meaning
+  make_canon<syg_hash>(),           // the digest struct, mapped through its own mapper
+};
 
 // ── scope: qualification as content ─────────────────────────────────────────
 // One step of a qualified name — a Merkle chain: geo::vec2 =
