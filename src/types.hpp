@@ -42,12 +42,18 @@ inline constexpr syg_handle_t CONSTANT_PTR = inscribe_symbol("constant_ptr");  /
 inline constexpr syg_handle_t SCOPE        = inscribe_symbol("scope");         // one step of a name
 inline constexpr syg_handle_t SYMBOL       = inscribe_symbol("symbol");        // a NAME (interned)
 inline constexpr syg_handle_t CONTENT      = inscribe_symbol("content");       // organ: the store
-inline constexpr syg_handle_t REFS         = inscribe_symbol("refs");          // organ: the ref table
 inline constexpr syg_handle_t CONSTRUCT    = inscribe_symbol("construct");     // relation: type → fold
 
 // the decree's table of contents — iterate to visit every fiat symbol.
+// (REFS is gone: there is no refs organ — a reference is a REF-typed row of
+// the environment's ONE table, env.hpp.)
 inline constexpr std::array ROSTER{ATOM, STRUCTURE, VARIANT, MUTABLE_PTR, CONSTANT_PTR,
-                                   SCOPE, SYMBOL, CONTENT, REFS, CONSTRUCT};
+                                   SCOPE, SYMBOL, CONTENT, CONSTRUCT};
+
+// a symbol's id, computable anywhere — the constexpr twin working for names.
+// (The NODE must still be minted resident by whoever refers to it.)
+constexpr syg_hash symbol_id(const char* s)
+  { return syg_id(SYMBOL.id, std::char_traits<char>::length(s), s); }
 
 // ── atom: a primitive type's term ───────────────────────────────────────────
 // Three ground facts. Instance size/align live INSIDE the term — facts about

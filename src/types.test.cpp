@@ -4,7 +4,7 @@
 using namespace syg;
 
 // distinct rows, computable ids, exactly the roster we decreed.
-static_assert(ROSTER.size() == 10);
+static_assert(ROSTER.size() == 9);   // REFS retired: no refs organ exists to name
 static_assert(!(ATOM.id == STRUCTURE.id));
 static_assert(inscribe_symbol("atom").id == ATOM.id);   // recomputable by anyone
 static_assert(ATOM.type == GROUND && ATOM.size == 4);

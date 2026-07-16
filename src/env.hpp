@@ -1,17 +1,20 @@
 #pragma once
-// env.hpp — the environment: a lexical frame of grips. HERE is the only
-// out-of-band handout; stores are ORGANS gripped at decreed names; only the
-// environment composes (every lookup walks frames). Three contracts, three
-// verb sets: content (FIXED), refs (LIVE), symbols (SITUATED). Construction
-// lives HERE: a node is BORN registered — the sole exception is types.hpp's
-// inscribe_symbol (the decree precedes every environment). Typed key
-// wrappers are gone: the verb you call already says how a hash is read.
+// env.hpp — the environment: ONE pair-keyed table of handles, plus a parent.
+// HERE is the only out-of-band handout; the content store is an ORGAN
+// gripped in the same table; only the environment composes (lookups walk
+// frames). A row is either a GRIP (data points at live memory — local,
+// mortal, NEVER ships) or a REFERENCE (type REF, data null, the target
+// riding in .id — a pure value, the shippable kind). The type column is the
+// customs officer. Construction lives HERE: a node is BORN registered — the
+// sole exception is types.hpp's inscribe_symbol (the decree precedes every
+// environment).
 //
 // OWNERSHIP LAW: a syg_handle_t NEVER owns what data points at. Stores own
 // content bytes; arenas own instances; static storage owns literals and word
-// cells. Destruction is an owner's act, never a side effect of assignment.
-// (Symbol-table destruction-ownership — unwire ticking an ERASE word by
-// grip type — is designed but not yet built; floor organs are immortal.)
+// cells; REF rows own nothing by construction. Destruction is an owner's
+// act, never a side effect of assignment. (Table destruction-ownership —
+// unwire ticking an ERASE word by grip type — designed, not yet built;
+// floor organs are immortal.)
 #include "types.hpp"
 #include <cstring>
 #include <span>
@@ -20,49 +23,79 @@
 #include <unordered_map>
 #include <vector>
 
+// keys are EXACT pairs — the fold survives only on bucket duty, where
+// one-way is a virtue. Collisions cannot alias rows; coordinate queries
+// (every sense of a designator, every name under a context) are filters.
+struct grip_key {
+  syg_hash context;     // GROUND | a scope | a relation
+  syg_hash designator;  // a symbol id, a type id — the second coordinate
+  constexpr bool operator==(const grip_key&) const = default;
+};
 struct syg_env_t {
-  struct id_hash {  // an id IS a hash — hash it with a straight face
-    std::size_t operator()(syg_hash h) const { return h.digest; }
+  struct key_hash {
+    std::size_t operator()(grip_key k) const { return syg_hash::mix(k.context, k.designator).digest; }
   };
-  syg_env_t* parent;                                            // nullptr at the floor
-  std::unordered_map<syg_hash, syg_handle_t, id_hash> symbols;  // name ↦ grip
+  syg_env_t* parent;  // nullptr at the floor
+  std::unordered_map<grip_key, syg_handle_t, key_hash> table;  // the WHOLE environment
 };
 
 namespace syg {
 
-// an ADDRESS: what a ref points at — the one genuinely dynamic distinction.
-// A symbol address is LOCAL-ONLY: the mortal world never ships.
-struct address { enum tag_t : std::uint8_t { content, symbol } tag; syg_hash h; };
+// ── the content organ (dumb: a bare map, no composition) ────────────────────
+struct content_store {
+  struct id_hash { std::size_t operator()(syg_hash h) const { return h.digest; } };
+  std::unordered_map<syg_hash, syg_handle_t, id_hash> map;
+};
 
-// derived names — mix(relation, subject): metadata attaches to any node
-// without touching its bytes. (Mesh-boundary note: before FOREIGN content
-// can drive local derived bindings, make the key the exact pair — or be on
-// a crypto hash — lest a forged subject id alias two bindings.)
-inline syg_hash derived(syg_hash relation, syg_hash subject) { return syg_hash::mix(relation, subject); }
-
-// ── the organs (dumb: a bare map each, no composition) ──────────────────────
-struct content_store { std::unordered_map<syg_hash, syg_handle_t, syg_env_t::id_hash> map; };
-struct ref_store     { std::unordered_map<syg_hash, address,      syg_env_t::id_hash> map; };
-
-// ── situated verbs: a lexical frame's, nothing more ─────────────────────────
-inline void wire(syg_env_t* env, syg_hash name, syg_handle_t grip) {
-  grip.id = name;    // a grip's id IS its name — nothing was hashed
-  grip.env = env;
-  env->symbols[name] = grip;  // rebind = re-wire = live-patch HERE
+// REF — the atom whose instances point into the content store. Its id is
+// computable WITHOUT an env (term hashed on the stack), so find() can
+// recognize REF rows const-ly; floor mints the resident so the hash decodes.
+inline syg_hash ref_type_id() {
+  atom_term t{.name = symbol_id("ref"), .size = 8, .align = 8};
+  return syg_id(ATOM.id, sizeof t, &t);
 }
-inline void unwire(syg_env_t* env, syg_hash name) { env->symbols.erase(name); }
-inline const syg_handle_t* find(const syg_env_t* env, syg_hash name) {
+
+// ── the environment's verbs ─────────────────────────────────────────────────
+// wire stamps env ONLY. The key carries naming; a row's id keeps the
+// handle's one true meaning — WHAT THIS REFERS TO ({} if nothing).
+inline void wire(syg_env_t* env, syg_hash ctx, syg_hash name, syg_handle_t grip) {
+  grip.env = env;
+  env->table[{ctx, name}] = grip;  // rebind = re-wire = a name changing its mind
+}
+inline void unwire(syg_env_t* env, syg_hash ctx, syg_hash name) { env->table.erase({ctx, name}); }
+
+// peek: the raw row, HERE-outward — for rebind tooling and serializers.
+inline const syg_handle_t* peek(const syg_env_t* env, syg_hash ctx, syg_hash name) {
   for (const syg_env_t* e = env; e; e = e->parent)
-    if (auto it = e->symbols.find(name); it != e->symbols.end()) return &it->second;
+    if (auto it = e->table.find({ctx, name}); it != e->table.end()) return &it->second;
   return nullptr;
 }
 
+// get: resolve a content id — walk frames, ask every frame's content organ
+// (a nearer organ overlays, it does not shadow — content can't disagree,
+// only be elsewhere). Declared here; body below (find precedes it).
+inline const syg_handle_t* get(const syg_env_t* env, syg_hash id);
+
+// find: resolve HERE-outward; a REF row derefs through the content store
+// (from HERE, not from the frame that held the row) — callers ALWAYS get a
+// real handle. One level, deliberately.
+inline const syg_handle_t* find(const syg_env_t* env, syg_hash ctx, syg_hash name) {
+  const syg_handle_t* row = peek(env, ctx, name);
+  if (row && row->type == ref_type_id()) return get(env, row->id);
+  return row;
+}
+
+// bind = wire a REFERENCE: a pure value row — no bytes, no allocation,
+// nothing owned; the shippable kind.
+inline void bind(syg_env_t* env, syg_hash ctx, syg_hash name, syg_hash target) {
+  wire(env, ctx, name, {.data = nullptr, .type = ref_type_id(), .id = target, .size = 0,
+                        .env = nullptr});
+}
+
 // ── fixed verbs ─────────────────────────────────────────────────────────────
-// get: walk frames; ask EVERY frame's content organ (a nearer organ overlays,
-// it does not shadow — content can't disagree, only be elsewhere).
 inline const syg_handle_t* get(const syg_env_t* env, syg_hash id) {
   for (const syg_env_t* e = env; e; e = e->parent)
-    if (auto it = e->symbols.find(CONTENT.id); it != e->symbols.end()) {
+    if (auto it = e->table.find({GROUND, CONTENT.id}); it != e->table.end()) {
       auto& map = ((content_store*)it->second.data)->map;
       if (auto f = map.find(id); f != map.end()) return &f->second;
     }
@@ -79,7 +112,7 @@ inline syg_handle_t insert_or_get(syg_env_t* env, const syg_handle_t& h) {
       throw std::runtime_error("syg: id collision — distinct content, same hash");
     return *r;
   }
-  const syg_handle_t* organ = find(env, CONTENT.id);
+  const syg_handle_t* organ = peek(env, GROUND, CONTENT.id);
   if (!organ) throw std::runtime_error("syg: no content organ wired here");
   void* copy = std::malloc(h.size);
   std::memcpy(copy, h.data, h.size);
@@ -87,26 +120,6 @@ inline syg_handle_t insert_or_get(syg_env_t* env, const syg_handle_t& h) {
       ->map.emplace(h.id, syg_handle_t{.data = copy, .type = h.type, .id = h.id,
                                        .size = h.size, .env = organ->env})
       .first->second;
-}
-
-// ── live verbs ──────────────────────────────────────────────────────────────
-// bind: a name changes its mind — into the nearest ref organ.
-inline void bind(syg_env_t* env, syg_hash name, address a) {
-  const syg_handle_t* organ = find(env, REFS.id);
-  if (!organ) throw std::runtime_error("syg: no ref organ wired here");
-  ((ref_store*)organ->data)->map[name] = a;
-}
-// follow: resolve the name HERE-outward; then the ADDRESS from HERE (not
-// from where the binding was found) — into whichever world it names.
-inline const syg_handle_t* follow(const syg_env_t* env, syg_hash name) {
-  for (const syg_env_t* e = env; e; e = e->parent)
-    if (auto it = e->symbols.find(REFS.id); it != e->symbols.end()) {
-      auto& map = ((ref_store*)it->second.data)->map;
-      if (auto f = map.find(name); f != map.end())
-        return f->second.tag == address::content ? get(env, f->second.h)
-                                                 : find(env, f->second.h);
-    }
-  return nullptr;
 }
 
 // ── constructors: a node is BORN registered ─────────────────────────────────
@@ -125,12 +138,21 @@ inline syg_handle_t atom(syg_env_t* env, syg_hash name /* a SYMBOL or SCOPE id *
   return node(env, ATOM.id, &t, sizeof t);
 }
 
-// resident type mints, on demand, idempotent (content addressing makes each
-// a lookup after its first call) — each literal spelled exactly once:
+// resident type mints, on demand, idempotent — each literal spelled once:
 inline syg_handle_t string_type(syg_env_t* env)
   { return atom(env, symbol_node(env, "string").id, DYNAMIC, 1); }
 inline syg_handle_t u64_type(syg_env_t* env)
   { return atom(env, symbol_node(env, "uint64").id, 8, 8); }
+inline syg_handle_t h64_type(syg_env_t* env)
+  { return atom(env, symbol_node(env, "hash64_fnv1a").id, sizeof(syg_hash), alignof(syg_hash)); }
+inline syg_handle_t envptr_type(syg_env_t* env)
+  { return atom(env, symbol_node(env, "envptr").id, sizeof(void*), alignof(void*)); }
+inline syg_handle_t handle_type(syg_env_t* env)
+  { return atom(env, symbol_node(env, "handle").id, sizeof(syg_handle_t), alignof(syg_handle_t)); }
+inline syg_handle_t rest_h64_type(syg_env_t* env)
+  { return atom(env, symbol_node(env, "rest_hash64").id, 0, 1); }
+inline syg_handle_t ref_type(syg_env_t* env)
+  { return atom(env, symbol_node(env, "ref").id, 8, 8); }
 
 inline syg_handle_t string_node(syg_env_t* env, const char* s)
   { return node(env, string_type(env).id, s, std::char_traits<char>::length(s)); }
@@ -163,53 +185,34 @@ inline syg_handle_t scope(syg_env_t* env, syg_hash parent, const char* name)
 // THE word — void(*)(void**), IDENTICAL to the escapement's. A frame is
 // READ-ONLY structure; each slot points at a payload and the word writes
 // outputs THROUGH its slot. Slots follow the signature's declaration order,
-// inputs then outputs (component member order); arity is SIGNATURE
-// knowledge, never ABI knowledge (a variadic word declares a count input).
-// A generated word points slots at raw cells — zero indirection in the hot
-// loop; no env, no handles, no counts in the signature: even HERE is data.
+// inputs then outputs; arity is SIGNATURE knowledge, never ABI knowledge.
 using word = void (*)(void** argv);
 
-// method-endpoint types, resident on demand — each literal spelled once:
-inline syg_handle_t h64_type(syg_env_t* env)      // an id field: "the arg IS a reference"
-  { return atom(env, symbol_node(env, "hash64_fnv1a").id, sizeof(syg_hash), alignof(syg_hash)); }
-inline syg_handle_t envptr_type(syg_env_t* env)   // HERE, as a declared endpoint
-  { return atom(env, symbol_node(env, "envptr").id, sizeof(void*), alignof(void*)); }
-inline syg_handle_t handle_type(syg_env_t* env)   // the grip struct itself; SITUATED, never ships
-  { return atom(env, symbol_node(env, "handle").id, sizeof(syg_handle_t), alignof(syg_handle_t)); }
-inline syg_handle_t rest_h64_type(syg_env_t* env) // zero-size marker: remaining args, as references
-  { return atom(env, symbol_node(env, "rest_hash64").id, 0, 1); }
-
 // a method node: a grip on a word cell whose TYPE IS ITS SIGNATURE — an
-// anonymous structure node of (name, type) fields, inputs then outputs:
-// exactly the shape reflection reads off a C++ function. "The type of a
-// behavior is how to call it." id EMPTY on purpose: a fn pointer is a
-// location, not content — ASLR re-rolls its bytes per run; wasm has no bytes
-// at all. Locations get names; when methods ship, their SOURCE ships.
+// anonymous structure node of (name, type) fields: the shape reflection
+// reads off a C++ function. id EMPTY: a fn pointer is a location, not
+// content; when methods ship, their SOURCE ships, not these cells.
 inline syg_handle_t method_node(syg_env_t* env, word* cell, syg_hash signature) {
   return {.data = cell, .type = signature, .id = {}, .size = sizeof *cell, .env = env};
 }
-// the ONE binding pattern — CONSTRUCT today; TICK, PLACE, ERASE verbatim
-// later: grip the method at the derived name, point a ref at the grip.
+// binding a method is ONE wire: context = the relation, designator = the
+// type. "The CONSTRUCT of ATOM is this word cell."
 inline void bind_method(syg_env_t* env, syg_hash relation, syg_hash type, syg_handle_t method) {
-  syg_hash at = derived(relation, type);
-  wire(env, at, method);
-  bind(env, at, {address::symbol, at});
+  wire(env, relation, type, method);
 }
 
-// resolve: the COLD half — follow any relation to a method. Cacheable: this
-// is what "binding at build time" means; a resolved method is what a graph's
-// node array holds, so the hot loop never walks a table. Today exact-match
-// on (relation, subject); the seam-0 query engine slots in behind this same
-// signature later.
+// resolve: the COLD half — ONE find. Cacheable: a binding IS a resolved
+// method; the hot loop never walks a table. Exact-match today; the seam-0
+// query engine slots in behind this signature later.
 struct method { word fn; const syg_handle_t* sig; };
 inline method resolve(const syg_env_t* env, syg_hash relation, syg_hash subject) {
-  const syg_handle_t* m = follow(env, derived(relation, subject));
+  const syg_handle_t* m = find(env, relation, subject);
   if (!m) return {};
   return { *(word*)m->data, get(env, m->type) };   // the fn, and how to call it
 }
 
-// call: the ONE marshaller in the system — handles in, raw frame out, driven
-// by the method's signature:
+// call: the ONE marshaller — handles in, raw frame out, driven by the
+// method's signature:
 //   hash64 field  ⇒ the arg IS a reference: pass &arg.id
 //   envptr field  ⇒ HERE rides as a raw cell: pass &env
 //   rest_hash64   ⇒ consume ALL remaining args, as references
@@ -236,17 +239,14 @@ inline syg_handle_t call(syg_env_t* env, const method& m,
   return out;
 }
 
-// dispatch: resolve + call, over ANY relation — CONSTRUCT is a roster row,
-// TICK/ERASE are coming, a user relation is just a minted symbol. A boot-
-// tape record is (relation, subject, arg-ids…): the crown's applier is this
-// function in a while loop.
+// dispatch: resolve + call, over ANY relation. A boot-tape record is
+// (relation, subject, arg-ids…): the crown's applier is this in a loop.
 inline syg_handle_t dispatch(syg_env_t* env, syg_hash relation, syg_hash subject,
                              std::uint64_t n, const syg_handle_t* args) {
   method m = resolve(env, relation, subject);
   if (!m.fn) throw std::runtime_error("syg: no method bound for (relation, subject)");
   return call(env, m, n, args);
 }
-
 // emplace_or_get: mint BY TYPE ID — the constructors' entry point, one line.
 inline syg_handle_t emplace_or_get(syg_env_t* env, syg_hash type,
                                    std::uint64_t n, const syg_handle_t* args)
@@ -271,18 +271,16 @@ inline void structure_construct_word(void** argv) {  // (env, count, name, field
 inline word atom_ctor_cell      = atom_construct_word;      // static homes for the
 inline word structure_ctor_cell = structure_construct_word; // method-node grips
 
-// ── the floor: organs wired, the decree enrolled, first citizens minted ─────
+// ── the floor: the organ wired, the decree enrolled, first citizens minted ──
 inline void inscribe(syg_env_t* env, std::span<const syg_handle_t> nodes)
   { for (const syg_handle_t& h : nodes) insert_or_get(env, h); }
 
 inline syg_env_t* floor() {
   auto* env = new syg_env_t{nullptr, {}};
-  wire(env, CONTENT.id, {.data = new content_store, .type = GROUND, .id = {},
-                         .size = sizeof(content_store), .env = nullptr});
-  wire(env, REFS.id,    {.data = new ref_store, .type = GROUND, .id = {},
-                         .size = sizeof(ref_store), .env = nullptr});
+  wire(env, GROUND, CONTENT.id, {.data = new content_store, .type = GROUND, .id = {},
+                                 .size = sizeof(content_store), .env = nullptr});
   inscribe(env, ROSTER);                              // the decree becomes resident
-  string_type(env); u64_type(env);                    // first citizens above it
+  string_type(env); u64_type(env); ref_type(env);     // first citizens above it
   // constructor signatures: ANONYMOUS structure nodes (identical signatures
   // unify by content). A registration TU will reflect these off the C++.
   syg_hash E = envptr_type(env).id, H = h64_type(env).id, U = u64_type(env).id,
