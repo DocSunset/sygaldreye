@@ -197,10 +197,34 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     PRECEDES-THE-STORE). Roster: 8, growth per relation ended. envptr/
     handle/rest_hash64 deliberately non-canon (situated; open: canon status
     if signatures ever ship). Parked: syg_id demotion-to-internal.
-  - **Next discussion (Travis's queue): CANONICAL NAMES** — so the tape can
-    look ALL things up by string. (This is the spelling-without-definition
-    consumer arriving = the shelved TYPE-as-context rows' real customer;
-    also connects: scoped names, name→denotation as per-env stipulation.)
+  - **Landed (`9e374d9`): names ARE strings; SYMBOL retired.** Travis's
+    move: only the string type's own name is fiat (STR_NAME, the fixed
+    point — str can't name itself with a string); every other name is an
+    ordinary string node, so the out-of-band surface shrank from
+    every-name to ONE node. STR_TYPE constexpr via chained LSB-first
+    mixes == runtime struct hash (conformance asserted: little-endian +
+    packed atom_term). symbol_id/symbol_node → name_id/string_node;
+    canon_row::term() branches ONCE at the knot; canon_type self-
+    guarantees str residency before minting spellings. Roster still 8
+    (SYMBOL out, STR_NAME in). "Is a name" now comes from POSITION
+    (term slot, key coordinate), not the type column. Every id in the
+    universe forked — fine, decree is draft; this closes before freeze.
+  - **CANONICAL NAMES discussion (in flight):** settled so far — no
+    automatic canon-naming machinery; naming = decree extension (agree
+    spellings, re-derive; names are REF-row bindings, not identity).
+    Qualified lookup = the SCOPE preimage fold, constexpr-able. Table
+    key choice: {parent-scope, leaf} (grip_key native, enumerable) over
+    {GROUND, full-chain}. Behaviors stay relation-addressed (no
+    "::atom.constructor" names). Appropriateness criteria: subkey ids
+    must have RESIDENT preimages (hard, at declare); subkey types
+    should answer PRINT — a decreed relation, audited not gated
+    (bootstrap: organ wires before methods exist). print derives
+    spellings recursively (never stored ⇒ can't drift); parse is the
+    tape's separate discussion. Wanted verb: declare (throw-on-rebind
+    HERE; shadowing = child frame). Comparative frame Travis liked:
+    we're a triple store w/ ONE index over an immutable heap; second
+    index (per-context row list, FS-dirent co-location) only when a
+    profile demands.
   - **Then: REVISIT REFLECTION** — registration TU (describe_function emits
     words + signatures off C++, deletes hand shims/floor sigs; scoped ids;
     register_cpp<X>(env); component = type + CONSTRUCT/ERASE/TICK methods —
