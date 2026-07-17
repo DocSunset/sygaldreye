@@ -12,6 +12,7 @@
 // guarantees every hash a term carries decodes.
 #include "node.hpp"
 #include <array>
+#include <bit>
 #include <cstdint>
 #include <string_view>
 #include <type_traits>
@@ -41,33 +42,25 @@ inline constexpr syg_handle_t VARIANT      = inscribe_symbol("variant");       /
 inline constexpr syg_handle_t MUTABLE_PTR  = inscribe_symbol("mutable_ptr");   // may write through it
 inline constexpr syg_handle_t CONSTANT_PTR = inscribe_symbol("constant_ptr");  // may only read
 inline constexpr syg_handle_t SCOPE        = inscribe_symbol("scope");         // one step of a name
-inline constexpr syg_handle_t SYMBOL       = inscribe_symbol("symbol");        // a NAME (interned)
+inline constexpr syg_handle_t STR_NAME     = inscribe_symbol("str");           // the ONE fiat spelling
 inline constexpr syg_handle_t CONTENT      = inscribe_symbol("content");       // organ: the store
 
 // the decree's table of contents — iterate to visit every fiat symbol.
 // The sharpened fiat criterion: a row is fiat iff UNSAYABLE from inside or
 // PRECEDES-THE-STORE. (REFS is gone — a reference is a REF-typed row of the
 // environment's one table; CONSTRUCT is gone — relations are sayable,
-// post-floor, ordinary decreed symbols below.)
+// post-floor, ordinary decreed symbols below. SYMBOL is gone — every name is
+// an ordinary STRING; only the string type's own name is fiat, because the
+// string type cannot name itself with a string: the fixed point, patched at
+// exactly one node.)
 inline constexpr std::array ROSTER{ATOM, STRUCTURE, VARIANT, MUTABLE_PTR, CONSTANT_PTR,
-                                   SCOPE, SYMBOL, CONTENT};
-
-// a symbol's id, computable anywhere — the constexpr twin working for names.
-// (The NODE must still be minted resident by whoever refers to it.)
-constexpr syg_hash symbol_id(const char* s)
-  { return syg_id(SYMBOL.id, std::char_traits<char>::length(s), s); }
-constexpr syg_hash symbol_id(std::string_view s)
-  { return syg_id(SYMBOL.id, s.size(), s.data()); }
-
-// ── decreed RELATIONS — canonical symbols, NOT fiat ─────────────────────────
-// The roster stops growing per relation, forever.
-inline constexpr syg_hash CONSTRUCT = symbol_id("construct");
-// later, verbatim: TICK = symbol_id("tick"); ERASE = symbol_id("erase");
+                                   SCOPE, STR_NAME, CONTENT};
 
 // ── atom: a primitive type's term ───────────────────────────────────────────
 // Three ground facts. Instance size/align live INSIDE the term — facts about
-// the type; the node's own size is the term's byte length. name: a SYMBOL
-// (or SCOPE) node id.
+// the type; the node's own size is the term's byte length. name: a string
+// (or SCOPE) node id — a name is a string used in a naming POSITION; the
+// schema, not the type column, says which slots are names.
 struct atom_term { syg_hash name; std::uint64_t size, align; };
 
 // instance length "dynamic": it comes from the handle/store, never the type
@@ -75,10 +68,31 @@ struct atom_term { syg_hash name; std::uint64_t size, align; };
 // `struct type_tag {};` carries no bytes but is still a type.
 inline constexpr std::uint64_t DYNAMIC = ~std::uint64_t{0};
 
+// ── the string type's id — the knot, tied constexpr ─────────────────────────
+// The str atom's term is {STR_NAME.id, DYNAMIC, 1}; its id must be computable
+// before any store exists. mix() absorbs a u64 LSB-first byte-by-byte, so the
+// chained mixes below are byte-identical to hashing the packed term struct on
+// a conforming (little-endian) platform — pinned by the asserts further down.
+inline constexpr syg_hash STR_TYPE =
+    syg_hash::seed().mix(ATOM.id).mix(STR_NAME.id).mix(DYNAMIC).mix(1);
+
+// a name's id, computable anywhere — the constexpr twin working for names.
+// A name IS a string node; nothing distinguishes the name "x" from the text
+// "x". (The NODE must still be minted resident by whoever refers to it.)
+constexpr syg_hash name_id(const char* s)
+  { return syg_id(STR_TYPE, std::char_traits<char>::length(s), s); }
+constexpr syg_hash name_id(std::string_view s)
+  { return syg_id(STR_TYPE, s.size(), s.data()); }
+
+// ── decreed RELATIONS — canonical names, NOT fiat ───────────────────────────
+// The roster stops growing per relation, forever.
+inline constexpr syg_hash CONSTRUCT = name_id("construct");
+// later, verbatim: TICK = name_id("tick"); ERASE = name_id("erase");
+
 // ── structure & variant: ONE term layout, two decoders ─────────────────────
 // term = [ name ][ field_term… ]; arity is NOT stored — it falls out of the
 // node's size: (size - 8) / 16. name = GROUND ⇒ anonymous (structural).
-struct field_term { syg_hash name; syg_hash type; };  // one field / one case; name: a SYMBOL id
+struct field_term { syg_hash name; syg_hash type; };  // one field / one case; name: a string id
 
 // ── pointers: unary, anonymous — the term is just the pointee id ────────────
 // (No struct needed: the term is one syg_hash.) The pointer constructors
@@ -96,7 +110,10 @@ struct field_term { syg_hash name; syg_hash type; };  // one field / one case; n
 struct canon_row {
   std::string_view name;
   std::uint64_t size, align;
-  constexpr atom_term term() const { return {symbol_id(name), size, align}; }
+  // the one branch at the knot: str's name is the fiat spelling, every other
+  // name is an ordinary string node's id.
+  constexpr atom_term term() const
+    { return {name == "str" ? STR_NAME.id : name_id(name), size, align}; }
 };
 
 // C++ fundamental → canonical name: category + width, so aliases (size_t,
@@ -127,7 +144,8 @@ template <class T> consteval canon_row make_canon()
 static_assert(sizeof(bool) == 1 && alignof(bool) == 1 &&
               sizeof(float) == 4 && alignof(float) == 4 &&
               sizeof(double) == 8 && alignof(double) == 8 &&
-              alignof(std::int64_t) == 8 && alignof(hash64_fnv1a) == 8,
+              alignof(std::int64_t) == 8 && alignof(hash64_fnv1a) == 8 &&
+              sizeof(atom_term) == 24 && std::endian::native == std::endian::little,
               "non-conforming platform: canonical ids would fork");
 
 inline constexpr std::array CANON{
@@ -146,7 +164,7 @@ inline constexpr std::array CANON{
 // ── scope: qualification as content ─────────────────────────────────────────
 // One step of a qualified name — a Merkle chain: geo::vec2 =
 // scope(scope(GROUND, "geo"), "vec2"). A term's name slot may point at a
-// SYMBOL (unqualified), a SCOPE chain (qualified), or GROUND (anonymous) —
+// string (unqualified), a SCOPE chain (qualified), or GROUND (anonymous) —
 // the id's TYPE says which; :: is spelling, not structure. Qualification is
 // IDENTITY (it folds into ids); the environment (env.hpp) is RESOLUTION
 // (what's visible HERE, mutable, idless) — never conflate the two.

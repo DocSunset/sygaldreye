@@ -28,7 +28,7 @@
 // (every sense of a designator, every name under a context) are filters.
 struct grip_key {
   syg_hash context;     // GROUND | a scope | a relation
-  syg_hash designator;  // a symbol id, a type id — the second coordinate
+  syg_hash designator;  // a name id, a type id — the second coordinate
   constexpr bool operator==(const grip_key&) const = default;
 };
 struct syg_env_t {
@@ -51,7 +51,7 @@ struct content_store {
 // computable WITHOUT an env (term hashed on the stack), so find() can
 // recognize REF rows const-ly; floor mints the resident so the hash decodes.
 inline syg_hash ref_type_id() {
-  atom_term t{.name = symbol_id("ref"), .size = 8, .align = 8};
+  atom_term t{.name = name_id("ref"), .size = 8, .align = 8};
   return syg_id(ATOM.id, sizeof t, &t);
 }
 
@@ -129,10 +129,8 @@ inline syg_handle_t node(syg_env_t* env, syg_hash type, const void* term, std::u
   return insert_or_get(env, {.data = const_cast<void*>(term), .type = type,
                              .id = syg_id(type, n, term), .size = n, .env = nullptr});
 }
-inline syg_handle_t symbol_node(syg_env_t* env, const char* s)
-  { return node(env, SYMBOL.id, s, std::char_traits<char>::length(s)); }
 
-inline syg_handle_t atom(syg_env_t* env, syg_hash name /* a SYMBOL or SCOPE id */,
+inline syg_handle_t atom(syg_env_t* env, syg_hash name /* a string or SCOPE id */,
                          std::uint64_t size, std::uint64_t align) {
   atom_term t{.name = name, .size = size, .align = align};
   return node(env, ATOM.id, &t, sizeof t);
@@ -144,7 +142,10 @@ inline syg_handle_t atom(syg_env_t* env, syg_hash name /* a SYMBOL or SCOPE id *
 inline syg_handle_t canon_type(syg_env_t* env, std::string_view name) {
   for (const canon_row& r : CANON)
     if (r.name == name) {
-      node(env, SYMBOL.id, r.name.data(), r.name.size());   // the spelling decodes
+      if (r.name != "str") {                                // str's spelling is fiat, inscribed
+        canon_type(env, "str");                             // the spelling's TYPE decodes first
+        node(env, STR_TYPE, r.name.data(), r.name.size());  // the spelling decodes
+      }
       atom_term t = r.term();
       return node(env, ATOM.id, &t, sizeof t);              // the term, as decreed
     }
@@ -159,15 +160,17 @@ inline syg_handle_t string_type(syg_env_t* env) { return canon_type(env, "str");
 inline syg_handle_t u64_type(syg_env_t* env)    { return canon_type(env, "u64"); }
 inline syg_handle_t h64_type(syg_env_t* env)    { return canon_type<syg_hash>(env); }
 inline syg_handle_t ref_type(syg_env_t* env)    { return canon_type(env, "ref"); }
-inline syg_handle_t envptr_type(syg_env_t* env)
-  { return atom(env, symbol_node(env, "envptr").id, sizeof(void*), alignof(void*)); }
-inline syg_handle_t handle_type(syg_env_t* env)
-  { return atom(env, symbol_node(env, "handle").id, sizeof(syg_handle_t), alignof(syg_handle_t)); }
-inline syg_handle_t rest_h64_type(syg_env_t* env)
-  { return atom(env, symbol_node(env, "rest_hash64").id, 0, 1); }
 
+// a string node — also every NAME: a name is a string used in a naming position.
 inline syg_handle_t string_node(syg_env_t* env, const char* s)
   { return node(env, string_type(env).id, s, std::char_traits<char>::length(s)); }
+
+inline syg_handle_t envptr_type(syg_env_t* env)
+  { return atom(env, string_node(env, "envptr").id, sizeof(void*), alignof(void*)); }
+inline syg_handle_t handle_type(syg_env_t* env)
+  { return atom(env, string_node(env, "handle").id, sizeof(syg_handle_t), alignof(syg_handle_t)); }
+inline syg_handle_t rest_h64_type(syg_env_t* env)
+  { return atom(env, string_node(env, "rest_hash64").id, 0, 1); }
 inline syg_handle_t u64_node(syg_env_t* env, std::uint64_t v)
   { return node(env, u64_type(env).id, &v, sizeof v); }  // every "4" is one node
 
@@ -191,7 +194,7 @@ inline syg_handle_t scope(syg_env_t* env, syg_hash parent, syg_hash name) {
   return node(env, SCOPE.id, &t, sizeof t);
 }
 inline syg_handle_t scope(syg_env_t* env, syg_hash parent, const char* name)
-  { return scope(env, parent, symbol_node(env, name).id); }
+  { return scope(env, parent, string_node(env, name).id); }
 
 // ── behavior: ONE ABI, ONE discipline ───────────────────────────────────────
 // THE word — void(*)(void**), IDENTICAL to the escapement's. A frame is
@@ -293,12 +296,12 @@ inline syg_env_t* floor() {
                                  .size = sizeof(content_store), .env = nullptr});
   inscribe(env, ROSTER);                              // the decree becomes resident
   for (const canon_row& r : CANON) canon_type(env, r.name);   // the canon becomes resident
-  symbol_node(env, "construct");                      // relations decode too
+  string_node(env, "construct");                      // relations decode too
   // constructor signatures: ANONYMOUS structure nodes (identical signatures
   // unify by content). A registration TU will reflect these off the C++.
   syg_hash E = envptr_type(env).id, H = h64_type(env).id, U = u64_type(env).id,
            HN = handle_type(env).id, R = rest_h64_type(env).id;
-  auto sym = [&](const char* s) { return symbol_node(env, s).id; };
+  auto sym = [&](const char* s) { return string_node(env, s).id; };
   field_term atom_sig[] = {{sym("env"), E}, {sym("name"), H}, {sym("size"), U},
                            {sym("align"), U}, {sym("out"), HN}};
   bind_method(env, CONSTRUCT, ATOM.id,
