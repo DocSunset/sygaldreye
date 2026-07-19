@@ -225,6 +225,27 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     we're a triple store w/ ONE index over an immutable heap; second
     index (per-context row list, FS-dirent co-location) only when a
     profile demands.
+  - **Ratified (conversation): functions are scoped names; methods are
+    convention.** A function = (name-in-scope, signature, transition);
+    conceptual term {name, sig, body} with body=GROUND for natives
+    ("decoder out of band" = you must have it linked) — NOT yet landed
+    as a term type. Method = function whose scope is a type; TICK =
+    just the function named "tick" in the type's scope. Overload
+    contract (Travis's exact words matter): {type, name} row = THE
+    DEFAULT method, resolved by name ONLY, no overloads at that level;
+    beside it, rows at {scope{type,name}.id, signature} = exact-match
+    overloads; WHICH path to resolve is the ASKER's choice. A default
+    that internally re-dispatches to same-name overloads is one
+    author's option, not the contract. At most one rest_handles
+    binding per name.
+  - **Landed (`819cc39`): rest_handles; rest_hash64 retired.** The
+    decreed variadic default signature is {env, args: rest_handles,
+    out: handle}; the marshaller emits TWO slots for a rest field —
+    synthesized argc (never a minted node) + the caller's contiguous
+    handle array (zero copies; idless grips ride through — the seam
+    TICK will use; id-array was rejected: it can only spell the frozen
+    world). structure_construct_word migrated (explicit count arg
+    died); situated trio now envptr/handle/rest_handles.
   - **Then: REVISIT REFLECTION** — registration TU (describe_function emits
     words + signatures off C++, deletes hand shims/floor sigs; scoped ids;
     register_cpp<X>(env); component = type + CONSTRUCT/ERASE/TICK methods —
