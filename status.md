@@ -246,6 +246,12 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     TICK will use; id-array was rejected: it can only spell the frozen
     world). structure_construct_word migrated (explicit count arg
     died); situated trio now envptr/handle/rest_handles.
+  - **Landed (`05ec207`): rekey + rename.** Function rows key
+    {type, name} (context = subject type, designator = name — scope-as-
+    type); resolve/dispatch mirror the key order (subject, name); tape
+    record = (subject, name, args…). method → function everywhere
+    (struct function, function_node, bind_function); "method" survives
+    only as prose for functions-scoped-by-a-type.
   - **Then: REVISIT REFLECTION** — registration TU (describe_function emits
     words + signatures off C++, deletes hand shims/floor sigs; scoped ids;
     register_cpp<X>(env); component = type + CONSTRUCT/ERASE/TICK methods —
