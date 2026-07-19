@@ -203,31 +203,35 @@ inline syg_handle_t scope(syg_env_t* env, syg_hash parent, const char* name)
 // inputs then outputs; arity is SIGNATURE knowledge, never ABI knowledge.
 using word = void (*)(void** argv);
 
-// a method node: a grip on a word cell whose TYPE IS ITS SIGNATURE — an
+// a function node: a grip on a word cell whose TYPE IS ITS SIGNATURE — an
 // anonymous structure node of (name, type) fields: the shape reflection
 // reads off a C++ function. id EMPTY: a fn pointer is a location, not
-// content; when methods ship, their SOURCE ships, not these cells.
-inline syg_handle_t method_node(syg_env_t* env, word* cell, syg_hash signature) {
+// content; when functions ship, their SOURCE ships, not these cells.
+inline syg_handle_t function_node(syg_env_t* env, word* cell, syg_hash signature) {
   return {.data = cell, .type = signature, .id = {}, .size = sizeof *cell, .env = env};
 }
-// binding a method is ONE wire: context = the relation, designator = the
-// type. "The CONSTRUCT of ATOM is this word cell."
-inline void bind_method(syg_env_t* env, syg_hash relation, syg_hash type, syg_handle_t method) {
-  wire(env, relation, type, method);
+// a function is minted in a scope; a "method" is just a function whose scope
+// is a type — pure convention, ONE wire: context = the type, designator =
+// the name. The {type, name} row is THE DEFAULT for that name, resolved by
+// name alone; exact-signature overloads may live beside it at
+// {scope{type, name}.id, signature} — WHICH path to ask is the asker's
+// choice. "atom's construct is this word cell."
+inline void bind_function(syg_env_t* env, syg_hash type, syg_hash name, syg_handle_t fn) {
+  wire(env, type, name, fn);
 }
 
 // resolve: the COLD half — ONE find. Cacheable: a binding IS a resolved
-// method; the hot loop never walks a table. Exact-match today; the seam-0
+// function; the hot loop never walks a table. Exact-match today; the seam-0
 // query engine slots in behind this signature later.
-struct method { word fn; const syg_handle_t* sig; };
-inline method resolve(const syg_env_t* env, syg_hash relation, syg_hash subject) {
-  const syg_handle_t* m = find(env, relation, subject);
+struct function { word fn; const syg_handle_t* sig; };
+inline function resolve(const syg_env_t* env, syg_hash subject, syg_hash name) {
+  const syg_handle_t* m = find(env, subject, name);
   if (!m) return {};
   return { *(word*)m->data, get(env, m->type) };   // the fn, and how to call it
 }
 
 // call: the ONE marshaller — handles in, raw frame out, driven by the
-// method's signature:
+// function's signature:
 //   hash64 field  ⇒ the arg IS a reference: pass &arg.id
 //   envptr field  ⇒ HERE rides as a raw cell: pass &env
 //   rest_handles  ⇒ TWO slots: the remaining-arg count (synthesized, never a
@@ -236,9 +240,9 @@ inline method resolve(const syg_env_t* env, syg_hash relation, syg_hash subject)
 //   last field    ⇒ the one output (stage-0 convention): pass &out
 //   otherwise     ⇒ pass arg.data (the payload cell)
 // Words never see a handle unless their signature declares one.
-inline syg_handle_t call(syg_env_t* env, const method& m,
+inline syg_handle_t call(syg_env_t* env, const function& m,
                          std::uint64_t n, const syg_handle_t* args) {
-  if (!m.sig) throw std::runtime_error("syg: method signature not resident");
+  if (!m.sig) throw std::runtime_error("syg: function signature not resident");
   auto* f = (const field_term*)((const char*)m.sig->data + sizeof(syg_hash));
   std::uint64_t nf = (m.sig->size - sizeof(syg_hash)) / sizeof(field_term);
 
@@ -259,18 +263,18 @@ inline syg_handle_t call(syg_env_t* env, const method& m,
   return out;
 }
 
-// dispatch: resolve + call, over ANY relation. A boot-tape record is
-// (relation, subject, arg-ids…): the crown's applier is this in a loop.
-inline syg_handle_t dispatch(syg_env_t* env, syg_hash relation, syg_hash subject,
+// dispatch: resolve + call, for ANY name. A boot-tape record is
+// (subject, name, arg-ids…): the crown's applier is this in a loop.
+inline syg_handle_t dispatch(syg_env_t* env, syg_hash subject, syg_hash name,
                              std::uint64_t n, const syg_handle_t* args) {
-  method m = resolve(env, relation, subject);
-  if (!m.fn) throw std::runtime_error("syg: no method bound for (relation, subject)");
+  function m = resolve(env, subject, name);
+  if (!m.fn) throw std::runtime_error("syg: no function bound for (subject, name)");
   return call(env, m, n, args);
 }
 // emplace_or_get: mint BY TYPE ID — the constructors' entry point, one line.
 inline syg_handle_t emplace_or_get(syg_env_t* env, syg_hash type,
                                    std::uint64_t n, const syg_handle_t* args)
-  { return dispatch(env, CONSTRUCT, type, n, args); }
+  { return dispatch(env, type, CONSTRUCT, n, args); }
 
 // generated-shape shims. A reflection-enabled registration TU will emit
 // these from describe_function and DELETE the hand copies; the frame layouts
@@ -290,7 +294,7 @@ inline void structure_construct_word(void** argv) {  // (env, args: name,(fname,
 }
 // variant/pointer/scope folds: same shapes; bound when first needed.
 inline word atom_ctor_cell      = atom_construct_word;      // static homes for the
-inline word structure_ctor_cell = structure_construct_word; // method-node grips
+inline word structure_ctor_cell = structure_construct_word; // function-node grips
 
 // ── the floor: the organ wired, the decree enrolled, first citizens minted ──
 inline void inscribe(syg_env_t* env, std::span<const syg_handle_t> nodes)
@@ -310,11 +314,11 @@ inline syg_env_t* floor() {
   auto sym = [&](const char* s) { return string_node(env, s).id; };
   field_term atom_sig[] = {{sym("env"), E}, {sym("name"), H}, {sym("size"), U},
                            {sym("align"), U}, {sym("out"), HN}};
-  bind_method(env, CONSTRUCT, ATOM.id,
-              method_node(env, &atom_ctor_cell, structure(env, GROUND, atom_sig).id));
+  bind_function(env, ATOM.id, CONSTRUCT,
+                function_node(env, &atom_ctor_cell, structure(env, GROUND, atom_sig).id));
   field_term struct_sig[] = {{sym("env"), E}, {sym("args"), RH}, {sym("out"), HN}};
-  bind_method(env, CONSTRUCT, STRUCTURE.id,
-              method_node(env, &structure_ctor_cell, structure(env, GROUND, struct_sig).id));
+  bind_function(env, STRUCTURE.id, CONSTRUCT,
+                function_node(env, &structure_ctor_cell, structure(env, GROUND, struct_sig).id));
   return env;
 }
 
