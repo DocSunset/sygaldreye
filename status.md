@@ -252,6 +252,15 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     record = (subject, name, args…). method → function everywhere
     (struct function, function_node, bind_function); "method" survives
     only as prose for functions-scoped-by-a-type.
+  - **Landed (`98157fd`): word atom + resident function structure.**
+    "word" atom = the 8-byte fn-pointer cell (situated); function =
+    named structure {code: word, signature: hash64}, C++ mirror struct
+    function{word fn; syg_hash sig;} layout-asserted — the shape
+    reflection will emit function_type FROM. Rows grip function
+    instances, type column = function_type (honest customs; the old
+    type-is-signature pun retired). call() fetches the sig by one
+    get(). resolve casts UNCHECKED (const env can't mint the check
+    type; constexpr function-type-id twin deferred to declare era).
   - **Then: REVISIT REFLECTION** — registration TU (describe_function emits
     words + signatures off C++, deletes hand shims/floor sigs; scoped ids;
     register_cpp<X>(env); component = type + CONSTRUCT/ERASE/TICK methods —
