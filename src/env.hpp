@@ -169,8 +169,8 @@ inline syg_handle_t envptr_type(syg_env_t* env)
   { return atom(env, string_node(env, "envptr").id, sizeof(void*), alignof(void*)); }
 inline syg_handle_t handle_type(syg_env_t* env)
   { return atom(env, string_node(env, "handle").id, sizeof(syg_handle_t), alignof(syg_handle_t)); }
-inline syg_handle_t rest_h64_type(syg_env_t* env)
-  { return atom(env, string_node(env, "rest_hash64").id, 0, 1); }
+inline syg_handle_t rest_handles_type(syg_env_t* env)
+  { return atom(env, string_node(env, "rest_handles").id, 0, 1); }
 inline syg_handle_t u64_node(syg_env_t* env, std::uint64_t v)
   { return node(env, u64_type(env).id, &v, sizeof v); }  // every "4" is one node
 
@@ -230,7 +230,9 @@ inline method resolve(const syg_env_t* env, syg_hash relation, syg_hash subject)
 // method's signature:
 //   hash64 field  ⇒ the arg IS a reference: pass &arg.id
 //   envptr field  ⇒ HERE rides as a raw cell: pass &env
-//   rest_hash64   ⇒ consume ALL remaining args, as references
+//   rest_handles  ⇒ TWO slots: the remaining-arg count (synthesized, never a
+//                   minted node), then the caller's handle array itself —
+//                   zero copies, and live grips (idless) ride through intact
 //   last field    ⇒ the one output (stage-0 convention): pass &out
 //   otherwise     ⇒ pass arg.data (the payload cell)
 // Words never see a handle unless their signature declares one.
@@ -240,14 +242,17 @@ inline syg_handle_t call(syg_env_t* env, const method& m,
   auto* f = (const field_term*)((const char*)m.sig->data + sizeof(syg_hash));
   std::uint64_t nf = (m.sig->size - sizeof(syg_hash)) / sizeof(field_term);
 
-  syg_hash h64 = h64_type(env).id, envp = envptr_type(env).id, rest = rest_h64_type(env).id;
+  syg_hash h64 = h64_type(env).id, envp = envptr_type(env).id,
+           rh  = rest_handles_type(env).id;
   syg_handle_t out{.data = nullptr, .type = {}, .id = {}, .size = 0, .env = env};
+  std::uint64_t argc = 0;                        // the synthesized count cell
   std::vector<void*> frame;
   for (std::uint64_t i = 0, a = 0; i < nf; ++i) {
     if      (i == nf - 1)       frame.push_back(&out);
     else if (f[i].type == envp) frame.push_back(&env);
     else if (f[i].type == h64)  frame.push_back((void*)&args[a++].id);
-    else if (f[i].type == rest) while (a < n) frame.push_back((void*)&args[a++].id);
+    else if (f[i].type == rh)   { argc = n - a; frame.push_back(&argc);
+                                  frame.push_back((void*)(args + a)); a = n; }
     else                        frame.push_back(args[a++].data);
   }
   m.fn(frame.data());
@@ -274,13 +279,14 @@ inline void atom_construct_word(void** argv) {       // (env, name, size, align)
   *(syg_handle_t*)argv[4] = atom(*(syg_env_t**)argv[0], *(syg_hash*)argv[1],
                                  *(std::uint64_t*)argv[2], *(std::uint64_t*)argv[3]);
 }
-inline void structure_construct_word(void** argv) {  // (env, count, name, fields…) → handle
-  syg_env_t* env = *(syg_env_t**)argv[0];
-  std::uint64_t count = *(std::uint64_t*)argv[1];
+inline void structure_construct_word(void** argv) {  // (env, args: name,(fname,ftype)…) → handle
+  syg_env_t*          env  = *(syg_env_t**)argv[0];
+  std::uint64_t       argc = *(std::uint64_t*)argv[1];
+  const syg_handle_t* args = (const syg_handle_t*)argv[2];
   std::vector<field_term> f;
-  for (std::uint64_t i = 0; i < count; ++i)
-    f.push_back({*(syg_hash*)argv[3 + 2 * i], *(syg_hash*)argv[4 + 2 * i]});
-  *(syg_handle_t*)argv[3 + 2 * count] = structure(env, *(syg_hash*)argv[2], f);
+  for (std::uint64_t i = 1; i + 1 < argc; i += 2)
+    f.push_back({args[i].id, args[i + 1].id});
+  *(syg_handle_t*)argv[3] = structure(env, args[0].id, f);
 }
 // variant/pointer/scope folds: same shapes; bound when first needed.
 inline word atom_ctor_cell      = atom_construct_word;      // static homes for the
@@ -300,14 +306,13 @@ inline syg_env_t* floor() {
   // constructor signatures: ANONYMOUS structure nodes (identical signatures
   // unify by content). A registration TU will reflect these off the C++.
   syg_hash E = envptr_type(env).id, H = h64_type(env).id, U = u64_type(env).id,
-           HN = handle_type(env).id, R = rest_h64_type(env).id;
+           HN = handle_type(env).id, RH = rest_handles_type(env).id;
   auto sym = [&](const char* s) { return string_node(env, s).id; };
   field_term atom_sig[] = {{sym("env"), E}, {sym("name"), H}, {sym("size"), U},
                            {sym("align"), U}, {sym("out"), HN}};
   bind_method(env, CONSTRUCT, ATOM.id,
               method_node(env, &atom_ctor_cell, structure(env, GROUND, atom_sig).id));
-  field_term struct_sig[] = {{sym("env"), E}, {sym("count"), U}, {sym("name"), H},
-                             {sym("fields"), R}, {sym("out"), HN}};
+  field_term struct_sig[] = {{sym("env"), E}, {sym("args"), RH}, {sym("out"), HN}};
   bind_method(env, CONSTRUCT, STRUCTURE.id,
               method_node(env, &structure_ctor_cell, structure(env, GROUND, struct_sig).id));
   return env;

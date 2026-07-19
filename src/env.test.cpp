@@ -104,9 +104,9 @@ int main() {
   syg_handle_t args[] = { string_node(env, "float16"), u64_node(env, 2), u64_node(env, 2) };
   syg_handle_t e16 = emplace_or_get(env, ATOM.id, 3, args);
   assert(e16.id == f16.id && e16.data == get(env, f16.id)->data);
-  syg_handle_t sargs[] = { u64_node(env, 2), string_node(env, "vec2"),
+  syg_handle_t sargs[] = { string_node(env, "vec2"),
                            string_node(env, "x"), f32, string_node(env, "y"), f32 };
-  assert(emplace_or_get(env, STRUCTURE.id, 6, sargs).id == s.id);
+  assert(emplace_or_get(env, STRUCTURE.id, 5, sargs).id == s.id);
 
   // the method's type IS its signature; binding is ONE row of the ONE table.
   method rm = resolve(env, CONSTRUCT, ATOM.id);
