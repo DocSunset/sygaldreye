@@ -273,6 +273,19 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     (immortality mark: static storage owns, ERASE skips env-less rows),
     asserts each row rehashes to its id. Floor no longer heap-copies
     ROSTER; reflection's baked term rows will enter the same way.
+  - **Landed (`bb2b76d`): refs carry target in DATA; THE .id LAW.** Old
+    bind() squeezed the referent into .id to skip an alloc — broke .id's
+    meaning. Now the target is an INLINE 8-byte payload in the ref's data
+    (SDO — a hash fits the data word), .id back to {}, find() derefs from
+    data; no heap, nothing owned, dies with the table slot. THE .id LAW
+    (node.hpp): .id is the handle's OWN content-name (resident) or {}; a
+    reference to another node is DATA, never .id. SDO note beside it:
+    deferred, profile-driven, ONE accessor if ever (else "is it small?"
+    spreads into syg_id). static_assert guards wasm32 (4-byte ptr can't
+    inline 8-byte hash → refs there need table-owned heap via ref ctor +
+    ownership law). CONSEQUENCE for B5: the function grip keeps .id={} and
+    carries the value reference in its DATA (fold into struct function),
+    NOT .id=value.id as earlier floated — the law decides it.
   - **Reflection-revisit design (ratified in conversation 2026-07-19/20,
     NOT yet sketched/landed):**
     - OUTPUTS normalize to mutable_ptr(T) fields in the signature
