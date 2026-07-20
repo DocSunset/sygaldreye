@@ -9,10 +9,12 @@ using namespace syg;
 int main() {
   syg_env_t* env = floor();
 
-  // the decree is resident and every row rehashes to its id.
+  // the decree is resident, ENROLLED not copied: the resident points AT the
+  // static roster bytes (same pointer, no malloc) and stays env-less — the
+  // immortality mark. Every row rehashes to its id.
   for (const syg_handle_t& h : ROSTER) {
     const syg_handle_t* r = get(env, h.id);
-    assert(r && r->data != h.data && syg_id(*r) == r->id && r->env == env);
+    assert(r && r->data == h.data && syg_id(*r) == r->id && r->env == nullptr);
   }
 
   // a name IS a string: one node, one id; the constexpr twin agrees.

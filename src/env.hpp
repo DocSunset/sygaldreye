@@ -106,6 +106,24 @@ inline const syg_handle_t* get(const syg_env_t* env, syg_hash id) {
 // way stop and yell — silent merge is impossible, not unlikely. New content
 // is COPIED into the nearest organ (the store owns its bytes) and stamped
 // with the organ's frame, so residents never outlive their store.
+// place: the shared tail of both enrollment paths — verified dedup, then
+// drop the handle into the nearest organ AS GIVEN. The caller has already
+// decided who owns h.data (a fresh malloc, or static bytes) and stamped env
+// accordingly; place neither copies nor frees.
+inline syg_handle_t place(syg_env_t* env, const syg_handle_t& h) {
+  if (const syg_handle_t* r = get(env, h.id)) {
+    if (r->size != h.size || std::memcmp(r->data, h.data, h.size))
+      throw std::runtime_error("syg: id collision — distinct content, same hash");
+    return *r;
+  }
+  const syg_handle_t* organ = peek(env, GROUND, CONTENT.id);
+  if (!organ) throw std::runtime_error("syg: no content organ wired here");
+  return ((content_store*)organ->data)->map.emplace(h.id, h).first->second;
+}
+
+// insert_or_get: the BIRTH path — h.data is caller-temporary, so the store
+// COPIES it (owning the bytes) and stamps the organ's frame, so residents
+// never outlive their store.
 inline syg_handle_t insert_or_get(syg_env_t* env, const syg_handle_t& h) {
   if (const syg_handle_t* r = get(env, h.id)) {
     if (r->size != h.size || std::memcmp(r->data, h.data, h.size))
@@ -116,10 +134,8 @@ inline syg_handle_t insert_or_get(syg_env_t* env, const syg_handle_t& h) {
   if (!organ) throw std::runtime_error("syg: no content organ wired here");
   void* copy = std::malloc(h.size);
   std::memcpy(copy, h.data, h.size);
-  return ((content_store*)organ->data)
-      ->map.emplace(h.id, syg_handle_t{.data = copy, .type = h.type, .id = h.id,
-                                       .size = h.size, .env = organ->env})
-      .first->second;
+  return place(env, {.data = copy, .type = h.type, .id = h.id,
+                     .size = h.size, .env = organ->env});
 }
 
 // ── constructors: a node is BORN registered ─────────────────────────────────
@@ -315,8 +331,19 @@ inline function atom_ctor_cell{atom_construct_word, {}};
 inline function structure_ctor_cell{structure_construct_word, {}};
 
 // ── the floor: the organ wired, the decree enrolled, first citizens minted ──
-inline void inscribe(syg_env_t* env, std::span<const syg_handle_t> nodes)
-  { for (const syg_handle_t& h : nodes) insert_or_get(env, h); }
+// inscribe: the STATIC-ENROLLMENT path — the bytes are constinit/static
+// (the ROSTER, a reflected registration TU's baked term rows), so the store
+// points AT them: no malloc, no copy. .env stays nullptr — the in-band
+// immortality mark: static storage owns these, the store doesn't, so a
+// future ERASE walk skips them. Enrollment doubles as verification: every
+// row must rehash to its id (the IPFS property, checked at the door).
+inline void inscribe(syg_env_t* env, std::span<const syg_handle_t> nodes) {
+  for (const syg_handle_t& h : nodes) {
+    if (!(syg_id(h) == h.id))
+      throw std::runtime_error("syg: inscribed node does not hash to its id");
+    place(env, h);
+  }
+}
 
 inline syg_env_t* floor() {
   auto* env = new syg_env_t{nullptr, {}};
