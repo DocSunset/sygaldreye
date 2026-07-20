@@ -261,6 +261,11 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     type-is-signature pun retired). call() fetches the sig by one
     get(). resolve casts UNCHECKED (const env can't mint the check
     type; constexpr function-type-id twin deferred to declare era).
+  - **After the reflection probe/revisit: freshen `.claude/skills/cpp26`**
+    with what we learn (known gaps found 2026-07-19: access_context arg on
+    members_of; our GCC16 landmines unrecorded; ctor/dtor discovery;
+    parent_of; offset_of/layout; overload-set wall; bases_of/P3293;
+    define_aggregate).
   - **Then: REVISIT REFLECTION** — registration TU (describe_function emits
     words + signatures off C++, deletes hand shims/floor sigs; scoped ids;
     register_cpp<X>(env); component = type + CONSTRUCT/ERASE/TICK methods —
