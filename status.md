@@ -269,8 +269,16 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
   - **Then: REVISIT REFLECTION** — registration TU (describe_function emits
     words + signatures off C++, deletes hand shims/floor sigs; scoped ids;
     register_cpp<X>(env); component = type + CONSTRUCT/ERASE/TICK methods —
-    ERASE feeds table destruction-ownership); re-aim generate_component to
-    resident nodes (retire syg.hpp's old world). Then: TICK + smallest
+    ERASE feeds table destruction-ownership). STRUCK (Travis, 2026-07-19):
+    stage0.hpp/syg.hpp are out of consideration — stage0.hpp is a grown COPY
+    of src/escapement/component.hpp (the canonical reflection probe); its
+    only salvage: (1) identity extraction (enclosing_namespaces/frozen_names/
+    type_name/has_origin), (2) [[=outputs{}]] splay, (3) the generate_value/
+    generate_component leaf/product recursion PATTERN (canon base case +
+    recurse) — emissions retarget to resident nodes; syg_type_t/its ad-hoc
+    id mixes/shape fold all die. Survey verdict: old ANALYSIS survives,
+    old SYNTHESIS fully replaced; word ABI/parent_of walk/purity rule/
+    static-chars discipline were exactly right. Then: TICK + smallest
     ticking graph; decree doc. Parked: fiat+env, string_node borrow,
     syg_id demotion.
 
