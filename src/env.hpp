@@ -81,16 +81,25 @@ inline const syg_handle_t* get(const syg_env_t* env, syg_hash id);
 // real handle. One level, deliberately.
 inline const syg_handle_t* find(const syg_env_t* env, syg_hash ctx, syg_hash name) {
   const syg_handle_t* row = peek(env, ctx, name);
-  if (row && row->type == ref_type_id()) return get(env, row->id);
+  if (row && row->type == ref_type_id())            // target rides INLINE in data (SDO)
+    return get(env, syg_hash{(std::uint64_t)(std::uintptr_t)row->data});
   return row;
 }
 
-// bind = wire a REFERENCE: a pure value row — no bytes, no allocation,
-// nothing owned; the shippable kind.
+// bind = wire a REFERENCE. The target is the ref's DATA (a ref's payload IS
+// the hash it points at) — stored INLINE in the data word (SDO), so no heap,
+// nothing owned, and the row dies with its table slot. .id stays {}: a ref is
+// not a store resident, and per THE .id LAW (node.hpp) a referent lives in
+// data, never in .id.
 inline void bind(syg_env_t* env, syg_hash ctx, syg_hash name, syg_hash target) {
-  wire(env, ctx, name, {.data = nullptr, .type = ref_type_id(), .id = target, .size = 0,
+  wire(env, ctx, name, {.data = (void*)(std::uintptr_t)target.digest,
+                        .type = ref_type_id(), .id = {}, .size = sizeof target,
                         .env = nullptr});
 }
+static_assert(sizeof(void*) >= sizeof(syg_hash),
+    "ref SDO stores the 8-byte target inline in the data word; a narrower "
+    "pointer (wasm32) must instead give refs table-owned heap via the ref "
+    "constructor + the ownership law — fix that seam before targeting it");
 
 // ── fixed verbs ─────────────────────────────────────────────────────────────
 inline const syg_handle_t* get(const syg_env_t* env, syg_hash id) {

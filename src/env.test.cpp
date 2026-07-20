@@ -96,7 +96,8 @@ int main() {
   assert(find(&child, GROUND, sx.id)->id == f32.id);
   assert(find(&child, GROUND, sx.id)->data == get(env, f32.id)->data);   // deref'd
   const syg_handle_t* raw = peek(&child, GROUND, sx.id);
-  assert(raw && raw->type == ref_type_id() && raw->data == nullptr && raw->id == f32.id);
+  assert(raw && raw->type == ref_type_id() && raw->id == syg_hash{} &&      // .id LAW: {}
+         syg_hash{(std::uint64_t)(std::uintptr_t)raw->data} == f32.id);     // target INLINE in data
   bind(&child, GROUND, sx.id, s.id);
   assert(find(&child, GROUND, sx.id)->id == s.id);
   unwire(&child, GROUND, CELL);

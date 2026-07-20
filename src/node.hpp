@@ -15,11 +15,27 @@ struct syg_handle_t {
   // data goes first so we can safely cast a syg_handle_t to a T* if we know its T.
   void*           data;  // ┐ the node — a (type, bytes) content;
   syg_hash        type;  // ┘ everything else is our grip on it
-  syg_hash        id;    // derived: the content's name (memoized fold); useful for looking up relations
+  syg_hash        id;    // this content's OWN name (see THE .id LAW below), or {}
   std::uint64_t   size;  // the span's length — a store fact (how many bytes to hash)
   syg_env_t*      env;   // resolution context HERE — what its ids resolve through
 };
 }
+
+// ── THE .id LAW ─────────────────────────────────────────────────────────────
+// A handle's .id is the content-address of its OWN data — its name as a store
+// resident, syg_id(type,size,data) — or {} when the handle is not a resident
+// (a grip, a table row). NOTHING else ever goes in .id. A reference to ANOTHER
+// node is DATA, interpreted by the type — never squeezed into .id to dodge an
+// allocation (that was the old ref hack; it is forbidden). This is what makes
+// an id a content address: in the store ⇒ resolves; {} ⇒ resolves to nothing.
+//
+// SDO note (small-data optimization): a payload that fits the data word (a
+// ref's 8-byte target, on a platform where sizeof(void*) ≥ sizeof(syg_hash))
+// may ride INLINE in `data` rather than behind a heap pointer. That is
+// legitimate — the TYPE has authority over how its bytes are laid out — and is
+// NOT an .id hack. Generalizing SDO to every small atom is DEFERRED and
+// profile-driven: if ever done it must hide behind ONE accessor, else "is it
+// small?" branches spread everywhere, reaching even into syg_id.
 
 // syg_id — decree v1's preimage, pinned byte for byte:
 //   id = fnv1a( type.digest ∥ data[0..size) ),  the digest as 8 bytes LSB-first.
