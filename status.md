@@ -306,21 +306,49 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     - Three convergences confirmed RIGHT: word ABI, binding frames, and
       now mutable-ptr outputs — escapement/stage0/env arrived at each
       independently. Old ANALYSIS survives; old SYNTHESIS fully replaced.
-  - **Then: REVISIT REFLECTION** — registration TU (describe_function emits
-    words + signatures off C++, deletes hand shims/floor sigs; scoped ids;
-    register_cpp<X>(env); component = type + CONSTRUCT/ERASE/TICK methods —
-    ERASE feeds table destruction-ownership). STRUCK (Travis, 2026-07-19):
-    stage0.hpp/syg.hpp are out of consideration — stage0.hpp is a grown COPY
-    of src/escapement/component.hpp (the canonical reflection probe); its
-    only salvage: (1) identity extraction (enclosing_namespaces/frozen_names/
-    type_name/has_origin), (2) [[=outputs{}]] splay, (3) the generate_value/
-    generate_component leaf/product recursion PATTERN (canon base case +
-    recurse) — emissions retarget to resident nodes; syg_type_t/its ad-hoc
-    id mixes/shape fold all die. Survey verdict: old ANALYSIS survives,
-    old SYNTHESIS fully replaced; word ABI/parent_of walk/purity rule/
-    static-chars discipline were exactly right. Then: TICK + smallest
-    ticking graph; decree doc. Parked: fiat+env, string_node borrow,
-    syg_id demotion.
+  - **REFLECTION NEW DRAFT — the to-do (dependency order).** Base is
+    src/escapement/component.hpp (canonical probe); stage0.hpp/syg.hpp
+    STRUCK (grown copies; salvage = identity extraction, [[=outputs{}]]
+    splay, the leaf/product recursion PATTERN). Old ANALYSIS survives,
+    old SYNTHESIS fully replaced. Success metric is step 13: the first
+    hand-written word DELETED because a generated one replaced it.
+    Phase A — de-risk toolchain (scratchpad probes, no sketch gate):
+      A1. GCC16 probe: members_of+is_function, access_context arg shape,
+          ctor/dtor discovery (no-identifier), P3096 param NAMES, P3394
+          annotation read-back. ← IN PROGRESS
+      A2. layout oracle: offset_of/size_of/alignment_of off a real
+          struct — pin the format the fold must reproduce.
+    Phase B — substrate (real slices, sketch-gated):
+      B3. the LAYOUT FOLD: structure term → {size, align, offsets};
+          pure decree, no reflection. Conformance test = A2 oracle.
+      B4. mutable_ptr OUTPUT normalization in call() (last-field→mut-ptr
+          fields; ordering demotes to style; CONSTRUCT keeps one-out).
+      B5. the FUNCTION TERM {name, signature, body=GROUND for natives}
+          — ratified, unlanded; reflection's first customer.
+    Phase C — the extractor (consteval; salvage from component.hpp):
+      C6. the ONE normalizer: C++ entity → baked signature term; three
+          spellings (fn return+splay, component members, out-params) →
+          mutable_ptr normal form.
+      C7. identity extraction: parent_of → scope() chains; type_name/
+          frozen_names/has_origin; canon_name<T> as leaf mapper.
+      C8. leaf/product recursion emitting RESIDENT terms (not syg_type_t).
+    Phase D — two-phase API (touch-surface split on the phase line):
+      D9.  describe_* consteval → BAKED STATIC ROWS (bytes+constexpr ids).
+      D10. register_cpp<X>(env) = boot walk = inscribe+wire ONLY; emits
+           type terms + CONSTRUCT(ctor)/ERASE(dtor)/TICK/member methods.
+      D11. overload mapping onto default + signature-keyed convention.
+      D12. template_arguments_of → emplace_or_get(template,args) (types-
+           as-graphs; may defer past first light).
+    Phase E — redeem the notes (DELETION is the metric):
+      E13. generate the two shim words + floor signature literals, DELETE
+           the hand copies.
+      E14. generate the mirror asserts (function layout assert, per type).
+      E15. absorb the ~15 lines of typed constructors as term-structs.
+    Phase F — close out:
+      F16. freshen .claude/skills/cpp26 with probe findings.
+      F17. retire syg.hpp/stage0.hpp from the tree.
+    After reflection: TICK + smallest ticking graph; decree doc. Parked:
+    fiat+env, string_node borrow, syg_id demotion.
 
 - **Next action (escapement thread):** open the crown's parked seams (kinds-by-index → registry
   organ; typed constants; bounds-as-fault, law.errors_are_values), OR the smallest playable
