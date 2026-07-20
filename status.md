@@ -313,9 +313,26 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     old SYNTHESIS fully replaced. Success metric is step 13: the first
     hand-written word DELETED because a generated one replaced it.
     Phase A — de-risk toolchain (scratchpad probes, no sketch gate):
-      A1. GCC16 probe: members_of+is_function, access_context arg shape,
-          ctor/dtor discovery (no-identifier), P3096 param NAMES, P3394
-          annotation read-back. ← IN PROGRESS
+      A1. GCC16 probe — DONE (2026-07-20, scratchpad probeA1*, all pass):
+          • members_of(T, access_context::unchecked()) + is_function
+            enumerates ALL member fns incl. private. ✓
+          • ctor→is_constructor, dtor→is_destructor, BOTH have NO
+            identifier (has_identifier false) — names must be SYNTHESIZED
+            (CONSTRUCT/ERASE relations, not identifiers). is_static_member
+            flags statics. Enumeration ALSO returns compiler-generated
+            special members (implicit copy/move ctor, copy-assign) and
+            operators as UNNAMED non-ctor fns — register_cpp must decide
+            to filter these (design note, not a gap).
+          • P3096 param NAMES work: identifier_of(param) + type_of(param);
+            names live on the declaration. ✓
+          • P3394 annotations work: annotations_of + extract<Pay>, BUT
+            payload must be STRUCTURAL — int, enum, char[N] round-trip;
+            const char* AND std::string_view FAIL at reflect_constant.
+            ⇒ canonical-name/role annotation payloads use char[N].
+          • Landmines reconfirmed: bind consteval results to constexpr
+            locals BEFORE any runtime use (no consteval call inside printf
+            args); template for is the clean iterator; non-capture lambdas
+            odr-using a constexpr span fail ('not captured').
       A2. layout oracle: offset_of/size_of/alignment_of off a real
           struct — pin the format the fold must reproduce.
     Phase B — substrate (real slices, sketch-gated):
