@@ -333,8 +333,23 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
             locals BEFORE any runtime use (no consteval call inside printf
             args); template for is the clean iterator; non-capture lambdas
             odr-using a constexpr span fail ('not captured').
-      A2. layout oracle: offset_of/size_of/alignment_of off a real
-          struct — pin the format the fold must reproduce.
+      A2. layout oracle — DONE (2026-07-20, scratchpad probeA2, matches):
+          • The C-ABI fold — place each field at align_up(cursor, field
+            align); struct align = max field align; size = tail-pad cursor
+            to struct align — reproduces offset_of/size_of/alignment_of
+            EXACTLY, nested (self-padded) structs included. THIS is B3's
+            algorithm; the oracle is B3/E14's per-type generated assert.
+          • CAVEAT the oracle hides: reflection's size_of/alignment_of are
+            precomputed so the fold looks non-recursive. In the NODE world
+            B3 MUST recurse — atom fields read size/align from atom_term;
+            composite fields fold recursively (size/align aren't stored in
+            composite terms — they derive, per "layout derives per-peer by
+            folding children"). Scope: default alignment only (no alignas/
+            bitfields/inheritance; atoms carry explicit size/align so an
+            alignas type just carries its real numbers). vector can't
+            persist to constexpr — scalar folds or define_static_array.
+    Phase A COMPLETE — toolchain de-risked; design leans on nothing
+    unverified.
     Phase B — substrate (real slices, sketch-gated):
       B3. the LAYOUT FOLD: structure term → {size, align, offsets};
           pure decree, no reflection. Conformance test = A2 oracle.
