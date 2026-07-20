@@ -266,6 +266,46 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     members_of; our GCC16 landmines unrecorded; ctor/dtor discovery;
     parent_of; offset_of/layout; overload-set wall; bases_of/P3293;
     define_aggregate).
+  - **Landed (`3237838`): inscribe = static-enrollment path.** Split
+    place() (verified dedup + drop handle AS GIVEN, no copy/free) out of
+    insert_or_get (birth: still malloc+copy for caller temporaries).
+    inscribe points the store AT static bytes — zero malloc, .env=nullptr
+    (immortality mark: static storage owns, ERASE skips env-less rows),
+    asserts each row rehashes to its id. Floor no longer heap-copies
+    ROSTER; reflection's baked term rows will enter the same way.
+  - **Reflection-revisit design (ratified in conversation 2026-07-19/20,
+    NOT yet sketched/landed):**
+    - OUTPUTS normalize to mutable_ptr(T) fields in the signature
+      structure; inputs stay payload T (const-ref/const-ptr/value).
+      ONE extractor, THREE authoring spellings: fn return (splayed by
+      [[=outputs{}]] → N mutable_ptr fields), component value/mut-ptr
+      members, AND out-params (T&/T* = output, const T&/const T*/value
+      = input, T&& refused). This is old syg.hpp's "input iff ptr-to-
+      const" rule applied to params. Consequence: inputs-then-outputs
+      ORDERING stops being load-bearing (direction rides in the field
+      type) — demote to style. call() generalizes from "returns one
+      handle" toward "writes through caller's output slots" = the
+      escapement binding frame = the tick ABI arriving early. CONSTRUCT
+      keeps one-out as a special case.
+    - LAYOUT FOLD is the missing organ: nothing turns a structure term
+      into size/align/offsets yet (field_term carries no offsets by
+      design). Ticks/instances need it; reflection makes it TESTABLE —
+      offset_of off real C++ is the oracle a derived fold must match,
+      per type, as a generated assert (= conformance def for the algo).
+    - TOUCH-SURFACE split on the phase line: describe_* stays consteval
+      and returns BAKED STATIC DATA (terms as bytes + precomputed
+      constexpr ids — the ROSTER pattern); register_cpp<X>(env) is the
+      boot walk = inscribe + wire (generation's ENTIRE runtime API; the
+      verbs need nothing added — the table is right-sized). component<^^fn>
+      survives as authoring sugar. Annotations = the channel for what C++
+      can't say (canonical-name override, non-"tick" relation name).
+    - Typed constructors (atom/scope/composite, ~15 lines) are NOT a
+      generation target — a corollary: term structs become registrable
+      components, absorbed for free; floor bypasses them via baked rows.
+      Looking forward to those 15 lines evaporating.
+    - Three convergences confirmed RIGHT: word ABI, binding frames, and
+      now mutable-ptr outputs — escapement/stage0/env arrived at each
+      independently. Old ANALYSIS survives; old SYNTHESIS fully replaced.
   - **Then: REVISIT REFLECTION** — registration TU (describe_function emits
     words + signatures off C++, deletes hand shims/floor sigs; scoped ids;
     register_cpp<X>(env); component = type + CONSTRUCT/ERASE/TICK methods —
