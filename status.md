@@ -286,6 +286,30 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     ownership law). CONSEQUENCE for B5: the function grip keeps .id={} and
     carries the value reference in its DATA (fold into struct function),
     NOT .id=value.id as earlier floated — the law decides it.
+  - **Landed (`decree/` docs + `f50796c`): decrees, utf8/16/32, sequence.**
+    NEW `decree/` dir (versioned prose, content-addressed grounding):
+    syg.substrate.v0.0.0 (peer-defining foundation: identity, node model,
+    GROUND, the fiat 9, canon, relations, .id law) + first two prim
+    micro-decrees (atom.construct, structure.construct — pure transition
+    prose). Canon 15→18 (utf8/utf16/utf32); char maps BY TYPE not platform
+    signedness (char→utf8, signed char→i8, unsigned char→u8, char16_t→utf16,
+    char32_t→utf32; only wchar_t refused). SEQUENCE = 9th roster fiat (the
+    homogeneous-array former; unary term; count-from-size; str=sequence(utf8)).
+    NOT yet wired: the decree docs aren't hashed/enrolled yet (awaits the
+    function term + reflection + #embed); they're the #embed source of truth.
+  - **Decree/body design (ratified, awaits function term + reflection):**
+    Native function body = a DECREE NODE, not a bare string: structure
+    {spec: hash64 (the micro-decree prose str id), deps: sequence(hash64)}.
+    body = its id. deps are COMPUTED ids assembled in CODE at registration
+    (never hand-typed hashes) from the real resident substrate/native nodes;
+    prose (.md, #embed'd) stays pure semantics, no Depends line. WHY deps
+    are explicit not free: only the HASH ALGORITHM is transitively self-
+    pinned (it folds the id); layouts/canon/fiat float unless depended-on —
+    so every native Depends: substrate-id (+ other-native-ids only when its
+    spec is DEFINED in terms of them). The monolithic "whole prim spec" is a
+    DERIVED view (gather natives' bodies), not source. Semver lives as the
+    doc's header line (hash-covered); the hash IS the version. #embed (C++26,
+    probe GCC16) pulls .md → binary so the edited file IS the hashed bytes.
   - **Reflection-revisit design (ratified in conversation 2026-07-19/20,
     NOT yet sketched/landed):**
     - OUTPUTS normalize to mutable_ptr(T) fields in the signature
