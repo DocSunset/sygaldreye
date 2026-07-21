@@ -310,6 +310,25 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     DERIVED view (gather natives' bodies), not source. Semver lives as the
     doc's header line (hash-covered); the hash IS the version. #embed (C++26,
     probe GCC16) pulls .md → binary so the edited file IS the hashed bytes.
+  - **Landed (`308d623`): B5, the function term.** "function" now names the
+    shippable CONTENT: node {name, signature, body} (body = decree node /
+    GROUND / graph id; C++ mirror function_term, 24B asserted). The local
+    grip renamed call_handle {word fn; syg_hash function} — word + the id of
+    the function it realizes; .id={}, referent in data per the .id law.
+    resolve derives sig THROUGH the function node (cold/cacheable); call
+    takes `resolved {fn, sig-handle}` and drops its get. floor mints a
+    function node per native (name = scope(type,"construct"), i.e. parent-
+    type-as-scope). Default stays FLAT at {type, construct}; overload
+    coordinate (scope{type,construct}, sig) deferred until a 2nd ctor exists.
+  - **Landed (`8e4eb0a`): honest decree bodies + #embed probe POSITIVE.**
+    GCC16 #embed works (C++26 and plain-C++26; constexpr fold over the bytes
+    too). The two natives' bodies are now real: body = decree{spec, deps} —
+    spec = the #embed'd micro-decree prose (str_static, zero-copy enrolled),
+    deps = trailing sequence(hash64) of COMPUTED ids [substrate]. .md is the
+    single source of truth; editing it forks downstream ids automatically.
+    First real use of sequence(hash64) + str_static. env_test → C++26.
+    (Cache note: `rm -rf build` reconfigures to system GCC15 — must pass
+    -DCMAKE_CXX_COMPILER=<nix gcc16 g++> or stage0_test loses -freflection.)
   - **Reflection-revisit design (ratified in conversation 2026-07-19/20,
     NOT yet sketched/landed):**
     - OUTPUTS normalize to mutable_ptr(T) fields in the signature
