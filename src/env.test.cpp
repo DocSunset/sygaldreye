@@ -8,6 +8,7 @@ using namespace syg;
 
 int main() {
   syg_env_t* env = floor();
+  auto sn = [&](const char* s) { return string_node(env, s).id; };  // a name id
 
   // the decree is resident, ENROLLED not copied: the resident points AT the
   // static roster bytes (same pointer, no malloc) and stays env-less — the
@@ -65,6 +66,28 @@ int main() {
   syg_handle_t seq_h = sequence(env, h64_type(env).id);
   assert(get(env, seq_h.id) && syg_id(seq_h) == seq_h.id);
   assert(!(seq_h.id == sequence(env, f32.id).id));      // element type is identity
+
+  // ── the layout fold: derived layout == the C-ABI oracle (A2's struct) ──
+  syg_hash u8t = canon_type(env, "u8").id, u16t = canon_type(env, "u16").id,
+           u32t = canon_type(env, "u32").id, f64t = canon_type(env, "f64").id;
+  field_term inner_f[] = {{sn("tag"), u8t}, {sn("val"), f64t}};
+  syg_hash inner = structure(env, GROUND, inner_f).id;
+  assert(layout_of(env, inner).size == 16 && layout_of(env, inner).align == 8);  // tag@0, val@8
+  field_term outer_f[] = {{sn("a"), u8t}, {sn("b"), u32t}, {sn("c"), u8t},
+                          {sn("d"), inner}, {sn("e"), u16t}};
+  layout ol = layout_of(env, structure(env, GROUND, outer_f).id);
+  assert(ol.size == 40 && ol.align == 8);               // matches offset_of on the real struct
+  // dynamic tails: a sequence is unsized (align of its element); str too.
+  assert(layout_of(env, seq_h.id).size == DYNAMIC && layout_of(env, seq_h.id).align == 8);
+  assert(layout_of(env, string_type(env).id).size == DYNAMIC);
+  // decree{spec: hash64, deps: sequence} — dynamic trailing field ⇒ unsized struct.
+  assert(layout_of(env, decree_type(env).id).size == DYNAMIC);
+  // a dynamic field that is NOT last is a hard error.
+  bool badlayout = false;
+  field_term bad_f[] = {{sn("deps"), seq_h.id}, {sn("x"), u8t}};
+  try { layout_of(env, structure(env, GROUND, bad_f).id); }
+  catch (const std::exception&) { badlayout = true; }
+  assert(badlayout);
 
   // pointers; scope chains dedupe; qualification is identity.
   assert(!(mutable_ptr(env, f32.id).id == constant_ptr(env, f32.id).id));

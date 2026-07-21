@@ -223,6 +223,46 @@ inline syg_handle_t scope(syg_env_t* env, syg_hash parent, syg_hash name) {
 inline syg_handle_t scope(syg_env_t* env, syg_hash parent, const char* name)
   { return scope(env, parent, string_node(env, name).id); }
 
+// ── the layout fold: a type term → how its instances sit in memory ──────────
+// field_term stores only (name, type) — NEVER size/offset, so a struct's id
+// can't fork per ABI. Layout is DERIVED here instead, per-peer, by folding the
+// type graph down to atoms. Never content, never hashed.
+struct layout { std::uint64_t size, align; };   // size == DYNAMIC ⇒ unsized (trailing only)
+inline std::uint64_t align_up(std::uint64_t x, std::uint64_t a) { return (x + a - 1) / a * a; }
+
+inline layout layout_of(syg_env_t* env, syg_hash type) {
+  const syg_handle_t* t = get(env, type);
+  if (!t) throw std::runtime_error("syg: layout of a non-resident type");
+
+  if (t->type == ATOM.id) {                       // base case: ground facts in the term
+    const atom_term* a = (const atom_term*)t->data;
+    return { a->size, a->align };                 // str / any DYNAMIC atom flows through here
+  }
+  if (t->type == SEQUENCE.id) {                   // N of one type — N is an INSTANCE fact
+    layout e = layout_of(env, *(const syg_hash*)t->data);
+    return { DYNAMIC, e.align };                  // element align; extent unknown at type level
+  }
+  if (t->type == MUTABLE_PTR.id || t->type == CONSTANT_PTR.id)
+    return { sizeof(void*), alignof(void*) };     // a machine word (per-peer; never shipped)
+
+  if (t->type == STRUCTURE.id) {                  // product: the C-ABI fold (A2-verified)
+    const field_term* f = (const field_term*)((const char*)t->data + sizeof(syg_hash));
+    std::uint64_t nf = (t->size - sizeof(syg_hash)) / sizeof(field_term);
+    std::uint64_t sz = 0, al = 1;
+    for (std::uint64_t i = 0; i < nf; ++i) {
+      layout fl = layout_of(env, f[i].type);
+      if (fl.size == DYNAMIC && i + 1 != nf)      // "one terminal variable field" — the preimage
+        throw std::runtime_error("syg: a dynamic field must be last");   // rule, reprised
+      sz = align_up(sz, fl.align);
+      if (fl.align > al) al = fl.align;
+      if (fl.size == DYNAMIC) return { DYNAMIC, al };   // struct is unsized; extent open
+      sz += fl.size;
+    }
+    return { align_up(sz, al), al };
+  }
+  throw std::runtime_error("syg: layout not defined for this former (variant: TBD)");
+}
+
 // ── behavior: ONE ABI, ONE discipline ───────────────────────────────────────
 // THE word — void(*)(void**), IDENTICAL to the escapement's. A frame is
 // READ-ONLY structure; each slot points at a payload and the word writes
