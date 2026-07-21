@@ -39,6 +39,7 @@ constexpr syg_handle_t inscribe_symbol(const char* name) {
 inline constexpr syg_handle_t ATOM         = inscribe_symbol("atom");          // primitive-type ctor
 inline constexpr syg_handle_t STRUCTURE    = inscribe_symbol("structure");     // product: all fields
 inline constexpr syg_handle_t VARIANT      = inscribe_symbol("variant");       // sum: one case, tagged
+inline constexpr syg_handle_t SEQUENCE     = inscribe_symbol("sequence");      // N of one type, count from size
 inline constexpr syg_handle_t MUTABLE_PTR  = inscribe_symbol("mutable_ptr");   // may write through it
 inline constexpr syg_handle_t CONSTANT_PTR = inscribe_symbol("constant_ptr");  // may only read
 inline constexpr syg_handle_t SCOPE        = inscribe_symbol("scope");         // one step of a name
@@ -53,7 +54,7 @@ inline constexpr syg_handle_t CONTENT      = inscribe_symbol("content");       /
 // an ordinary STRING; only the string type's own name is fiat, because the
 // string type cannot name itself with a string: the fixed point, patched at
 // exactly one node.)
-inline constexpr std::array ROSTER{ATOM, STRUCTURE, VARIANT, MUTABLE_PTR, CONSTANT_PTR,
+inline constexpr std::array ROSTER{ATOM, STRUCTURE, VARIANT, SEQUENCE, MUTABLE_PTR, CONSTANT_PTR,
                                    SCOPE, STR_NAME, CONTENT};
 
 // ── atom: a primitive type's term ───────────────────────────────────────────
@@ -94,6 +95,13 @@ inline constexpr syg_hash CONSTRUCT = name_id("construct");
 // node's size: (size - 8) / 16. name = GROUND ⇒ anonymous (structural).
 struct field_term { syg_hash name; syg_hash type; };  // one field / one case; name: a string id
 
+// ── sequence: the homogeneous-array former ──────────────────────────────────
+// N elements of ONE type; N recovered from the instance's size (never stored),
+// as structure recovers arity. Unary like the pointers — the term is just the
+// element type's id (no struct needed). Count-from-size needs a fixed-size
+// element (hash64, f32…); variable-size elements (sequence(str)) want a length
+// table — deferred. Its fixed-count sibling array(T,N) is deferred too.
+
 // ── pointers: unary, anonymous — the term is just the pointee id ────────────
 // (No struct needed: the term is one syg_hash.) The pointer constructors
 // encode ACCESS (may you write through it), never OWNERSHIP: a mutable_ptr
@@ -119,10 +127,11 @@ struct canon_row {
 // C++ fundamental → canonical name: category + width, so aliases (size_t,
 // long, char) collapse to fixed-width truth. Pointers recurse elsewhere.
 template <class T> consteval std::string_view canon_name() {
-  static_assert(!std::is_same_v<T, wchar_t> && !std::is_same_v<T, char16_t> &&
-                !std::is_same_v<T, char32_t>, "no canonical wide char - refused");
-  if      constexpr (std::is_same_v<T, bool>) return "b8";
-  else if constexpr (std::is_same_v<T, char>) return "u8";   // by decree: UTF-8 code units
+  static_assert(!std::is_same_v<T, wchar_t>, "wchar_t has no canonical width - refused");
+  if      constexpr (std::is_same_v<T, bool>)     return "b8";
+  else if constexpr (std::is_same_v<T, char>)     return "utf8";    // C++'s text-byte type
+  else if constexpr (std::is_same_v<T, char16_t>) return "utf16";   // fixed 2-byte code unit
+  else if constexpr (std::is_same_v<T, char32_t>) return "utf32";   // fixed 4-byte scalar
   else if constexpr (std::is_same_v<T, hash64_fnv1a>) return "hash64_fnv1a";
   else if constexpr (std::is_floating_point_v<T>) {
     static_assert(sizeof(T) <= 8, "no canonical float of this width");   // long double refused
@@ -156,7 +165,8 @@ inline constexpr std::array CANON{
   make_canon<std::uint8_t>(), make_canon<std::uint16_t>(),
   make_canon<std::uint32_t>(), make_canon<std::uint64_t>(),
   make_canon<float>(), make_canon<double>(),
-  canon_row{"str", DYNAMIC, 1},     // user text — unsized: no sizeof to trust
+  make_canon<char>(), make_canon<char16_t>(), make_canon<char32_t>(),  // utf8/utf16/utf32
+  canon_row{"str", DYNAMIC, 1},     // user text — unsized: no sizeof to trust; = sequence(utf8)
   canon_row{"ref", 8, 8},           // an intent type: a hash's bytes, "deref me" meaning
   make_canon<syg_hash>(),           // the digest struct, mapped through its own mapper
 };

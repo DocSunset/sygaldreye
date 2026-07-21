@@ -210,6 +210,8 @@ inline syg_handle_t structure(syg_env_t* env, syg_hash n, std::span<const field_
   { return composite(env, STRUCTURE, n, f); }
 inline syg_handle_t variant(syg_env_t* env, syg_hash n, std::span<const field_term> c)
   { return composite(env, VARIANT, n, c); }
+inline syg_handle_t sequence(syg_env_t* env, syg_hash element)  // homogeneous array of `element`
+  { return node(env, SEQUENCE.id, &element, sizeof element); }
 inline syg_handle_t mutable_ptr(syg_env_t* env, syg_hash p)
   { return node(env, MUTABLE_PTR.id, &p, sizeof p); }
 inline syg_handle_t constant_ptr(syg_env_t* env, syg_hash p)

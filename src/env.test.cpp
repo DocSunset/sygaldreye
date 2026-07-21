@@ -61,6 +61,11 @@ int main() {
   assert((s.size - sizeof(syg_hash)) / sizeof(field_term) == 2);
   assert(!(structure(env, GROUND, xy).id == s.id));
 
+  // sequence: the homogeneous-array former — unary, resident, distinct per element.
+  syg_handle_t seq_h = sequence(env, h64_type(env).id);
+  assert(get(env, seq_h.id) && syg_id(seq_h) == seq_h.id);
+  assert(!(seq_h.id == sequence(env, f32.id).id));      // element type is identity
+
   // pointers; scope chains dedupe; qualification is identity.
   assert(!(mutable_ptr(env, f32.id).id == constant_ptr(env, f32.id).id));
   syg_handle_t geo = scope(env, GROUND, "geo");

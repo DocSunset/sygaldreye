@@ -4,8 +4,8 @@
 using namespace syg;
 
 // distinct rows, computable ids, exactly the roster we decreed.
-static_assert(ROSTER.size() == 8);   // REFS and CONSTRUCT retired (fiat = unsayable
-static_assert(CANON.size() == 15);   // or precedes-the-store; neither qualifies)
+static_assert(ROSTER.size() == 9);   // + sequence (the homogeneous-array former)
+static_assert(CANON.size() == 18);   // + utf8/utf16/utf32
 static_assert(!(ATOM.id == STRUCTURE.id));
 static_assert(inscribe_symbol("atom").id == ATOM.id);   // recomputable by anyone
 static_assert(ATOM.type == GROUND && ATOM.size == 4);
@@ -19,11 +19,16 @@ static_assert(STR_TYPE.digest != 0 && !(STR_TYPE == STR_NAME.id));
 
 // the canon mapper: category + width; aliases collapse to fixed-width truth.
 static_assert(canon_name<int>() == "i32");
-static_assert(canon_name<char>() == "u8");            // by decree
 static_assert(canon_name<std::size_t>() == "u64");    // alias collapse
 static_assert(canon_name<bool>() == "b8");
 static_assert(canon_name<double>() == "f64");
 static_assert(canon_name<syg_hash>() == "hash64_fnv1a");
+// char mapping is by TYPE, never platform signedness (which would fork ids):
+static_assert(canon_name<char>() == "utf8");          // C++'s text-byte type
+static_assert(canon_name<signed char>() == "i8");     // explicitly signed small int
+static_assert(canon_name<unsigned char>() == "u8");   // raw byte
+static_assert(canon_name<char16_t>() == "utf16");
+static_assert(canon_name<char32_t>() == "utf32");
 static_assert(make_canon<float>().size == 4 && make_canon<float>().align == 4);
 static_assert(canon_row{"f32", 4, 4}.term().name == name_id("f32"));
 
