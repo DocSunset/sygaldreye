@@ -357,6 +357,40 @@ inline void structure_construct_word(void** argv) {  // (env, args: name,(fname,
 inline call_handle atom_ctor_cell{atom_construct_word, {}};
 inline call_handle structure_ctor_cell{structure_construct_word, {}};
 
+// ── decrees: a function's body, content-addressed ───────────────────────────
+// str_static enrolls a #embed'd decree's bytes as a resident str node, zero-
+// copy (the bytes are static, outliving the store). A decree node is
+// structure{spec, deps} — spec = the micro-decree prose id, deps = a trailing
+// sequence(hash64) of COMPUTED dependency ids (the substrate, other natives).
+// body = its id: edit the .md and every id downstream forks, automatically.
+inline syg_handle_t str_static(syg_env_t* env, const void* bytes, std::uint64_t n) {
+  return place(env, {.data = const_cast<void*>(bytes), .type = STR_TYPE,
+                     .id = syg_id(STR_TYPE, n, bytes), .size = n, .env = nullptr});
+}
+inline syg_handle_t decree_type(syg_env_t* env) {
+  syg_hash H = h64_type(env).id;
+  field_term f[] = {{string_node(env, "spec").id, H},
+                    {string_node(env, "deps").id, sequence(env, H).id}};
+  return structure(env, string_node(env, "decree").id, f);
+}
+inline syg_handle_t decree_node(syg_env_t* env, syg_hash spec, std::span<const syg_hash> deps) {
+  std::vector<syg_hash> t{spec};
+  t.insert(t.end(), deps.begin(), deps.end());          // [spec][dep…] — deps trail inline
+  return node(env, decree_type(env).id, t.data(), t.size() * sizeof(syg_hash));
+}
+
+// the versioned decree text, embedded from the .md files (single source of
+// truth; #embed pulls exactly these bytes, which we hash and enroll).
+inline constexpr unsigned char substrate_md[] = {
+#embed "../decree/syg.substrate.v0.0.0.md"
+};
+inline constexpr unsigned char atom_ctor_md[] = {
+#embed "../decree/syg.prim.atom.construct.v0.0.0.md"
+};
+inline constexpr unsigned char struct_ctor_md[] = {
+#embed "../decree/syg.prim.structure.construct.v0.0.0.md"
+};
+
 // ── the floor: the organ wired, the decree enrolled, first citizens minted ──
 // inscribe: the STATIC-ENROLLMENT path — the bytes are constinit/static
 // (the ROSTER, a reflected registration TU's baked term rows), so the store
@@ -384,18 +418,25 @@ inline syg_env_t* floor() {
   syg_hash E = envptr_type(env).id, H = h64_type(env).id, U = u64_type(env).id,
            HN = handle_type(env).id, RH = rest_handles_type(env).id;
   auto sym = [&](const char* s) { return string_node(env, s).id; };
+  // enroll the decrees; each native's body = decree{spec, deps=[substrate]},
+  // the deps a COMPUTED id (never typed text).
+  syg_hash substrate = str_static(env, substrate_md, sizeof substrate_md).id;
+  syg_hash atom_body = decree_node(env, str_static(env, atom_ctor_md, sizeof atom_ctor_md).id,
+                                   {&substrate, 1}).id;
+  syg_hash struct_body = decree_node(env, str_static(env, struct_ctor_md, sizeof struct_ctor_md).id,
+                                     {&substrate, 1}).id;
   // each native: mint its signature, mint its shippable function node (name =
-  // the type's scope :: "construct"; body = GROUND until the decree slice),
-  // stamp the node's id into the grip, and bind the grip at {type, construct}.
+  // the type's scope :: "construct"; body = its decree node), stamp the node's
+  // id into the grip, and bind the grip at {type, construct}.
   field_term atom_sig[] = {{sym("env"), E}, {sym("name"), H}, {sym("size"), U},
                            {sym("align"), U}, {sym("out"), HN}};
   syg_hash atom_fn = function_node(env, scope(env, ATOM.id, "construct").id,
-                                   structure(env, GROUND, atom_sig).id).id;
+                                   structure(env, GROUND, atom_sig).id, atom_body).id;
   atom_ctor_cell.function = atom_fn;
   bind_function(env, ATOM.id, CONSTRUCT, call_handle_node(env, &atom_ctor_cell));
   field_term struct_sig[] = {{sym("env"), E}, {sym("args"), RH}, {sym("out"), HN}};
   syg_hash struct_fn = function_node(env, scope(env, STRUCTURE.id, "construct").id,
-                                     structure(env, GROUND, struct_sig).id).id;
+                                     structure(env, GROUND, struct_sig).id, struct_body).id;
   structure_ctor_cell.function = struct_fn;
   bind_function(env, STRUCTURE.id, CONSTRUCT, call_handle_node(env, &structure_ctor_cell));
   return env;

@@ -124,7 +124,15 @@ int main() {
   assert(grip->type == call_handle_type(env).id);
   const syg_handle_t* fnode = get(env, ((call_handle*)grip->data)->function);
   assert(fnode && fnode->type == function_type(env).id);
-  assert(((function_term*)fnode->data)->body == GROUND);
+  // body is a real decree node now: structure{spec, deps}. spec decodes to the
+  // micro-decree prose (str); deps' first id is the substrate decree.
+  syg_hash body = ((function_term*)fnode->data)->body;
+  const syg_handle_t* dec = get(env, body);
+  assert(dec && dec->type == decree_type(env).id);
+  const syg_hash* fields = (const syg_hash*)dec->data;      // [spec][dep…]
+  const syg_handle_t* spec = get(env, fields[0]);
+  assert(spec && spec->type == STR_TYPE && std::memcmp(spec->data, "atom.construct", 14) == 0);
+  assert(get(env, fields[1]));                              // the substrate decree, resident
   resolved rm = resolve(env, ATOM.id, CONSTRUCT);
   assert(rm.fn && rm.sig && rm.sig->type == STRUCTURE.id);
   assert(call(env, rm, 3, args).id == f16.id);
