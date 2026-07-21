@@ -116,12 +116,17 @@ int main() {
                            string_node(env, "x"), f32, string_node(env, "y"), f32 };
   assert(emplace_or_get(env, STRUCTURE.id, 5, sargs).id == s.id);
 
-  // a function row: honest customs — the row's type SAYS function; the
-  // signature is an ordinary field. A method is a function scoped by a type:
-  // the {type, name} row is the DEFAULT for that name.
-  assert(peek(env, ATOM.id, CONSTRUCT)->type == function_type(env).id);
-  function rm = resolve(env, ATOM.id, CONSTRUCT);
-  assert(rm.fn && get(env, rm.sig) && get(env, rm.sig)->type == STRUCTURE.id);
+  // the grip is a call_handle (honest customs); it names a shippable function
+  // node whose body is GROUND (undecreed, for now) and whose signature resolve
+  // derives. A method is a function scoped by a type; the {type, name} row is
+  // the DEFAULT for that name.
+  const syg_handle_t* grip = peek(env, ATOM.id, CONSTRUCT);
+  assert(grip->type == call_handle_type(env).id);
+  const syg_handle_t* fnode = get(env, ((call_handle*)grip->data)->function);
+  assert(fnode && fnode->type == function_type(env).id);
+  assert(((function_term*)fnode->data)->body == GROUND);
+  resolved rm = resolve(env, ATOM.id, CONSTRUCT);
+  assert(rm.fn && rm.sig && rm.sig->type == STRUCTURE.id);
   assert(call(env, rm, 3, args).id == f16.id);
   return 0;
 }
