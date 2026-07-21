@@ -407,8 +407,16 @@ book: `architecture/`. Machine gates (they TRAIL): `python3 conformance/run.py`.
     Phase A COMPLETE — toolchain de-risked; design leans on nothing
     unverified.
     Phase B — substrate (real slices, sketch-gated):
-      B3. the LAYOUT FOLD: structure term → {size, align, offsets};
-          pure decree, no reflection. Conformance test = A2 oracle.
+      B3. the LAYOUT FOLD — DONE (`53ff75d`). layout_of(env,type) recurses
+          to atoms, C-ABI fold; DYNAMIC for sequence/str/dynamic-atom tails;
+          dynamic-not-last = hard error (preimage rule reprised); pointers =
+          word; test matches A2 oracle (40/8). PER-FIELD OFFSETS not yet
+          exposed (field_offset helper — lands with E14's mirror-assert).
+          VARIANT LAYOUT deferred → needs a tag decree (see new to-do below).
+      B3b. VARIANT LAYOUT (NEW, deferred): a sum's layout is tag + max(cases).
+           Blocked on deciding the TAG DECREE — tag type/width/position
+           (discriminant); undecided, don't guess. Do when variant instances
+           are first needed. layout_of throws "variant: TBD" until then.
       B4. mutable_ptr OUTPUT normalization in call() (last-field→mut-ptr
           fields; ordering demotes to style; CONSTRUCT keeps one-out).
       B5. the FUNCTION TERM {name, signature, body=GROUND for natives}
